@@ -3,6 +3,7 @@ package com.filmax.feature.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.auth.AuthRepository
+import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,11 +27,12 @@ class ProfileViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            try {
-                val profile = user.getProfile()
-                _state.update { it.copy(loading = false, profile = profile) }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message) }
+            when (val result = user.getProfile()) {
+                is RequestResult.Success ->
+                    _state.update { it.copy(loading = false, profile = result.data) }
+
+                is RequestResult.Error ->
+                    _state.update { it.copy(loading = false, error = result.message) }
             }
         }
     }

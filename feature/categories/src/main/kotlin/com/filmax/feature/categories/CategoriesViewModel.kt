@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.common.onSuccess
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,11 +28,12 @@ class CategoriesViewModel @Inject constructor(
 
     private fun loadGenres() {
         viewModelScope.launch {
-            try {
-                val genres = catalog.getGenres()
-                _state.update { it.copy(loadingGenres = false, genres = genres) }
-            } catch (e: Exception) {
-                _state.update { it.copy(loadingGenres = false, error = e.message) }
+            when (val result = catalog.getGenres()) {
+                is RequestResult.Success ->
+                    _state.update { it.copy(loadingGenres = false, genres = result.data) }
+
+                is RequestResult.Error ->
+                    _state.update { it.copy(loadingGenres = false, error = result.message) }
             }
         }
     }
@@ -40,11 +43,12 @@ class CategoriesViewModel @Inject constructor(
             it.copy(selectedGenre = genre, genreItems = null, loadingItems = true)
         }
         viewModelScope.launch {
-            try {
-                val page = catalog.getItemsByGenre(ItemType.MOVIE, genre.id, page = 1)
-                _state.update { it.copy(loadingItems = false, genreItems = page) }
-            } catch (e: Exception) {
-                _state.update { it.copy(loadingItems = false, error = e.message) }
+            when (val result = catalog.getItemsByGenre(ItemType.MOVIE, genre.id, page = 1)) {
+                is RequestResult.Success ->
+                    _state.update { it.copy(loadingItems = false, genreItems = result.data) }
+
+                is RequestResult.Error ->
+                    _state.update { it.copy(loadingItems = false, error = result.message) }
             }
         }
     }
@@ -58,16 +62,15 @@ class CategoriesViewModel @Inject constructor(
         if (!current.pagination.hasNextPage) return
         val genre = _state.value.selectedGenre ?: return
         viewModelScope.launch {
-            try {
-                val next = catalog.getItemsByGenre(
-                    type = ItemType.MOVIE,
-                    genreId = genre.id,
-                    page = current.pagination.current + 1,
-                )
+            catalog.getItemsByGenre(
+                type = ItemType.MOVIE,
+                genreId = genre.id,
+                page = current.pagination.current + 1,
+            ).onSuccess { next ->
                 _state.update { s ->
                     s.copy(genreItems = next.copy(items = current.items + next.items))
                 }
-            } catch (_: Exception) {}
+            }
         }
     }
 }

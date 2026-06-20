@@ -3,6 +3,7 @@ package com.filmax.feature.onboarding
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.auth.AuthRepository
+import com.filmax.core.domain.common.RequestResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,19 +32,21 @@ class OnboardingViewModel @Inject constructor(
 
     private fun requestDeviceCode() {
         viewModelScope.launch {
-            try {
-                val dc = auth.requestDeviceCode()
-                _state.update {
-                    it.copy(
-                        deviceCode = dc.code,
-                        userCode = dc.userCode,
-                        verificationUri = dc.verificationUri,
-                        polling = true,
-                    )
+            when (val result = auth.requestDeviceCode()) {
+                is RequestResult.Success -> {
+                    val dc = result.data
+                    _state.update {
+                        it.copy(
+                            deviceCode = dc.code,
+                            userCode = dc.userCode,
+                            verificationUri = dc.verificationUri,
+                            polling = true,
+                        )
+                    }
+                    pollForToken(dc.code, dc.interval, dc.expiresIn)
                 }
-                pollForToken(dc.code, dc.interval, dc.expiresIn)
-            } catch (e: Exception) {
-                _state.update { it.copy(error = e.message) }
+
+                is RequestResult.Error -> _state.update { it.copy(error = result.message) }
             }
         }
     }
@@ -53,12 +56,15 @@ class OnboardingViewModel @Inject constructor(
         val timeoutMs = expiresIn * 1000L
         while (System.currentTimeMillis() - startMs < timeoutMs) {
             delay(intervalSec * 1000L)
-            try {
-                auth.pollForToken(code, username = "", timestamp = System.currentTimeMillis() / 1000L)
+            // Success — авторизовались; Error — ещё не подтверждено, продолжаем поллинг.
+            val result = auth.pollForToken(
+                code = code,
+                username = "",
+                timestamp = System.currentTimeMillis() / 1000L,
+            )
+            if (result is RequestResult.Success) {
                 _state.update { it.copy(polling = false, authenticated = true) }
                 return
-            } catch (_: Exception) {
-                // not yet authorized — keep polling
             }
         }
         _state.update { it.copy(polling = false, error = "Время ожидания истекло. Попробуйте снова.") }

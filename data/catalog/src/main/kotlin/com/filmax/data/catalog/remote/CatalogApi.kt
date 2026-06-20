@@ -11,7 +11,7 @@ import retrofit2.http.Query
 
 interface CatalogApi {
 
-    @GET("api2/v1.1/items/{id}")
+    @GET("api/v1/items/{id}")
     suspend fun getItemDetails(@Path("id") id: Int): MovieInfoDto
 
     @GET("api/v1/items")

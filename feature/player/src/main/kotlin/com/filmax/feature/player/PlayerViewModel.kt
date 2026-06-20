@@ -9,6 +9,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.feature.player.navigation.PlayerRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,23 +47,26 @@ class PlayerViewModel @Inject constructor(
 
     private fun loadAndPlay() {
         viewModelScope.launch {
-            try {
-                val item = catalog.getItemDetails(route.itemId)
-                val track = item.tracklist.firstOrNull()
-                val url = track?.files
-                    ?.sortedByDescending { it.hls4 != null }
-                    ?.firstOrNull()
-                    ?.let { it.hls4 ?: it.hls ?: it.http }
+            when (val result = catalog.getItemDetails(route.itemId)) {
+                is RequestResult.Success -> {
+                    val item = result.data
+                    val track = item.tracklist.firstOrNull()
+                    val url = track?.files
+                        ?.sortedByDescending { it.hls4 != null }
+                        ?.firstOrNull()
+                        ?.let { it.hls4 ?: it.hls ?: it.http }
 
-                _state.update { it.copy(loading = false, item = item, streamUrl = url) }
+                    _state.update { it.copy(loading = false, item = item, streamUrl = url) }
 
-                if (url != null) {
-                    player.setMediaItem(MediaItem.fromUri(url))
-                    player.prepare()
-                    player.playWhenReady = true
+                    if (url != null) {
+                        player.setMediaItem(MediaItem.fromUri(url))
+                        player.prepare()
+                        player.playWhenReady = true
+                    }
                 }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message) }
+
+                is RequestResult.Error ->
+                    _state.update { it.copy(loading = false, error = result.message) }
             }
         }
     }

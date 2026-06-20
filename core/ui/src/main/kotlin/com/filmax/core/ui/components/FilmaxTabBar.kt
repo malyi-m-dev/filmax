@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,7 +61,9 @@ fun FilmaxTabBar(
 ) {
     Box(
         modifier = modifier
-            .padding(horizontal = 12.dp, vertical = 0.dp)
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp)
+            .padding(bottom = 8.dp)
             .clip(RoundedCornerShape(28.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
             .padding(horizontal = 8.dp),

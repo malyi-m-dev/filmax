@@ -56,26 +56,30 @@ fun PosterCard(
                 accentColor = Color(0xFFB4305A),
             )
             // Rating pill
-            Box(Modifier.align(Alignment.TopStart).padding(8.dp)) {
+            Box(Modifier
+                .align(Alignment.TopStart)
+                .padding(8.dp)) {
                 RatingPill(rating = item.rating.filmax.toFloat() / 10f, compact = true)
             }
             // Fav button
             FavButton(
                 isFav = isFav,
                 onClick = onFavClick,
-                modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp),
             )
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            text     = item.title,
-            style    = MaterialTheme.typography.bodyMedium,
-            color    = MaterialTheme.colorScheme.onSurface,
+            text = item.title,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text  = "${item.year} · ${item.duration.averageMinutes ?: "??"} мин",
+            text = "${item.year} · ${item.duration.averageMinutes ?: "??"} мин",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -105,7 +109,9 @@ fun FavButton(
             imageVector = if (isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
             contentDescription = if (isFav) "Убрать из избранного" else "Добавить в избранное",
             tint = if (isFav) Color(0xFFFFB1C8) else Color.White,
-            modifier = Modifier.size(16.dp).scale(scale),
+            modifier = Modifier
+                .size(16.dp)
+                .scale(scale),
         )
     }
 }

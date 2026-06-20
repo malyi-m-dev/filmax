@@ -1,6 +1,7 @@
 package com.filmax.feature.details
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -61,6 +63,9 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
+import java.util.Locale
+
+private val AccentColor = Color(0xFFB4305A)
 
 @Composable
 fun DetailsScreen(
@@ -154,7 +159,7 @@ private fun DetailsContent(
                     Dot()
                     Text("${item.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
                     Dot()
-                    Text("${item.duration.averageMinutes ?: "?"} мин", fontSize = 13.sp, color = Color.White.copy(0.85f))
+                    Text("${item.duration.averageMinutes?.toInt() ?: "?"} мин", fontSize = 13.sp, color = Color.White.copy(0.85f))
                     Dot()
                     Text(item.country, fontSize = 13.sp, color = Color.White.copy(0.85f))
                 }
@@ -164,7 +169,15 @@ private fun DetailsContent(
         // ── Action row ────────────────────────────────────────────────────────
         Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(
-                modifier = Modifier.weight(1f).height(56.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+                    .shadow(
+                        elevation = 16.dp,
+                        shape = RoundedCornerShape(50),
+                        spotColor = AccentColor,
+                        ambientColor = AccentColor,
+                    ),
                 shape = RoundedCornerShape(50),
                 color = MaterialTheme.colorScheme.primaryContainer,
                 onClick = onPlay,
@@ -218,12 +231,15 @@ private fun DetailsContent(
 private fun AboutTab(item: Item) {
     Column(Modifier.padding(horizontal = 20.dp)) {
         Text(item.plot, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 20.dp))
-        // Stats grid
+
+        // Stats grid — M3 Expressive colored surfaces
+        val director = item.director.ifBlank { "—" }
+        val ratingValue = "%.1f".format(Locale.US, item.rating.filmax / 10f)
         val stats = listOf(
-            Triple(Color(0xFFB4305A), ShapeAsymA, "Рейтинг" to "${item.rating.filmax / 10f}"),
-            Triple(Color(0xFFF4B792), ShapeCookie, "Длительность" to "${item.duration.averageMinutes ?: "?"} мин"),
-            Triple(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр" to item.director),
-            Triple(Color(0xFFE86D9E), ShapeLg, "Жанр" to (item.genres.firstOrNull()?.title ?: "—")),
+            StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "Filmax"),
+            StatItem(Color(0xFFF4B792), ShapeCookie, "Длительность", "${item.duration.averageMinutes?.toInt() ?: "?"}", "мин"),
+            StatItem(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр", director.substringBefore(" "), director.substringAfter(" ", "")),
+            StatItem(Color(0xFFE86D9E), ShapeLg, "Жанр", item.genres.firstOrNull()?.title ?: "—", item.genres.getOrNull(1)?.title ?: "—"),
         )
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
@@ -233,8 +249,46 @@ private fun AboutTab(item: Item) {
             userScrollEnabled = false,
         ) {
             items(stats.size) { i ->
-                val (color, shape, kv) = stats[i]
-                StatCard(color = color, shape = shape, label = kv.first, value = kv.second)
+                val s = stats[i]
+                StatCard(color = s.color, shape = s.shape, label = s.label, value = s.value, sub = s.sub)
+            }
+        }
+
+        // Trailer preview
+        if (item.trailer != null) {
+            Spacer(Modifier.height(24.dp))
+            Text("Трейлер", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 12.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(180.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+            ) {
+                PosterImage(
+                    url = item.posters.big,
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    shape = RoundedCornerShape(0.dp),
+                    accentColor = AccentColor,
+                )
+                Box(Modifier.matchParentSize().background(Color(0x66000000)))
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(64.dp)
+                        .clip(CircleShape)
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
+                }
+                Text(
+                    "Официальный трейлер",
+                    modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
@@ -246,18 +300,32 @@ private fun StatCard(
     shape: androidx.compose.ui.graphics.Shape,
     label: String,
     value: String,
+    sub: String,
 ) {
     Column(
         modifier = Modifier
             .clip(shape)
-            .background(Brush.linearGradient(listOf(color.copy(0.3f), color.copy(0.1f))))
+            .background(Brush.linearGradient(listOf(color.copy(0.2f), color.copy(0.07f))))
+            .border(1.dp, color.copy(0.27f), shape)
             .padding(14.dp),
     ) {
         Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = color, letterSpacing = 1.sp)
         Spacer(Modifier.height(6.dp))
         Text(value, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
+        if (sub.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text(sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+        }
     }
 }
+
+private data class StatItem(
+    val color: Color,
+    val shape: androidx.compose.ui.graphics.Shape,
+    val label: String,
+    val value: String,
+    val sub: String,
+)
 
 @Composable
 private fun CastTab(item: Item) {
@@ -281,6 +349,31 @@ private fun CastTab(item: Item) {
                 }
             }
         }
+
+        // Команда
+        Spacer(Modifier.height(24.dp))
+        Text("Команда", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
+            Column(Modifier.padding(16.dp)) {
+                InfoRow("Режиссёр", item.director.ifBlank { "—" })
+                InfoRow("Страна", item.country.ifBlank { "—" })
+                InfoRow("Жанр", item.genres.joinToString(", ") { it.title }.ifBlank { "—" })
+                InfoRow("Год", item.year.toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(key: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(key, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
     }
 }
 

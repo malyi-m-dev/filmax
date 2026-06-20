@@ -3,6 +3,7 @@ package com.filmax.feature.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.search.SearchRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -71,14 +72,15 @@ class SearchViewModel @Inject constructor(
     private fun performSearch(q: String) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true) }
-            try {
-                val results = search.search(q, _state.value.filter, perPage = 20)
-                _state.update { s ->
+            when (val result = search.search(q, _state.value.filter, perPage = 20)) {
+                is RequestResult.Success -> _state.update { s ->
                     val recent = (listOf(q) + s.recentQueries).distinct().take(8)
-                    s.copy(loading = false, results = results, recentQueries = recent)
+                    s.copy(loading = false, results = result.data, recentQueries = recent)
                 }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message) }
+
+                is RequestResult.Error -> _state.update {
+                    it.copy(loading = false, error = result.message)
+                }
             }
         }
     }

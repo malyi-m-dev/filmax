@@ -1,6 +1,8 @@
 package com.filmax.data.user
 
 import com.filmax.core.domain.catalog.model.ItemPage
+import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.user.model.DeviceSettings
@@ -15,10 +17,10 @@ internal class UserRepositoryImpl @Inject constructor(
     private val api: UserApi,
 ) : UserRepository {
 
-    override suspend fun getProfile(): UserProfile {
+    override suspend fun getProfile(): RequestResult<UserProfile> = safeRequest {
         val dto = api.getAccountInfo()
         val user = requireNotNull(dto.user)
-        return UserProfile(
+        UserProfile(
             id = user.id,
             username = user.username,
             email = user.email,
@@ -33,12 +35,11 @@ internal class UserRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun getDeviceSettings(): DeviceSettings {
-        val info = requireNotNull(api.getDeviceSettings().device)
-        return info.toDomain()
+    override suspend fun getDeviceSettings(): RequestResult<DeviceSettings> = safeRequest {
+        requireNotNull(api.getDeviceSettings().device).toDomain()
     }
 
-    override suspend fun updateDeviceSettings(settings: DeviceSettings) {
+    override suspend fun updateDeviceSettings(settings: DeviceSettings): RequestResult<Unit> = safeRequest {
         api.updateDeviceSettings(
             id = settings.id,
             supportSsl = if (settings.supportSsl) 1 else 0,
@@ -51,11 +52,13 @@ internal class UserRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun registerDevice(title: String, hardware: String, software: String) {
-        api.registerDevice(title, hardware, software)
-    }
+    override suspend fun registerDevice(
+        title: String,
+        hardware: String,
+        software: String,
+    ): RequestResult<Unit> = safeRequest { api.registerDevice(title, hardware, software) }
 
-    override suspend fun getBookmarkFolders(): List<BookmarkFolder> =
+    override suspend fun getBookmarkFolders(): RequestResult<List<BookmarkFolder>> = safeRequest {
         api.getBookmarks().items.map {
             BookmarkFolder(
                 id = it.id,
@@ -64,13 +67,14 @@ internal class UserRepositoryImpl @Inject constructor(
                 updatedAt = it.updatedAt?.toLong()?.times(1000),
             )
         }
+    }
 
-    override suspend fun getBookmarkItems(folderId: Int, page: Int): ItemPage =
-        api.getBookmarkItems(folderId, page).toDomain()
+    override suspend fun getBookmarkItems(folderId: Int, page: Int): RequestResult<ItemPage> =
+        safeRequest { api.getBookmarkItems(folderId, page).toDomain() }
 
-    override suspend fun createBookmarkFolder(title: String): BookmarkFolder {
+    override suspend fun createBookmarkFolder(title: String): RequestResult<BookmarkFolder> = safeRequest {
         val result = api.createBookmark(title)
-        return BookmarkFolder(
+        BookmarkFolder(
             id = requireNotNull(result.id),
             title = title,
             count = 0,
@@ -78,17 +82,14 @@ internal class UserRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun deleteBookmarkFolder(folderId: Int) {
-        api.deleteBookmark(folderId)
-    }
+    override suspend fun deleteBookmarkFolder(folderId: Int): RequestResult<Unit> =
+        safeRequest { api.deleteBookmark(folderId) }
 
-    override suspend fun addToBookmark(itemId: Int, folderId: Int) {
-        api.addBookmarkItem(itemId, folderId)
-    }
+    override suspend fun addToBookmark(itemId: Int, folderId: Int): RequestResult<Unit> =
+        safeRequest { api.addBookmarkItem(itemId, folderId) }
 
-    override suspend fun removeFromBookmark(itemId: Int, folderId: Int) {
-        api.removeBookmarkItem(itemId, folderId)
-    }
+    override suspend fun removeFromBookmark(itemId: Int, folderId: Int): RequestResult<Unit> =
+        safeRequest { api.removeBookmarkItem(itemId, folderId) }
 
     private fun DeviceInfoDto.toDomain() = DeviceSettings(
         id = id,

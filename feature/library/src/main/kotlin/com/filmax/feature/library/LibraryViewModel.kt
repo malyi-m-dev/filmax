@@ -2,10 +2,13 @@ package com.filmax.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filmax.core.domain.common.firstErrorMessage
+import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -27,14 +30,19 @@ class LibraryViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            try {
-                //val historyDeferred = async { watching.getHistory() }
+            coroutineScope {
+                val historyDeferred = async { watching.getHistory() }
                 val listsDeferred = async { user.getBookmarkFolders() }
-                //val history = historyDeferred.await()
+                val history = historyDeferred.await()
                 val lists = listsDeferred.await()
-                _state.update { it.copy(loading = false, /*history = history*/ lists = lists) }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message) }
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        history = history.getOrNull() ?: emptyList(),
+                        lists = lists.getOrNull() ?: emptyList(),
+                        error = firstErrorMessage(history, lists),
+                    )
+                }
             }
         }
     }
@@ -45,19 +53,15 @@ class LibraryViewModel @Inject constructor(
 
     fun removeFromHistory(itemId: Int) {
         viewModelScope.launch {
-            try {
-                watching.clearHistory(itemId)
-                _state.update { s -> s.copy(history = s.history.filter { it.itemId != itemId }) }
-            } catch (_: Exception) {}
+            watching.clearHistory(itemId)
+            _state.update { s -> s.copy(history = s.history.filter { it.itemId != itemId }) }
         }
     }
 
     fun clearHistory() {
         val ids = _state.value.history.map { it.itemId }
         viewModelScope.launch {
-            ids.forEach { id ->
-                try { watching.clearHistory(id) } catch (_: Exception) {}
-            }
+            ids.forEach { id -> watching.clearHistory(id) }
             _state.update { it.copy(history = emptyList()) }
         }
     }

@@ -3,6 +3,8 @@ package com.filmax.data.auth
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.auth.model.DeviceCode
 import com.filmax.core.domain.auth.model.Token
+import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.network.TokenStorage
 import com.filmax.data.auth.remote.AuthApi
 import kotlinx.coroutines.flow.Flow
@@ -17,9 +19,9 @@ internal class AuthRepositoryImpl @Inject constructor(
     override val isAuthenticated: Flow<Boolean> =
         tokenStorage.accessToken.map { it != null }
 
-    override suspend fun requestDeviceCode(): DeviceCode {
+    override suspend fun requestDeviceCode(): RequestResult<DeviceCode> = safeRequest {
         val dto = api.requestDeviceCode()
-        return DeviceCode(
+        DeviceCode(
             code            = dto.code,
             userCode        = dto.userCode,
             verificationUri = dto.verificationUri,
@@ -28,19 +30,18 @@ internal class AuthRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun pollForToken(code: String, username: String, timestamp: Long): Token {
-        val dto = api.pollForToken(code = code, username = username, timestamp = timestamp)
-        tokenStorage.save(dto.accessToken, dto.refreshToken)
-        return Token(dto.accessToken, dto.refreshToken, dto.expiresIn)
-    }
+    override suspend fun pollForToken(code: String, username: String, timestamp: Long): RequestResult<Token> =
+        safeRequest {
+            val dto = api.pollForToken(code = code, username = username, timestamp = timestamp)
+            tokenStorage.save(dto.accessToken, dto.refreshToken)
+            Token(dto.accessToken, dto.refreshToken, dto.expiresIn)
+        }
 
-    override suspend fun refreshToken(refreshToken: String): Token {
+    override suspend fun refreshToken(refreshToken: String): RequestResult<Token> = safeRequest {
         val dto = api.refreshToken(refreshToken = refreshToken)
         tokenStorage.save(dto.accessToken, dto.refreshToken)
-        return Token(dto.accessToken, dto.refreshToken, dto.expiresIn)
+        Token(dto.accessToken, dto.refreshToken, dto.expiresIn)
     }
 
-    override suspend fun logout() {
-        tokenStorage.clear()
-    }
+    override suspend fun logout(): RequestResult<Unit> = safeRequest { tokenStorage.clear() }
 }

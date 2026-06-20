@@ -2,15 +2,15 @@ package com.filmax.app.navigation
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -88,38 +88,15 @@ fun FilmaxNavGraph(
         ?.key
         ?: FilmaxTab.HOME
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            if (showBottomBar) {
-                FilmaxTabBar(
-                    selected = selectedTab,
-                    onSelect = { tab ->
-                        val route: Any = when (tab) {
-                            FilmaxTab.HOME -> HomeRoute
-                            FilmaxTab.SEARCH -> SearchRoute
-                            FilmaxTab.CATEGORIES -> CategoriesRoute
-                            FilmaxTab.LIBRARY -> LibraryRoute
-                            FilmaxTab.PROFILE -> ProfileRoute
-                        }
-                        navController.navigate(route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                )
-            }
-        },
-    ) { padding ->
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
         NavHost(
             navController = navController,
             startDestination = SplashRoute,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize(),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
             popEnterTransition = { fadeIn() },
@@ -164,6 +141,29 @@ fun FilmaxNavGraph(
             )
             playerScreen(
                 onBack = { navController.popBackStack() },
+            )
+        }
+
+        if (showBottomBar) {
+            FilmaxTabBar(
+                selected = selectedTab,
+                onSelect = { tab ->
+                    val route: Any = when (tab) {
+                        FilmaxTab.HOME -> HomeRoute
+                        FilmaxTab.SEARCH -> SearchRoute
+                        FilmaxTab.CATEGORIES -> CategoriesRoute
+                        FilmaxTab.LIBRARY -> LibraryRoute
+                        FilmaxTab.PROFILE -> ProfileRoute
+                    }
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }

@@ -40,7 +40,6 @@ fun ContinueCard(
 
     Column(
         modifier = modifier
-            .width(220.dp)
             .clip(RoundedCornerShape(24.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick),

@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.common.getOrNull
+import com.filmax.core.domain.common.onSuccess
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.feature.details.navigation.DetailsRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,28 +43,30 @@ class DetailsViewModel @Inject constructor(
 
     private fun load() {
         viewModelScope.launch {
-            try {
-                val item = catalog.getItemDetails(route.itemId)
-                val similar = catalog.getSimilarItems(route.itemId)
-                _state.update {
+            val itemResult = catalog.getItemDetails(route.itemId)
+            val similar = catalog.getSimilarItems(route.itemId).getOrNull() ?: emptyList()
+            when (itemResult) {
+                is RequestResult.Success -> _state.update {
                     it.copy(
                         loading = false,
-                        item = item,
+                        item = itemResult.data,
                         similar = similar,
-                        isFav = item.inWatchlist
+                        isFav = itemResult.data.inWatchlist,
                     )
                 }
-            } catch (e: Exception) {
-                println("kekes: ${e.message}")
-                _state.update { it.copy(loading = false, error = e.message) }
+
+                is RequestResult.Error -> _state.update {
+                    it.copy(loading = false, error = itemResult.message)
+                }
             }
         }
     }
 
     fun toggleFav() {
         viewModelScope.launch {
-            val newState = watching.toggleWatchlist(route.itemId)
-            _state.update { it.copy(isFav = newState) }
+            watching.toggleWatchlist(route.itemId).onSuccess { newState ->
+                _state.update { it.copy(isFav = newState) }
+            }
         }
     }
 }

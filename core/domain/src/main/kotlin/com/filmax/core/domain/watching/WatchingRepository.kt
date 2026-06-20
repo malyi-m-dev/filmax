@@ -1,31 +1,31 @@
 package com.filmax.core.domain.watching
 
+import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
-import kotlinx.coroutines.flow.Flow
 
 interface WatchingRepository {
 
-    suspend fun getHistory(type: String = "all"): List<WatchHistory>
+    suspend fun getHistory(type: String = "all"): RequestResult<List<WatchHistory>>
 
-    suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int)
+    suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit>
 
     suspend fun saveProgressSerial(
         itemId: Int,
         season: Int,
         videoId: Int,
         timeSeconds: Int,
-    )
+    ): RequestResult<Unit>
 
-    suspend fun toggleWatched(itemId: Int)
+    suspend fun toggleWatched(itemId: Int): RequestResult<Unit>
 
-    suspend fun toggleWatchlist(itemId: Int): Boolean
+    suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean>
 
-    suspend fun clearHistory(itemId: Int)
+    suspend fun clearHistory(itemId: Int): RequestResult<Unit>
 
-    suspend fun getNotifications(): List<Notification>
+    suspend fun getNotifications(): RequestResult<List<Notification>>
 
-    suspend fun markNotificationRead(id: Int)
+    suspend fun markNotificationRead(id: Int): RequestResult<Unit>
 
-    suspend fun markAllNotificationsRead()
+    suspend fun markAllNotificationsRead(): RequestResult<Unit>
 }

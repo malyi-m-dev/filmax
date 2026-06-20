@@ -1,6 +1,5 @@
 package com.filmax.data.catalog.mapper
 
-import android.R.attr.type
 import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
@@ -38,8 +37,7 @@ fun ItemsResponseDto.toDomain(): ItemPage = ItemPage(
 fun ItemDto.toDomain(): Item = Item(
     id = id,
     title = title,
-    //TODO потом поправить
-    type = ItemType.MOVIE,
+    type = ItemType.from(type),
     year = year,
     plot = plot,
     director = director,
@@ -69,9 +67,10 @@ fun PostersDto?.toDomain() = Posters(
     wide = this?.wide ?: "",
 )
 
+// API отдаёт длительность в секундах — переводим в минуты.
 fun DurationDto.toDomain() = Duration(
-    averageMinutes = average,
-    totalMinutes = total,
+    averageMinutes = average?.let { it / 60 },
+    totalMinutes = total?.let { it / 60 },
 )
 
 fun MediaTrackDto.toDomain() = MediaTrack(
@@ -106,7 +105,7 @@ fun SubtitleDto.toDomain() = SubtitleTrack(
     shiftMs = shift,
 )
 
-fun TrailerDto.toDomain() = Trailer(id = id.toString(), url = "url")
+fun TrailerDto.toDomain() = Trailer(id = id.toString(), url = url ?: "")
 
 fun PaginationDto.toDomain() = Pagination(
     total = total,

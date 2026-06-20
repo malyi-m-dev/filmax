@@ -121,7 +121,8 @@ data class SubtitleDto(
 data class TrailerDto(
     val id: Int,
     val type: Int = 0,
-    //val url: String,
+    val url: String? = null,
+    val file: String? = null,
 )
 
 @Serializable

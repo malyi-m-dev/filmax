@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.common.firstErrorMessage
+import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.watching.WatchingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -31,37 +33,30 @@ class HomeViewModel @Inject constructor(
     fun load() {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            try {
-                coroutineScope {
-                    val hotDeferred = async {
-                        val items = catalog.getHotItems(ItemType.MOVIE)
-                        println("kekes: $items")
-                        items
-                    }
-                    val trendingDeferred =
-                        async { catalog.getItems(ItemType.MOVIE, CatalogSort.VIEWS) }
-                    val collectionsDeferred = async { catalog.getCollections() }
-                    val forYouDeferred =
-                        async { catalog.getItems(ItemType.SERIES, CatalogSort.RATING) }
-                   // val historyDeferred = async { watching.getHistory() }
-                    val hot = hotDeferred.await()
-                    val trending = trendingDeferred.await()
-                    val collections = collectionsDeferred.await()
-                    val forYou = forYouDeferred.await()
-                    //val history = historyDeferred.await()
-                    _state.update { s ->
-                        s.copy(
-                            loading = false,
-                            hero = hot.items.firstOrNull(),
-                            //continueWatching = history.take(5),
-                            collections = collections.take(5),
-                            trending = trending.items.take(10),
-                            forYou = forYou.items.take(10),
-                        )
-                    }
+            coroutineScope {
+                val hotDeferred = async { catalog.getHotItems(ItemType.MOVIE) }
+                val trendingDeferred = async { catalog.getItems(ItemType.MOVIE, CatalogSort.VIEWS) }
+                val collectionsDeferred = async { catalog.getCollections() }
+                val forYouDeferred = async { catalog.getItems(ItemType.SERIES, CatalogSort.RATING) }
+                val historyDeferred = async { watching.getHistory() }
+
+                val hot = hotDeferred.await()
+                val trending = trendingDeferred.await()
+                val collections = collectionsDeferred.await()
+                val forYou = forYouDeferred.await()
+                val history = historyDeferred.await()
+
+                _state.update { s ->
+                    s.copy(
+                        loading = false,
+                        hero = hot.getOrNull()?.items?.firstOrNull(),
+                        continueWatching = history.getOrNull()?.take(5) ?: emptyList(),
+                        collections = collections.getOrNull()?.take(5) ?: emptyList(),
+                        trending = trending.getOrNull()?.items?.take(10) ?: emptyList(),
+                        forYou = forYou.getOrNull()?.items?.take(10) ?: emptyList(),
+                        error = firstErrorMessage(hot, trending, collections, forYou),
+                    )
                 }
-            } catch (e: Exception) {
-                _state.update { it.copy(loading = false, error = e.message) }
             }
         }
     }
