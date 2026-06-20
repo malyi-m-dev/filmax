@@ -1,0 +1,79 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
+}
+
+android {
+    namespace   = "com.filmax.app"
+    compileSdk  = 35
+
+    defaultConfig {
+        applicationId = "com.filmax.app"
+        minSdk        = 26
+        targetSdk     = 35
+        versionCode   = 1
+        versionName   = "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = JvmTarget.JVM_17.target }
+    buildFeatures { compose = true }
+}
+
+dependencies {
+    // Core
+    implementation(project(":core:network"))
+    implementation(project(":core:domain"))
+    implementation(project(":core:designsystem"))
+    implementation(project(":core:ui"))
+
+    // Data
+    implementation(project(":data:auth"))
+    implementation(project(":data:catalog"))
+    implementation(project(":data:search"))
+    implementation(project(":data:user"))
+    implementation(project(":data:watching"))
+
+    // Features
+    implementation(project(":feature:onboarding"))
+    implementation(project(":feature:home"))
+    implementation(project(":feature:search"))
+    implementation(project(":feature:categories"))
+    implementation(project(":feature:library"))
+    implementation(project(":feature:profile"))
+    implementation(project(":feature:details"))
+    implementation(project(":feature:player"))
+
+    // Compose
+    val bom = platform(libs.compose.bom)
+    implementation(bom)
+    implementation(libs.bundles.compose)
+    implementation(libs.activity.compose)
+
+    // Navigation
+    implementation(libs.navigation.compose)
+
+    // Hilt
+    implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
+    ksp(libs.hilt.compiler)
+}

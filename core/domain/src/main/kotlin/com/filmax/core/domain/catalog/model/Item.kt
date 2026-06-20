@@ -1,0 +1,90 @@
+package com.filmax.core.domain.catalog.model
+
+data class Item(
+    val id: Int,
+    val title: String,
+    val type: ItemType,
+    val year: Int,
+    val plot: String,
+    val director: String,
+    val cast: String,
+    val country: String,
+    val genres: List<Genre>,
+    val rating: ItemRating,
+    val posters: Posters,
+    val duration: Duration,
+    val tracklist: List<MediaTrack>,
+    val trailer: Trailer?,
+    val inWatchlist: Boolean,
+    val finished: Boolean,
+)
+
+enum class ItemType(val apiValue: String) {
+    MOVIE("movie"),
+    SERIES("serial"),
+    ANIME("anime"),
+    DOCUMENTARY("docuserial"),
+    TV("tv"),
+    ;
+    companion object {
+        fun from(value: String) = entries.firstOrNull { it.apiValue == value } ?: MOVIE
+    }
+}
+
+data class Genre(val id: Int, val title: String)
+
+data class ItemRating(
+    val filmax: Int,
+    val filmaxPercentage: String,
+    val imdb: String?,
+    val kinopoisk: String?,
+)
+
+data class Posters(
+    val small: String,
+    val medium: String,
+    val big: String,
+    val wide: String?,
+)
+
+data class Duration(
+    val averageMinutes: Double?,
+    val totalMinutes: Int?,
+)
+
+data class MediaTrack(
+    val id: Int,
+    val number: Int,
+    val seasonNumber: Int,
+    val title: String,
+    val thumbnail: String,
+    val durationSeconds: Int,
+    val files: List<VideoFile>,
+    val audios: List<AudioTrack>,
+    val subtitles: List<SubtitleTrack>,
+)
+
+data class VideoFile(
+    val quality: String,
+    val hls4: String?,
+    val hls: String?,
+    val http: String?,
+)
+
+data class AudioTrack(
+    val id: Int,
+    val lang: String?,
+    val title: String?,
+    val channels: Int,
+)
+
+data class SubtitleTrack(
+    val lang: String,
+    val url: String,
+    val shiftMs: Int,
+)
+
+data class Trailer(
+    val id: String,
+    val url: String,
+)
