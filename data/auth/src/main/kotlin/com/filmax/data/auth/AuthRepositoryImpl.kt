@@ -9,9 +9,8 @@ import com.filmax.core.network.TokenStorage
 import com.filmax.data.auth.remote.AuthApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import javax.inject.Inject
 
-internal class AuthRepositoryImpl @Inject constructor(
+internal class AuthRepositoryImpl(
     private val api: AuthApi,
     private val tokenStorage: TokenStorage,
 ) : AuthRepository {

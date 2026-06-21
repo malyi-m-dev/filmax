@@ -12,7 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -53,7 +53,7 @@ private val tabRouteClasses = mapOf(
 
 @Composable
 fun FilmaxNavGraph(
-    rootViewModel: RootViewModel = hiltViewModel(),
+    rootViewModel: RootViewModel = koinViewModel(),
 ) {
     val isAuthenticated by rootViewModel.isAuthenticated.collectAsStateWithLifecycle(null)
     val navController = rememberNavController()

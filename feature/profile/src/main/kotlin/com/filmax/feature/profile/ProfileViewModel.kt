@@ -5,15 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class ProfileViewModel @Inject constructor(
+class ProfileViewModel(
     private val user: UserRepository,
     private val auth: AuthRepository,
 ) : ViewModel() {

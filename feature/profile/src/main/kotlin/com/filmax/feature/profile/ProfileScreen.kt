@@ -41,7 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.domain.user.model.Subscription
 
@@ -49,7 +49,7 @@ import com.filmax.core.domain.user.model.Subscription
 fun ProfileScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ProfileViewModel = hiltViewModel(),
+    viewModel: ProfileViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

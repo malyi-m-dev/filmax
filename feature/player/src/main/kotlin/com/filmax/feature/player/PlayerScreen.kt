@@ -47,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.navigation.koinNavViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
@@ -58,7 +58,7 @@ import kotlinx.coroutines.launch
 fun PlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = hiltViewModel(),
+    viewModel: PlayerViewModel = koinNavViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }

@@ -68,7 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
@@ -79,7 +79,7 @@ import kotlinx.coroutines.delay
 fun OnboardingScreen(
     onAuthenticated: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OnboardingViewModel = hiltViewModel(),
+    viewModel: OnboardingViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

@@ -12,13 +12,10 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.feature.player.navigation.PlayerRoute
-import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class PlayerUiState(
     val loading: Boolean = true,
@@ -27,12 +24,11 @@ data class PlayerUiState(
     val error: String? = null,
 )
 
-@HiltViewModel
-class PlayerViewModel @Inject constructor(
+class PlayerViewModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
     private val watching: WatchingRepository,
-    @ApplicationContext context: Context,
+    context: Context,
 ) : ViewModel() {
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()

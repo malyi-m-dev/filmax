@@ -11,9 +11,8 @@ import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.data.catalog.mapper.toDomain
 import com.filmax.data.user.remote.UserApi
 import com.filmax.data.user.remote.dto.DeviceInfoDto
-import javax.inject.Inject
 
-internal class UserRepositoryImpl @Inject constructor(
+internal class UserRepositoryImpl(
     private val api: UserApi,
 ) : UserRepository {
 

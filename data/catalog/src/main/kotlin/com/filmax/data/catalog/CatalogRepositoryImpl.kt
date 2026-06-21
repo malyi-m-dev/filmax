@@ -12,9 +12,8 @@ import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.data.catalog.mapper.toDomain
 import com.filmax.data.catalog.remote.CatalogApi
-import javax.inject.Inject
 
-internal class CatalogRepositoryImpl @Inject constructor(
+internal class CatalogRepositoryImpl(
     private val api: CatalogApi,
 ) : CatalogRepository {
 

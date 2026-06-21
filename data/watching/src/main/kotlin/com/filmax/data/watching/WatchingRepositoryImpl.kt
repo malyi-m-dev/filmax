@@ -7,9 +7,8 @@ import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.data.watching.remote.WatchingApi
-import javax.inject.Inject
 
-internal class WatchingRepositoryImpl @Inject constructor(
+internal class WatchingRepositoryImpl(
     private val api: WatchingApi,
 ) : WatchingRepository {
 

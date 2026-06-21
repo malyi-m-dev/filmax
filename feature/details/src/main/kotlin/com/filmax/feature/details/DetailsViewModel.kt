@@ -11,12 +11,10 @@ import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.common.onSuccess
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.feature.details.navigation.DetailsRoute
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 data class DetailsUiState(
     val loading: Boolean = true,
@@ -26,8 +24,7 @@ data class DetailsUiState(
     val error: String? = null,
 )
 
-@HiltViewModel
-class DetailsViewModel @Inject constructor(
+class DetailsViewModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
     private val watching: WatchingRepository,

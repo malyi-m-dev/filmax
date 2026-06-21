@@ -46,7 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.koinViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.ui.components.PosterCard
@@ -56,7 +56,7 @@ import com.filmax.core.ui.components.PosterImage
 fun LibraryScreen(
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LibraryViewModel = hiltViewModel(),
+    viewModel: LibraryViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 

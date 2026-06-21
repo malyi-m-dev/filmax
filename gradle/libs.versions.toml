@@ -1,8 +1,7 @@
 [versions]
 agp                         = "8.7.3"
 kotlin                      = "2.0.21"
-ksp                         = "2.0.21-1.0.28"
-hilt                        = "2.52"
+koin                        = "4.0.4"
 retrofit                    = "2.11.0"
 okhttp                      = "4.12.0"
 kotlinx-serialization       = "1.7.3"
@@ -10,19 +9,17 @@ kotlinx-coroutines          = "1.9.0"
 datastore                   = "1.1.1"
 compose-bom                 = "2025.05.01"
 navigation-compose          = "2.8.9"
-hilt-navigation-compose     = "1.2.0"
 lifecycle                   = "2.9.0"
 coil                        = "3.1.0"
 media3                      = "1.5.1"
 activity-compose            = "1.10.1"
+chucker                     = "4.0.0"
 
 [libraries]
 # Gradle plugin implementation JARs (for build-logic compileOnly)
 android-gradle-plugin        = { group = "com.android.tools.build", name = "gradle",                              version.ref = "agp" }
 kotlin-gradle-plugin         = { group = "org.jetbrains.kotlin",    name = "kotlin-gradle-plugin",                version.ref = "kotlin" }
 compose-gradle-plugin        = { group = "org.jetbrains.kotlin",    name = "compose-compiler-gradle-plugin",      version.ref = "kotlin" }
-hilt-gradle-plugin           = { group = "com.google.dagger",       name = "hilt-android-gradle-plugin",          version.ref = "hilt" }
-ksp-gradle-plugin            = { group = "com.google.devtools.ksp", name = "symbol-processing-gradle-plugin",     version.ref = "ksp" }
 
 # Kotlin
 kotlinx-serialization-json  = { group = "org.jetbrains.kotlinx",     name = "kotlinx-serialization-json",                    version.ref = "kotlinx-serialization" }
@@ -34,11 +31,14 @@ okhttp-core                 = { group = "com.squareup.okhttp3",       name = "ok
 okhttp-logging              = { group = "com.squareup.okhttp3",       name = "logging-interceptor",                           version.ref = "okhttp" }
 retrofit-core               = { group = "com.squareup.retrofit2",     name = "retrofit",                                      version.ref = "retrofit" }
 retrofit-serialization      = { group = "com.jakewharton.retrofit",   name = "retrofit2-kotlinx-serialization-converter",     version = "1.0.0" }
+chucker                     = { group = "com.github.chuckerteam.chucker", name = "library",                                  version.ref = "chucker" }
+chucker-no-op               = { group = "com.github.chuckerteam.chucker", name = "library-no-op",                            version.ref = "chucker" }
 
 # DI
-hilt-android                = { group = "com.google.dagger",          name = "hilt-android",                                  version.ref = "hilt" }
-hilt-compiler               = { group = "com.google.dagger",          name = "hilt-android-compiler",                         version.ref = "hilt" }
-hilt-navigation-compose     = { group = "androidx.hilt",              name = "hilt-navigation-compose",                       version.ref = "hilt-navigation-compose" }
+koin-bom                    = { group = "io.insert-koin",            name = "koin-bom",                                      version.ref = "koin" }
+koin-android                = { group = "io.insert-koin",            name = "koin-android" }
+koin-androidx-compose       = { group = "io.insert-koin",            name = "koin-androidx-compose" }
+koin-androidx-compose-navigation = { group = "io.insert-koin",       name = "koin-androidx-compose-navigation" }
 
 # Storage
 datastore-preferences       = { group = "androidx.datastore",         name = "datastore-preferences",                         version.ref = "datastore" }
@@ -93,5 +93,3 @@ kotlin-android              = { id = "org.jetbrains.kotlin.android",            
 kotlin-jvm                  = { id = "org.jetbrains.kotlin.jvm",                          version.ref = "kotlin" }
 kotlin-serialization        = { id = "org.jetbrains.kotlin.plugin.serialization",         version.ref = "kotlin" }
 compose-compiler             = { id = "org.jetbrains.kotlin.plugin.compose",              version.ref = "kotlin" }
-hilt                        = { id = "com.google.dagger.hilt.android",                    version.ref = "hilt" }
-ksp                         = { id = "com.google.devtools.ksp",                           version.ref = "ksp" }

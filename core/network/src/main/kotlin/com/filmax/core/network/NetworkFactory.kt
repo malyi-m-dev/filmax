@@ -3,6 +3,7 @@ package com.filmax.core.network
 import android.util.Log
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import kotlinx.serialization.json.Json
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -18,9 +19,11 @@ val networkJson = Json {
 
 fun buildOkHttpClient(
     authInterceptor: AuthInterceptor,
+    networkInspector: Interceptor? = null,
     debug: Boolean = false,
 ): OkHttpClient = OkHttpClient.Builder()
     .addInterceptor(authInterceptor)
+    .apply { networkInspector?.let { addInterceptor(it) } }
     .apply {
         if (debug) addInterceptor(
             HttpLoggingInterceptor {

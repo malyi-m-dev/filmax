@@ -53,7 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import org.koin.androidx.compose.navigation.koinNavViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
@@ -73,7 +73,7 @@ fun DetailsScreen(
     onPlay: (itemId: Int) -> Unit,
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: DetailsViewModel = hiltViewModel(),
+    viewModel: DetailsViewModel = koinNavViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val item = state.item

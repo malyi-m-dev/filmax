@@ -7,9 +7,8 @@ import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.domain.search.SearchRepository
 import com.filmax.data.catalog.mapper.toDomain
 import com.filmax.data.search.remote.SearchApi
-import javax.inject.Inject
 
-internal class SearchRepositoryImpl @Inject constructor(
+internal class SearchRepositoryImpl(
     private val api: SearchApi,
 ) : SearchRepository {
 

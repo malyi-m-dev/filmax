@@ -1,8 +1,6 @@
 plugins {
     id("filmax.android.library")
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.hilt)
-    alias(libs.plugins.ksp)
 }
 
 android {
@@ -17,7 +15,11 @@ dependencies {
     api(libs.kotlinx.serialization.json)
     api(libs.kotlinx.coroutines.android)
 
-    implementation(libs.hilt.android)
+    api(platform(libs.koin.bom))
+    api(libs.koin.android)
     implementation(libs.datastore.preferences)
-    ksp(libs.hilt.compiler)
+
+    // Network inspector — реальный Chucker в debug, пустышка в release
+    debugImplementation(libs.chucker)
+    releaseImplementation(libs.chucker.no.op)
 }

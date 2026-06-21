@@ -11,7 +11,7 @@ dependencies {
     implementation(bom)
     implementation(libs.bundles.compose)
     implementation(libs.navigation.compose)
-    implementation(libs.hilt.navigation.compose)
-    implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+    implementation(platform(libs.koin.bom))
+    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.androidx.compose.navigation)
 }

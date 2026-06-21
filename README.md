@@ -15,7 +15,7 @@ Material 3 Expressive дизайн.
 | Язык | Kotlin 2.0.21 |
 | UI | Jetpack Compose (BOM 2025.05.01), Material 3, Coil 3 |
 | Навигация | Navigation Compose 2.8.9 (типобезопасные routes на `@Serializable`) |
-| DI | Hilt 2.52 |
+| DI | Koin 4.0.4 |
 | Сеть | Retrofit 2.11 + `kotlinx.serialization` |
 | Асинхронность | Coroutines 1.9 + Flow |
 | Сборка | AGP 8.7.3, Gradle (convention plugins в `build-logic`), KSP |

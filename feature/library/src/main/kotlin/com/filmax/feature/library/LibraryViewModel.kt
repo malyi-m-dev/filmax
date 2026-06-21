@@ -6,17 +6,14 @@ import com.filmax.core.domain.common.firstErrorMessage
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
-@HiltViewModel
-class LibraryViewModel @Inject constructor(
+class LibraryViewModel(
     private val watching: WatchingRepository,
     private val user: UserRepository,
 ) : ViewModel() {
