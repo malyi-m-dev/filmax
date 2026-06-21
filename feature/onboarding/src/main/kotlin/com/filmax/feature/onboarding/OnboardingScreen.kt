@@ -42,10 +42,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,7 +58,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -69,7 +66,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
@@ -79,12 +75,14 @@ import kotlinx.coroutines.delay
 fun OnboardingScreen(
     onAuthenticated: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: OnboardingViewModel = koinViewModel(),
+    screenModel: OnboardingScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
 
-    LaunchedEffect(state.authenticated) {
-        if (state.authenticated) onAuthenticated()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            OnboardingSideEffect.Authenticated -> onAuthenticated()
+        }
     }
 
     Box(
@@ -128,7 +126,10 @@ fun OnboardingScreen(
                 when (step) {
                     0    -> StepWelcome()
                     1    -> StepFeatures()
-                    2    -> StepAuth(state = state, onRetry = viewModel::retryDeviceCode)
+                    2    -> StepAuth(
+                        state = state,
+                        onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
+                    )
                     else -> StepWelcome()
                 }
             }
@@ -141,7 +142,7 @@ fun OnboardingScreen(
 
             when (state.step) {
                 0 -> Button(
-                    onClick = viewModel::nextStep,
+                    onClick = { screenModel.dispatch(OnboardingEvent.NextStep) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -155,7 +156,7 @@ fun OnboardingScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     OutlinedButton(
-                        onClick = viewModel::prevStep,
+                        onClick = { screenModel.dispatch(OnboardingEvent.PrevStep) },
                         modifier = Modifier
                             .weight(1f)
                             .height(56.dp),
@@ -164,7 +165,7 @@ fun OnboardingScreen(
                         Text("Назад")
                     }
                     Button(
-                        onClick = viewModel::nextStep,
+                        onClick = { screenModel.dispatch(OnboardingEvent.NextStep) },
                         modifier = Modifier
                             .weight(2f)
                             .height(56.dp),
@@ -179,7 +180,7 @@ fun OnboardingScreen(
                     enter = fadeIn(),
                     exit = fadeOut(),
                 ) {
-                    TextButton(onClick = viewModel::prevStep) {
+                    TextButton(onClick = { screenModel.dispatch(OnboardingEvent.PrevStep) }) {
                         Text("Вернуться назад", color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
@@ -191,7 +192,7 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun StepAuth(state: OnboardingUiState, onRetry: () -> Unit) {
+private fun StepAuth(state: OnboardingState, onRetry: () -> Unit) {
     when {
         state.polling && state.userCode != null -> AuthCodeCard(
             userCode = state.userCode,

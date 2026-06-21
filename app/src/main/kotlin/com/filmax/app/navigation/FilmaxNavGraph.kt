@@ -9,11 +9,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -53,9 +51,10 @@ private val tabRouteClasses = mapOf(
 
 @Composable
 fun FilmaxNavGraph(
-    rootViewModel: RootViewModel = koinViewModel(),
+    rootScreenModel: RootScreenModel = koinViewModel(),
 ) {
-    val isAuthenticated by rootViewModel.isAuthenticated.collectAsStateWithLifecycle(null)
+    val rootState by rootScreenModel.collectAsState()
+    val isAuthenticated = rootState.isAuthenticated
     val navController = rememberNavController()
 
     LaunchedEffect(isAuthenticated) {

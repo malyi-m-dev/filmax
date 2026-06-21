@@ -26,14 +26,16 @@ Material 3 Expressive дизайн.
 ## Архитектура
 
 Многомодульная, разбита по слоям. Каждая фича — отдельный Gradle-модуль
-(`Screen` + `UiState` + `ViewModel` + `navigation/`), общается с доменом через
-репозитории; зависимости — однонаправленные `app → feature → core/data → core:domain`.
+(`Screen` + `*Contract` (State/Event/SideEffect) + `ScreenModel` + `navigation/`),
+общается с доменом через репозитории; зависимости — однонаправленные
+`app → feature → core/data → core:domain`.
 
 ```
 app/                        # точка входа, NavGraph, Application, MainActivity
 ├─ core/
 │  ├─ domain/               # модели, интерфейсы репозиториев, RequestResult
 │  ├─ network/              # сетевой клиент, токены
+│  ├─ presentation/         # BaseScreenModel (MVI: State/Event/SideEffect)
 │  ├─ designsystem/         # цвета, типографика, формы (Color/Type/Shape), тема
 │  └─ ui/                   # переиспользуемые Composable (PosterImage, FilmaxTabBar, …)
 ├─ data/                    # реализации репозиториев + DTO + мапперы
@@ -43,7 +45,8 @@ app/                        # точка входа, NavGraph, Application, Main
    ├─ library/  profile/  details/  player/
 ```
 
-**Поток данных:** `Composable` → `ViewModel` (`StateFlow<UiState>`) →
+**Поток данных (MVI, однонаправленный):** `Composable` (`collectAsState` / `collectSideEffect`,
+события через `dispatch(Event)`) → `ScreenModel` (`BaseScreenModel`, `State` + одноразовые `SideEffect`) →
 `Repository` (возвращает `RequestResult<T>`: `Success` / `Error`) → сеть.
 
 ### Экраны (нижняя навигация)

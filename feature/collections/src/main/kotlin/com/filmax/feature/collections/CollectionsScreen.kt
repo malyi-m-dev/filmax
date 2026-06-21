@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Search
@@ -55,7 +54,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.ui.components.PosterImage
@@ -85,9 +83,9 @@ private fun iconFor(index: Int): ImageVector = CollectionIcons[index % Collectio
 fun CollectionsScreen(
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: CollectionsViewModel = koinViewModel(),
+    screenModel: CollectionsScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
@@ -114,7 +112,7 @@ fun CollectionsScreen(
         // ── Search ────────────────────────────────────────────────────────────
         SearchField(
             query = state.query,
-            onQueryChange = viewModel::onQueryChange,
+            onQueryChange = { screenModel.dispatch(CollectionsEvent.QueryChange(it)) },
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
         )
 
@@ -125,7 +123,7 @@ fun CollectionsScreen(
 
             else -> CollectionsList(
                 state = state,
-                onCollectionClick = viewModel::onCollectionClick,
+                onCollectionClick = { screenModel.dispatch(CollectionsEvent.CollectionClick(it)) },
             )
         }
     }
@@ -134,7 +132,7 @@ fun CollectionsScreen(
     if (selected != null) {
         val selectedIndex = state.collections.indexOf(selected).coerceAtLeast(0)
         ModalBottomSheet(
-            onDismissRequest = viewModel::onDismissSheet,
+            onDismissRequest = { screenModel.dispatch(CollectionsEvent.DismissSheet) },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.outline) },
@@ -146,7 +144,7 @@ fun CollectionsScreen(
                 loading = state.loadingItems,
                 items = state.collectionItems,
                 onOpenItem = { id ->
-                    viewModel.onDismissSheet()
+                    screenModel.dispatch(CollectionsEvent.DismissSheet)
                     onOpenItem(id)
                 },
             )
@@ -156,7 +154,7 @@ fun CollectionsScreen(
 
 @Composable
 private fun CollectionsList(
-    state: CollectionsUiState,
+    state: CollectionsState,
     onCollectionClick: (Collection) -> Unit,
 ) {
     val filtered = state.filtered

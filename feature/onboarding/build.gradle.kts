@@ -4,7 +4,8 @@ plugins {
 }
 android { namespace = "com.filmax.feature.onboarding" }
 dependencies {
-    implementation(project(":core:ui"))
+    implementation(project(":core:designsystem"))
+    implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
     implementation(project(":data:auth"))
     val bom = platform(libs.compose.bom)
@@ -13,5 +14,4 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
-    implementation(libs.koin.androidx.compose.navigation)
 }

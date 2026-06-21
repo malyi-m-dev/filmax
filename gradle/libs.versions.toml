@@ -38,7 +38,6 @@ chucker-no-op               = { group = "com.github.chuckerteam.chucker", name =
 koin-bom                    = { group = "io.insert-koin",            name = "koin-bom",                                      version.ref = "koin" }
 koin-android                = { group = "io.insert-koin",            name = "koin-android" }
 koin-androidx-compose       = { group = "io.insert-koin",            name = "koin-androidx-compose" }
-koin-androidx-compose-navigation = { group = "io.insert-koin",       name = "koin-androidx-compose-navigation" }
 
 # Storage
 datastore-preferences       = { group = "androidx.datastore",         name = "datastore-preferences",                         version.ref = "datastore" }

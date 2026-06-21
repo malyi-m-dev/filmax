@@ -1,0 +1,80 @@
+package com.filmax.feature.onboarding
+
+import com.filmax.core.domain.auth.AuthRepository
+import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.presentation.BaseScreenModel
+import kotlinx.coroutines.delay
+
+class OnboardingScreenModel(
+    private val auth: AuthRepository,
+) : BaseScreenModel<OnboardingState, OnboardingSideEffect, OnboardingEvent>(OnboardingState()) {
+
+    override fun dispatch(event: OnboardingEvent) {
+        when (event) {
+            OnboardingEvent.NextStep -> nextStep()
+            OnboardingEvent.PrevStep -> screenModelScope {
+                updateState { it.copy(step = maxOf(0, it.step - 1), error = null) }
+            }
+            OnboardingEvent.RetryDeviceCode -> retryDeviceCode()
+        }
+    }
+
+    /** Данные не грузятся при старте — код запрашивается при переходе на шаг авторизации. */
+    override fun onFetchData() = Unit
+
+    private fun nextStep() {
+        screenModelScope {
+            val next = state.step + 1
+            updateState { it.copy(step = next) }
+            if (next == 2) requestDeviceCode()
+        }
+    }
+
+    private fun requestDeviceCode() {
+        screenModelScope {
+            when (val result = auth.requestDeviceCode()) {
+                is RequestResult.Success -> {
+                    val dc = result.data
+                    updateState {
+                        it.copy(
+                            deviceCode = dc.code,
+                            userCode = dc.userCode,
+                            verificationUri = dc.verificationUri,
+                            polling = true,
+                        )
+                    }
+                    pollForToken(dc.code, dc.interval, dc.expiresIn)
+                }
+
+                is RequestResult.Error -> updateState { it.copy(error = result.message) }
+            }
+        }
+    }
+
+    private suspend fun pollForToken(code: String, intervalSec: Int, expiresIn: Int) {
+        val startMs = System.currentTimeMillis()
+        val timeoutMs = expiresIn * 1000L
+        while (System.currentTimeMillis() - startMs < timeoutMs) {
+            delay(intervalSec * 1000L)
+            // Success — авторизовались; Error — ещё не подтверждено, продолжаем поллинг.
+            val result = auth.pollForToken(
+                code = code,
+                username = "",
+                timestamp = System.currentTimeMillis() / 1000L,
+            )
+            if (result is RequestResult.Success) {
+                updateState { it.copy(polling = false) }
+                postSideEffect(OnboardingSideEffect.Authenticated)
+                return
+            }
+        }
+        updateState { it.copy(polling = false, error = "Время ожидания истекло. Попробуйте снова.") }
+    }
+
+    private fun retryDeviceCode() {
+        screenModelScope {
+            updateState { it.copy(error = null, deviceCode = null, userCode = null) }
+            requestDeviceCode()
+        }
+    }
+}

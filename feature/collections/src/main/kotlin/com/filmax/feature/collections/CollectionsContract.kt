@@ -3,7 +3,7 @@ package com.filmax.feature.collections
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 
-data class CollectionsUiState(
+data class CollectionsState(
     val collections: List<Collection> = emptyList(),
     val query: String = "",
     val selectedCollection: Collection? = null,
@@ -22,3 +22,11 @@ data class CollectionsUiState(
             }
         }
 }
+
+sealed interface CollectionsEvent {
+    data class QueryChange(val query: String) : CollectionsEvent
+    data class CollectionClick(val collection: Collection) : CollectionsEvent
+    data object DismissSheet : CollectionsEvent
+}
+
+sealed interface CollectionsSideEffect

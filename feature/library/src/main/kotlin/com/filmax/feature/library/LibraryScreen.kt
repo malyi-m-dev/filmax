@@ -47,7 +47,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.ui.components.PosterCard
 import com.filmax.core.ui.components.PosterImage
@@ -56,9 +55,9 @@ import com.filmax.core.ui.components.PosterImage
 fun LibraryScreen(
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LibraryViewModel = koinViewModel(),
+    screenModel: LibraryScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
 
     Column(
         modifier = modifier
@@ -89,7 +88,7 @@ fun LibraryScreen(
             LibraryTab.entries.forEach { tab ->
                 Tab(
                     selected = state.tab == tab,
-                    onClick = { viewModel.onTabChange(tab) },
+                    onClick = { screenModel.dispatch(LibraryEvent.TabChange(tab)) },
                     text = {
                         Text(
                             tab.label,
@@ -113,8 +112,8 @@ fun LibraryScreen(
                 LibraryTab.HISTORY -> HistoryTab(
                     state = state,
                     onOpenItem = onOpenItem,
-                    onRemove = viewModel::removeFromHistory,
-                    onClear = viewModel::clearHistory,
+                    onRemove = { screenModel.dispatch(LibraryEvent.RemoveFromHistory(it)) },
+                    onClear = { screenModel.dispatch(LibraryEvent.ClearHistory) },
                 )
                 LibraryTab.LISTS -> ListsTab(state = state)
             }
@@ -123,7 +122,7 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun FavoritesTab(state: LibraryUiState, onOpenItem: (Int) -> Unit) {
+private fun FavoritesTab(state: LibraryState, onOpenItem: (Int) -> Unit) {
     if (state.favorites.isEmpty()) {
         EmptyState(
             icon = Icons.Filled.Bookmarks,
@@ -150,7 +149,7 @@ private fun FavoritesTab(state: LibraryUiState, onOpenItem: (Int) -> Unit) {
 
 @Composable
 private fun HistoryTab(
-    state: LibraryUiState,
+    state: LibraryState,
     onOpenItem: (Int) -> Unit,
     onRemove: (Int) -> Unit,
     onClear: () -> Unit,
@@ -244,7 +243,7 @@ private fun HistoryRow(entry: WatchHistory, onClick: () -> Unit, onRemove: () ->
 }
 
 @Composable
-private fun ListsTab(state: LibraryUiState) {
+private fun ListsTab(state: LibraryState) {
     if (state.lists.isEmpty()) {
         EmptyState(
             icon = Icons.Filled.Folder,

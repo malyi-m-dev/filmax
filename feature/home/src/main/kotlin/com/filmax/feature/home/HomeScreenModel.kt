@@ -1,35 +1,34 @@
 package com.filmax.feature.home
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.firstErrorMessage
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.watching.WatchingRepository
+import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
-class HomeViewModel(
+class HomeScreenModel(
     private val catalog: CatalogRepository,
     private val watching: WatchingRepository,
-) : ViewModel() {
-
-    private val _state = MutableStateFlow(HomeUiState())
-    val state = _state.asStateFlow()
+) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
 
     init {
-        load()
+        onFetchData()
     }
 
-    fun load() {
-        viewModelScope.launch {
-            _state.update { it.copy(loading = true, error = null) }
+    override fun dispatch(event: HomeEvent) {
+        when (event) {
+            HomeEvent.Load -> onFetchData()
+            is HomeEvent.ToggleFav -> toggleFav(event.itemId)
+        }
+    }
+
+    override fun onFetchData() {
+        screenModelScope {
+            updateState { it.copy(loading = true, error = null) }
             coroutineScope {
                 val hotDeferred = async { catalog.getHotItems(ItemType.MOVIE) }
                 val trendingDeferred = async { catalog.getItems(ItemType.MOVIE, CatalogSort.VIEWS) }
@@ -43,7 +42,7 @@ class HomeViewModel(
                 val forYou = forYouDeferred.await()
                 val history = historyDeferred.await()
 
-                _state.update { s ->
+                updateState { s ->
                     s.copy(
                         loading = false,
                         hero = hot.getOrNull()?.items?.firstOrNull(),
@@ -58,10 +57,10 @@ class HomeViewModel(
         }
     }
 
-    fun toggleFav(itemId: Int) {
-        viewModelScope.launch {
+    private fun toggleFav(itemId: Int) {
+        screenModelScope {
             watching.toggleWatchlist(itemId)
-            _state.update { s ->
+            updateState { s ->
                 val favs = s.favorites.toMutableSet()
                 if (itemId in favs) favs.remove(itemId) else favs.add(itemId)
                 s.copy(favorites = favs)

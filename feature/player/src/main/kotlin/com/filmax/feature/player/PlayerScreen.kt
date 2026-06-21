@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -30,7 +29,6 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -47,20 +45,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import org.koin.androidx.compose.navigation.koinNavViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.Player
+import org.koin.androidx.compose.koinViewModel
 import androidx.media3.ui.PlayerView
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PlayerViewModel = koinNavViewModel(),
+    screenModel: PlayerScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
     var controlsVisible by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
@@ -73,12 +68,12 @@ fun PlayerScreen(
         }
     }
     // Track playback progress
-    LaunchedEffect(viewModel.player) {
+    LaunchedEffect(screenModel.player) {
         while (true) {
             delay(1000)
-            val duration = viewModel.player.duration.takeIf { it > 0 } ?: continue
-            progress = viewModel.player.currentPosition / duration.toFloat()
-            viewModel.saveProgress(viewModel.player.currentPosition)
+            val duration = screenModel.player.duration.takeIf { it > 0 } ?: continue
+            progress = screenModel.player.currentPosition / duration.toFloat()
+            screenModel.dispatch(PlayerEvent.SaveProgress(screenModel.player.currentPosition))
         }
     }
 
@@ -95,7 +90,7 @@ fun PlayerScreen(
         AndroidView(
             factory = { ctx ->
                 PlayerView(ctx).also { view ->
-                    view.player = viewModel.player
+                    view.player = screenModel.player
                     view.useController = false
                 }
             },
@@ -145,7 +140,7 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(32.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GlassBtn(onClick = { viewModel.player.seekBack() }) {
+                    GlassBtn(onClick = { screenModel.player.seekBack() }) {
                         Text("⏪", fontSize = 22.sp)
                     }
                     // Big play button
@@ -154,20 +149,20 @@ fun PlayerScreen(
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         onClick = {
-                            if (viewModel.player.isPlaying) viewModel.player.pause()
-                            else viewModel.player.play()
+                            if (screenModel.player.isPlaying) screenModel.player.pause()
+                            else screenModel.player.play()
                         },
                     ) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Icon(
-                                if (viewModel.player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                if (screenModel.player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.size(40.dp),
                             )
                         }
                     }
-                    GlassBtn(onClick = { viewModel.player.seekForward() }) {
+                    GlassBtn(onClick = { screenModel.player.seekForward() }) {
                         Text("⏩", fontSize = 22.sp)
                     }
                 }
@@ -180,8 +175,8 @@ fun PlayerScreen(
                         value = progress,
                         onValueChange = { v ->
                             progress = v
-                            val duration = viewModel.player.duration.takeIf { it > 0 } ?: return@Slider
-                            viewModel.player.seekTo((v * duration).toLong())
+                            val duration = screenModel.player.duration.takeIf { it > 0 } ?: return@Slider
+                            screenModel.player.seekTo((v * duration).toLong())
                         },
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
@@ -191,7 +186,7 @@ fun PlayerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        val duration = viewModel.player.duration.takeIf { it > 0 } ?: 0L
+                        val duration = screenModel.player.duration.takeIf { it > 0 } ?: 0L
                         val current = (progress * duration).toLong()
                         Text(formatMs(current), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Text("-${formatMs(duration - current)}", color = Color.White.copy(0.7f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

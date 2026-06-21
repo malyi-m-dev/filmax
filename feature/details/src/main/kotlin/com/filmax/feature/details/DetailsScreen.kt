@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -53,8 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.navigation.koinNavViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
@@ -73,9 +71,9 @@ fun DetailsScreen(
     onPlay: (itemId: Int) -> Unit,
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: DetailsViewModel = koinNavViewModel(),
+    screenModel: DetailsScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
     val item = state.item
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -88,7 +86,7 @@ fun DetailsScreen(
                 state = state,
                 onBack = onBack,
                 onPlay = { onPlay(item.id) },
-                onFav = viewModel::toggleFav,
+                onFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
                 onOpenItem = onOpenItem,
             )
         }
@@ -98,7 +96,7 @@ fun DetailsScreen(
 @Composable
 private fun DetailsContent(
     item: Item,
-    state: DetailsUiState,
+    state: DetailsState,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onFav: () -> Unit,

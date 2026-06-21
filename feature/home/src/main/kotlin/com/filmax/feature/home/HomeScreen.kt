@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Duration
 import com.filmax.core.domain.catalog.model.Item
@@ -68,9 +67,9 @@ private val SectionPalette = listOf(
 fun HomeScreen(
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = koinViewModel(),
+    screenModel: HomeScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
 
     Box(
         modifier = modifier
@@ -89,7 +88,7 @@ fun HomeScreen(
             else -> HomeContent(
                 state = state,
                 onOpenItem = onOpenItem,
-                onFav = viewModel::toggleFav,
+                onFav = { screenModel.dispatch(HomeEvent.ToggleFav(it)) },
             )
         }
     }
@@ -97,7 +96,7 @@ fun HomeScreen(
 
 @Composable
 private fun HomeContent(
-    state: HomeUiState,
+    state: HomeState,
     onOpenItem: (Int) -> Unit,
     onFav: (Int) -> Unit,
 ) {

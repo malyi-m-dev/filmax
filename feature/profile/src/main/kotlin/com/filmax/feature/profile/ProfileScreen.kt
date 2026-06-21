@@ -42,16 +42,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.domain.user.model.Subscription
 
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: ProfileViewModel = koinViewModel(),
+    screenModel: ProfileScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
+
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            ProfileSideEffect.LoggedOut -> onLogout()
+        }
+    }
 
     if (state.loading) {
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -100,10 +105,7 @@ fun ProfileScreen(
                 icon = Icons.AutoMirrored.Filled.Logout,
                 label = "Выйти",
                 tint = MaterialTheme.colorScheme.error,
-                onClick = {
-                    viewModel.logout()
-                    onLogout()
-                },
+                onClick = { screenModel.dispatch(ProfileEvent.Logout) },
             )
         }
 

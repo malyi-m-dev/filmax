@@ -4,7 +4,7 @@ import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.watching.model.WatchHistory
 
-data class HomeUiState(
+data class HomeState(
     val loading: Boolean = true,
     val hero: Item? = null,
     val continueWatching: List<WatchHistory> = emptyList(),
@@ -14,3 +14,11 @@ data class HomeUiState(
     val favorites: Set<Int> = emptySet(),
     val error: String? = null,
 )
+
+sealed interface HomeEvent {
+    data object Load : HomeEvent
+    data class ToggleFav(val itemId: Int) : HomeEvent
+}
+
+/** Экран пока не порождает одноразовых эффектов — навигация открытия айтема идёт колбэком из Screen. */
+sealed interface HomeSideEffect

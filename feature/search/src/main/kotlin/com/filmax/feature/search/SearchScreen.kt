@@ -49,14 +49,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.domain.catalog.model.Item
@@ -68,9 +66,9 @@ import com.filmax.core.ui.components.RatingPill
 fun SearchScreen(
     onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: SearchViewModel = koinViewModel(),
+    screenModel: SearchScreenModel = koinViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by screenModel.collectAsState()
 
     Column(
         modifier = modifier
@@ -81,8 +79,8 @@ fun SearchScreen(
     ) {
         SearchBar(
             query = state.query,
-            onQueryChange = viewModel::onQueryChange,
-            onClear = { viewModel.onQueryChange("") },
+            onQueryChange = { screenModel.dispatch(SearchEvent.QueryChange(it)) },
+            onClear = { screenModel.dispatch(SearchEvent.QueryChange("")) },
             modifier = Modifier.padding(horizontal = 20.dp),
         )
 
@@ -90,7 +88,7 @@ fun SearchScreen(
 
         FilterChips(
             selected = state.filter,
-            onSelect = viewModel::onFilterChange,
+            onSelect = { screenModel.dispatch(SearchEvent.FilterChange(it)) },
             modifier = Modifier.padding(horizontal = 20.dp),
         )
 
@@ -130,9 +128,9 @@ fun SearchScreen(
                 else -> DiscoverContent(
                     recentQueries = state.recentQueries,
                     trendingQueries = state.trendingQueries,
-                    onQueryClick = viewModel::onTrendingQueryClick,
-                    onRecentClick = viewModel::onRecentQueryClick,
-                    onClearRecent = viewModel::clearRecentQueries,
+                    onQueryClick = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
+                    onRecentClick = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
+                    onClearRecent = { screenModel.dispatch(SearchEvent.ClearRecent) },
                 )
             }
         }
