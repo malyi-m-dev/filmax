@@ -47,9 +47,9 @@ fun RatingPill(
         )
         Spacer(Modifier.width(3.dp))
         Text(
-            text      = "%.1f".format(rating),
-            color     = color,
-            fontSize  = fontSize,
+            text = "%.1f".format(rating),
+            color = color,
+            fontSize = fontSize,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
         )
     }

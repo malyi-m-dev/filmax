@@ -76,17 +76,19 @@ fun DetailsScreen(
     viewModel: DetailsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val item = state.item
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-            state.item != null -> DetailsContent(
-                state    = state,
-                onBack   = onBack,
-                onPlay   = { onPlay(state.item!!.id) },
-                onFav    = viewModel::toggleFav,
+            item != null -> DetailsContent(
+                item = item,
+                state = state,
+                onBack = onBack,
+                onPlay = { onPlay(item.id) },
+                onFav = viewModel::toggleFav,
                 onOpenItem = onOpenItem,
             )
         }
@@ -95,13 +97,13 @@ fun DetailsScreen(
 
 @Composable
 private fun DetailsContent(
+    item: Item,
     state: DetailsUiState,
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onFav: () -> Unit,
     onOpenItem: (Int) -> Unit,
 ) {
-    val item = state.item!!
     var tab by remember { mutableStateOf("about") }
 
     Column(
@@ -395,10 +397,10 @@ private fun SimilarTab(similarItems: List<Item>, onOpenItem: (Int) -> Unit) {
                     .clickable { onOpenItem(item.id) }
             ) {
                 PosterImage(
-                    url                = item.posters.medium,
+                    url = item.posters.medium,
                     contentDescription = item.title,
-                    modifier           = Modifier.matchParentSize(),
-                    accentColor        = Color(0xFFB4305A),
+                    modifier = Modifier.matchParentSize(),
+                    accentColor = AccentColor,
                 )
             }
         }

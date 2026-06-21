@@ -43,8 +43,8 @@ fun FilmaxChip(
     val shape = RoundedCornerShape(percent = 50)
 
     Surface(
-        color  = bgColor,
-        shape  = shape,
+        color = bgColor,
+        shape = shape,
         modifier = modifier
             .clip(shape)
             .clickable(onClick = onClick)
@@ -67,7 +67,7 @@ fun FilmaxChip(
                 Spacer(Modifier.width(6.dp))
             }
             Text(
-                text  = label,
+                text = label,
                 color = contentColor,
                 style = MaterialTheme.typography.labelLarge,
             )

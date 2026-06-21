@@ -22,8 +22,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filmax.core.ui.components.FilmaxTab
 import com.filmax.core.ui.components.FilmaxTabBar
-import com.filmax.feature.categories.navigation.CategoriesRoute
-import com.filmax.feature.categories.navigation.categoriesScreen
+import com.filmax.feature.collections.navigation.CollectionsRoute
+import com.filmax.feature.collections.navigation.collectionsScreen
 import com.filmax.feature.details.navigation.DetailsRoute
 import com.filmax.feature.details.navigation.detailsScreen
 import com.filmax.feature.home.navigation.HomeRoute
@@ -46,7 +46,7 @@ private object SplashRoute
 private val tabRouteClasses = mapOf(
     FilmaxTab.HOME to HomeRoute::class,
     FilmaxTab.SEARCH to SearchRoute::class,
-    FilmaxTab.CATEGORIES to CategoriesRoute::class,
+    FilmaxTab.COLLECTIONS to CollectionsRoute::class,
     FilmaxTab.LIBRARY to LibraryRoute::class,
     FilmaxTab.PROFILE to ProfileRoute::class,
 )
@@ -77,7 +77,7 @@ fun FilmaxNavGraph(
     val bottomBarTabs = listOf(
         HomeRoute::class,
         SearchRoute::class,
-        CategoriesRoute::class,
+        CollectionsRoute::class,
         LibraryRoute::class,
         ProfileRoute::class,
     )
@@ -120,7 +120,7 @@ fun FilmaxNavGraph(
             searchScreen(
                 onOpenItem = { navController.navigate(DetailsRoute(it)) },
             )
-            categoriesScreen(
+            collectionsScreen(
                 onOpenItem = { navController.navigate(DetailsRoute(it)) },
             )
             libraryScreen(
@@ -151,7 +151,7 @@ fun FilmaxNavGraph(
                     val route: Any = when (tab) {
                         FilmaxTab.HOME -> HomeRoute
                         FilmaxTab.SEARCH -> SearchRoute
-                        FilmaxTab.CATEGORIES -> CategoriesRoute
+                        FilmaxTab.COLLECTIONS -> CollectionsRoute
                         FilmaxTab.LIBRARY -> LibraryRoute
                         FilmaxTab.PROFILE -> ProfileRoute
                     }

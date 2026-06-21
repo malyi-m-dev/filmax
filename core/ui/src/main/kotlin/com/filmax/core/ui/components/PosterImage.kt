@@ -33,7 +33,7 @@ fun PosterImage(
     accentColor: Color = Color(0xFFB4305A),
 ) {
     SubcomposeAsyncImage(
-        model    = url,
+        model = url,
         contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier.clip(shape),
@@ -52,7 +52,7 @@ private fun ShimmerBox(accentColor: Color, modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "shimmer")
     val progress by transition.animateFloat(
         initialValue = -1f,
-        targetValue  = 2f,
+        targetValue = 2f,
         animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Restart),
         label = "shimmer_offset",
     )
@@ -65,7 +65,7 @@ private fun ShimmerBox(accentColor: Color, modifier: Modifier = Modifier) {
                     accentColor.copy(alpha = 0.08f),
                 ),
                 start = Offset(progress * 800f, 0f),
-                end   = Offset(progress * 800f + 400f, 600f),
+                end = Offset(progress * 800f + 400f, 600f),
             )
         )
     )
@@ -77,8 +77,8 @@ fun GradientPosterPlaceholder(accentColor: Color, modifier: Modifier = Modifier)
         modifier = modifier.background(
             Brush.linearGradient(
                 colors = listOf(accentColor.copy(alpha = 0.7f), Color(0xFF141012)),
-                start  = Offset(0f, 0f),
-                end    = Offset(200f, 600f),
+                start = Offset(0f, 0f),
+                end = Offset(200f, 600f),
             )
         )
     )

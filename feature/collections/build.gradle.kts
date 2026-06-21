@@ -2,7 +2,7 @@ plugins {
     id("filmax.android.feature")
     alias(libs.plugins.kotlin.serialization)
 }
-android { namespace = "com.filmax.feature.categories" }
+android { namespace = "com.filmax.feature.collections" }
 dependencies {
     implementation(project(":core:ui"))
     implementation(project(":core:domain"))

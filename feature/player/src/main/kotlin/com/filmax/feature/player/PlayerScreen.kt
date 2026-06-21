@@ -114,7 +114,7 @@ fun PlayerScreen(
         AnimatedVisibility(
             visible = controlsVisible && !state.loading,
             enter = fadeIn(),
-            exit  = fadeOut(),
+            exit = fadeOut(),
             modifier = Modifier.fillMaxSize(),
         ) {
             Box(
@@ -184,8 +184,8 @@ fun PlayerScreen(
                             viewModel.player.seekTo((v * duration).toLong())
                         },
                         colors = SliderDefaults.colors(
-                            thumbColor        = MaterialTheme.colorScheme.primary,
-                            activeTrackColor  = MaterialTheme.colorScheme.primaryContainer,
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primaryContainer,
                             inactiveTrackColor = Color.White.copy(0.2f),
                         ),
                         modifier = Modifier.fillMaxWidth(),

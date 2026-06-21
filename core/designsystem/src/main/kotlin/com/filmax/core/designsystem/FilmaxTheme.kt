@@ -13,15 +13,15 @@ fun FilmaxTheme(
 ) {
     val preset = AccentPresets[accentColor] ?: AccentPresets.values.first()
     val colorScheme = FilmaxDarkColorScheme.copy(
-        primary              = preset.primary,
-        onPrimary            = preset.onPrimary,
-        primaryContainer     = preset.primaryContainer,
-        onPrimaryContainer   = preset.onPrimaryContainer,
+        primary = preset.primary,
+        onPrimary = preset.onPrimary,
+        primaryContainer = preset.primaryContainer,
+        onPrimaryContainer = preset.onPrimaryContainer,
     )
     MaterialTheme(
         colorScheme = colorScheme,
-        typography  = FilmaxTypography,
-        shapes      = FilmaxShapes,
-        content     = content,
+        typography = FilmaxTypography,
+        shapes = FilmaxShapes,
+        content = content,
     )
 }

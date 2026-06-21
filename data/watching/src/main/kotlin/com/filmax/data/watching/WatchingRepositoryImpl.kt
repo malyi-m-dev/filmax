@@ -16,16 +16,16 @@ internal class WatchingRepositoryImpl @Inject constructor(
     override suspend fun getHistory(type: String): RequestResult<List<WatchHistory>> = safeRequest {
         api.getHistory(type).items.map { dto ->
             WatchHistory(
-                itemId      = dto.id,
-                title       = dto.title,
+                itemId = dto.id,
+                title = dto.title,
                 posterSmall = dto.posters?.small,
-                progress    = dto.watching?.let {
+                progress = dto.watching?.let {
                     WatchProgress(
-                        status          = it.status,
-                        timeSeconds     = it.time,
+                        status = it.status,
+                        timeSeconds = it.time,
                         durationSeconds = it.duration,
-                        videoId         = it.video,
-                        season          = it.season,
+                        videoId = it.video,
+                        season = it.season,
                     )
                 },
             )
@@ -55,12 +55,12 @@ internal class WatchingRepositoryImpl @Inject constructor(
     override suspend fun getNotifications(): RequestResult<List<Notification>> = safeRequest {
         api.getNotifications().notifications?.map { dto ->
             Notification(
-                id        = dto.id,
-                title     = dto.title,
-                text      = dto.text,
+                id = dto.id,
+                title = dto.title,
+                text = dto.text,
                 createdAt = dto.createdAt?.toLong()?.times(1000),
-                read      = dto.read,
-                itemId    = dto.itemId,
+                read = dto.read,
+                itemId = dto.itemId,
             )
         } ?: emptyList()
     }

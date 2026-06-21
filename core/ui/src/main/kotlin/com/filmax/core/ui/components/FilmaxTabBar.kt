@@ -18,12 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Person
@@ -48,7 +48,7 @@ enum class FilmaxTab(
 ) {
     HOME("Главная", Icons.Filled.Home, Icons.Outlined.Home),
     SEARCH("Поиск", Icons.Filled.Search, Icons.Outlined.Search),
-    CATEGORIES("Жанры", Icons.Filled.GridView, Icons.Outlined.GridView),
+    COLLECTIONS("Подборки", Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder),
     LIBRARY("Библио", Icons.Filled.LocalLibrary, Icons.Outlined.LocalLibrary),
     PROFILE("Профиль", Icons.Filled.Person, Icons.Outlined.Person),
 }
@@ -77,9 +77,9 @@ fun FilmaxTabBar(
         ) {
             FilmaxTab.entries.forEach { tab ->
                 TabItem(
-                    tab      = tab,
+                    tab = tab,
                     selected = tab == selected,
-                    onClick  = { onSelect(tab) },
+                    onClick = { onSelect(tab) },
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -133,9 +133,9 @@ private fun TabItem(
         }
         Spacer(Modifier.height(2.dp))
         Text(
-            text       = tab.label,
-            color      = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize   = 10.sp,
+            text = tab.label,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp,
             fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
         )
     }

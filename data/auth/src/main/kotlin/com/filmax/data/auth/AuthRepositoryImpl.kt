@@ -22,11 +22,11 @@ internal class AuthRepositoryImpl @Inject constructor(
     override suspend fun requestDeviceCode(): RequestResult<DeviceCode> = safeRequest {
         val dto = api.requestDeviceCode()
         DeviceCode(
-            code            = dto.code,
-            userCode        = dto.userCode,
+            code = dto.code,
+            userCode = dto.userCode,
             verificationUri = dto.verificationUri,
-            expiresIn       = dto.expiresIn,
-            interval        = dto.interval,
+            expiresIn = dto.expiresIn,
+            interval = dto.interval,
         )
     }
 
