@@ -1,7 +1,15 @@
 plugins {
-    id("filmax.kotlin.library")
+    id("filmax.kmp.library")
 }
 
-dependencies {
-    implementation(libs.kotlinx.coroutines.core)
+android {
+    namespace = "com.filmax.core.domain"
+}
+
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation(libs.kotlinx.coroutines.core)
+        }
+    }
 }
