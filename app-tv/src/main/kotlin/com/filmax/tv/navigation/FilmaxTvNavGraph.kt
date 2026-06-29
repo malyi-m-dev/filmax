@@ -21,13 +21,13 @@ import com.filmax.feature.details.navigation.DetailsRoute
 import com.filmax.feature.player.navigation.PlayerRoute
 import com.filmax.feature.categories.tv.navigation.TvCategoriesRoute
 import com.filmax.feature.categories.tv.navigation.tvCategoriesScreen
-import com.filmax.feature.tv.details.navigation.tvDetailsScreen
+import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
 import com.filmax.feature.library.tv.navigation.tvLibraryScreen
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
-import com.filmax.feature.tv.player.navigation.tvPlayerScreen
+import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import com.filmax.feature.search.tv.navigation.tvSearchScreen

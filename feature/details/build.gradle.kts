@@ -1,18 +1,17 @@
+// Логический слой Details (без UI): ScreenModel + контракт + DI + маршрут.
 plugins {
-    id("filmax.android.feature")
+    id("filmax.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
+
 android { namespace = "com.filmax.feature.details" }
+
 dependencies {
-    implementation(project(":core:ui"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
-    implementation(project(":data:catalog"))
-    implementation(project(":data:watching"))
-    val bom = platform(libs.compose.bom)
-    implementation(bom)
-    implementation(libs.bundles.compose)
-    implementation(libs.navigation.compose)
+
     implementation(platform(libs.koin.bom))
-    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.android)
+    // toRoute<DetailsRoute>() + SavedStateHandle
+    implementation(libs.navigation.compose)
 }

@@ -62,8 +62,8 @@ dependencies {
     implementation(project(":feature:collections"))
     implementation(project(":feature:library:mobile"))
     implementation(project(":feature:profile:mobile"))
-    implementation(project(":feature:details"))
-    implementation(project(":feature:player"))
+    implementation(project(":feature:details:mobile"))
+    implementation(project(":feature:player:mobile"))
     implementation(project(":feature:designsystem"))
 
     // Compose

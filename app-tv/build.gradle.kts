@@ -72,8 +72,8 @@ dependencies {
     implementation(project(":feature:categories:tv"))
     implementation(project(":feature:library:tv"))
     implementation(project(":feature:profile:tv"))
-    implementation(project(":feature-tv:details"))
-    implementation(project(":feature-tv:player"))
+    implementation(project(":feature:details:tv"))
+    implementation(project(":feature:player:tv"))
 
     // Compose
     val bom = platform(libs.compose.bom)
