@@ -14,6 +14,10 @@ coil = "3.1.0"
 media3 = "1.5.1"
 activity-compose = "1.10.1"
 chucker = "4.0.0"
+# KMP
+ktor = "3.0.3"
+multiplatform-settings = "1.2.0"
+skie = "0.10.1"
 
 [libraries]
 # Gradle plugin implementation JARs (for build-logic compileOnly)
@@ -36,8 +40,22 @@ chucker-no-op = { group = "com.github.chuckerteam.chucker", name = "library-no-o
 
 # DI
 koin-bom = { group = "io.insert-koin", name = "koin-bom", version.ref = "koin" }
+koin-core = { group = "io.insert-koin", name = "koin-core" }
 koin-android = { group = "io.insert-koin", name = "koin-android" }
 koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose" }
+
+# Ktor (KMP network)
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { group = "io.ktor", name = "ktor-client-darwin", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktor" }
+ktor-client-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref = "ktor" }
+
+# Multiplatform settings (KMP storage)
+multiplatform-settings = { group = "com.russhwolf", name = "multiplatform-settings", version.ref = "multiplatform-settings" }
+multiplatform-settings-coroutines = { group = "com.russhwolf", name = "multiplatform-settings-coroutines", version.ref = "multiplatform-settings" }
 
 # Storage
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
@@ -73,6 +91,14 @@ media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls
 media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 
 [bundles]
+# Ktor common deps (engine добавляется в platform source set отдельно)
+ktor-common = [
+    "ktor-client-core",
+    "ktor-client-content-negotiation",
+    "ktor-serialization-kotlinx-json",
+    "ktor-client-logging",
+    "ktor-client-auth",
+]
 compose = [
     "compose-ui",
     "compose-ui-graphics",
@@ -90,5 +116,8 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+kotlin-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+skie = { id = "co.touchlab.skie", version.ref = "skie" }
