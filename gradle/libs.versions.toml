@@ -13,6 +13,7 @@ lifecycle = "2.9.0"
 coil = "3.1.0"
 media3 = "1.5.1"
 activity-compose = "1.10.1"
+tv-material = "1.0.0"
 chucker = "4.0.0"
 # KMP
 ktor = "3.0.3"
@@ -73,6 +74,9 @@ compose-material-icons = { group = "androidx.compose.material", name = "material
 
 # Navigation
 navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigation-compose" }
+
+# Android TV (Material3 for TV — нативный D-pad фокус из коробки)
+tv-material = { group = "androidx.tv", name = "tv-material", version.ref = "tv-material" }
 
 # Lifecycle
 lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }

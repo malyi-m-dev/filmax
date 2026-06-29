@@ -1,22 +1,31 @@
+@file:OptIn(ExperimentalTvMaterial3Api::class)
+
 package com.filmax.core.tv.designsystem
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
+import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
+import androidx.compose.material3.MaterialTheme as ComposeMaterialTheme
 import com.filmax.core.designsystem.FilmaxDarkColorScheme
 import com.filmax.core.designsystem.FilmaxShapes
 import com.filmax.core.designsystem.FilmaxTypography
 
 /**
- * TV-вариант темы Filmax.
+ * TV-тема Filmax. Оборачивает контент в ДВЕ темы:
+ *  - `androidx.tv.material3.MaterialTheme` — для TV-компонентов (Surface/Button/Text)
+ *    с нативным D-pad фокусом из коробки;
+ *  - `androidx.compose.material3.MaterialTheme` — для компонентов, которых нет в tv-material3
+ *    (например, `CircularProgressIndicator`), чтобы и они брали брендовые цвета.
  *
- * Переиспользует токены мобильной [FilmaxDarkColorScheme] (тот же бренд: rose `#B4305A`,
- * `onSurface #EFDFE3`, …), затемняя поверхности под 10-foot просмотр и добавляя focus-цвет
- * [TvFocus] через [LocalTvFocusColor]. Типографика и формы — общие с мобильной системой.
+ * Обе схемы построены на токенах мобильной [FilmaxDarkColorScheme] с затемнёнными
+ * под 10-foot поверхностями. `border` в TV-схеме = [TvFocus], поэтому стандартная
+ * обводка фокуса у TV-Surface получается фирменно-жёлтой.
  */
 @Composable
 fun FilmaxTvTheme(content: @Composable () -> Unit) {
-    val colorScheme = FilmaxDarkColorScheme.copy(
+    val composeScheme = FilmaxDarkColorScheme.copy(
         surface = TvSurface,
         background = TvSurface,
         surfaceContainer = TvSurfaceContainer,
@@ -25,12 +34,32 @@ fun FilmaxTvTheme(content: @Composable () -> Unit) {
         onSurfaceVariant = TvOnSurfaceVariant,
         outlineVariant = TvOutlineVariant,
     )
+
+    val tvScheme = tvDarkColorScheme(
+        primary = TvPrimary,
+        onPrimary = TvOnPrimary,
+        primaryContainer = TvPrimaryContainer,
+        onPrimaryContainer = TvOnPrimaryContainer,
+        surface = TvSurface,
+        onSurface = TvOnSurface,
+        surfaceVariant = TvSurfaceContainerHigh,
+        onSurfaceVariant = TvOnSurfaceVariant,
+        background = TvSurface,
+        onBackground = TvOnSurface,
+        border = TvFocus,
+        error = TvError,
+        errorContainer = TvErrorContainer,
+    )
+
     CompositionLocalProvider(LocalTvFocusColor provides TvFocus) {
-        MaterialTheme(
-            colorScheme = colorScheme,
+        ComposeMaterialTheme(
+            colorScheme = composeScheme,
             typography = FilmaxTypography,
             shapes = FilmaxShapes,
-            content = content,
-        )
+        ) {
+            TvMaterialTheme(colorScheme = tvScheme) {
+                content()
+            }
+        }
     }
 }

@@ -52,16 +52,28 @@ dependencies {
     // Data
     implementation(project(":data:auth"))
     implementation(project(":data:catalog"))
+    implementation(project(":data:search"))
     implementation(project(":data:user"))
     implementation(project(":data:watching"))
 
     // Shared MVI logic (ScreenModels + DI modules reused from mobile features)
     implementation(project(":feature:onboarding"))
     implementation(project(":feature:home"))
+    implementation(project(":feature:search"))
+    implementation(project(":feature:library"))
+    implementation(project(":feature:profile"))
+    implementation(project(":feature:details"))
+    implementation(project(":feature:player"))
 
     // TV UI features
     implementation(project(":feature-tv:onboarding"))
     implementation(project(":feature-tv:home"))
+    implementation(project(":feature-tv:search"))
+    implementation(project(":feature-tv:categories"))
+    implementation(project(":feature-tv:library"))
+    implementation(project(":feature-tv:profile"))
+    implementation(project(":feature-tv:details"))
+    implementation(project(":feature-tv:player"))
 
     // Compose
     val bom = platform(libs.compose.bom)

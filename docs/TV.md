@@ -11,27 +11,38 @@
 
 | Модуль | Назначение |
 |--------|------------|
-| `:app-tv` | Приложение (`LEANBACK_LAUNCHER`, баннер), `TvMainActivity`, DI, навигация |
-| `:core:tv-designsystem` | `FilmaxTvTheme` (поверх токенов `core:designsystem`), focus-цвет `#FFD466`, `Modifier.tvFocusable`, `TvButton` |
-| `:feature-tv:onboarding` | TV-экран входа поверх `OnboardingScreenModel` |
-| `:feature-tv:home` | TV-Главная поверх `HomeScreenModel` |
+| `:app-tv` | Приложение (`LEANBACK_LAUNCHER`, баннер), `TvMainActivity`, DI, навигация + верхний таб-бар |
+| `:core:tv-designsystem` | `FilmaxTvTheme` (tv-material3 + compose-material3), focus `#FFD466`, `TvButton`, `TvFocusCard` |
+| `:feature-tv:onboarding` | Вход по device-code поверх `OnboardingScreenModel` |
+| `:feature-tv:home` | Главная (hero + рельсы) поверх `HomeScreenModel` |
+| `:feature-tv:search` | Поиск с экранной клавиатурой поверх `SearchScreenModel` |
+| `:feature-tv:categories` | Жанры (статичная сетка плиток) |
+| `:feature-tv:library` | Библиотека (табы + сетка) поверх `LibraryScreenModel` |
+| `:feature-tv:profile` | Профиль/настройки поверх `ProfileScreenModel` |
+| `:feature-tv:details` | Детали поверх `DetailsScreenModel` (тот же `DetailsRoute`) |
+| `:feature-tv:player` | Плеер (ExoPlayer) поверх `PlayerScreenModel` (тот же `PlayerRoute`) |
 
 ## Принципы
 
-- **Дизайн-система общая.** TV-токены из макета совпали с `core:designsystem`
-  (`primary #FFB1C8`, `primaryContainer #B4305A`, `onSurface #EFDFE3`). `FilmaxTvTheme`
-  лишь затемняет поверхности (`surface #0A0809`) под просмотр с дивана и добавляет
-  focus-цвет.
+- **Нативный TV-стек.** `androidx.tv.material3`: `FilmaxTvTheme` оборачивает контент в
+  tv-material3 + compose-material3 темы; интерактив (`TvButton`, `TvFocusCard`) — на
+  tv-material3 `Button`/`Surface` с фокусом/масштабом/обводкой из коробки. Вся работа с
+  tv-material3 API сосредоточена в `:core:tv-designsystem` (2 файла) — экраны её не касаются.
+- **Дизайн-система общая.** TV-токены совпали с `core:designsystem`; отличие — затемнённые
+  поверхности (`surface #0A0809`) и focus-цвет.
 - **Логика не дублируется.** TV-экраны берут готовые `ScreenModel`/`Contract`/koin-модули
-  из мобильных фич (`feature:onboarding`, `feature:home`).
-- **Фокус — штатный Compose.** `Modifier.tvFocusable` даёт фокусируемость + клик (OK/DPAD)
-  + подсветку (scale 1.08 + жёлтая обводка). D-pad навигация — спатиальный поиск Compose.
+  из мобильных фич. Детали/Плеер переиспользуют и сами маршруты (`DetailsRoute`/`PlayerRoute`),
+  чтобы `SavedStateHandle` отдавал `itemId`.
 
 ## Статус
 
-- [x] Каркас `:app-tv` + тема + навигация (Splash → Onboarding → Home)
-- [x] Onboarding (вход по device-code)
-- [x] Главная (hero + рельсы)
-- [ ] Детали, Плеер, Поиск, Жанры, Библиотека, Профиль
-- [ ] `androidx.tv.material3` (карточки/карусели) — добавить при необходимости
-- [ ] Экраны деталей/плеера: `onOpenItem` на Главной пока no-op
+- [x] Каркас `:app-tv` + тема + навигация + верхний таб-бар
+- [x] Onboarding, Главная, Поиск, Жанры, Библиотека, Профиль, Детали, Плеер
+- [ ] `Жанры` — статический список (нужен эндпоинт жанров каталога)
+- [ ] `Профиль` — реальный аккаунт/настройки вместо мульти-профиля из макета (в приложении профилей нет)
+- [ ] Сборка не проверялась в этом окружении (нет Android SDK) — собрать на машине с SDK
+
+## Версии
+
+- `androidx.tv:tv-material` = `1.0.0` (см. `gradle/libs.versions.toml`). Если IDE/сборка
+  ругается на несовместимость с Compose BOM `2025.05.01` — поднять версию tv-material.

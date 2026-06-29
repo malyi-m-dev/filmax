@@ -29,6 +29,12 @@ include(":core:presentation")
 
 include(":feature-tv:onboarding")
 include(":feature-tv:home")
+include(":feature-tv:search")
+include(":feature-tv:categories")
+include(":feature-tv:library")
+include(":feature-tv:profile")
+include(":feature-tv:details")
+include(":feature-tv:player")
 
 include(":data:auth")
 include(":data:catalog")
