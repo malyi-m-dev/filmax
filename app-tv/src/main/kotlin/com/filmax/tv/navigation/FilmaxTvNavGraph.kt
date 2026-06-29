@@ -19,18 +19,18 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filmax.feature.details.navigation.DetailsRoute
 import com.filmax.feature.player.navigation.PlayerRoute
-import com.filmax.feature.tv.categories.navigation.TvCategoriesRoute
-import com.filmax.feature.tv.categories.navigation.tvCategoriesScreen
+import com.filmax.feature.categories.tv.navigation.TvCategoriesRoute
+import com.filmax.feature.categories.tv.navigation.tvCategoriesScreen
 import com.filmax.feature.tv.details.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
-import com.filmax.feature.tv.library.navigation.tvLibraryScreen
-import com.filmax.feature.tv.onboarding.navigation.TvOnboardingRoute
-import com.filmax.feature.tv.onboarding.navigation.tvOnboardingScreen
+import com.filmax.feature.library.tv.navigation.tvLibraryScreen
+import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
+import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
 import com.filmax.feature.tv.player.navigation.tvPlayerScreen
-import com.filmax.feature.tv.profile.navigation.tvProfileScreen
-import com.filmax.feature.tv.search.navigation.TvSearchRoute
-import com.filmax.feature.tv.search.navigation.tvSearchScreen
+import com.filmax.feature.profile.tv.navigation.tvProfileScreen
+import com.filmax.feature.search.tv.navigation.TvSearchRoute
+import com.filmax.feature.search.tv.navigation.tvSearchScreen
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 

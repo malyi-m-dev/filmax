@@ -1,18 +1,14 @@
+// Логический слой фичи library (без UI): ScreenModel + контракт + DI.
 plugins {
-    id("filmax.android.feature")
-    alias(libs.plugins.kotlin.serialization)
+    id("filmax.android.library")
 }
+
 android { namespace = "com.filmax.feature.library" }
+
 dependencies {
-    implementation(project(":core:ui"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
-    implementation(project(":data:user"))
-    implementation(project(":data:watching"))
-    val bom = platform(libs.compose.bom)
-    implementation(bom)
-    implementation(libs.bundles.compose)
-    implementation(libs.navigation.compose)
+
     implementation(platform(libs.koin.bom))
-    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.android)
 }

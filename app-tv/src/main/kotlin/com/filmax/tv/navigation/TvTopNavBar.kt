@@ -23,11 +23,11 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import com.filmax.core.tv.designsystem.TvFocusCard
-import com.filmax.feature.tv.categories.navigation.TvCategoriesRoute
+import com.filmax.feature.categories.tv.navigation.TvCategoriesRoute
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
-import com.filmax.feature.tv.library.navigation.TvLibraryRoute
-import com.filmax.feature.tv.profile.navigation.TvProfileRoute
-import com.filmax.feature.tv.search.navigation.TvSearchRoute
+import com.filmax.feature.library.tv.navigation.TvLibraryRoute
+import com.filmax.feature.profile.tv.navigation.TvProfileRoute
+import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import kotlin.reflect.KClass
 
 /** Вкладка верхнего таб-бара: ярлык + маршрут + проверка активности. */

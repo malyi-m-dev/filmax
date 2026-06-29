@@ -66,12 +66,12 @@ dependencies {
     implementation(project(":feature:player"))
 
     // TV UI features
-    implementation(project(":feature-tv:onboarding"))
+    implementation(project(":feature:onboarding:tv"))
     implementation(project(":feature:home:tv"))
-    implementation(project(":feature-tv:search"))
-    implementation(project(":feature-tv:categories"))
-    implementation(project(":feature-tv:library"))
-    implementation(project(":feature-tv:profile"))
+    implementation(project(":feature:search:tv"))
+    implementation(project(":feature:categories:tv"))
+    implementation(project(":feature:library:tv"))
+    implementation(project(":feature:profile:tv"))
     implementation(project(":feature-tv:details"))
     implementation(project(":feature-tv:player"))
 

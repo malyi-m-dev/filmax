@@ -56,12 +56,12 @@ dependencies {
     implementation(project(":data:watching"))
 
     // Features
-    implementation(project(":feature:onboarding"))
+    implementation(project(":feature:onboarding:mobile"))
     implementation(project(":feature:home:mobile"))
-    implementation(project(":feature:search"))
+    implementation(project(":feature:search:mobile"))
     implementation(project(":feature:collections"))
-    implementation(project(":feature:library"))
-    implementation(project(":feature:profile"))
+    implementation(project(":feature:library:mobile"))
+    implementation(project(":feature:profile:mobile"))
     implementation(project(":feature:details"))
     implementation(project(":feature:player"))
     implementation(project(":feature:designsystem"))
