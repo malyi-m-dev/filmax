@@ -27,7 +27,8 @@ if (isTv) FilmaxTvTheme { FilmaxTvNavGraph() } else FilmaxTheme { FilmaxNavGraph
 
 Так — для всех фич: onboarding, home, search, library, profile, details, player.
 Особые случаи:
-- **categories** (Жанры) — только TV: `:feature:categories:tv` (без логического parent).
+- **collections** (Подборки) — общий `CollectionsScreenModel`/`CollectionDetailScreenModel`
+  переиспользуется в `:feature:collections:tv` (сетка подборок → экран подборки).
 - **details/player** — их ScreenModel читает маршрут через `SavedStateHandle.toRoute<…>()`,
   поэтому `DetailsRoute`/`PlayerRoute` лежат в логическом модуле
   (`:feature:{details,player}/navigation`), а навбилдеры в `:mobile`/`:tv` ссылаются на них.
@@ -57,11 +58,10 @@ if (isTv) FilmaxTvTheme { FilmaxTvNavGraph() } else FilmaxTheme { FilmaxNavGraph
 
 ## Статус
 
-- [x] Все экраны TV (onboarding, home, search, categories, library, profile, details, player)
+- [x] Все экраны TV (onboarding, home, search, collections, library, profile, details, player)
 - [x] Вложенная структура модулей на всех фичах (logic / mobile / tv)
 - [x] Один `:app` с выбором навграфа по устройству; `:app-tv` удалён
 - [x] CI собирает один APK
-- [ ] Жанры — статический список (нужен эндпоинт жанров каталога)
 - [ ] Профиль — реальный аккаунт/настройки вместо мульти-профиля из макета
 
 ## Версии

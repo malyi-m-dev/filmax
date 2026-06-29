@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import com.filmax.core.tv.designsystem.TvFocusCard
-import com.filmax.feature.categories.tv.navigation.TvCategoriesRoute
+import com.filmax.feature.collections.tv.navigation.TvCollectionsRoute
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
 import com.filmax.feature.profile.tv.navigation.TvProfileRoute
@@ -36,14 +36,14 @@ private data class TvTab(val label: String, val route: Any, val match: (NavDesti
 private val TABS = listOf(
     TvTab("Главная", TvHomeRoute) { it?.hasRoute(TvHomeRoute::class) == true },
     TvTab("Поиск", TvSearchRoute) { it?.hasRoute(TvSearchRoute::class) == true },
-    TvTab("Жанры", TvCategoriesRoute) { it?.hasRoute(TvCategoriesRoute::class) == true },
+    TvTab("Подборки", TvCollectionsRoute) { it?.hasRoute(TvCollectionsRoute::class) == true },
     TvTab("Библиотека", TvLibraryRoute) { it?.hasRoute(TvLibraryRoute::class) == true },
     TvTab("Профиль", TvProfileRoute) { it?.hasRoute(TvProfileRoute::class) == true },
 )
 
 /** Маршруты, на которых показывается таб-бар (5 основных разделов). */
 val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
-    TvHomeRoute::class, TvSearchRoute::class, TvCategoriesRoute::class,
+    TvHomeRoute::class, TvSearchRoute::class, TvCollectionsRoute::class,
     TvLibraryRoute::class, TvProfileRoute::class,
 )
 

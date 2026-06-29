@@ -1,4 +1,7 @@
-package com.filmax.feature.collections
+package com.filmax.feature.collections.mobile
+
+import com.filmax.feature.collections.CollectionDetailScreenModel
+import com.filmax.feature.collections.CollectionDetailState
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

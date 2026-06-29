@@ -19,8 +19,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filmax.feature.details.navigation.DetailsRoute
 import com.filmax.feature.player.navigation.PlayerRoute
-import com.filmax.feature.categories.tv.navigation.TvCategoriesRoute
-import com.filmax.feature.categories.tv.navigation.tvCategoriesScreen
+import com.filmax.feature.collections.navigation.CollectionDetailRoute
+import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
+import com.filmax.feature.collections.tv.navigation.tvCollectionsScreen
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
@@ -29,7 +30,6 @@ import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
-import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
 import com.filmax.app.navigation.RootScreenModel
 import kotlinx.serialization.Serializable
@@ -93,7 +93,12 @@ fun FilmaxTvNavGraph(
 
             tvHomeScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
             tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-            tvCategoriesScreen(onOpenGenre = { navigateTab(TvSearchRoute) })
+            tvCollectionsScreen(
+                onOpenCollection = { id, title ->
+                    navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
+                },
+            )
+            tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
             tvLibraryScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
             tvProfileScreen(
                 onLogout = {

@@ -1,17 +1,17 @@
+// Логический слой Collections (без UI): ScreenModel-и + контракты + DI + маршруты.
 plugins {
-    id("filmax.android.feature")
+    id("filmax.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
+
 android { namespace = "com.filmax.feature.collections" }
+
 dependencies {
-    implementation(project(":core:ui"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
-    implementation(project(":data:catalog"))
-    val bom = platform(libs.compose.bom)
-    implementation(bom)
-    implementation(libs.bundles.compose)
-    implementation(libs.navigation.compose)
+
     implementation(platform(libs.koin.bom))
-    implementation(libs.koin.androidx.compose)
+    implementation(libs.koin.android)
+    // toRoute<CollectionDetailRoute>() + SavedStateHandle
+    implementation(libs.navigation.compose)
 }

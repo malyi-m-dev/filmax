@@ -25,8 +25,8 @@ import com.filmax.feature.collections.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.navigation.CollectionsRoute
 import com.filmax.feature.designsystem.navigation.DesignSystemRoute
 import com.filmax.feature.designsystem.navigation.designSystemScreen
-import com.filmax.feature.collections.navigation.collectionDetailScreen
-import com.filmax.feature.collections.navigation.collectionsScreen
+import com.filmax.feature.collections.mobile.navigation.collectionDetailScreen
+import com.filmax.feature.collections.mobile.navigation.collectionsScreen
 import com.filmax.feature.details.navigation.DetailsRoute
 import com.filmax.feature.details.mobile.navigation.detailsScreen
 import com.filmax.feature.home.mobile.navigation.HomeRoute
