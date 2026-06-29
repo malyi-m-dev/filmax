@@ -28,11 +28,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK packages (compileSdk 35)
-        run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+      # Android SDK предустановлен на ubuntu-раннере (ANDROID_HOME уже задан,
+      # platform-35/build-tools на месте, лицензии приняты). Отдельный
+      # setup-android убран — он флакал на скачивании устаревшего «SDK Tools».
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
