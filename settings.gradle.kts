@@ -39,3 +39,6 @@ include(":feature:library")
 include(":feature:profile")
 include(":feature:details")
 include(":feature:player")
+include(":feature:designsystem")
+
+include(":shared")
