@@ -207,10 +207,13 @@ private fun TvAuthStep(state: OnboardingState, onRetry: () -> Unit) {
                 .height(440.dp),
             contentAlignment = Alignment.Center,
         ) {
+            // Локальные копии: smart-cast по полям из другого модуля невозможен.
+            val error = state.error
+            val userCode = state.userCode
             when {
-                state.error != null -> AuthError(error = state.error, onRetry = onRetry)
-                state.userCode != null -> AuthCodeCard(
-                    userCode = state.userCode,
+                error != null -> AuthError(error = error, onRetry = onRetry)
+                userCode != null -> AuthCodeCard(
+                    userCode = userCode,
                     verificationUri = state.verificationUri ?: DEFAULT_VERIFICATION_URI,
                 )
                 else -> GeneratingCode()
