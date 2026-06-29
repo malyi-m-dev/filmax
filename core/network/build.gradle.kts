@@ -15,6 +15,9 @@ kotlin {
             api(libs.kotlinx.serialization.json)
             api(libs.kotlinx.coroutines.core)
             api(libs.multiplatform.settings)
+
+            api(koinBom)
+            api(libs.koin.core)
         }
         androidMain.dependencies {
             api(libs.ktor.client.okhttp)

@@ -3,6 +3,7 @@ package com.filmax.app
 import android.app.Application
 import com.filmax.app.di.appModule
 import com.filmax.core.network.di.networkModule
+import com.filmax.core.network.di.platformNetworkModule
 import com.filmax.data.auth.di.authModule
 import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.search.di.searchModule
@@ -30,6 +31,7 @@ class FilmaxApplication : Application() {
             modules(
                 // core / data
                 networkModule,
+                platformNetworkModule,
                 authModule,
                 catalogModule,
                 searchModule,
