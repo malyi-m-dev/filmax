@@ -58,7 +58,6 @@ fun PlayerScreen(
     val state by screenModel.collectAsState()
     var controlsVisible by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
-    val scope = rememberCoroutineScope()
 
     // Auto-hide controls after 4.5s
     LaunchedEffect(controlsVisible) {
