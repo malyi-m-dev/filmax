@@ -3,6 +3,7 @@ package com.filmax.feature.profile
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
+import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.watching.WatchingRepository
@@ -13,11 +14,13 @@ class ProfileScreenModel(
     private val watching: WatchingRepository,
     private val auth: AuthRepository,
     private val favorites: FavoritesRepository,
+    private val playbackSettings: PlaybackSettingsRepository,
 ) : BaseScreenModel<ProfileState, ProfileSideEffect, ProfileEvent>(ProfileState()) {
 
     init {
         onFetchData()
         observeFavorites()
+        observePlaybackSettings()
     }
 
     private fun observeFavorites() {
@@ -28,9 +31,20 @@ class ProfileScreenModel(
         }
     }
 
+    private fun observePlaybackSettings() {
+        screenModelScope {
+            playbackSettings.settings.collect { settings ->
+                updateState { it.copy(playback = settings) }
+            }
+        }
+    }
+
     override fun dispatch(event: ProfileEvent) {
         when (event) {
             ProfileEvent.Logout -> logout()
+            is ProfileEvent.SetQuality -> screenModelScope { playbackSettings.setQuality(event.quality) }
+            is ProfileEvent.SetAudioLanguage -> screenModelScope { playbackSettings.setAudioLanguage(event.language) }
+            is ProfileEvent.SetSubtitleLanguage -> screenModelScope { playbackSettings.setSubtitleLanguage(event.language) }
         }
     }
 

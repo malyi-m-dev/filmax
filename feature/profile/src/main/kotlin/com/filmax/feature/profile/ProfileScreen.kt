@@ -16,9 +16,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HighQuality
@@ -28,11 +28,18 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.designsystem.ShapeCookie
+import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.ui.components.FilmaxListGroup
 import com.filmax.core.ui.components.FilmaxListRow
@@ -73,9 +81,11 @@ fun ProfileScreen(
     }
 
     val subscription = state.profile?.subscription
+    var activeSheet by remember { mutableStateOf<ProfileSheet?>(null) }
 
+    Box(modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState()),
@@ -102,8 +112,16 @@ fun ProfileScreen(
                 icon = Icons.Filled.HighQuality,
                 accent = Color(0xFFB4305A),
                 label = "Качество видео",
-                value = "Авто (до 4K)",
-                onClick = {},
+                value = state.playback.quality,
+                onClick = { activeSheet = ProfileSheet.QUALITY },
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Subtitles,
+                accent = Color(0xFFF4B792),
+                label = "Субтитры и аудио",
+                value = subtitleSummary(state.playback),
+                onClick = { activeSheet = ProfileSheet.SUBTITLES },
                 showDivider = true,
             )
             FilmaxListRow(
@@ -111,22 +129,6 @@ fun ProfileScreen(
                 accent = Color(0xFF6AC2B0),
                 label = "Загрузки",
                 value = "Только по Wi-Fi",
-                onClick = {},
-                showDivider = true,
-            )
-            FilmaxListRow(
-                icon = Icons.Filled.Subtitles,
-                accent = Color(0xFFF4B792),
-                label = "Субтитры и аудио",
-                value = "Русский",
-                onClick = {},
-                showDivider = true,
-            )
-            FilmaxListRow(
-                icon = Icons.Filled.Cast,
-                accent = Color(0xFFE86D9E),
-                label = "Устройства",
-                value = "Трансляция",
                 onClick = {},
             )
         }
@@ -189,6 +191,107 @@ fun ProfileScreen(
         }
 
         Spacer(Modifier.height(120.dp))
+    }
+
+        PlaybackSettingsSheets(
+            activeSheet = activeSheet,
+            playback = state.playback,
+            onDismiss = { activeSheet = null },
+            onSelectQuality = { screenModel.dispatch(ProfileEvent.SetQuality(it)) },
+            onSelectAudio = { screenModel.dispatch(ProfileEvent.SetAudioLanguage(it)) },
+            onSelectSubtitle = { screenModel.dispatch(ProfileEvent.SetSubtitleLanguage(it)) },
+        )
+    }
+}
+
+private enum class ProfileSheet { QUALITY, SUBTITLES }
+
+private fun subtitleSummary(playback: PlaybackSettings): String {
+    val subs = if (playback.subtitleLanguage == PlaybackSettings.SubtitleOff) {
+        "субтитры выкл"
+    } else {
+        "суб: ${playback.subtitleLanguage}"
+    }
+    return "${playback.audioLanguage} · $subs"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaybackSettingsSheets(
+    activeSheet: ProfileSheet?,
+    playback: PlaybackSettings,
+    onDismiss: () -> Unit,
+    onSelectQuality: (String) -> Unit,
+    onSelectAudio: (String) -> Unit,
+    onSelectSubtitle: (String) -> Unit,
+) {
+    if (activeSheet == null) return
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 32.dp)) {
+            when (activeSheet) {
+                ProfileSheet.QUALITY -> {
+                    SheetTitle("Качество видео")
+                    PlaybackSettings.qualityOptions.forEach { option ->
+                        OptionRow(
+                            label = option,
+                            selected = option == playback.quality,
+                            onClick = { onSelectQuality(option) },
+                        )
+                    }
+                }
+
+                ProfileSheet.SUBTITLES -> {
+                    SheetTitle("Аудио")
+                    PlaybackSettings.audioOptions.forEach { option ->
+                        OptionRow(
+                            label = option,
+                            selected = option == playback.audioLanguage,
+                            onClick = { onSelectAudio(option) },
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    SheetTitle("Субтитры")
+                    PlaybackSettings.subtitleOptions.forEach { option ->
+                        OptionRow(
+                            label = option,
+                            selected = option == playback.subtitleLanguage,
+                            onClick = { onSelectSubtitle(option) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SheetTitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(vertical = 12.dp),
+    )
+}
+
+@Composable
+private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Spacer(Modifier.width(8.dp))
+        Text(label, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
     }
 }
 

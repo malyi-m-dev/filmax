@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
@@ -75,6 +74,7 @@ fun PlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
     var qualityMenu by remember { mutableStateOf(false) }
+    var subtitleMenu by remember { mutableStateOf(false) }
 
     // Auto-hide controls after 4.5s
     LaunchedEffect(controlsVisible) {
@@ -160,11 +160,31 @@ fun PlayerScreen(
                         Text("СЕЙЧАС ИГРАЕТ", fontSize = 11.sp, color = Color.White.copy(0.7f), fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
                         Text(state.item?.title ?: "", fontSize = 15.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
                     }
-                    GlassBtn(size = 44.dp, onClick = {}) {
-                        Icon(Icons.Filled.Cast, contentDescription = "Трансляция", tint = Color.White, modifier = Modifier.size(20.dp))
-                    }
-                    GlassBtn(size = 44.dp, onClick = {}) {
-                        Icon(Icons.Filled.ClosedCaption, contentDescription = "Субтитры", tint = Color.White, modifier = Modifier.size(20.dp))
+                    if (state.subtitles.size > 1) {
+                        Box {
+                            GlassBtn(size = 44.dp, onClick = { subtitleMenu = true }) {
+                                Icon(Icons.Filled.ClosedCaption, contentDescription = "Субтитры", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                            DropdownMenu(
+                                expanded = subtitleMenu,
+                                onDismissRequest = { subtitleMenu = false },
+                            ) {
+                                state.subtitles.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                option.label,
+                                                fontWeight = if (option.label == state.currentSubtitle) FontWeight.Bold else FontWeight.Normal,
+                                            )
+                                        },
+                                        onClick = {
+                                            screenModel.dispatch(PlayerEvent.SelectSubtitle(option.label))
+                                            subtitleMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
