@@ -1,32 +1,30 @@
 package com.filmax.feature.details
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
@@ -49,6 +47,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -59,6 +60,8 @@ import com.filmax.core.designsystem.ShapeCookie
 import com.filmax.core.designsystem.ShapeLg
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.ui.components.FilmaxChip
+import com.filmax.core.ui.components.FilmaxErrorModal
+import com.filmax.core.ui.components.FilmaxStatCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import java.util.Locale
@@ -74,6 +77,7 @@ fun DetailsScreen(
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    val appError by screenModel.collectErrorAsState()
     val item = state.item
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
@@ -87,7 +91,15 @@ fun DetailsScreen(
                 onBack = onBack,
                 onPlay = { onPlay(item.id) },
                 onFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
-                onOpenItem = onOpenItem,
+                onDownload = { screenModel.dispatch(DetailsEvent.ToggleDownload) },
+            )
+        }
+
+        appError?.let { error ->
+            FilmaxErrorModal(
+                error = error,
+                onDismiss = screenModel::dismissError,
+                onPrimary = screenModel::retry,
             )
         }
     }
@@ -100,18 +112,28 @@ private fun DetailsContent(
     onBack: () -> Unit,
     onPlay: () -> Unit,
     onFav: () -> Unit,
-    onOpenItem: (Int) -> Unit,
+    onDownload: () -> Unit,
 ) {
     var tab by remember { mutableStateOf("about") }
+    val context = LocalContext.current
+    val scroll = rememberScrollState()
+    val density = LocalDensity.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 120.dp),
-    ) {
-        // ── Hero backdrop ─────────────────────────────────────────────────────
-        Box(Modifier.fillMaxWidth().height(540.dp)) {
+    // Прогресс «сворачивания» героя 0..1 на первых 360dp скролла.
+    val collapseRange = with(density) { 360.dp.toPx() }
+    val p = (scroll.value / collapseRange).coerceIn(0f, 1f)
+
+    Box(Modifier.fillMaxSize()) {
+        // ── Sticky hero backdrop (за контентом, с параллакс-зумом) ─────────────
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(HeroHeight)
+                .graphicsLayer {
+                    scaleX = 1f + p * 0.06f
+                    scaleY = 1f + p * 0.06f
+                },
+        ) {
             PosterImage(
                 url = item.posters.big,
                 contentDescription = item.title,
@@ -127,22 +149,19 @@ private fun DetailsContent(
                     1f to MaterialTheme.colorScheme.surface,
                 )
             ))
-            // Top controls
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            // Затемнение нарастает по мере сворачивания.
+            Box(Modifier.matchParentSize().background(Color(0xFF0A0809).copy(alpha = p * 0.55f)))
+            // Bottom info — гаснет и слегка уезжает вниз.
+            Column(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .graphicsLayer {
+                        alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
+                        translationY = p * 24.dp.toPx()
+                    }
+                    .padding(20.dp)
+                    .padding(bottom = 24.dp),
             ) {
-                GlassButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(22.dp))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    GlassButton(onClick = {}) { Icon(Icons.Filled.Cast, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) }
-                    GlassButton(onClick = {}) { Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) }
-                }
-            }
-            // Bottom info
-            Column(Modifier.align(Alignment.BottomStart).padding(20.dp).padding(bottom = 24.dp)) {
                 Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
                     Text(
                         item.genres.firstOrNull()?.title ?: "",
@@ -166,69 +185,172 @@ private fun DetailsContent(
             }
         }
 
-        // ── Action row ────────────────────────────────────────────────────────
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 16.dp).padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp)
-                    .shadow(
-                        elevation = 16.dp,
-                        shape = RoundedCornerShape(50),
-                        spotColor = AccentColor,
-                        ambientColor = AccentColor,
-                    ),
-                shape = RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primaryContainer,
-                onClick = onPlay,
-            ) {
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Смотреть", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
-            for (pair in listOf(
-                Icons.Filled.Favorite to "Избранное",
-                Icons.Filled.Download to "Скачать",
-                Icons.Filled.Share to "Поделиться",
-            )) {
-                val isFavIcon = pair.second == "Избранное"
-                Surface(
-                    modifier = Modifier.size(56.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    onClick = if (isFavIcon) onFav else { {} },
-                ) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (isFavIcon && state.isFav) Icons.Filled.Favorite else if (isFavIcon) Icons.Outlined.FavoriteBorder else pair.first,
-                            contentDescription = pair.second,
-                            tint = if (isFavIcon && state.isFav) Color(0xFFFFB1C8) else MaterialTheme.colorScheme.onSurface,
+        // ── Scrolling content — наезжает на sticky hero ────────────────────────
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scroll)
+                .padding(bottom = 120.dp),
+        ) {
+            // Прозрачный спейсер высотой героя — сквозь него виден backdrop.
+            Spacer(Modifier.height(HeroHeight))
+
+            Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(top = 16.dp)) {
+                    // ── Action row ──────────────────────────────────────────────
+                    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                                .shadow(
+                                    elevation = 16.dp,
+                                    shape = RoundedCornerShape(50),
+                                    spotColor = AccentColor,
+                                    ambientColor = AccentColor,
+                                ),
+                            shape = RoundedCornerShape(50),
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            onClick = onPlay,
+                        ) {
+                            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Смотреть", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            }
+                        }
+                        ActionSquare(
+                            icon = if (state.isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            desc = "Избранное",
+                            tint = if (state.isFav) Color(0xFFFFB1C8) else MaterialTheme.colorScheme.onSurface,
+                            onClick = onFav,
                         )
+                        ActionSquare(
+                            icon = if (state.isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.Download,
+                            desc = "Скачать",
+                            tint = if (state.isDownloaded) Color(0xFF6AC2B0) else MaterialTheme.colorScheme.onSurface,
+                            onClick = onDownload,
+                        )
+                        ActionSquare(
+                            icon = Icons.Filled.Share,
+                            desc = "Поделиться",
+                            onClick = { shareItem(context, item) },
+                        )
+                    }
+
+                    // ── Tabs ────────────────────────────────────────────────────
+                    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("about" to "О фильме", "cast" to "Актёры").forEach { (id, label) ->
+                            FilmaxChip(label = label, selected = tab == id, onClick = { tab = id })
+                        }
+                    }
+
+                    // ── Tab content ─────────────────────────────────────────────
+                    when (tab) {
+                        "about" -> AboutTab(item = item, onPlayTrailer = {
+                            item.trailer?.url?.let { openExternalUrl(context, it) }
+                        })
+                        "cast"  -> CastTab(item)
                     }
                 }
             }
         }
 
-        // ── Tabs ─────────────────────────────────────────────────────────────
-        Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("about" to "О фильме", "cast" to "Актёры", "similar" to "Похожие").forEach { (id, label) ->
-                FilmaxChip(label = label, selected = tab == id, onClick = { tab = id })
+        // ── Top glass controls — гаснут при сворачивании ───────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(12.dp)
+                .graphicsLayer { alpha = (1f - p * 1.6f).coerceIn(0f, 1f) },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            GlassButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(22.dp))
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GlassButton(onClick = {}) { Icon(Icons.Filled.Cast, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) }
+                GlassButton(onClick = {}) { Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) }
             }
         }
 
-        // ── Tab content ───────────────────────────────────────────────────────
-        when (tab) {
-            "about" -> AboutTab(item)
-            "cast"  -> CastTab(item)
-            "similar" -> SimilarTab(state.similar, onOpenItem)
+        // ── Collapsed compact app bar — проявляется при p > 0.65 ───────────────
+        val barAlpha = ((p - 0.65f) / 0.35f).coerceIn(0f, 1f)
+        if (barAlpha > 0f) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { alpha = barAlpha },
+            ) {
+                Row(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .height(56.dp)
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.onSurface)
+                    }
+                    Text(
+                        item.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                }
+            }
         }
     }
 }
 
+private val HeroHeight = 540.dp
+
 @Composable
-private fun AboutTab(item: Item) {
+private fun RowScope.ActionSquare(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    desc: String,
+    onClick: () -> Unit,
+    tint: Color = MaterialTheme.colorScheme.onSurface,
+) {
+    Surface(
+        modifier = Modifier.size(56.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        onClick = onClick,
+    ) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = desc, tint = tint)
+        }
+    }
+}
+
+private fun shareItem(context: android.content.Context, item: Item) {
+    val text = "${item.title} (${item.year}) — смотри в Filmax"
+    val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(android.content.Intent.EXTRA_TEXT, text)
+    }
+    runCatching {
+        context.startActivity(android.content.Intent.createChooser(intent, "Поделиться"))
+    }
+}
+
+private fun openExternalUrl(context: android.content.Context, url: String) {
+    runCatching {
+        context.startActivity(
+            android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)),
+        )
+    }
+}
+
+@Composable
+private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp)) {
         Text(item.plot, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 20.dp))
 
@@ -241,16 +363,21 @@ private fun AboutTab(item: Item) {
             StatItem(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр", director.substringBefore(" "), director.substringAfter(" ", "")),
             StatItem(Color(0xFFE86D9E), ShapeLg, "Жанр", item.genres.firstOrNull()?.title ?: "—", item.genres.getOrNull(1)?.title ?: "—"),
         )
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.height(240.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            userScrollEnabled = false,
-        ) {
-            items(stats.size) { i ->
-                val s = stats[i]
-                StatCard(color = s.color, shape = s.shape, label = s.label, value = s.value, sub = s.sub)
+        // Два ряда обычных Row — сетка измеряется по контенту и не накладывается на трейлер.
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            stats.chunked(2).forEach { rowItems ->
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    rowItems.forEach { stat ->
+                        FilmaxStatCard(
+                            accent = stat.color,
+                            shape = stat.shape,
+                            label = stat.label,
+                            value = stat.value,
+                            sub = stat.sub,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
             }
         }
 
@@ -262,7 +389,8 @@ private fun AboutTab(item: Item) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
-                    .clip(RoundedCornerShape(24.dp)),
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable(onClick = onPlayTrailer),
             ) {
                 PosterImage(
                     url = item.posters.big,
@@ -290,31 +418,6 @@ private fun AboutTab(item: Item) {
                     fontWeight = FontWeight.SemiBold,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun StatCard(
-    color: Color,
-    shape: androidx.compose.ui.graphics.Shape,
-    label: String,
-    value: String,
-    sub: String,
-) {
-    Column(
-        modifier = Modifier
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(color.copy(0.2f), color.copy(0.07f))))
-            .border(1.dp, color.copy(0.27f), shape)
-            .padding(14.dp),
-    ) {
-        Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = color, letterSpacing = 1.sp)
-        Spacer(Modifier.height(6.dp))
-        Text(value, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1)
-        if (sub.isNotEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(sub, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         }
     }
 }
@@ -374,34 +477,6 @@ private fun InfoRow(key: String, value: String) {
     ) {
         Text(key, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun SimilarTab(similarItems: List<Item>, onOpenItem: (Int) -> Unit) {
-    val visible = similarItems.take(6)
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = Modifier.height(320.dp).padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        userScrollEnabled = false,
-    ) {
-        items(visible) { item ->
-            Box(
-                modifier = Modifier
-                    .aspectRatio(2f / 3f)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { onOpenItem(item.id) }
-            ) {
-                PosterImage(
-                    url = item.posters.medium,
-                    contentDescription = item.title,
-                    modifier = Modifier.matchParentSize(),
-                    accentColor = AccentColor,
-                )
-            }
-        }
     }
 }
 

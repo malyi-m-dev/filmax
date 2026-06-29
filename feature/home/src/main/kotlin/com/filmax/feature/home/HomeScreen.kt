@@ -17,13 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,37 +28,26 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
-import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Duration
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.core.ui.components.ContinueCard
-import com.filmax.core.ui.components.FavButton
+import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.HorizontalRow
 import com.filmax.core.ui.components.PosterCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
-
-private val SectionPalette = listOf(
-    Color(0xFFB4305A), Color(0xFFE86D9E), Color(0xFFF4B792), Color(0xFF6AC2B0), Color(0xFF6B4B8F),
-)
 
 @Composable
 fun HomeScreen(
@@ -70,6 +56,7 @@ fun HomeScreen(
     screenModel: HomeScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    val appError by screenModel.collectErrorAsState()
 
     Box(
         modifier = modifier
@@ -81,14 +68,17 @@ fun HomeScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
 
-            state.error != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(state.error ?: "Ошибка", color = MaterialTheme.colorScheme.error)
-            }
-
             else -> HomeContent(
                 state = state,
                 onOpenItem = onOpenItem,
-                onFav = { screenModel.dispatch(HomeEvent.ToggleFav(it)) },
+            )
+        }
+
+        appError?.let { error ->
+            FilmaxErrorModal(
+                error = error,
+                onDismiss = screenModel::dismissError,
+                onPrimary = screenModel::retry,
             )
         }
     }
@@ -98,7 +88,6 @@ fun HomeScreen(
 private fun HomeContent(
     state: HomeState,
     onOpenItem: (Int) -> Unit,
-    onFav: (Int) -> Unit,
 ) {
     Box(Modifier.fillMaxSize()) {
         Column(
@@ -108,15 +97,13 @@ private fun HomeContent(
                 .padding(bottom = 120.dp),
         ) {
             // Reserve space for the pinned top bar (status bar inset + bar height)
-            Spacer(Modifier.statusBarsPadding().height(72.dp))
+            Spacer(Modifier.statusBarsPadding().height(60.dp))
 
             // ── Hero ───────────────────────────────────────────────────────────
             state.hero?.let { hero ->
                 HeroCard(
                     item = hero,
-                    isFav = hero.id in state.favorites,
                     onClick = { onOpenItem(hero.id) },
-                    onFav = { onFav(hero.id) },
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 28.dp),
@@ -145,11 +132,6 @@ private fun HomeContent(
                 }
             }
 
-            // ── Collections ─────────────────────────────────────────────────────
-            if (state.collections.isNotEmpty()) {
-                CollectionsSection(collections = state.collections)
-            }
-
             // ── Trending ────────────────────────────────────────────────────────
             if (state.trending.isNotEmpty()) {
                 HorizontalRow(
@@ -160,9 +142,7 @@ private fun HomeContent(
                     state.trending.forEach { item ->
                         PosterCard(
                             item = item,
-                            isFav = item.id in state.favorites,
                             onClick = { onOpenItem(item.id) },
-                            onFavClick = { onFav(item.id) },
                         )
                     }
                 }
@@ -179,9 +159,7 @@ private fun HomeContent(
                     state.forYou.forEach { item ->
                         PosterCard(
                             item = item,
-                            isFav = item.id in state.favorites,
                             onClick = { onOpenItem(item.id) },
-                            onFavClick = { onFav(item.id) },
                         )
                     }
                 }
@@ -208,7 +186,7 @@ private fun HomeTopBar(modifier: Modifier = Modifier) {
                 )
             )
             .statusBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 24.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 24.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -279,152 +257,6 @@ private fun SectionHeader(
     }
 }
 
-@Composable
-private fun CollectionsSection(collections: List<Collection>) {
-    var query by remember { mutableStateOf("") }
-    val filtered = remember(query, collections) {
-        if (query.isBlank()) collections
-        else collections.filter {
-            it.title.contains(query, ignoreCase = true) ||
-                (it.description?.contains(query, ignoreCase = true) == true)
-        }
-    }
-
-    Column(Modifier.padding(bottom = 28.dp)) {
-        SectionHeader(title = "Подборки", accent = Color(0xFFE86D9E))
-
-        // Inline search
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 14.dp)
-                .fillMaxWidth()
-                .height(48.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Filled.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(10.dp))
-            Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) {
-                    Text("Поиск по подборкам…", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
-                }
-                BasicTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    singleLine = true,
-                    textStyle = TextStyle(color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            if (query.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .clickable { query = "" },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(Icons.Filled.Close, contentDescription = "Очистить", tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(16.dp))
-                }
-            }
-        }
-
-        // 2-column grid
-        Column(
-            modifier = Modifier.padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            filtered.chunked(2).forEach { rowItems ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    rowItems.forEachIndexed { i, c ->
-                        CollectionCard(
-                            collection = c,
-                            accent = SectionPalette[(c.id + i) % SectionPalette.size],
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-            if (filtered.isEmpty()) {
-                Text(
-                    "Ничего не найдено",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 13.sp,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CollectionCard(
-    collection: Collection,
-    accent: Color,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .height(150.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        val poster = collection.posters?.medium?.takeIf { it.isNotBlank() }
-            ?: collection.posters?.big?.takeIf { it.isNotBlank() }
-        if (poster != null) {
-            PosterImage(
-                url = poster,
-                contentDescription = collection.title,
-                modifier = Modifier.matchParentSize(),
-                shape = RoundedCornerShape(0.dp),
-                accentColor = accent,
-            )
-        }
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.linearGradient(
-                        listOf(accent.copy(alpha = 0.85f), accent.copy(alpha = 0.3f), Color.Transparent)
-                    )
-                )
-        )
-        Column(
-            modifier = Modifier
-                .matchParentSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Bottom,
-        ) {
-            Text(
-                collection.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            collection.description?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(3.dp))
-                Text(
-                    it,
-                    fontSize = 12.sp,
-                    color = Color.White.copy(alpha = 0.85f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
 private fun com.filmax.core.domain.watching.model.WatchHistory.toItem(): Item = Item(
     id = itemId,
     title = title,
@@ -447,9 +279,7 @@ private fun com.filmax.core.domain.watching.model.WatchHistory.toItem(): Item = 
 @Composable
 private fun HeroCard(
     item: Item,
-    isFav: Boolean,
     onClick: () -> Unit,
-    onFav: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -517,21 +347,15 @@ private fun HeroCard(
                 color = Color.White,
                 modifier = Modifier.padding(bottom = 12.dp),
             )
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(shape = RoundedCornerShape(50), color = Color.White) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(20.dp))
-                        Text("Смотреть", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
+            Surface(shape = RoundedCornerShape(50), color = Color.White) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(20.dp))
+                    Text("Смотреть", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
-                FavButton(isFav = isFav, onClick = onFav, modifier = Modifier.size(48.dp))
             }
         }
     }

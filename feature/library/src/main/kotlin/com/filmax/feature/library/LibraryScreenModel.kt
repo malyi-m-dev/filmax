@@ -2,6 +2,8 @@ package com.filmax.feature.library
 
 import com.filmax.core.domain.common.firstErrorMessage
 import com.filmax.core.domain.common.getOrNull
+import com.filmax.core.domain.downloads.DownloadsRepository
+import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
@@ -11,10 +13,30 @@ import kotlinx.coroutines.coroutineScope
 class LibraryScreenModel(
     private val watching: WatchingRepository,
     private val user: UserRepository,
+    private val downloadsRepo: DownloadsRepository,
+    private val favoritesRepo: FavoritesRepository,
 ) : BaseScreenModel<LibraryState, LibrarySideEffect, LibraryEvent>(LibraryState()) {
 
     init {
         onFetchData()
+        observeDownloads()
+        observeFavorites()
+    }
+
+    private fun observeDownloads() {
+        screenModelScope {
+            downloadsRepo.downloads.collect { items ->
+                updateState { it.copy(downloads = items) }
+            }
+        }
+    }
+
+    private fun observeFavorites() {
+        screenModelScope {
+            favoritesRepo.favorites.collect { items ->
+                updateState { it.copy(favorites = items) }
+            }
+        }
     }
 
     override fun dispatch(event: LibraryEvent) {

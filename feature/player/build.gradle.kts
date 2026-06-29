@@ -6,6 +6,7 @@ android { namespace = "com.filmax.feature.player" }
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
+    implementation(project(":core:ui"))
     implementation(project(":data:catalog"))
     implementation(project(":data:watching"))
     val bom = platform(libs.compose.bom)

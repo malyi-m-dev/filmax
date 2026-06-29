@@ -14,39 +14,46 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Help
+import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
+import com.filmax.core.designsystem.ShapeCookie
 import com.filmax.core.domain.user.model.Subscription
+import com.filmax.core.ui.components.FilmaxListGroup
+import com.filmax.core.ui.components.FilmaxListRow
+import org.koin.androidx.compose.koinViewModel
+
+private val SectionPadding = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp)
 
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onOpenDesignSystem: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     screenModel: ProfileScreenModel = koinViewModel(),
 ) {
@@ -75,219 +82,276 @@ fun ProfileScreen(
     ) {
         ProfileHero(
             username = state.profile?.username ?: "",
+            watchedCount = state.watchedCount,
+            favoritesCount = state.favoritesCount,
+            quality = state.quality,
             subscription = subscription,
         )
 
-        Spacer(Modifier.height(24.dp))
-
-        SettingsGroup(title = "Аккаунт") {
-            SettingsRow(icon = Icons.Filled.Person, label = "Личные данные", onClick = {})
-            SettingsRow(
-                icon = Icons.Filled.CreditCard,
-                label = "Подписка",
-                subtitle = if (subscription?.active == true) "Активна" else "Неактивна",
+        // TODO: значения строк ниже (кроме «Подписка») — статичные заглушки.
+        //  Эти настройки клиентские и в API отсутствуют: «Качество видео (Авто)»,
+        //  «Загрузки», «Субтитры и аудио», «Уведомления (вкл/выкл)», «Приватность»,
+        //  число подключённых устройств. В будущем их нужно хранить локально
+        //  (DataStore/multiplatform-settings) и завести соответствующие экраны.
+        // ── Просмотр ────────────────────────────────────────────────────────────
+        FilmaxListGroup(
+            title = "Просмотр",
+            modifier = SectionPadding,
+        ) {
+            FilmaxListRow(
+                icon = Icons.Filled.HighQuality,
+                accent = Color(0xFFB4305A),
+                label = "Качество видео",
+                value = "Авто (до 4K)",
+                onClick = {},
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Download,
+                accent = Color(0xFF6AC2B0),
+                label = "Загрузки",
+                value = "Только по Wi-Fi",
+                onClick = {},
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Subtitles,
+                accent = Color(0xFFF4B792),
+                label = "Субтитры и аудио",
+                value = "Русский",
+                onClick = {},
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Cast,
+                accent = Color(0xFFE86D9E),
+                label = "Устройства",
+                value = "Трансляция",
                 onClick = {},
             )
-            SettingsRow(icon = Icons.Filled.Notifications, label = "Уведомления", onClick = {})
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        SettingsGroup(title = "Прочее") {
-            SettingsRow(icon = Icons.Filled.Shield, label = "Конфиденциальность", onClick = {})
-            SettingsRow(icon = Icons.Filled.Help, label = "Поддержка", onClick = {})
+        // ── Аккаунт ─────────────────────────────────────────────────────────────
+        FilmaxListGroup(
+            title = "Аккаунт",
+            modifier = SectionPadding,
+        ) {
+            FilmaxListRow(
+                icon = Icons.Filled.Star,
+                accent = Color(0xFFD4A84A),
+                label = "Подписка",
+                value = if (subscription?.active == true) "Premium" else "Неактивна",
+                badge = if (subscription?.active == true) "PREMIUM" else null,
+                onClick = {},
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Notifications,
+                accent = Color(0xFF4A7C9E),
+                label = "Уведомления",
+                value = "Включены",
+                onClick = {},
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Shield,
+                accent = Color(0xFF8B2C2C),
+                label = "Приватность",
+                onClick = {},
+            )
         }
 
-        Spacer(Modifier.height(16.dp))
+        // ── Разработчикам ───────────────────────────────────────────────────────
+        if (onOpenDesignSystem != null) {
+            FilmaxListGroup(
+                title = "Разработчикам",
+                modifier = SectionPadding,
+            ) {
+                FilmaxListRow(
+                    icon = Icons.Filled.Code,
+                    accent = MaterialTheme.colorScheme.primaryContainer,
+                    label = "Дизайн-система",
+                    value = "Каталог компонентов",
+                    onClick = onOpenDesignSystem,
+                )
+            }
+        }
 
-        SettingsGroup(title = "") {
-            SettingsRow(
+        // ── Выход ───────────────────────────────────────────────────────────────
+        FilmaxListGroup(modifier = SectionPadding) {
+            FilmaxListRow(
                 icon = Icons.AutoMirrored.Filled.Logout,
+                accent = MaterialTheme.colorScheme.error,
                 label = "Выйти",
-                tint = MaterialTheme.colorScheme.error,
+                labelColor = MaterialTheme.colorScheme.error,
                 onClick = { screenModel.dispatch(ProfileEvent.Logout) },
             )
         }
 
-        Spacer(Modifier.height(100.dp))
+        Spacer(Modifier.height(120.dp))
     }
 }
 
 @Composable
-private fun ProfileHero(username: String, subscription: Subscription?) {
+private fun ProfileHero(
+    username: String,
+    watchedCount: Int,
+    favoritesCount: Int,
+    quality: String?,
+    subscription: Subscription?,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(280.dp)
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
             .background(
-                Brush.verticalGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                        MaterialTheme.colorScheme.background,
-                    )
+                Brush.linearGradient(
+                    0.0f to Color(0xFFB4305A),
+                    0.6f to Color(0xFF6B4B8F),
+                    1.0f to MaterialTheme.colorScheme.surface,
+                    start = Offset(Float.POSITIVE_INFINITY, 0f),
+                    end = Offset(0f, Float.POSITIVE_INFINITY),
                 )
             )
             .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 24.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 28.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
+        Column(Modifier.fillMaxWidth()) {
+            // Top row: title + settings button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                val initial = username.firstOrNull()?.uppercaseChar() ?: '?'
                 Text(
-                    initial.toString(),
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    "Профиль",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f),
                 )
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                username,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (subscription?.active == true) {
-                Spacer(Modifier.height(4.dp))
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        "Premium",
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    Icon(
+                        Icons.Filled.Settings,
+                        contentDescription = "Настройки",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
+
             Spacer(Modifier.height(20.dp))
-            StatsRow(subscription = subscription)
+
+            // Avatar + name
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(ShapeCookie)
+                        .background(
+                            Brush.linearGradient(listOf(Color(0xFFFFD89A), Color(0xFFF4B792)))
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val initials = username.split(' ', '.')
+                        .filter { it.isNotBlank() }
+                        .take(2)
+                        .map { it.first().uppercaseChar() }
+                        .joinToString("")
+                        .ifEmpty { "?" }
+                    Text(
+                        initials,
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF5E1133),
+                    )
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        username.ifEmpty { "Гость" },
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Filled.Star,
+                            contentDescription = null,
+                            tint = Color(0xFFFFD89A),
+                            modifier = Modifier.size(12.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            subscriptionLabel(subscription),
+                            fontSize = 12.sp,
+                            color = Color.White.copy(alpha = 0.8f),
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            // Stats row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                StatCard(
+                    value = watchedCount.toString(),
+                    label = "Просмотрено",
+                    modifier = Modifier.weight(1f),
+                )
+                StatCard(
+                    value = favoritesCount.toString(),
+                    label = "В избранном",
+                    modifier = Modifier.weight(1f),
+                )
+                StatCard(
+                    value = quality ?: "—",
+                    label = "Качество",
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
-@Composable
-private fun StatsRow(subscription: Subscription?) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-    ) {
-        StatItem(
-            value = if (subscription?.active == true) "✓" else "✗",
-            label = "Подписка",
-        )
-        StatDivider()
-        StatItem(
-            value = subscription?.daysLeft?.toString() ?: "—",
-            label = "Дней осталось",
-        )
-        StatDivider()
-        StatItem(value = "HD", label = "Качество")
-    }
+private fun subscriptionLabel(subscription: Subscription?): String = when {
+    subscription?.active == true && subscription.daysLeft != null ->
+        "Filmax Premium · ещё ${subscription.daysLeft} дн."
+    subscription?.active == true -> "Filmax Premium"
+    else -> "Бесплатный аккаунт"
 }
 
 @Composable
-private fun StatItem(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White.copy(alpha = 0.15f))
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
             value,
             fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
         )
+        Spacer(Modifier.height(4.dp))
         Text(
             label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.75f),
+            letterSpacing = 0.3.sp,
         )
     }
 }
 
-@Composable
-private fun StatDivider() {
-    Box(
-        Modifier
-            .width(1.dp)
-            .height(32.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant)
-    )
-}
-
-@Composable
-private fun SettingsGroup(title: String, content: @Composable () -> Unit) {
-    Column(Modifier.padding(horizontal = 20.dp)) {
-        if (title.isNotEmpty()) {
-            Text(
-                title,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                letterSpacing = 0.8.sp,
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(20.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-private fun SettingsRow(
-    icon: ImageVector,
-    label: String,
-    subtitle: String? = null,
-    tint: Color = MaterialTheme.colorScheme.onSurface,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(label, color = tint, fontWeight = FontWeight.Medium)
-                if (subtitle != null) {
-                    Text(
-                        subtitle,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            Icon(
-                imageVector = Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.outlineVariant,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}

@@ -49,7 +49,7 @@ enum class FilmaxTab(
     HOME("Главная", Icons.Filled.Home, Icons.Outlined.Home),
     SEARCH("Поиск", Icons.Filled.Search, Icons.Outlined.Search),
     COLLECTIONS("Подборки", Icons.Filled.Bookmark, Icons.Outlined.BookmarkBorder),
-    LIBRARY("Библио", Icons.Filled.LocalLibrary, Icons.Outlined.LocalLibrary),
+    LIBRARY("Библиотека", Icons.Filled.LocalLibrary, Icons.Outlined.LocalLibrary),
     PROFILE("Профиль", Icons.Filled.Person, Icons.Outlined.Person),
 }
 
@@ -137,6 +137,8 @@ private fun TabItem(
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 10.sp,
             fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal,
+            maxLines = 1,
+            softWrap = false,
         )
     }
 }

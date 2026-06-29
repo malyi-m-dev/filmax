@@ -34,7 +34,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = JvmTarget.JVM_17.target }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -61,6 +64,7 @@ dependencies {
     implementation(project(":feature:profile"))
     implementation(project(":feature:details"))
     implementation(project(":feature:player"))
+    implementation(project(":feature:designsystem"))
 
     // Compose
     val bom = platform(libs.compose.bom)

@@ -11,18 +11,31 @@ data class AccountInfoDto(
 
 @Serializable
 data class UserDto(
-    val id: Int,
+    // Ответ `api/v1/user` для текущего пользователя НЕ содержит `id` — делаем поле
+    // необязательным, иначе вся десериализация падает и профиль не загружается.
+    val id: Int? = null,
     val username: String,
     val email: String? = null,
     val avatar: String? = null,
     @SerialName("reg_date") val regDate: Int? = null,
+    // kino.pub возвращает подписку вложенной в `user`, а не на верхнем уровне.
+    val subscription: SubscriptionDto? = null,
+    val profile: ProfileDto? = null,
+)
+
+@Serializable
+data class ProfileDto(
+    val name: String? = null,
+    val avatar: String? = null,
 )
 
 @Serializable
 data class SubscriptionDto(
     val active: Boolean,
-    val end: Int? = null,
-    val days: Int? = null,
+    // Поле называется `end_time` (unix-секунды); `days` приходит ДРОБНЫМ (напр. 6.1),
+    // поэтому Double, а не Int — иначе ошибка парсинга роняет весь ответ.
+    @SerialName("end_time") val endTime: Long? = null,
+    val days: Double? = null,
 )
 
 @Serializable

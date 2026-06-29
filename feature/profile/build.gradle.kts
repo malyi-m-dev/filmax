@@ -4,6 +4,8 @@ plugins {
 }
 android { namespace = "com.filmax.feature.profile" }
 dependencies {
+    implementation(project(":core:designsystem"))
+    implementation(project(":core:ui"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
     implementation(project(":data:user"))

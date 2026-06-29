@@ -18,9 +18,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.filmax.app.BuildConfig
 import com.filmax.core.ui.components.FilmaxTab
 import com.filmax.core.ui.components.FilmaxTabBar
+import com.filmax.feature.collections.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.navigation.CollectionsRoute
+import com.filmax.feature.designsystem.navigation.DesignSystemRoute
+import com.filmax.feature.designsystem.navigation.designSystemScreen
+import com.filmax.feature.collections.navigation.collectionDetailScreen
 import com.filmax.feature.collections.navigation.collectionsScreen
 import com.filmax.feature.details.navigation.DetailsRoute
 import com.filmax.feature.details.navigation.detailsScreen
@@ -120,6 +125,12 @@ fun FilmaxNavGraph(
                 onOpenItem = { navController.navigate(DetailsRoute(it)) },
             )
             collectionsScreen(
+                onOpenCollection = { id, title ->
+                    navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
+                },
+            )
+            collectionDetailScreen(
+                onBack = { navController.popBackStack() },
                 onOpenItem = { navController.navigate(DetailsRoute(it)) },
             )
             libraryScreen(
@@ -131,6 +142,11 @@ fun FilmaxNavGraph(
                         popUpTo(HomeRoute) { inclusive = true }
                     }
                 },
+                onOpenDesignSystem = if (BuildConfig.DEBUG) {
+                    { navController.navigate(DesignSystemRoute) }
+                } else {
+                    null
+                },
             )
 
             detailsScreen(
@@ -139,6 +155,9 @@ fun FilmaxNavGraph(
                 onOpenItem = { navController.navigate(DetailsRoute(it)) },
             )
             playerScreen(
+                onBack = { navController.popBackStack() },
+            )
+            designSystemScreen(
                 onBack = { navController.popBackStack() },
             )
         }

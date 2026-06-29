@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.error.AppError
+import com.filmax.core.domain.error.toAppError
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -43,6 +46,9 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     private val mainThreadDispatcher = Dispatchers.Main.immediate
 
     private val _state: MutableStateFlow<STATE> = MutableStateFlow(initialState)
+
+    /** Текущая ошибка для модального окна (null — модалки нет). */
+    private val _error: MutableStateFlow<AppError?> = MutableStateFlow(null)
 
     /** Текущий снимок состояния. Доступен подклассам для чтения внутри корутин. */
     protected val state: STATE
@@ -93,6 +99,40 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     @Composable
     fun collectAsState(): State<STATE> {
         return _state.collectAsState()
+    }
+
+    /**
+     * Резолвит ошибку запроса в [AppError] и показывает модалку.
+     * Вызывается из ScreenModel в ветке [RequestResult.Error]:
+     * `showError(result)` или `showError(message, cause)`.
+     */
+    protected suspend fun showError(error: AppError) {
+        withContext(mainThreadDispatcher) { _error.emit(error) }
+    }
+
+    protected suspend fun showError(message: String?, cause: Throwable? = null) {
+        showError(AppError.resolve(message, cause))
+    }
+
+    protected suspend fun showError(error: RequestResult.Error) {
+        showError(error.toAppError())
+    }
+
+    /** Закрывает модалку ошибки. Вызывается из UI. */
+    fun dismissError() {
+        _error.value = null
+    }
+
+    /** Повторная загрузка данных — для кнопки «Повторить» в модалке ошибки. */
+    fun retry() {
+        _error.value = null
+        onFetchData()
+    }
+
+    /** Подписка экрана на текущую ошибку для показа [com.filmax.core.ui]-модалки. */
+    @Composable
+    fun collectErrorAsState(): State<AppError?> {
+        return _error.collectAsState()
     }
 
     /** Подписка экрана на side-effects. Буферизованные до подписки эффекты доставляются сразу. */

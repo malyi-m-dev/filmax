@@ -19,16 +19,19 @@ internal class UserRepositoryImpl(
     override suspend fun getProfile(): RequestResult<UserProfile> = safeRequest {
         val dto = api.getAccountInfo()
         val user = requireNotNull(dto.user)
+        // Подписка может прийти вложенной в `user` (актуальный ответ kino.pub)
+        // или на верхнем уровне — берём то, что есть.
+        val subscriptionDto = user.subscription ?: dto.subscription
         UserProfile(
-            id = user.id,
+            id = user.id ?: 0,
             username = user.username,
             email = user.email,
-            avatarUrl = user.avatar,
-            subscription = dto.subscription?.let {
+            avatarUrl = user.avatar ?: user.profile?.avatar,
+            subscription = subscriptionDto?.let {
                 Subscription(
                     active = it.active,
-                    endsAt = it.end?.toLong()?.times(1000),
-                    daysLeft = it.days,
+                    endsAt = it.endTime?.times(1000),
+                    daysLeft = it.days?.toInt(),
                 )
             },
         )

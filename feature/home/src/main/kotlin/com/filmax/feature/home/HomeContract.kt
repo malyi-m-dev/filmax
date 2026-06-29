@@ -11,13 +11,11 @@ data class HomeState(
     val collections: List<Collection> = emptyList(),
     val trending: List<Item> = emptyList(),
     val forYou: List<Item> = emptyList(),
-    val favorites: Set<Int> = emptySet(),
     val error: String? = null,
 )
 
 sealed interface HomeEvent {
     data object Load : HomeEvent
-    data class ToggleFav(val itemId: Int) : HomeEvent
 }
 
 /** Экран пока не порождает одноразовых эффектов — навигация открытия айтема идёт колбэком из Screen. */

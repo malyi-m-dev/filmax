@@ -8,8 +8,14 @@ import kotlinx.serialization.Serializable
 @Serializable
 object ProfileRoute
 
-fun NavGraphBuilder.profileScreen(onLogout: () -> Unit) {
+fun NavGraphBuilder.profileScreen(
+    onLogout: () -> Unit,
+    onOpenDesignSystem: (() -> Unit)? = null,
+) {
     composable<ProfileRoute> {
-        ProfileScreen(onLogout = onLogout)
+        ProfileScreen(
+            onLogout = onLogout,
+            onOpenDesignSystem = onOpenDesignSystem,
+        )
     }
 }

@@ -41,6 +41,13 @@ fun buildHttpClient(
             loadTokens {
                 tokenStorage.getAccessToken()?.let { BearerTokens(it, "") }
             }
+            // Токен мог быть сохранён уже после создания клиента (свежий вход через
+            // device-flow): кэш loadTokens на старте был пуст, запрос ушёл без заголовка
+            // и получил 401. Тогда Ktor вызывает refreshTokens — перечитываем хранилище
+            // и повторяем запрос с актуальным токеном, без перезапуска приложения.
+            refreshTokens {
+                tokenStorage.getAccessToken()?.let { BearerTokens(it, "") }
+            }
             sendWithoutRequest { true }
         }
     }

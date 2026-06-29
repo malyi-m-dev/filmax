@@ -256,7 +256,7 @@ private fun FilterChips(
 @Composable
 private fun SearchResults(items: List<Item>, onOpenItem: (Int) -> Unit) {
     LazyColumn(
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(items, key = { it.id }) { item ->
@@ -325,7 +325,7 @@ private fun DiscoverContent(
     onRecentClick: (String) -> Unit,
     onClearRecent: () -> Unit,
 ) {
-    LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
+    LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp)) {
         if (recentQueries.isNotEmpty()) {
             item {
                 Row(

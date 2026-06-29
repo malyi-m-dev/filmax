@@ -32,14 +32,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
+import kotlin.math.roundToInt
 
 @Composable
 fun PosterCard(
     item: Item,
-    isFav: Boolean,
     onClick: () -> Unit,
-    onFavClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isFav: Boolean = false,
+    // null — карточка без сердечка (напр. на Главной избранное не показываем).
+    onFavClick: (() -> Unit)? = null,
 ) {
     Column(modifier = modifier.width(140.dp)) {
         Box(
@@ -62,13 +64,15 @@ fun PosterCard(
                 RatingPill(rating = item.rating.filmax.toFloat() / 10f, compact = true)
             }
             // Fav button
-            FavButton(
-                isFav = isFav,
-                onClick = onFavClick,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(6.dp),
-            )
+            if (onFavClick != null) {
+                FavButton(
+                    isFav = isFav,
+                    onClick = onFavClick,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                )
+            }
         }
         Spacer(Modifier.height(8.dp))
         Text(
@@ -79,7 +83,7 @@ fun PosterCard(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${item.year} · ${item.duration.averageMinutes ?: "??"} мин",
+            text = "${item.year} · ${item.duration.averageMinutes?.roundToInt() ?: "??"} мин",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

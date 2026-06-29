@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:domain"))
     val bom = platform(libs.compose.bom)
     api(bom)
     // Compose runtime + androidx.lifecycle.ViewModel/viewModelScope живут здесь — и ТОЛЬКО здесь.

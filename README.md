@@ -16,7 +16,9 @@ Material 3 Expressive дизайн.
 | UI | Jetpack Compose (BOM 2025.05.01), Material 3, Coil 3 |
 | Навигация | Navigation Compose 2.8.9 (типобезопасные routes на `@Serializable`) |
 | DI | Koin 4.0.4 |
-| Сеть | Retrofit 2.11 + `kotlinx.serialization` |
+| Сеть | Ktor Client 3.x + `kotlinx.serialization` (+ Chucker — инспектор запросов в debug) |
+| Локальное хранилище | multiplatform-settings (избранное, загрузки) |
+| Плеер | Media3 ExoPlayer |
 | Асинхронность | Coroutines 1.9 + Flow |
 | Сборка | AGP 8.7.3, Gradle (convention plugins в `build-logic`), KSP |
 | SDK | minSdk 26, target/compileSdk 35 |
@@ -52,6 +54,24 @@ app/                        # точка входа, NavGraph, Application, Main
 ### Экраны (нижняя навигация)
 **Главная** · **Поиск** · **Подборки** · **Библиотека** · **Профиль**,
 плюс **Детали** и **Плеер** (вне таб-бара).
+
+---
+
+## Ключевые возможности
+
+- **Дизайн-система** — переиспользуемые `Filmax*`-компоненты в `core:ui`
+  (кнопки, бейджи, постеры, карточки, списки, поля, stat-карточки, модалки ошибок)
+  с минимальным API; экраны собираются из них. Каталог компонентов — экран
+  **«Дизайн-система»** (из Профиля, только в debug-сборке).
+- **Избранное** — серверный watchlist (`togglewatchlist`) + локальный кэш
+  (multiplatform-settings) как источник списка для Библиотеки; синхронизация на
+  тоггле и импорт флага `inWatchlist` при открытии Деталей.
+- **Загрузки** — метаданные скачанного локально, отображение в Библиотеке.
+- **Система ошибок** — `AppError` + резолвер в `core:domain`, единая модалка
+  `FilmaxErrorModal`; из `ScreenModel` вызывается `showError(...)`.
+- **Детали** — коллапсирующий «sticky» hero с параллаксом и компактным app bar.
+- **Плеер** — Media3 ExoPlayer, выбор качества из бэкенда, кастомные контролы.
+- **Регистрация устройства** — `device/notify` при успешной авторизации.
 
 ---
 
