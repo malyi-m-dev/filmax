@@ -18,7 +18,6 @@ dependencyResolutionManagement {
 rootProject.name = "filmax"
 
 include(":app")
-include(":app-tv")
 
 include(":core:network")
 include(":core:domain")

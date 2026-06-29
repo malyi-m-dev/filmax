@@ -45,6 +45,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:domain"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:tv-designsystem"))
     implementation(project(":core:ui"))
     implementation(project(":core:presentation"))
 
@@ -65,6 +66,16 @@ dependencies {
     implementation(project(":feature:details:mobile"))
     implementation(project(":feature:player:mobile"))
     implementation(project(":feature:designsystem"))
+
+    // TV UI (выбирается в MainActivity по FEATURE_LEANBACK)
+    implementation(project(":feature:onboarding:tv"))
+    implementation(project(":feature:home:tv"))
+    implementation(project(":feature:search:tv"))
+    implementation(project(":feature:categories:tv"))
+    implementation(project(":feature:library:tv"))
+    implementation(project(":feature:profile:tv"))
+    implementation(project(":feature:details:tv"))
+    implementation(project(":feature:player:tv"))
 
     // Compose
     val bom = platform(libs.compose.bom)

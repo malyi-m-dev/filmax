@@ -1,4 +1,4 @@
-package com.filmax.tv.navigation
+package com.filmax.app.tv.navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

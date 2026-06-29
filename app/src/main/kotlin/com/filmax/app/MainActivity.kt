@@ -1,5 +1,6 @@
 package com.filmax.app
 
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
@@ -8,7 +9,9 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.filmax.app.navigation.FilmaxNavGraph
+import com.filmax.app.tv.navigation.FilmaxTvNavGraph
 import com.filmax.core.designsystem.FilmaxTheme
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 
 class MainActivity : ComponentActivity() {
 
@@ -22,9 +25,14 @@ class MainActivity : ComponentActivity() {
             window.isStatusBarContrastEnforced = false
             window.isNavigationBarContrastEnforced = false
         }
+
+        // Один APK на оба форм-фактора: на Android TV (leanback) — TV-граф, иначе телефонный.
+        val isTv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         setContent {
-            FilmaxTheme {
-                FilmaxNavGraph()
+            if (isTv) {
+                FilmaxTvTheme { FilmaxTvNavGraph() }
+            } else {
+                FilmaxTheme { FilmaxNavGraph() }
             }
         }
     }

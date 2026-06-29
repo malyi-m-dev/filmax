@@ -1,60 +1,70 @@
 # Filmax TV (Android TV)
 
-Отдельный TV-таргет с 10-foot UI и D-pad навигацией. Переиспользует весь не-UI слой
-мобильного приложения (`core:*`, `data:*`, и MVI-`ScreenModel`-и из `feature:*`) — меняется
-только presentation-слой.
+Filmax — **одно приложение на двух форм-факторах**: телефон и Android TV. Аккаунт, данные
+и логика общие; различается только presentation-слой (телефонный Compose ↔ 10-foot UI с
+D-pad фокусом на `androidx.tv.material3`).
 
-Дизайн-источник: [`docs/design/filmax-tv-all-screens.html`](design/filmax-tv-all-screens.html)
-(борд «Filmax TV — Все экраны»: Главная, Поиск, Жанры, Библиотека, Профиль, Детали, Плеер).
+Дизайн-источник: [`docs/design/filmax-tv-all-screens.html`](design/filmax-tv-all-screens.html).
 
-## Модули
+## Один APK, выбор UI по устройству
 
-| Модуль | Назначение |
-|--------|------------|
-| `:app-tv` | Приложение (`LEANBACK_LAUNCHER`, баннер), `TvMainActivity`, DI, навигация + верхний таб-бар |
-| `:core:tv-designsystem` | `FilmaxTvTheme` (tv-material3 + compose-material3), focus `#FFD466`, `TvButton`, `TvFocusCard` |
-| `:feature-tv:onboarding` | Вход по device-code поверх `OnboardingScreenModel` |
-| `:feature-tv:home` | Главная (hero + рельсы) поверх `HomeScreenModel` |
-| `:feature-tv:search` | Поиск с экранной клавиатурой поверх `SearchScreenModel` |
-| `:feature-tv:categories` | Жанры (статичная сетка плиток) |
-| `:feature-tv:library` | Библиотека (табы + сетка) поверх `LibraryScreenModel` |
-| `:feature-tv:profile` | Профиль/настройки поверх `ProfileScreenModel` |
-| `:feature-tv:details` | Детали поверх `DetailsScreenModel` (тот же `DetailsRoute`) |
-| `:feature-tv:player` | Плеер (ExoPlayer) поверх `PlayerScreenModel` (тот же `PlayerRoute`) |
+Сборка одна (`:app`, один `applicationId`). Манифест объявляет `LAUNCHER` и
+`LEANBACK_LAUNCHER`, поэтому один и тот же APK ставится и на телефон, и на ТВ.
+`MainActivity` на старте выбирает граф навигации:
 
-## Принципы
+```kotlin
+val isTv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+if (isTv) FilmaxTvTheme { FilmaxTvNavGraph() } else FilmaxTheme { FilmaxNavGraph() }
+```
 
-- **Нативный TV-стек.** `androidx.tv.material3`: `FilmaxTvTheme` оборачивает контент в
-  tv-material3 + compose-material3 темы; интерактив (`TvButton`, `TvFocusCard`) — на
-  tv-material3 `Button`/`Surface` с фокусом/масштабом/обводкой из коробки. Вся работа с
-  tv-material3 API сосредоточена в `:core:tv-designsystem` (2 файла) — экраны её не касаются.
-- **Дизайн-система общая.** TV-токены совпали с `core:designsystem`; отличие — затемнённые
-  поверхности (`surface #0A0809`) и focus-цвет.
-- **Логика не дублируется.** TV-экраны берут готовые `ScreenModel`/`Contract`/koin-модули
-  из мобильных фич. Детали/Плеер переиспользуют и сами маршруты (`DetailsRoute`/`PlayerRoute`),
-  чтобы `SavedStateHandle` отдавал `itemId`.
+## Вложенная структура модулей (на каждую фичу)
 
-## Статус
+```
+:feature:home            ← логика: HomeScreenModel + контракт + DI (без UI)
+:feature:home:mobile     ← телефонный UI + навбилдер
+:feature:home:tv         ← TV UI + навбилдер   (оба api-зависят от :feature:home)
+```
 
-- [x] Каркас `:app-tv` + тема + навигация + верхний таб-бар
-- [x] Onboarding, Главная, Поиск, Жанры, Библиотека, Профиль, Детали, Плеер
-- [ ] `Жанры` — статический список (нужен эндпоинт жанров каталога)
-- [ ] `Профиль` — реальный аккаунт/настройки вместо мульти-профиля из макета (в приложении профилей нет)
-- [ ] Сборка не проверялась в этом окружении (нет Android SDK) — собрать на машине с SDK
+Так — для всех фич: onboarding, home, search, library, profile, details, player.
+Особые случаи:
+- **categories** (Жанры) — только TV: `:feature:categories:tv` (без логического parent).
+- **details/player** — их ScreenModel читает маршрут через `SavedStateHandle.toRoute<…>()`,
+  поэтому `DetailsRoute`/`PlayerRoute` лежат в логическом модуле
+  (`:feature:{details,player}/navigation`), а навбилдеры в `:mobile`/`:tv` ссылаются на них.
+
+Преимущество: TV-UI не тянет на classpath телефонный (и наоборот), логика не дублируется,
+схема симметрична и расширяема.
+
+| Слой | Модули |
+|------|--------|
+| TV дизайн-система | `:core:tv-designsystem` — `FilmaxTvTheme`, `TvButton`, `TvFocusCard`, focus `#FFD466` |
+| TV-каркас | `:app` → `com.filmax.app.tv.navigation` (`FilmaxTvNavGraph`, `TvTopNavBar`) |
+| Логика/UI фич | `:feature:X` + `:feature:X:{mobile,tv}` |
+
+## Нативный TV-стек
+
+`androidx.tv:tv-material` (1.0.0). Вся работа с tv-material3 API сосредоточена в
+`:core:tv-designsystem` (FilmaxTvTheme + TvButton/TvFocusCard) — экраны её не касаются,
+фокус/масштаб/обводка приходят из библиотеки из коробки. TV-токены совпали с
+`core:designsystem`; отличие — затемнённые поверхности (`surface #0A0809`) и focus-цвет.
 
 ## CI → Telegram
 
-`.github/workflows/android-build.yml` собирает debug-APK (`:app-tv` по умолчанию) на
-каждый пуш в `claude/android-tv`/`master` и по кнопке (Actions → Run workflow) и присылает
-файл в Telegram. APK также кладётся в Artifacts (запасной путь, и обход лимита бота 50 МБ).
+`.github/workflows/android-build.yml` собирает `:app:assembleDebug` на пуш в
+`claude/android-tv`/`master` и по кнопке, кладёт APK в Artifacts и шлёт в Telegram
+(нужны секреты `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`; без них шаг отправки
+пропускается). Android SDK берётся предустановленный на ubuntu-раннере.
 
-Нужно один раз добавить два секрета (Settings → Secrets and variables → Actions):
-- `TELEGRAM_BOT_TOKEN` — токен бота от @BotFather;
-- `TELEGRAM_CHAT_ID` — id чата (свой id можно узнать у @userinfobot).
+## Статус
 
-Без секретов сборка всё равно идёт, а шаг отправки просто пропускается с предупреждением.
+- [x] Все экраны TV (onboarding, home, search, categories, library, profile, details, player)
+- [x] Вложенная структура модулей на всех фичах (logic / mobile / tv)
+- [x] Один `:app` с выбором навграфа по устройству; `:app-tv` удалён
+- [x] CI собирает один APK
+- [ ] Жанры — статический список (нужен эндпоинт жанров каталога)
+- [ ] Профиль — реальный аккаунт/настройки вместо мульти-профиля из макета
 
 ## Версии
 
-- `androidx.tv:tv-material` = `1.0.0` (см. `gradle/libs.versions.toml`). Если IDE/сборка
-  ругается на несовместимость с Compose BOM `2025.05.01` — поднять версию tv-material.
+- `androidx.tv:tv-material` = `1.0.0` (`gradle/libs.versions.toml`). Если конфликтует с
+  Compose BOM — поднять версию.

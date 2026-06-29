@@ -54,7 +54,7 @@ private val Accent = Color(0xFFB4305A)
 /**
  * TV-Главная (экран 01 макета): hero-бэкдроп с действиями и горизонтальные рельсы постеров.
  * Поверх общего [HomeScreenModel] — данные те же, что и на телефоне. Верхний таб-бар рисует
- * общий скаффолд `app-tv`. Фокус/скролл — нативные (tv-material3 + Lazy bring-into-view).
+ * общий TV-скаффолд в `:app`. Фокус/скролл — нативные (tv-material3 + Lazy bring-into-view).
  */
 @Composable
 fun TvHomeScreen(

@@ -1,4 +1,4 @@
-package com.filmax.tv.navigation
+package com.filmax.app.tv.navigation
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,6 +31,7 @@ import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
+import com.filmax.app.navigation.RootScreenModel
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 
@@ -39,7 +40,8 @@ private object TvSplashRoute
 
 @Composable
 fun FilmaxTvNavGraph(
-    rootScreenModel: TvRootScreenModel = koinViewModel(),
+    // Переиспользуем общий RootScreenModel (тот же auth.isAuthenticated, что и в телефонном графе).
+    rootScreenModel: RootScreenModel = koinViewModel(),
 ) {
     val rootState by rootScreenModel.collectAsState()
     val isAuthenticated = rootState.isAuthenticated
