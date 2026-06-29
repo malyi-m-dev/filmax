@@ -1,0 +1,1 @@
+# Filmax TV ProGuard rules

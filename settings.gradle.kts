@@ -18,12 +18,17 @@ dependencyResolutionManagement {
 rootProject.name = "filmax"
 
 include(":app")
+include(":app-tv")
 
 include(":core:network")
 include(":core:domain")
 include(":core:designsystem")
+include(":core:tv-designsystem")
 include(":core:ui")
 include(":core:presentation")
+
+include(":feature-tv:onboarding")
+include(":feature-tv:home")
 
 include(":data:auth")
 include(":data:catalog")
