@@ -1,6 +1,7 @@
 package com.filmax.core.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -65,8 +66,8 @@ fun FilmaxListGroup(
 fun FilmaxListRow(
     icon: ImageVector,
     label: String,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     accent: Color = MaterialTheme.colorScheme.primary,
     value: String? = null,
     badge: String? = null,
@@ -74,9 +75,10 @@ fun FilmaxListRow(
     showDivider: Boolean = false,
 ) {
     Surface(
-        onClick = onClick,
         color = Color.Transparent,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Column {
             Row(
@@ -115,12 +117,14 @@ fun FilmaxListRow(
                         )
                     }
                 }
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
-                )
+                if (onClick != null) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
             if (showDivider) {
                 Box(
