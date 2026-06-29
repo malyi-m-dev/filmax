@@ -18,16 +18,10 @@ kotlin {
         }
         androidMain.dependencies {
             api(libs.ktor.client.okhttp)
-            // Временно: Retrofit/OkHttp нужны data-модулям до миграции на Ktor (Фаза 3).
-            api(libs.okhttp.core)
-            api(libs.okhttp.logging)
-            api(libs.retrofit.core)
-            api(libs.retrofit.serialization)
             api(libs.kotlinx.coroutines.android)
 
             api(koinBom)
             api(libs.koin.android)
-            implementation(libs.datastore.preferences)
         }
         iosMain.dependencies {
             api(libs.ktor.client.darwin)

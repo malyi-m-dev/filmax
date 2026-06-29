@@ -1,5 +1,5 @@
 plugins {
-    id("filmax.android.library")
+    id("filmax.kmp.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -7,10 +7,15 @@ android {
     namespace = "com.filmax.data.auth"
 }
 
-dependencies {
-    implementation(project(":core:network"))
-    implementation(project(":core:domain"))
+kotlin {
+    val koinBom = project.dependencies.platform(libs.koin.bom)
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:network"))
+            implementation(project(":core:domain"))
 
-    implementation(platform(libs.koin.bom))
-    implementation(libs.koin.android)
+            implementation(koinBom)
+            implementation(libs.koin.core)
+        }
+    }
 }
