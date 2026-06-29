@@ -198,13 +198,16 @@ fun OnboardingScreen(
 
 @Composable
 private fun StepAuth(state: OnboardingState, onRetry: () -> Unit) {
+    // Локальные копии: smart-cast по полям из другого модуля (feature:onboarding) невозможен.
+    val userCode = state.userCode
+    val error = state.error
     when {
-        state.polling && state.userCode != null -> AuthCodeCard(
-            userCode = state.userCode,
+        state.polling && userCode != null -> AuthCodeCard(
+            userCode = userCode,
             verificationUri = state.verificationUri ?: "kinopub.me/device",
         )
 
-        state.error != null -> AuthErrorState(error = state.error, onRetry = onRetry)
+        error != null -> AuthErrorState(error = error, onRetry = onRetry)
 
         else -> Box(
             modifier = Modifier
