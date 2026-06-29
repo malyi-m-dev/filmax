@@ -1,0 +1,86 @@
+name: Android Build → Telegram
+
+# Собирает debug-APK и присылает его в Telegram.
+# Запуск: пуш в ветку TV/мастер либо вручную (Actions → Run workflow).
+on:
+  push:
+    branches: [ claude/android-tv, master ]
+  workflow_dispatch:
+    inputs:
+      module:
+        description: "Gradle-модуль для сборки (например :app-tv или :app)"
+        default: ":app-tv"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages (compileSdk 35)
+        run: yes | sdkmanager "platforms;android-35" "build-tools;35.0.0" >/dev/null || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Assemble debug APK
+        run: ./gradlew ${{ github.event.inputs.module || ':app-tv' }}:assembleDebug --stacktrace
+
+      - name: Locate APK
+        id: apk
+        run: |
+          path=$(find . -path '*/outputs/apk/debug/*.apk' | head -n1)
+          if [ -z "$path" ]; then echo "APK not found" >&2; exit 1; fi
+          echo "path=$path" >> "$GITHUB_OUTPUT"
+          echo "Found APK: $path ($(du -h "$path" | cut -f1))"
+
+      # Артефакт — надёжный запасной путь (доступен даже если Telegram не сработал).
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: filmax-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+          if-no-files-found: error
+
+      - name: Send APK to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::Секреты TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы — пропускаю отправку. APK доступен в Artifacts."
+            exit 0
+          fi
+          apk="${{ steps.apk.outputs.path }}"
+          # Лимит Bot API на отправку файла — 50 МБ.
+          size_mb=$(( $(stat -c%s "$apk") / 1048576 ))
+          caption=$(printf 'Filmax · debug APK\nВетка: %s\nКоммит: %s\nRun: #%s' "$GITHUB_REF_NAME" "${GITHUB_SHA::8}" "$GITHUB_RUN_NUMBER")
+          if [ "$size_mb" -ge 50 ]; then
+            echo "::warning::APK ${size_mb}MB ≥ 50MB — Telegram-бот не примет файл. Возьми APK из Artifacts."
+            curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              --data-urlencode "text=Сборка готова (${size_mb}MB), но превышает лимит Telegram 50MB. Скачай из GitHub Actions → Artifacts. ($GITHUB_REF_NAME, ${GITHUB_SHA::8})"
+            exit 0
+          fi
+          curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+            -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F document=@"${apk}" \
+            -F caption="$caption"
+          echo "APK отправлен в Telegram."

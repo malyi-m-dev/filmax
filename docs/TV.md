@@ -42,6 +42,18 @@
 - [ ] `Профиль` — реальный аккаунт/настройки вместо мульти-профиля из макета (в приложении профилей нет)
 - [ ] Сборка не проверялась в этом окружении (нет Android SDK) — собрать на машине с SDK
 
+## CI → Telegram
+
+`.github/workflows/android-build.yml` собирает debug-APK (`:app-tv` по умолчанию) на
+каждый пуш в `claude/android-tv`/`master` и по кнопке (Actions → Run workflow) и присылает
+файл в Telegram. APK также кладётся в Artifacts (запасной путь, и обход лимита бота 50 МБ).
+
+Нужно один раз добавить два секрета (Settings → Secrets and variables → Actions):
+- `TELEGRAM_BOT_TOKEN` — токен бота от @BotFather;
+- `TELEGRAM_CHAT_ID` — id чата (свой id можно узнать у @userinfobot).
+
+Без секретов сборка всё равно идёт, а шаг отправки просто пропускается с предупреждением.
+
 ## Версии
 
 - `androidx.tv:tv-material` = `1.0.0` (см. `gradle/libs.versions.toml`). Если IDE/сборка
