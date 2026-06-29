@@ -315,7 +315,7 @@ private fun SearchResultRow(item: Item, onClick: () -> Unit) {
             }
         }
         RatingPill(
-            rating = item.rating.imdb?.toFloatOrNull() ?: (item.rating.filmax / 10f),
+            rating = item.rating.external,
             compact = true,
         )
     }

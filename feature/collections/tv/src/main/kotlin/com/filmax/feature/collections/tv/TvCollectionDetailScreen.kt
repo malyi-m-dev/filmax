@@ -86,7 +86,7 @@ private fun PosterTile(item: Item, onClick: () -> Unit) {
                 accentColor = Accent,
             )
             RatingPill(
-                rating = item.rating.filmax / 10f,
+                rating = item.rating.external,
                 compact = true,
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
             )

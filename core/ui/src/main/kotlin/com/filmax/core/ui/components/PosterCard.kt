@@ -61,7 +61,7 @@ fun PosterCard(
             Box(Modifier
                 .align(Alignment.TopStart)
                 .padding(8.dp)) {
-                RatingPill(rating = item.rating.filmax.toFloat() / 10f, compact = true)
+                RatingPill(rating = item.rating.external, compact = true)
             }
             // Fav button
             if (onFavClick != null) {

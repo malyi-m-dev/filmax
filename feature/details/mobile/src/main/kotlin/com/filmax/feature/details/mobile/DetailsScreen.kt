@@ -177,7 +177,7 @@ private fun DetailsContent(
                 Text(item.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RatingPill(rating = item.rating.filmax / 10f)
+                    RatingPill(rating = item.rating.external)
                     Dot()
                     Text("${item.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
                     Dot()
@@ -356,9 +356,9 @@ private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
 
         // Stats grid — M3 Expressive colored surfaces
         val director = item.director.ifBlank { "—" }
-        val ratingValue = "%.1f".format(Locale.US, item.rating.filmax / 10f)
+        val ratingValue = item.rating.external?.let { String.format(Locale.US, "%.1f", it) } ?: "N/A"
         val stats = listOf(
-            StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "Filmax"),
+            StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "IMDb · КП"),
             StatItem(Color(0xFFF4B792), ShapeCookie, "Длительность", "${item.duration.averageMinutes?.toInt() ?: "?"}", "мин"),
             StatItem(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр", director.substringBefore(" "), director.substringAfter(" ", "")),
             StatItem(Color(0xFFE86D9E), ShapeLg, "Жанр", item.genres.firstOrNull()?.title ?: "—", item.genres.getOrNull(1)?.title ?: "—"),

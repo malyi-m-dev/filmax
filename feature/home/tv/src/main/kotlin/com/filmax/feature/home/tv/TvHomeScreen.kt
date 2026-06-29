@@ -27,13 +27,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -81,21 +78,15 @@ fun TvHomeScreen(
 
 @Composable
 private fun TvHomeContent(state: HomeState, onOpenItem: (Int) -> Unit) {
-    val playFocus = remember { FocusRequester() }
-    LaunchedEffect(state.hero?.id) {
-        if (state.hero != null) runCatching { playFocus.requestFocus() }
-    }
-
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 120.dp, bottom = 56.dp),
+        contentPadding = PaddingValues(top = 0.dp, bottom = 56.dp),
         verticalArrangement = Arrangement.spacedBy(36.dp),
     ) {
         state.hero?.let { hero ->
             item(key = "hero") {
                 TvHero(
                     item = hero,
-                    playFocusRequester = playFocus,
                     onPlay = { onOpenItem(hero.id) },
                     onDetails = { onOpenItem(hero.id) },
                 )
@@ -138,7 +129,6 @@ private fun TvHomeContent(state: HomeState, onOpenItem: (Int) -> Unit) {
 @Composable
 private fun TvHero(
     item: Item,
-    playFocusRequester: FocusRequester,
     onPlay: () -> Unit,
     onDetails: () -> Unit,
 ) {
@@ -178,9 +168,8 @@ private fun TvHero(
 
         Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 72.dp, end = 72.dp, bottom = 8.dp)
-                .fillMaxWidth(0.6f),
+                .align(Alignment.TopStart)
+                .padding(start = 72.dp, end = 72.dp, top = 96.dp),
         ) {
             EditorsChoicePill()
             Spacer(Modifier.height(16.dp))
@@ -189,6 +178,8 @@ private fun TvHero(
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
+                maxLines = 2,
+                modifier = Modifier.fillMaxWidth(0.6f),
             )
             Spacer(Modifier.height(14.dp))
             HeroMeta(item)
@@ -199,10 +190,11 @@ private fun TvHero(
                 lineHeight = 26.sp,
                 color = Color.White.copy(alpha = 0.85f),
                 maxLines = 3,
+                modifier = Modifier.fillMaxWidth(0.56f),
             )
             Spacer(Modifier.height(28.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow, focusRequester = playFocusRequester)
+                TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow)
                 TvButton("В избранное", onClick = {}, primary = false, leadingIcon = Icons.Filled.FavoriteBorder)
                 TvButton("Подробнее", onClick = onDetails, primary = false, leadingIcon = Icons.Filled.Info)
             }
@@ -213,7 +205,7 @@ private fun TvHero(
 @Composable
 private fun HeroMeta(item: Item) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        RatingPill(rating = item.rating.filmax / 10f)
+        RatingPill(rating = item.rating.external)
         MetaText("${item.year}")
         MetaDot()
         item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let {
@@ -285,7 +277,7 @@ private fun TvPosterCard(item: Item, onClick: () -> Unit) {
                 accentColor = Accent,
             )
             RatingPill(
-                rating = item.rating.filmax / 10f,
+                rating = item.rating.external,
                 compact = true,
                 modifier = Modifier
                     .align(Alignment.TopEnd)

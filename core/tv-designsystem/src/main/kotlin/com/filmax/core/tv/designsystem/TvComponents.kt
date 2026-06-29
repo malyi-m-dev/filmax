@@ -2,21 +2,30 @@
 
 package com.filmax.core.tv.designsystem
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ClickableSurfaceDefaults
@@ -28,6 +37,7 @@ import androidx.tv.material3.Text
 /**
  * Крупная pill-кнопка для пульта на базе tv-material3 [Button] — фокус/масштаб/обводка
  * берутся из коробки. [primary] — брендовая заливка, иначе «вторичная» поверхность.
+ * На фокусе помимо смены цвета добавляется фирменная [TvFocus]-обводка для явной аффорданс.
  */
 @Composable
 fun TvButton(
@@ -54,10 +64,15 @@ fun TvButton(
         )
     }
 
+    val shape = RoundedCornerShape(percent = 50)
     Button(
         onClick = onClick,
         colors = colors,
-        shape = ButtonDefaults.shape(RoundedCornerShape(percent = 50)),
+        shape = ButtonDefaults.shape(shape),
+        scale = ButtonDefaults.scale(focusedScale = 1.1f),
+        border = ButtonDefaults.border(
+            focusedBorder = Border(BorderStroke(3.dp, TvFocus), shape = shape),
+        ),
         modifier = modifier.then(
             if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
         ),
@@ -69,15 +84,16 @@ fun TvButton(
             if (leadingIcon != null) {
                 Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(24.dp))
             }
-            Text(text, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(text, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
         }
     }
 }
 
 /**
  * Фокусируемая карточка-контейнер на базе tv-material3 clickable [Surface]. Содержимое
- * (постер, плитка и т.п.) передаётся слотом. Контейнер прозрачный — на фокусе срабатывают
- * нативные масштаб + жёлтая обводка (`colorScheme.border == TvFocus`).
+ * (постер, плитка и т.п.) передаётся слотом. На фокусе срабатывают нативный масштаб и
+ * фирменная [TvFocus]-обводка, которая рисуется ПОВЕРХ контента (иначе постер на
+ * `fillMaxSize` перекрыл бы рамку самого Surface и фокус был бы не виден).
  */
 @Composable
 fun TvFocusCard(
@@ -87,9 +103,11 @@ fun TvFocusCard(
     focusRequester: FocusRequester? = null,
     content: @Composable () -> Unit,
 ) {
+    var focused by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent,
@@ -97,10 +115,22 @@ fun TvFocusCard(
             contentColor = TvOnSurface,
             focusedContentColor = TvOnSurface,
         ),
-        modifier = modifier.then(
-            if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(3.dp, TvFocus), shape = shape),
         ),
+        modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
     ) {
-        content()
+        Box {
+            content()
+            if (focused) {
+                Box(
+                    Modifier
+                        .matchParentSize()
+                        .border(3.dp, TvFocus, shape)
+                )
+            }
+        }
     }
 }

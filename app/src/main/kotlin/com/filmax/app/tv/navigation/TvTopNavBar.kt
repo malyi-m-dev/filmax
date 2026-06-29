@@ -1,12 +1,15 @@
 package com.filmax.app.tv.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -15,6 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +61,8 @@ val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
 fun TvTopNavBar(
     currentDestination: NavDestination?,
     onSelectTab: (route: Any) -> Unit,
+    navBarFocus: FocusRequester,
+    contentFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -65,45 +73,55 @@ fun TvTopNavBar(
                     listOf(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), Color.Transparent)
                 )
             )
-            .padding(horizontal = 72.dp, vertical = 28.dp),
+            .focusRequester(navBarFocus)
+            .focusGroup()
+            .padding(horizontal = 48.dp, vertical = 22.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(48.dp),
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text("Filmax", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(".", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
+            Text("Filmax", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
+            Text(".", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
         }
-        Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Spacer(Modifier.width(32.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             TABS.forEach { tab ->
-                NavTab(label = tab.label, active = tab.match(currentDestination), onClick = { onSelectTab(tab.route) })
+                NavTab(
+                    label = tab.label,
+                    active = tab.match(currentDestination),
+                    onClick = { onSelectTab(tab.route) },
+                    modifier = Modifier.focusProperties { down = contentFocus },
+                )
             }
         }
+        Spacer(Modifier.weight(1f))
         Box(
             modifier = Modifier
-                .size(48.dp)
+                .size(44.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(Color(0xFFB4305A), Color(0xFFF4B792)))),
             contentAlignment = Alignment.Center,
         ) {
-            Text("АК", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("АК", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
         }
     }
 }
 
 @Composable
-private fun NavTab(label: String, active: Boolean, onClick: () -> Unit) {
+private fun NavTab(label: String, active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(percent = 50)
-    TvFocusCard(onClick = onClick, shape = shape) {
+    TvFocusCard(onClick = onClick, shape = shape, modifier = modifier) {
         Box(
             Modifier
                 .clip(shape)
                 .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                .padding(horizontal = 28.dp, vertical = 12.dp),
+                .padding(horizontal = 20.dp, vertical = 10.dp),
         ) {
             Text(
                 label,
-                fontSize = 18.sp,
+                fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
                 color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }

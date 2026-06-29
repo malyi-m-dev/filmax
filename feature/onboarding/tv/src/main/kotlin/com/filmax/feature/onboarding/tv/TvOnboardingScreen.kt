@@ -134,13 +134,7 @@ private fun TvWelcomeStep(onLogin: () -> Unit) {
                 fontSize = 20.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(40.dp))
-            FeatureRow("📺", "Все форматы", "Фильмы, сериалы, аниме, документалки")
-            Spacer(Modifier.height(16.dp))
-            FeatureRow("🎯", "Умные рекомендации", "Персональная подборка по вашим вкусам")
-            Spacer(Modifier.height(16.dp))
-            FeatureRow("⚡", "Быстрый стриминг", "HLS адаптивный поток до 4K качества")
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(20.dp))
             TvButton(
                 text = "Войти",
                 onClick = onLogin,

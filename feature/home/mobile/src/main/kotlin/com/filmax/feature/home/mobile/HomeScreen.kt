@@ -330,7 +330,7 @@ private fun HeroCard(
                 .align(Alignment.TopEnd)
                 .padding(16.dp)
         ) {
-            RatingPill(rating = item.rating.filmax / 10f)
+            RatingPill(rating = item.rating.external)
         }
         Column(
             modifier = Modifier

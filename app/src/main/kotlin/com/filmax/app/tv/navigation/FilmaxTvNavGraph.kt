@@ -3,14 +3,19 @@ package com.filmax.app.tv.navigation
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -60,6 +65,12 @@ fun FilmaxTvNavGraph(
     val currentDest = backStack?.destination
     val showTopBar = TOP_LEVEL_ROUTES.any { currentDest?.hasRoute(it) == true }
 
+    // Явная связь фокуса между оверлейной шапкой и контентом: они — соседи в Box, и
+    // D-pad-поиск между ними сам по себе не проходит, поэтому шапка по «вниз» уводит в
+    // [contentFocus], а контент получает стартовый фокус, чтобы экран сразу скроллился.
+    val navBarFocus = remember { FocusRequester() }
+    val contentFocus = remember { FocusRequester() }
+
     // Переход по вкладкам: единственный экземпляр + сохранение/восстановление состояния.
     fun navigateTab(route: Any) {
         navController.navigate(route) {
@@ -77,7 +88,11 @@ fun FilmaxTvNavGraph(
         NavHost(
             navController = navController,
             startDestination = TvSplashRoute,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(contentFocus)
+                .focusProperties { up = navBarFocus }
+                .focusGroup(),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
             popEnterTransition = { fadeIn() },
@@ -117,8 +132,16 @@ fun FilmaxTvNavGraph(
             TvTopNavBar(
                 currentDestination = currentDest,
                 onSelectTab = { navigateTab(it) },
+                navBarFocus = navBarFocus,
+                contentFocus = contentFocus,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
+    }
+
+    // При входе на любой верхнеуровневый экран отдаём фокус контенту — чтобы экран сразу
+    // листался пультом, а к шапке можно было вернуться кнопкой «вверх».
+    LaunchedEffect(currentDest?.route, showTopBar) {
+        if (showTopBar) runCatching { contentFocus.requestFocus() }
     }
 }
