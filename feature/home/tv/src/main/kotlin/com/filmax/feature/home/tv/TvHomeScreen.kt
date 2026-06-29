@@ -1,4 +1,4 @@
-package com.filmax.feature.tv.home
+package com.filmax.feature.home.tv
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

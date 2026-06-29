@@ -1,8 +1,8 @@
-package com.filmax.feature.tv.home.navigation
+package com.filmax.feature.home.tv.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.filmax.feature.tv.home.TvHomeScreen
+import com.filmax.feature.home.tv.TvHomeScreen
 import kotlinx.serialization.Serializable
 
 @Serializable

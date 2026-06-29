@@ -67,7 +67,7 @@ dependencies {
 
     // TV UI features
     implementation(project(":feature-tv:onboarding"))
-    implementation(project(":feature-tv:home"))
+    implementation(project(":feature:home:tv"))
     implementation(project(":feature-tv:search"))
     implementation(project(":feature-tv:categories"))
     implementation(project(":feature-tv:library"))

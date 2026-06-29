@@ -24,7 +24,7 @@ import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.feature.tv.categories.navigation.TvCategoriesRoute
-import com.filmax.feature.tv.home.navigation.TvHomeRoute
+import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.tv.library.navigation.TvLibraryRoute
 import com.filmax.feature.tv.profile.navigation.TvProfileRoute
 import com.filmax.feature.tv.search.navigation.TvSearchRoute

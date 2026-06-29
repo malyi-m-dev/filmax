@@ -1,8 +1,8 @@
-package com.filmax.feature.home.navigation
+package com.filmax.feature.home.mobile.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.filmax.feature.home.HomeScreen
+import com.filmax.feature.home.mobile.HomeScreen
 import kotlinx.serialization.Serializable
 
 @Serializable

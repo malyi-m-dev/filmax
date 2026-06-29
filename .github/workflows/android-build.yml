@@ -41,7 +41,7 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Assemble debug APK
-        run: ./gradlew ${{ github.event.inputs.module || ':app-tv' }}:assembleDebug --stacktrace
+        run: ./gradlew :app:assembleDebug :app-tv:assembleDebug --stacktrace
 
       - name: Locate APK
         id: apk

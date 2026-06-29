@@ -57,7 +57,7 @@ dependencies {
 
     // Features
     implementation(project(":feature:onboarding"))
-    implementation(project(":feature:home"))
+    implementation(project(":feature:home:mobile"))
     implementation(project(":feature:search"))
     implementation(project(":feature:collections"))
     implementation(project(":feature:library"))

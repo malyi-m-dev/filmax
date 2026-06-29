@@ -22,8 +22,8 @@ import com.filmax.feature.player.navigation.PlayerRoute
 import com.filmax.feature.tv.categories.navigation.TvCategoriesRoute
 import com.filmax.feature.tv.categories.navigation.tvCategoriesScreen
 import com.filmax.feature.tv.details.navigation.tvDetailsScreen
-import com.filmax.feature.tv.home.navigation.TvHomeRoute
-import com.filmax.feature.tv.home.navigation.tvHomeScreen
+import com.filmax.feature.home.tv.navigation.TvHomeRoute
+import com.filmax.feature.home.tv.navigation.tvHomeScreen
 import com.filmax.feature.tv.library.navigation.tvLibraryScreen
 import com.filmax.feature.tv.onboarding.navigation.TvOnboardingRoute
 import com.filmax.feature.tv.onboarding.navigation.tvOnboardingScreen
