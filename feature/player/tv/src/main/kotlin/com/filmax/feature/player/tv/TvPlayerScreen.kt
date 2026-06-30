@@ -2,11 +2,14 @@ package com.filmax.feature.player.tv
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,10 +45,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
@@ -58,6 +63,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -93,6 +99,21 @@ fun TvPlayerScreen(
     var controlsVisible by remember { mutableStateOf(true) }
     var openCategory by remember { mutableStateOf<SettingsCategory?>(null) }
 
+    // Скраббинг: позиция thumb, которую двигает DPAD до подтверждения seekTo.
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubProgress by remember { mutableFloatStateOf(0f) }
+    val scrubberFocus = remember { FocusRequester() }
+
+    // Подтвердить перемотку: seekTo на целевую позицию и выйти из режима скраббинга.
+    fun commitScrub() {
+        val durationMs = screenModel.player.duration
+        if (durationMs > 0) {
+            screenModel.player.seekTo((scrubProgress * durationMs).toLong())
+            progress = scrubProgress
+        }
+        isScrubbing = false
+    }
+
     // Позиции чипов (в координатах корня) — чтобы поставить панель ровно над нажатым.
     var chipsRowTop by remember { mutableIntStateOf(0) }
     val chipLefts = remember { mutableStateMapOf<SettingsCategory, Int>() }
@@ -103,13 +124,23 @@ fun TvPlayerScreen(
     val firstChipFocus = remember { FocusRequester() }
     val hasChips = state.qualities.size > 1 || state.audioTracks.size > 1 || state.subtitles.size > 1
 
-    // Тик прогресса + сохранение позиции (как на телефоне).
+    // Тик прогресса + сохранение позиции (как на телефоне). Во время скраббинга progress не трогаем.
     LaunchedEffect(screenModel.player) {
         while (true) {
-            delay(1000)
+            delay(PROGRESS_TICK_MS)
             val duration = screenModel.player.duration.takeIf { it > 0 } ?: continue
-            progress = screenModel.player.currentPosition / duration.toFloat()
+            if (!isScrubbing) {
+                progress = screenModel.player.currentPosition / duration.toFloat()
+            }
             screenModel.dispatch(PlayerEvent.SaveProgress(screenModel.player.currentPosition))
+        }
+    }
+
+    // Скраббинг подтверждается по таймауту бездействия (либо DPAD_CENTER в обработчике клавиш).
+    LaunchedEffect(isScrubbing, scrubProgress) {
+        if (isScrubbing) {
+            delay(SCRUB_COMMIT_TIMEOUT_MS)
+            commitScrub()
         }
     }
 
@@ -122,9 +153,10 @@ fun TvPlayerScreen(
         }
     }
 
-    // «Назад»: сначала закрыть панель, потом спрятать UI, и только затем выйти из плеера.
+    // «Назад»: отменить скраббинг, затем закрыть панель, спрятать UI, и только потом выйти из плеера.
     BackHandler {
         when {
+            isScrubbing -> isScrubbing = false
             openCategory != null -> openCategory = null
             controlsVisible -> controlsVisible = false
             else -> onBack()
@@ -204,8 +236,8 @@ fun TvPlayerScreen(
                 }
 
                 // Центр — контролы перемотки/паузы (размеры по дизайну)
-                // «Вниз» с любой центральной кнопки ведёт на первый чип настроек (если чипы есть).
-                val chipDown = if (hasChips) Modifier.focusProperties { down = firstChipFocus } else Modifier
+                // «Вниз» с любой центральной кнопки ведёт на прогресс-бар (а с него — на чипы настроек).
+                val chipDown = Modifier.focusProperties { down = scrubberFocus }
                 Row(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
@@ -227,37 +259,78 @@ fun TvPlayerScreen(
                     })
                 }
 
-                // Снизу — прогресс-бар + чипы настроек
+                // Снизу — прогресс-бар (фокусируемый, со скраббингом) + чипы настроек
                 Column(
                     Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 72.dp, vertical = 48.dp)
                 ) {
-                    val duration = screenModel.player.duration.takeIf { it > 0 } ?: 0L
-                    val current = (progress * duration).toLong()
+                    val durationMs = screenModel.player.duration.takeIf { it > 0 } ?: 0L
+                    val displayFraction = (if (isScrubbing) scrubProgress else progress).coerceIn(0f, 1f)
+                    val currentMs = (displayFraction * durationMs).toLong()
+                    val scrubberFocusProps = Modifier.focusProperties {
+                        up = playFocus
+                        if (hasChips) down = firstChipFocus
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        Text(formatMs(current), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Box(
-                            Modifier
-                                .weight(1f)
-                                .height(8.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.22f)),
-                        ) {
-                            Box(
-                                Modifier
-                                    .fillMaxWidth(progress.coerceIn(0f, 1f))
-                                    .height(8.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary),
-                            )
-                        }
                         Text(
-                            "-${formatMs(duration - current)}",
+                            formatMs(currentMs),
+                            color = if (isScrubbing) MaterialTheme.colorScheme.primary else Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        TvScrubBar(
+                            fraction = displayFraction,
+                            isScrubbing = isScrubbing,
+                            targetLabel = formatMs(currentMs),
+                            focusRequester = scrubberFocus,
+                            focusProperties = scrubberFocusProps,
+                            onKeyEvent = onScrubKey@{ event ->
+                                if (event.type != KeyEventType.KeyDown) return@onScrubKey false
+                                val durationForScrub = screenModel.player.duration
+                                if (durationForScrub <= 0) return@onScrubKey false
+                                when (event.key) {
+                                    Key.DirectionLeft -> {
+                                        if (!isScrubbing) {
+                                            scrubProgress = progress
+                                            isScrubbing = true
+                                        }
+                                        val target = (scrubProgress * durationForScrub - SCRUB_STEP_MS)
+                                            .coerceIn(0f, durationForScrub.toFloat())
+                                        scrubProgress = target / durationForScrub
+                                        true
+                                    }
+
+                                    Key.DirectionRight -> {
+                                        if (!isScrubbing) {
+                                            scrubProgress = progress
+                                            isScrubbing = true
+                                        }
+                                        val target = (scrubProgress * durationForScrub + SCRUB_STEP_MS)
+                                            .coerceIn(0f, durationForScrub.toFloat())
+                                        scrubProgress = target / durationForScrub
+                                        true
+                                    }
+
+                                    Key.DirectionCenter, Key.Enter -> {
+                                        if (isScrubbing) {
+                                            commitScrub()
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+
+                                    else -> false
+                                }
+                            },
+                        )
+                        Text(
+                            "-${formatMs(durationMs - currentMs)}",
                             color = Color.White.copy(alpha = 0.7f),
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
                         )
                     }
 
@@ -500,6 +573,93 @@ private fun ControlButton(
     }
 }
 
+/**
+ * Фокусируемый прогресс-бар со скраббингом: рисует трек, активную часть, thumb-индикатор и
+ * (во время скраббинга) пузырёк с целевым временем над thumb. Обработку DPAD (стрелки/центр)
+ * пробрасываем наружу через [onKeyEvent], а up/down оставляем системе фокуса ([focusProperties]).
+ */
+@Composable
+private fun RowScope.TvScrubBar(
+    fraction: Float,
+    isScrubbing: Boolean,
+    targetLabel: String,
+    focusRequester: FocusRequester,
+    focusProperties: Modifier,
+    onKeyEvent: (KeyEvent) -> Boolean,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    BoxWithConstraints(
+        modifier = Modifier
+            .weight(1f)
+            .height(ScrubThumbFocusedSize)
+            .focusRequester(focusRequester)
+            .then(focusProperties)
+            .onFocusChanged { focused = it.isFocused }
+            .onKeyEvent(onKeyEvent)
+            .focusable(),
+    ) {
+        val thumbSize = if (focused || isScrubbing) ScrubThumbFocusedSize else ScrubThumbSize
+        val travelPx = with(density) { (maxWidth - thumbSize).toPx() }
+        val thumbX = (fraction * travelPx).roundToInt()
+
+        Box(
+            Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxWidth()
+                .height(ScrubTrackHeight)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.22f)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(ScrubTrackHeight)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+        }
+
+        val thumbModifier = Modifier
+            .align(Alignment.CenterStart)
+            .offset { IntOffset(thumbX, 0) }
+            .size(thumbSize)
+            .clip(CircleShape)
+            .background(Color.White)
+        Box(
+            if (focused) {
+                thumbModifier.border(ScrubThumbBorder, MaterialTheme.colorScheme.primary, CircleShape)
+            } else {
+                thumbModifier
+            },
+        )
+
+        if (isScrubbing) {
+            var bubbleSize by remember { mutableStateOf(IntSize.Zero) }
+            val widthPx = with(density) { maxWidth.toPx() }
+            val gapPx = with(density) { ScrubBubbleGap.roundToPx() }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .onSizeChanged { bubbleSize = it }
+                    .offset {
+                        val thumbCenter = thumbX + thumbSize.toPx() / 2f
+                        val maxX = (widthPx - bubbleSize.width).coerceAtLeast(0f)
+                        IntOffset(
+                            (thumbCenter - bubbleSize.width / 2f).coerceIn(0f, maxX).roundToInt(),
+                            -(bubbleSize.height + gapPx),
+                        )
+                    }
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+            ) {
+                Text(targetLabel, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
 /** Короткая подпись чипа (в ряду настроек), в отличие от полного [SettingsCategory.title] в поповере. */
 private val SettingsCategory.chipLabel: String
     get() = when (this) {
@@ -531,6 +691,21 @@ private fun SettingsCategory.toEvent(label: String): PlayerEvent = when (this) {
     SettingsCategory.Audio -> PlayerEvent.SelectAudio(label)
     SettingsCategory.Subtitle -> PlayerEvent.SelectSubtitle(label)
 }
+
+/** Тик прогресса/сохранения позиции (мс). */
+private const val PROGRESS_TICK_MS = 1000L
+
+/** Шаг перемотки скраббингом за одно нажатие DPAD влево/вправо (мс). */
+private const val SCRUB_STEP_MS = 10_000L
+
+/** Бездействие, после которого скраббинг подтверждается и выполняется seekTo (мс). */
+private const val SCRUB_COMMIT_TIMEOUT_MS = 700L
+
+private val ScrubTrackHeight = 8.dp
+private val ScrubThumbSize = 18.dp
+private val ScrubThumbFocusedSize = 26.dp
+private val ScrubThumbBorder = 3.dp
+private val ScrubBubbleGap = 10.dp
 
 private fun formatMs(ms: Long): String {
     val totalSec = ms / 1000

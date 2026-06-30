@@ -74,22 +74,26 @@ fun PlayerScreen(
     val appError by screenModel.collectErrorAsState()
     var controlsVisible by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
+    // Пока пользователь тащит thumb — фоновый тик не перезаписывает progress, seek уходит по завершению жеста.
+    var isScrubbing by remember { mutableStateOf(false) }
     var qualityMenu by remember { mutableStateOf(false) }
     var subtitleMenu by remember { mutableStateOf(false) }
 
-    // Auto-hide controls after 4.5s
-    LaunchedEffect(controlsVisible) {
-        if (controlsVisible) {
-            delay(4500)
+    // Auto-hide controls (но не во время скраббинга — таймер стартует заново после жеста).
+    LaunchedEffect(controlsVisible, isScrubbing) {
+        if (controlsVisible && !isScrubbing) {
+            delay(AUTO_HIDE_DELAY_MS)
             controlsVisible = false
         }
     }
     // Track playback progress
     LaunchedEffect(screenModel.player) {
         while (true) {
-            delay(1000)
+            delay(PROGRESS_TICK_MS)
             val duration = screenModel.player.duration.takeIf { it > 0 } ?: continue
-            progress = screenModel.player.currentPosition / duration.toFloat()
+            if (!isScrubbing) {
+                progress = screenModel.player.currentPosition / duration.toFloat()
+            }
             screenModel.dispatch(PlayerEvent.SaveProgress(screenModel.player.currentPosition))
         }
     }
@@ -266,13 +270,38 @@ fun PlayerScreen(
                         .navigationBarsPadding()
                         .padding(horizontal = 20.dp, vertical = 24.dp),
                 ) {
+                    val durationMs = screenModel.player.duration.takeIf { it > 0 } ?: 0L
+                    val targetMs = (progress * durationMs).toLong()
+                    // Превью целевого времени во время перетаскивания (высота зарезервирована — без скачка вёрстки).
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(PreviewBarHeight),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isScrubbing) {
+                            Text(
+                                formatMs(targetMs),
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
                     Slider(
                         value = progress,
-                        onValueChange = { v ->
-                            progress = v
-                            val duration = screenModel.player.duration.takeIf { it > 0 } ?: return@Slider
-                            screenModel.player.seekTo((v * duration).toLong())
+                        onValueChange = { value ->
+                            isScrubbing = true
+                            progress = value
                         },
+                        onValueChangeFinished = {
+                            val duration = screenModel.player.duration
+                            if (duration > 0) screenModel.player.seekTo((progress * duration).toLong())
+                            isScrubbing = false
+                        },
+                        enabled = durationMs > 0,
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
                             activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -281,11 +310,14 @@ fun PlayerScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        val duration = screenModel.player.duration.takeIf { it > 0 } ?: 0L
-                        val current = (progress * duration).toLong()
-                        Text(formatMs(current), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "-${formatMs(duration - current)}",
+                            formatMs(targetMs),
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "-${formatMs(durationMs - targetMs)}",
                             color = Color.White.copy(0.7f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
@@ -358,6 +390,10 @@ fun PlayerScreen(
         }
     }
 }
+
+private const val AUTO_HIDE_DELAY_MS = 4500L
+private const val PROGRESS_TICK_MS = 1000L
+private val PreviewBarHeight = 28.dp
 
 private fun formatMs(ms: Long): String {
     val totalSec = ms / 1000
