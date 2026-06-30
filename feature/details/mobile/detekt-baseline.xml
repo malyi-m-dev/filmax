@@ -3,8 +3,5 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>LongMethod:DetailsScreen.kt$@Composable private fun AboutTab(item: Item, onPlayTrailer: () -&gt; Unit)</ID>
-    <ID>LongMethod:DetailsScreen.kt$@Composable private fun DetailsContent( item: Item, state: DetailsState, onBack: () -&gt; Unit, onPlay: () -&gt; Unit, onFav: () -&gt; Unit, onDownload: () -&gt; Unit, )</ID>
-    <ID>LongParameterList:DetailsScreen.kt$( item: Item, state: DetailsState, onBack: () -&gt; Unit, onPlay: () -&gt; Unit, onFav: () -&gt; Unit, onDownload: () -&gt; Unit, )</ID>
-    <ID>UnusedParameter:DetailsScreen.kt$onOpenItem: (Int) -&gt; Unit</ID>
   </CurrentIssues>
 </SmellBaseline>

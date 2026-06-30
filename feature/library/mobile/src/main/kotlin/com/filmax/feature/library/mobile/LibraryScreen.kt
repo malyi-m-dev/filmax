@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.filmax.core.domain.downloads.model.DownloadedItem
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.ui.components.FilmaxEmptyState
@@ -334,58 +335,63 @@ private fun DownloadsTab(state: LibraryState, onOpenItem: (Int) -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             items(state.downloads, key = { it.id }) { dl ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .clickable { onOpenItem(dl.id) }
-                        .padding(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    PosterImage(
-                        url = dl.posterSmall,
-                        contentDescription = dl.title,
-                        modifier = Modifier
-                            .size(width = 56.dp, height = 80.dp)
-                            .clip(RoundedCornerShape(14.dp)),
-                        shape = RoundedCornerShape(14.dp),
-                    )
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            dl.title,
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            "${dl.year} · ${dl.durationMinutes} мин",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = null,
-                                tint = Color(0xFF6AC2B0),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Text(
-                                "В библиотеке",
-                                fontSize = 11.sp,
-                                color = Color(0xFF6AC2B0),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
+                DownloadRow(item = dl, onClick = { onOpenItem(dl.id) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun DownloadRow(item: DownloadedItem, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        PosterImage(
+            url = item.posterSmall,
+            contentDescription = item.title,
+            modifier = Modifier
+                .size(width = 56.dp, height = 80.dp)
+                .clip(RoundedCornerShape(14.dp)),
+            shape = RoundedCornerShape(14.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                item.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "${item.year} · ${item.durationMinutes} мин",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = Color(0xFF6AC2B0),
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    "В библиотеке",
+                    fontSize = 11.sp,
+                    color = Color(0xFF6AC2B0),
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
     }

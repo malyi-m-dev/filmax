@@ -1,8 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:CollectionDetailScreen.kt$@Composable fun CollectionDetailScreen( title: String, onBack: () -&gt; Unit, onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: CollectionDetailScreenModel = koinViewModel(), )</ID>
-    <ID>LongMethod:CollectionsScreen.kt$@Composable private fun FeaturedCollectionCard( collection: Collection, accent: Color, onClick: () -&gt; Unit, )</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

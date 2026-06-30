@@ -118,92 +118,107 @@ private fun HomeContent(
         ) {
             // Reserve space for the pinned top bar (status bar inset + bar height)
             Spacer(Modifier.statusBarsPadding().height(60.dp))
-
-            // ── Hero ───────────────────────────────────────────────────────────
-            state.hero?.let { hero ->
-                HeroCard(
-                    item = hero,
-                    onClick = { onOpenItem(hero.id) },
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 28.dp),
-                )
-            }
-
-            // ── Continue watching — 2-column grid ───────────────────────────────
-            if (state.continueWatching.isNotEmpty()) {
-                SectionHeader(title = "Продолжить просмотр", accent = Color(0xFFF4B792))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 28.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    state.continueWatching.take(2).forEach { history ->
-                        ContinueCard(
-                            item = history.toItem(),
-                            progress = history.progress?.fraction ?: 0f,
-                            onClick = { onOpenItem(history.itemId) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    if (state.continueWatching.size == 1) Spacer(Modifier.weight(1f))
-                }
-            }
-
-            // ── Trending ────────────────────────────────────────────────────────
-            if (state.trending.isNotEmpty()) {
-                HorizontalRow(
-                    title = "В тренде",
-                    accentColor = Color(0xFFB4305A),
-                    modifier = Modifier.padding(bottom = 28.dp),
-                ) {
-                    state.trending.forEach { item ->
-                        PosterCard(
-                            item = item,
-                            onClick = { onOpenItem(item.id) },
-                        )
-                    }
-                }
-            }
-
-            // ── For you ─────────────────────────────────────────────────────────
-            if (state.forYou.isNotEmpty()) {
-                HorizontalRow(
-                    title = "Для вас",
-                    subtitle = "На основе ваших предпочтений",
-                    accentColor = Color(0xFF6AC2B0),
-                    modifier = Modifier.padding(bottom = 28.dp),
-                ) {
-                    state.forYou.forEach { item ->
-                        PosterCard(
-                            item = item,
-                            onClick = { onOpenItem(item.id) },
-                        )
-                    }
-                }
-            }
-
-            // ── Все — постранично подгружаемая сетка ─────────────────────────────
-            if (state.all.isNotEmpty()) {
-                SectionHeader(title = "Все", accent = Color(0xFFB4305A))
-                AllGrid(items = state.all, onOpenItem = onOpenItem)
-                if (state.allLoadingMore) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 20.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
+            HeroSection(hero = state.hero, onOpenItem = onOpenItem)
+            ContinueWatchingSection(state = state, onOpenItem = onOpenItem)
+            TrendingSection(state = state, onOpenItem = onOpenItem)
+            ForYouSection(state = state, onOpenItem = onOpenItem)
+            AllSection(state = state, onOpenItem = onOpenItem)
         }
 
         // Pinned, edge-to-edge top bar with frosted gradient
         HomeTopBar(initials = state.initials, modifier = Modifier.align(Alignment.TopCenter))
+    }
+}
+
+// ── Hero ───────────────────────────────────────────────────────────────────
+@Composable
+private fun HeroSection(hero: Item?, onOpenItem: (Int) -> Unit) {
+    if (hero == null) return
+    HeroCard(
+        item = hero,
+        onClick = { onOpenItem(hero.id) },
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 28.dp),
+    )
+}
+
+// ── Continue watching — 2-column grid ───────────────────────────────────────
+@Composable
+private fun ContinueWatchingSection(state: HomeState, onOpenItem: (Int) -> Unit) {
+    if (state.continueWatching.isEmpty()) return
+    SectionHeader(title = "Продолжить просмотр", accent = Color(0xFFF4B792))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 28.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        state.continueWatching.take(2).forEach { history ->
+            ContinueCard(
+                item = history.toItem(),
+                progress = history.progress?.fraction ?: 0f,
+                onClick = { onOpenItem(history.itemId) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (state.continueWatching.size == 1) Spacer(Modifier.weight(1f))
+    }
+}
+
+// ── Trending ────────────────────────────────────────────────────────────────
+@Composable
+private fun TrendingSection(state: HomeState, onOpenItem: (Int) -> Unit) {
+    if (state.trending.isEmpty()) return
+    HorizontalRow(
+        title = "В тренде",
+        accentColor = Color(0xFFB4305A),
+        modifier = Modifier.padding(bottom = 28.dp),
+    ) {
+        state.trending.forEach { item ->
+            PosterCard(
+                item = item,
+                onClick = { onOpenItem(item.id) },
+            )
+        }
+    }
+}
+
+// ── For you ─────────────────────────────────────────────────────────────────
+@Composable
+private fun ForYouSection(state: HomeState, onOpenItem: (Int) -> Unit) {
+    if (state.forYou.isEmpty()) return
+    HorizontalRow(
+        title = "Для вас",
+        subtitle = "На основе ваших предпочтений",
+        accentColor = Color(0xFF6AC2B0),
+        modifier = Modifier.padding(bottom = 28.dp),
+    ) {
+        state.forYou.forEach { item ->
+            PosterCard(
+                item = item,
+                onClick = { onOpenItem(item.id) },
+            )
+        }
+    }
+}
+
+// ── Все — постранично подгружаемая сетка ─────────────────────────────────────
+@Composable
+private fun AllSection(state: HomeState, onOpenItem: (Int) -> Unit) {
+    if (state.all.isEmpty()) return
+    SectionHeader(title = "Все", accent = Color(0xFFB4305A))
+    AllGrid(items = state.all, onOpenItem = onOpenItem)
+    if (state.allLoadingMore) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
 
@@ -367,6 +382,8 @@ private fun SectionHeader(
     }
 }
 
+private const val DEFAULT_ITEM_DURATION_MINUTES = 120.0
+
 private fun com.filmax.core.domain.watching.model.WatchHistory.toItem(): Item = Item(
     id = itemId,
     title = title,
@@ -379,7 +396,7 @@ private fun com.filmax.core.domain.watching.model.WatchHistory.toItem(): Item = 
     genres = emptyList(),
     rating = ItemRating(0, "", null, null),
     posters = Posters(posterSmall ?: "", "", "", null),
-    duration = Duration(120.0, null),
+    duration = Duration(DEFAULT_ITEM_DURATION_MINUTES, null),
     tracklist = emptyList(),
     trailer = null,
     inWatchlist = false,
@@ -419,22 +436,7 @@ private fun HeroCard(
                     )
                 )
         )
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = Color(0xFFB4305A),
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(16.dp),
-        ) {
-            Text(
-                "🔥 Выбор редакции",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                letterSpacing = 1.sp,
-            )
-        }
+        HeroEditorsChoiceBadge(modifier = Modifier.align(Alignment.TopStart))
         Box(
             Modifier
                 .align(Alignment.TopEnd)
@@ -442,39 +444,58 @@ private fun HeroCard(
         ) {
             RatingPill(rating = item.rating.external)
         }
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(20.dp),
-        ) {
-            Text(
-                item.genres.take(2).joinToString(" · ") { it.title } + " · ${item.year}",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.8f),
-                letterSpacing = 1.5.sp,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                item.title,
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
-            Surface(shape = RoundedCornerShape(50), color = Color.White) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text("Смотреть", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
+        HeroInfoOverlay(item = item, modifier = Modifier.align(Alignment.BottomStart))
+    }
+}
+
+@Composable
+private fun HeroEditorsChoiceBadge(modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = Color(0xFFB4305A),
+        modifier = modifier.padding(16.dp),
+    ) {
+        Text(
+            "🔥 Выбор редакции",
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
+            letterSpacing = 1.sp,
+        )
+    }
+}
+
+@Composable
+private fun HeroInfoOverlay(item: Item, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.padding(20.dp)) {
+        Text(
+            item.genres.take(2).joinToString(" · ") { it.title } + " · ${item.year}",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White.copy(alpha = 0.8f),
+            letterSpacing = 1.5.sp,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.headlineLarge,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+        Surface(shape = RoundedCornerShape(50), color = Color.White) {
+            Row(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.Black,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text("Смотреть", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             }
         }
     }
