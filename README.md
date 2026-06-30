@@ -5,6 +5,8 @@
 архитектура, Material 3 Expressive дизайн.
 
 > Авторизация — OAuth2 device-flow. Бэкенд: `https://smarttvcdn.online/`.
+>
+> 📋 **[Доска задач (GitHub Projects)](https://github.com/users/malyi-m-dev/projects/1)** — текущие задачи и прогресс.
 
 ---
 

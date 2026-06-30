@@ -1,0 +1,46 @@
+name: Задача
+description: Общий шаблон задач Filmax (фича, рефакторинг, инфраструктура)
+title: "[Задача]: "
+labels: []
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Контекст / проблема
+      description: Зачем это нужно и какую боль решаем. Без воды.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Что сделать
+      description: Конкретные шаги в виде чек-листа.
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
+
+  - type: input
+    id: modules
+    attributes:
+      label: Затронутые модули
+      placeholder: ":app, :core:ui, :feature:home:tv"
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии готовности (Definition of Done)
+      value: |
+        - [ ] Код компилируется, существующие проверки зелёные
+        - [ ] Поведение не изменилось (для рефакторинга)
+        - [ ] Проверено на телефоне и Android TV (если затрагивает UI)
+    validations:
+      required: true
+
+  - type: textarea
+    id: links
+    attributes:
+      label: Ссылки / заметки
+      description: PR, документы, скриншоты, связанные задачи.
