@@ -50,35 +50,36 @@ enum class AppError {
                 append(cause?.message.orEmpty())
             }
 
-            if (
-                causeName.contains("UnknownHost") ||
-                causeName.contains("ConnectException") ||
-                causeName.contains("UnresolvedAddress") ||
-                text.contains("Unable to resolve host", ignoreCase = true) ||
-                text.contains("Failed to connect", ignoreCase = true)
-            ) {
-                return Offline
-            }
-
-            if (
-                causeName.contains("Timeout") ||
-                text.contains("timeout", ignoreCase = true) ||
-                hasStatus(text, 408)
-            ) {
-                return Timeout
-            }
-
             return when {
-                hasStatus(text, 401) || text.contains("unauthorized", ignoreCase = true) -> Auth
-                hasStatus(text, 402) -> Premium
-                hasStatus(text, 403) || text.contains("forbidden", ignoreCase = true) -> Region
-                hasStatus(text, 404) || text.contains("not found", ignoreCase = true) -> NotFound
-                STATUS_5XX.containsMatchIn(text) -> Server
+                isOffline(causeName, text) -> Offline
+                isTimeout(causeName, text) -> Timeout
+                hasStatus(text, HTTP_UNAUTHORIZED) || text.contains("unauthorized", ignoreCase = true) -> Auth
+                hasStatus(text, HTTP_PAYMENT_REQUIRED) -> Premium
+                hasStatus(text, HTTP_FORBIDDEN) || text.contains("forbidden", ignoreCase = true) -> Region
+                hasStatus(text, HTTP_NOT_FOUND) || text.contains("not found", ignoreCase = true) -> NotFound
                 else -> Server
             }
         }
 
-        private val STATUS_5XX = Regex("""\b5\d\d\b""")
+        /** Нет сети / не удалось установить соединение (по имени исключения или тексту). */
+        private fun isOffline(causeName: String, text: String): Boolean =
+            causeName.contains("UnknownHost") ||
+                causeName.contains("ConnectException") ||
+                causeName.contains("UnresolvedAddress") ||
+                text.contains("Unable to resolve host", ignoreCase = true) ||
+                text.contains("Failed to connect", ignoreCase = true)
+
+        /** Сервер не ответил вовремя (timeout / 408). */
+        private fun isTimeout(causeName: String, text: String): Boolean =
+            causeName.contains("Timeout") ||
+                text.contains("timeout", ignoreCase = true) ||
+                hasStatus(text, HTTP_REQUEST_TIMEOUT)
+
+        private const val HTTP_UNAUTHORIZED = 401
+        private const val HTTP_PAYMENT_REQUIRED = 402
+        private const val HTTP_FORBIDDEN = 403
+        private const val HTTP_NOT_FOUND = 404
+        private const val HTTP_REQUEST_TIMEOUT = 408
 
         private fun hasStatus(text: String, code: Int): Boolean =
             Regex("""\b$code\b""").containsMatchIn(text)
