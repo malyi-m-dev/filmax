@@ -171,7 +171,7 @@ private fun TvAuthStep(state: OnboardingState, onRetry: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 80.dp, vertical = 64.dp),
+            .padding(horizontal = 56.dp, vertical = 56.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Left — instructions
@@ -192,12 +192,12 @@ private fun TvAuthStep(state: OnboardingState, onRetry: () -> Unit) {
             AuthStep(3, "Введите", "код активации справа")
         }
 
-        Spacer(Modifier.width(64.dp))
+        Spacer(Modifier.width(48.dp))
 
         // Right — code card / spinner / error
         Box(
             modifier = Modifier
-                .width(520.dp)
+                .width(440.dp)
                 .height(440.dp),
             contentAlignment = Alignment.Center,
         ) {
@@ -410,9 +410,11 @@ private fun AuthStep(number: Int, action: String, detail: String) {
             )
         }
         Spacer(Modifier.width(20.dp))
-        Row(verticalAlignment = Alignment.Bottom) {
+        // action и detail — в столбик: длинный текст (URL/описание) помещается
+        // целиком и не обрезается в узкой левой колонке TV-раскладки.
+        Column {
             Text(
-                "$action ",
+                action,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 22.sp,
@@ -420,7 +422,8 @@ private fun AuthStep(number: Int, action: String, detail: String) {
             Text(
                 detail,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 20.sp,
+                fontSize = 18.sp,
+                lineHeight = 22.sp,
             )
         }
     }
