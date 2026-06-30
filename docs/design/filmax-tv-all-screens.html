@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="design_doc_mode" content="canvas">
+<title>Filmax TV — Все экраны</title>
+<style>
+/* ===== tv/tv-styles.css (inlined) ===== */
+/* Filmax TV — Android TV Material 3 Expressive */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wght@8..144,300..900&family=Roboto+Mono:wght@400;500&display=swap');
+
+:root {
+  --m3-primary: #FFB1C8;
+  --m3-primary-container: #B4305A;
+  --m3-on-primary-container: #FFD9E2;
+  --m3-focus: #FFD466;
+  --m3-surface: #0A0809;
+  --m3-surface-container: #1A1518;
+  --m3-surface-container-high: #221D20;
+  --m3-surface-container-highest: #2E2729;
+  --m3-on-surface: #EFDFE3;
+  --m3-on-surface-variant: #C5B3B9;
+  --m3-outline: #9E8B91;
+  --m3-outline-variant: #3A2F33;
+  --font-display: "Roboto Flex", system-ui, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, monospace;
+  --ease-bounce: linear(0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: #000; font-family: var(--font-display); color: var(--m3-on-surface); }
+
+.tv-display-xl { font-family: var(--font-display); font-size: 88px; line-height: 1.02; font-weight: 800; font-variation-settings: "wdth" 120, "opsz" 144; letter-spacing: -2.5px; }
+.tv-display-lg { font-family: var(--font-display); font-size: 64px; line-height: 1.05; font-weight: 800; font-variation-settings: "wdth" 115, "opsz" 96; letter-spacing: -1.5px; }
+.tv-display-md { font-family: var(--font-display); font-size: 44px; line-height: 1.1; font-weight: 800; font-variation-settings: "wdth" 115, "opsz" 72; letter-spacing: -0.8px; }
+.tv-headline { font-family: var(--font-display); font-size: 32px; line-height: 1.15; font-weight: 700; font-variation-settings: "wdth" 110, "opsz" 48; letter-spacing: -0.4px; }
+.tv-title { font-family: var(--font-display); font-size: 24px; line-height: 1.2; font-weight: 700; font-variation-settings: "wdth" 110"; }
+.tv-body { font-family: var(--font-display); font-size: 18px; line-height: 1.5; font-weight: 400; }
+.tv-label { font-family: var(--font-display); font-size: 14px; line-height: 1.3; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; }
+
+.scroll-host::-webkit-scrollbar { display: none; }
+
+.focus-ring {
+  transition: transform 280ms var(--ease-bounce), box-shadow 220ms var(--ease-emphasized);
+  position: relative;
+}
+.focus-ring.focused {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 4px var(--m3-focus), 0 0 0 8px rgba(255,212,102,0.25), 0 20px 60px rgba(255,212,102,0.35), 0 30px 80px rgba(0,0,0,0.6);
+  z-index: 5;
+}
+.focus-ring.focused-big {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 4px var(--m3-focus), 0 0 0 8px rgba(255,212,102,0.2), 0 20px 50px rgba(255,212,102,0.3);
+  z-index: 5;
+}
+
+@keyframes fab-morph {
+  0%,100% { border-radius: 28px; }
+  50% { border-radius: 48% 52% 55% 45%/50% 45% 55% 50%; transform: scale(1.03); }
+}
+
+@keyframes hero-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.hero-fade { animation: hero-fade 600ms var(--ease-emphasized); }
+
+
+/* ===== board page styles (inlined) ===== */
+  html, body { height: 100%; }
+  body { margin: 0; background: #060506; font-family: var(--font-display); }
+  /* keep every screen fully visible on the board */
+  .hero-fade { animation: none !important; opacity: 1 !important; }
+
+  .board-title { position: absolute; left: 64px; top: -170px; width: 1200px; }
+  .board-title .kicker { font-family: var(--font-mono); font-size: 16px; letter-spacing: 3px; text-transform: uppercase; color: var(--m3-primary); }
+  .board-title h1 { font-weight: 800; font-size: 72px; color: var(--m3-on-surface); margin: 12px 0 10px; font-variation-settings: "wdth" 120, "opsz" 120; letter-spacing: -1.5px; }
+  .board-title p { font-size: 22px; color: var(--m3-on-surface-variant); max-width: 900px; line-height: 1.5; }
+
+  .frame { position: absolute; width: 1464px; }
+  .cap { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; padding: 0 8px; }
+  .cap .n { font-family: var(--font-mono); font-size: 22px; font-weight: 500; color: var(--m3-primary); }
+  .cap .t { font-size: 30px; font-weight: 700; color: var(--m3-on-surface); }
+  .cap .meta { font-size: 18px; color: var(--m3-on-surface-variant); margin-left: auto; padding-right: 6px; font-family: var(--font-mono); }
+
+  .tv {
+    width: 1440px; height: 810px; position: relative; overflow: hidden;
+    background: #0A0809; border: 12px solid #1a1618; border-radius: 16px;
+    box-shadow: 0 50px 140px rgba(180,48,90,0.18), 0 36px 90px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+</style>
+</head>
+<body>
+  <div class="board-title">
+    <div class="kicker">Filmax · Android TV · 1080p · 10-foot UI</div>
+    <h1>Все экраны TV</h1>
+    <p>Полный набор экранов телевизионного приложения — те же данные и дизайн-система, что и в мобильной версии, адаптированные под пульт и просмотр с дивана. Каждый кадр показан в фокус-состоянии (жёлтая обводка).</p>
+  </div>
+
+  <div class="frame" style="left:64px; top:64px;">
+    <div class="cap"><span class="n">01</span><span class="t">Главная</span><span class="meta">home</span></div>
+    <div class="tv" id="tv-home"></div>
+  </div>
+  <div class="frame" style="left:1624px; top:64px;">
+    <div class="cap"><span class="n">02</span><span class="t">Поиск</span><span class="meta">search</span></div>
+    <div class="tv" id="tv-search"></div>
+  </div>
+
+  <div class="frame" style="left:64px; top:1014px;">
+    <div class="cap"><span class="n">03</span><span class="t">Жанры</span><span class="meta">categories</span></div>
+    <div class="tv" id="tv-cats"></div>
+  </div>
+  <div class="frame" style="left:1624px; top:1014px;">
+    <div class="cap"><span class="n">04</span><span class="t">Библиотека</span><span class="meta">library</span></div>
+    <div class="tv" id="tv-library"></div>
+  </div>
+
+  <div class="frame" style="left:64px; top:1964px;">
+    <div class="cap"><span class="n">05</span><span class="t">Профиль</span><span class="meta">profile</span></div>
+    <div class="tv" id="tv-profile"></div>
+  </div>
+  <div class="frame" style="left:1624px; top:1964px;">
+    <div class="cap"><span class="n">06</span><span class="t">Детали фильма</span><span class="meta">details</span></div>
+    <div class="tv" id="tv-details"></div>
+  </div>
+
+  <div class="frame" style="left:64px; top:2914px;">
+    <div class="cap"><span class="n">07</span><span class="t">Плеер</span><span class="meta">player</span></div>
+    <div class="tv" id="tv-player"></div>
+  </div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <!-- ===== components/icons.jsx (inlined) ===== -->
+  <script type="text/babel">
+// Material Symbols (Rounded) — inline SVG for reliability
+// Simplified versions, M3 Expressive stroke weight
+
+const Icon = ({ name, size = 24, filled = false, color = 'currentColor', weight = 400, style: styleProp }) => {
+  const s = { width: size, height: size, color, flexShrink: 0, display: 'inline-block', verticalAlign: 'middle', ...styleProp };
+  const sw = weight >= 600 ? 2.4 : weight >= 500 ? 2.0 : 1.8;
+  const p = { fill: filled ? color : 'none', stroke: color, strokeWidth: sw, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const pf = { fill: color, stroke: 'none' };
+
+  switch (name) {
+    case 'home':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <path {...pf} d="M12 3 3 10v11h6v-7h6v7h6V10z" /> :
+        <path {...p} d="M3 10 12 3l9 7v11h-6v-7H9v7H3z" />}
+      </svg>;
+    case 'search':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <circle cx="11" cy="11" r="7" {...p} />
+        <path {...p} d="m20 20-3.5-3.5" />
+      </svg>;
+    case 'favorite':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <path {...pf} d="M12 21s-7.5-4.7-9.5-9.2C1 8.3 3.3 5 6.5 5c1.9 0 3.6 1 4.5 2.6.9-1.6 2.6-2.6 4.5-2.6 3.2 0 5.5 3.3 4 6.8C19.5 16.3 12 21 12 21z" /> :
+        <path {...p} d="M12 20.5s-7-4.5-9-8.8C1.5 8.3 3.8 5.3 6.8 5.3c1.8 0 3.4 1 4.2 2.5.8-1.5 2.4-2.5 4.2-2.5 3 0 5.3 3 3.8 6.4-2 4.3-9 8.8-9 8.8z" />}
+      </svg>;
+    case 'library':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <><rect {...pf} x="3" y="5" width="4" height="15" rx="1.2" /><rect {...pf} x="9" y="3" width="4" height="17" rx="1.2" /><rect {...pf} x="15" y="7" width="6" height="13" rx="1.2" /></> :
+        <><rect {...p} x="3" y="5" width="4" height="15" rx="1.2" /><rect {...p} x="9" y="3" width="4" height="17" rx="1.2" /><rect {...p} x="15" y="7" width="6" height="13" rx="1.2" /></>}
+      </svg>;
+    case 'grid':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <><rect {...pf} x="3" y="3" width="8" height="8" rx="2" /><rect {...pf} x="13" y="3" width="8" height="8" rx="2" /><rect {...pf} x="3" y="13" width="8" height="8" rx="2" /><rect {...pf} x="13" y="13" width="8" height="8" rx="2" /></> :
+        <><rect {...p} x="3" y="3" width="8" height="8" rx="2" /><rect {...p} x="13" y="3" width="8" height="8" rx="2" /><rect {...p} x="3" y="13" width="8" height="8" rx="2" data-comment-anchor="1c53365a71-rect-34-122" /><rect {...p} x="13" y="13" width="8" height="8" rx="2" /></>}
+      </svg>;
+    case 'play':
+      return <svg viewBox="0 0 24 24" style={s}><path {...pf} d="M7 5v14l12-7z" /></svg>;
+    case 'pause':
+      return <svg viewBox="0 0 24 24" style={s}><rect {...pf} x="6" y="5" width="4" height="14" rx="1" /><rect {...pf} x="14" y="5" width="4" height="14" rx="1" /></svg>;
+    case 'plus':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 5v14M5 12h14" /></svg>;
+    case 'bookmark':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <path {...pf} d="M6 3h12v18l-6-4-6 4z" /> :
+        <path {...p} d="M6 3h12v18l-6-4-6 4z" />}
+      </svg>;
+    case 'arrow-back':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M20 12H4m0 0 6-6m-6 6 6 6" /></svg>;
+    case 'arrow-forward':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M4 12h16m0 0-6-6m6 6-6 6" /></svg>;
+    case 'more':
+      return <svg viewBox="0 0 24 24" style={s}><circle {...pf} cx="5" cy="12" r="1.6" /><circle {...pf} cx="12" cy="12" r="1.6" /><circle {...pf} cx="19" cy="12" r="1.6" /></svg>;
+    case 'menu':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 6h18M3 12h18M3 18h18" /></svg>;
+    case 'close':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M6 6l12 12M18 6 6 18" /></svg>;
+    case 'settings':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <circle {...p} cx="12" cy="12" r="3" />
+        <path {...p} d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3 1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8 1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+      </svg>;
+    case 'star':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <path {...pf} d="m12 17.3-6.2 3.7 1.6-7L2 9.2l7.1-.6L12 2l2.9 6.6 7.1.6-5.4 4.8 1.6 7z" /> :
+        <path {...p} d="m12 17.3-6.2 3.7 1.6-7L2 9.2l7.1-.6L12 2l2.9 6.6 7.1.6-5.4 4.8 1.6 7z" />}
+      </svg>;
+    case 'tune':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M4 6h10M17 6h3M4 12h3M10 12h10M4 18h13M20 18h0" />
+        <circle {...pf} cx="15" cy="6" r="2" />
+        <circle {...pf} cx="8.5" cy="12" r="2" />
+        <circle {...pf} cx="18.5" cy="18" r="2" />
+      </svg>;
+    case 'download':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 4v12m0 0 4-4m-4 4-4-4M4 20h16" /></svg>;
+    case 'share':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <circle {...p} cx="6" cy="12" r="2.5" />
+        <circle {...p} cx="18" cy="5" r="2.5" />
+        <circle {...p} cx="18" cy="19" r="2.5" />
+        <path {...p} d="m8 10 8-4M8 14l8 4" />
+      </svg>;
+    case 'cast':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M2 18a3 3 0 0 1 3 3M2 14a7 7 0 0 1 7 7M2 10a11 11 0 0 1 11 11" />
+        <rect {...p} x="2" y="4" width="20" height="16" rx="2" />
+      </svg>;
+    case 'volume':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...pf} d="M3 9v6h4l5 4V5L7 9z" />
+        <path {...p} d="M16 8a5 5 0 0 1 0 8M19 5a9 9 0 0 1 0 14" />
+      </svg>;
+    case 'subtitle':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <rect {...p} x="3" y="5" width="18" height="14" rx="2" />
+        <path {...p} d="M7 13h4M13 13h4M7 16h7" />
+      </svg>;
+    case 'skip-next':
+      return <svg viewBox="0 0 24 24" style={s}><path {...pf} d="M6 5v14l10-7zM17 5h2v14h-2z" /></svg>;
+    case 'skip-prev':
+      return <svg viewBox="0 0 24 24" style={s}><path {...pf} d="M18 5v14L8 12zM5 5h2v14H5z" /></svg>;
+    case 'rewind-10':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M4 12a8 8 0 1 0 3-6.2L4 8" />
+        <path {...p} d="M4 3v5h5" />
+        <text x="12" y="16" fontSize="8" fontWeight="700" fill={color} textAnchor="middle" stroke="none">10</text>
+      </svg>;
+    case 'forward-10':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M20 12a8 8 0 1 1-3-6.2L20 8" />
+        <path {...p} d="M20 3v5h-5" />
+        <text x="12" y="16" fontSize="8" fontWeight="700" fill={color} textAnchor="middle" stroke="none">10</text>
+      </svg>;
+    case 'fullscreen':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>;
+    case 'check':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="m5 12 5 5L20 7" /></svg>;
+    case 'sparkle':
+      return <svg viewBox="0 0 24 24" style={s}><path {...pf} d="M12 2 13.5 9 20 10.5 13.5 12 12 19 10.5 12 4 10.5 10.5 9z" /><path {...pf} d="M19 3 19.7 5 21.5 5.5 19.7 6 19 8 18.3 6 16.5 5.5 18.3 5z" /></svg>;
+    case 'fire':
+      return <svg viewBox="0 0 24 24" style={s}><path {...pf} d="M12.5 2c.6 2.7 2.3 4 3.6 5.6A6 6 0 1 1 6 12c0-1.3.4-2.5 1.1-3.5.1 1.5 1 2.5 2.2 2.5 1.5 0 2.3-1.1 2.3-2.8 0-1.5.3-3 .9-4.2z" /></svg>;
+    case 'trending':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="m3 17 6-6 4 4 8-8" /><path {...p} d="M14 7h7v7" /></svg>;
+    case 'clock':
+      return <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="9" /><path {...p} d="M12 7v5l3 2" /></svg>;
+    case 'list':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M4 6h16M4 12h16M4 18h16" /></svg>;
+    case 'eye':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z" /><circle {...p} cx="12" cy="12" r="3" /></svg>;
+    case 'notifications':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M6 8a6 6 0 1 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9z" /><path {...p} d="M10 21a2 2 0 0 0 4 0" /></svg>;
+    case 'mic':
+      return <svg viewBox="0 0 24 24" style={s}><rect {...p} x="9" y="3" width="6" height="12" rx="3" /><path {...p} d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>;
+    case 'history':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path {...p} d="M3 3v5h5M12 7v5l3 2" /></svg>;
+    case 'person':
+      return <svg viewBox="0 0 24 24" style={s}>{filled ?
+        <><circle {...pf} cx="12" cy="8" r="4" /><path {...pf} d="M4 21a8 8 0 0 1 16 0z" /></> :
+        <><circle {...p} cx="12" cy="8" r="4" /><path {...p} d="M4 20.5a8 8 0 0 1 16 0" /></>}
+      </svg>;
+    case 'alert':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 4 22 19.5H2z" /><path {...p} d="M12 10v4.5" /><circle {...pf} cx="12" cy="17.5" r="1.1" /></svg>;
+    case 'wifi-off':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M2 8.6a17 17 0 0 1 8.5-3.5M21.5 8.6a17 17 0 0 0-4.5-2.8" />
+        <path {...p} d="M5.5 12.2a11 11 0 0 1 3-1.8M18.5 12.2a11 11 0 0 0-2.2-1.3" />
+        <path {...p} d="M9 15.6a5 5 0 0 1 5.4-.3" />
+        <circle {...pf} cx="12" cy="19" r="1.2" />
+        <path {...p} d="M3 3 21 21" />
+      </svg>;
+    case 'cloud-off':
+      return <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M17.5 18.5A4.5 4.5 0 0 0 18 9.6 6 6 0 0 0 8 7" />
+        <path {...p} d="M7.5 18.5H16" />
+        <path {...p} d="M3 3.5 20.5 21" />
+      </svg>;
+    case 'refresh':
+      return <svg viewBox="0 0 24 24" style={s}><path {...p} d="M20 11.5a8 8 0 1 0-1.2 5.2" /><path {...p} d="M20 4v6h-6" /></svg>;
+    case 'globe':
+      return <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="9" /><path {...p} d="M3 12h18M12 3c2.8 2.6 2.8 15.4 0 18M12 3c-2.8 2.6-2.8 15.4 0 18" /></svg>;
+    case 'lock':
+      return <svg viewBox="0 0 24 24" style={s}><rect {...p} x="5" y="11" width="14" height="9" rx="2.5" /><path {...p} d="M8 11V8a4 4 0 0 1 8 0v3" /><circle {...pf} cx="12" cy="15.5" r="1.2" /></svg>;
+    case 'crown':
+      return <svg viewBox="0 0 24 24" style={s}><path {...(filled ? pf : p)} d="M3 8.5l4.2 3.8L12 5l4.8 7.3L21 8.5 19 19H5z" /></svg>;
+    default:
+      return <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="8" /></svg>;
+  }
+};
+
+Object.assign(window, { Icon });
+  </script>
+  <!-- ===== components/data.jsx (inlined) ===== -->
+  <script type="text/babel">
+// Filmax movie data — mock catalogue
+
+const FILMS = [
+  { id: 'dune2', title: 'Дюна: Часть вторая', year: 2024, genre: ['Фантастика','Драма'], rating: 8.6, duration: '2ч 46м', director: 'Дени Вильнёв', country: 'США',
+    cast: ['Тимоти Шаламе','Зендея','Ребекка Фергюсон','Хавьер Бардем'],
+    tagline: 'Да придёт Муад\'Диб', color: '#C67A3E', color2: '#3E1F0A',
+    plot: 'Пол Атрейдес объединяется с Чани и фрименами, встав на путь мести и пытаясь предотвратить будущее, которое он увидел.',
+    hero: 'desert' },
+  { id: 'oppen', title: 'Оппенгеймер', year: 2023, genre: ['Биография','Драма'], rating: 8.4, duration: '3ч 00м', director: 'Кристофер Нолан', country: 'США',
+    cast: ['Киллиан Мёрфи','Эмили Блант','Мэтт Деймон','Роберт Дауни мл.'],
+    tagline: 'Мир навсегда изменится', color: '#D85A3A', color2: '#1B0A08',
+    plot: 'История американского учёного Роберта Оппенгеймера и его роли в создании атомной бомбы.',
+    hero: 'atomic' },
+  { id: 'poor', title: 'Бедные-несчастные', year: 2023, genre: ['Фэнтези','Комедия'], rating: 7.9, duration: '2ч 21м', director: 'Йоргос Лантимос', country: 'Ирландия',
+    cast: ['Эмма Стоун','Марк Руффало','Уиллем Дефо'],
+    tagline: 'Свобода — это приключение', color: '#6AC2B0', color2: '#0A2622',
+    plot: 'Молодая женщина, оживлённая эксцентричным учёным, сбегает с развратным адвокатом в путешествие по континентам.',
+    hero: 'victorian' },
+  { id: 'brut', title: 'Бруталист', year: 2024, genre: ['Драма','История'], rating: 7.7, duration: '3ч 35м', director: 'Брэйди Корбет', country: 'США',
+    cast: ['Эдриан Броуди','Фелисити Джонс','Гай Пирс'],
+    tagline: 'Архитектор и его эпоха', color: '#A86B4D', color2: '#1A0F0A',
+    plot: 'Венгерско-еврейский архитектор эмигрирует в США после Второй мировой войны и сталкивается с американской мечтой.',
+    hero: 'concrete' },
+  { id: 'anora', title: 'Анора', year: 2024, genre: ['Драма','Комедия'], rating: 7.8, duration: '2ч 19м', director: 'Шон Бэйкер', country: 'США',
+    cast: ['Майки Мэдисон','Марк Эйдельштейн','Юрий Борисов'],
+    tagline: 'Золушка из Бруклина', color: '#E86D9E', color2: '#2A0A1A',
+    plot: 'Молодая стриптизёрша из Бруклина выходит замуж за сына русского олигарха, что приводит к неожиданным последствиям.',
+    hero: 'neon' },
+  { id: 'furi', title: 'Фуриоса: Хроники Безумного Макса', year: 2024, genre: ['Экшен','Фантастика'], rating: 7.5, duration: '2ч 28м', director: 'Джордж Миллер', country: 'Австралия',
+    cast: ['Аня Тейлор-Джой','Крис Хемсворт'],
+    tagline: 'Путь Воина', color: '#D4881F', color2: '#2A1408',
+    plot: 'Молодая Фуриоса, похищенная из Зелёного Места, оказывается в руках Байкерской Орды во главе с Диментусом.',
+    hero: 'wasteland' },
+];
+
+const SERIES = [
+  { id: 'shogun', title: 'Сёгун', year: 2024, genre: ['Драма','История'], rating: 9.1, duration: '10 эп', director: 'Раше Кондо', country: 'США',
+    cast: ['Хироюки Санада','Косма Джарвис','Анна Савай'],
+    tagline: 'Честь. Власть. Судьба.', color: '#8B2C2C', color2: '#1A0808',
+    plot: 'Эпическая сага о феодальной Японии 17 века, где английский навигатор оказывается втянут в политические игры.',
+    hero: 'samurai' },
+  { id: 'beart', title: 'Медведь', year: 2023, genre: ['Драма','Комедия'], rating: 8.6, duration: '3 сезона', director: 'Кристофер Сторер', country: 'США',
+    cast: ['Джереми Аллен Уайт','Эбон Мосс-Бакрак','Айо Эдебири'],
+    tagline: 'Да, шеф!', color: '#3E6B8F', color2: '#08141F',
+    plot: 'Молодой шеф-повар возвращается в родной Чикаго, чтобы управлять семейной закусочной после смерти брата.',
+    hero: 'kitchen' },
+  { id: 'sever', title: 'Разделение', year: 2022, genre: ['Триллер','Фантастика'], rating: 8.7, duration: '2 сезона', director: 'Бен Стиллер', country: 'США',
+    cast: ['Адам Скотт','Бритт Лоуэр','Патрисия Аркетт'],
+    tagline: 'Работа и жизнь. Разделены.', color: '#4A7C9E', color2: '#0A1622',
+    plot: 'Сотрудники корпорации Lumon соглашаются на процедуру, разделяющую их рабочие и личные воспоминания.',
+    hero: 'corporate' },
+];
+
+const ANIME = [
+  { id: 'frie', title: 'Фрирен: Провожающая в последний путь', year: 2023, genre: ['Фэнтези','Приключения'], rating: 9.1, duration: '28 эп', director: 'Кэйитиро Саито', country: 'Япония',
+    cast: ['Ацуми Танэдзаки','Тияки Кобаяси','Юсукэ Кобаяси'],
+    tagline: 'Время — лучший учитель', color: '#94B9A8', color2: '#0F1F1A',
+    plot: 'Эльфийка-маг Фрирен путешествует по миру спустя 50 лет после победы над Королём Демонов, размышляя о дружбе и потерях.',
+    hero: 'forest' },
+  { id: 'jjk', title: 'Магическая битва', year: 2023, genre: ['Экшен','Сверхъестественное'], rating: 8.7, duration: '2 сезона', director: 'Сюнсуке Хосоя', country: 'Япония',
+    cast: ['Дзюнъя Эноки','Юма Утида','Юити Накамура'],
+    tagline: 'Проклятая энергия', color: '#6B4B8F', color2: '#140A1F',
+    plot: 'Школьник Юдзи Итадори съедает палец проклятия Рёмена Сукуны и оказывается в мире магии и проклятий.',
+    hero: 'curse' },
+  { id: 'mob', title: 'Моб Психо 100', year: 2022, genre: ['Экшен','Комедия'], rating: 8.9, duration: '3 сезона', director: 'Юдзуру Татикава', country: 'Япония',
+    cast: ['Сэцуо Ито','Такахиро Сакурай'],
+    tagline: '100%', color: '#E8A43A', color2: '#2A1808',
+    plot: 'Подросток с экстрасенсорными способностями пытается жить нормальной жизнью, подавляя свои эмоции.',
+    hero: 'psychic' },
+];
+
+const ALL = [...FILMS, ...SERIES, ...ANIME];
+
+const COLLECTIONS = [
+  { id: 'oscar', title: 'Оскар 2025', subtitle: 'Победители и номинанты', count: 24, color: '#D4A84A', icon: 'star' },
+  { id: 'imax', title: 'IMAX-премьеры', subtitle: 'В максимальном качестве', count: 18, color: '#1E88E5', icon: 'fire' },
+  { id: 'top', title: 'Топ недели', subtitle: 'Что смотрят все', count: 50, color: '#E86D9E', icon: 'trending' },
+  { id: 'arthouse', title: 'Артхаус', subtitle: 'Кино для эстетов', count: 32, color: '#6AC2B0', icon: 'sparkle' },
+  { id: 'docu', title: 'Документальное', subtitle: 'Реальные истории', count: 21, color: '#C67A3E', icon: 'eye' },
+];
+
+const GENRES = [
+  { id: 'drama', name: 'Драма', emoji: '🎭', color: '#B4305A', count: 1248 },
+  { id: 'action', name: 'Экшен', emoji: '💥', color: '#D85A3A', count: 892 },
+  { id: 'comedy', name: 'Комедия', emoji: '😂', color: '#E8A43A', count: 756 },
+  { id: 'scifi', name: 'Фантастика', emoji: '🚀', color: '#6B4B8F', count: 534 },
+  { id: 'thriller', name: 'Триллер', emoji: '🔪', color: '#4A5A8F', count: 612 },
+  { id: 'romance', name: 'Мелодрама', emoji: '💞', color: '#E86D9E', count: 489 },
+  { id: 'horror', name: 'Ужасы', emoji: '👻', color: '#3A3A4A', count: 327 },
+  { id: 'animation', name: 'Анимация', emoji: '🎨', color: '#6AC2B0', count: 421 },
+  { id: 'fantasy', name: 'Фэнтези', emoji: '🐉', color: '#94B9A8', count: 298 },
+  { id: 'docu', name: 'Документальное', emoji: '📽️', color: '#C67A3E', count: 214 },
+  { id: 'crime', name: 'Криминал', emoji: '🕵️', color: '#8B2C2C', count: 356 },
+  { id: 'music', name: 'Музыкальные', emoji: '🎵', color: '#1E88E5', count: 142 },
+];
+
+Object.assign(window, { FILMS, SERIES, ANIME, ALL, COLLECTIONS, GENRES });
+
+  </script>
+  <!-- ===== components/ui.jsx (inlined) ===== -->
+  <script type="text/babel">
+// Shared UI components
+
+// Expressive artistic poster — uses film hero type + color to build
+// a distinctive abstract poster that feels like real cover art
+const Poster = ({ film, width = '100%', height = '100%', radius = 20, style = {}, showTitle = true }) => {
+  const h = film.hero || 'gradient';
+  const c1 = film.color || '#B4305A';
+  const c2 = film.color2 || '#141012';
+  return (
+    <div style={{
+      width, height, borderRadius: radius, overflow: 'hidden', position: 'relative',
+      background: `linear-gradient(155deg, ${c1} 0%, ${c2} 100%)`,
+      flexShrink: 0,
+      ...style,
+    }}>
+      <PosterArt hero={h} c1={c1} c2={c2} />
+      {showTitle && (<>
+      {/* title baked into poster */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        padding: '30% 12px 12px',
+        background: `linear-gradient(180deg, transparent, ${c2}EE 75%)`,
+      }}>
+        <div style={{
+          fontFamily: 'Roboto Flex, sans-serif',
+          fontSize: 15, lineHeight: 1.1, fontWeight: 800,
+          fontVariationSettings: '"wdth" 115, "opsz" 24',
+          letterSpacing: '-0.3px',
+          color: '#fff',
+          textWrap: 'balance',
+          textTransform: 'uppercase',
+        }}>{film.title}</div>
+        <div style={{
+          fontSize: 10, fontWeight: 600, marginTop: 4,
+          color: 'rgba(255,255,255,0.65)', letterSpacing: '1px',
+        }}>{film.year} · {film.genre[0]}</div>
+      </div>
+      </>)}
+    </div>
+  );
+};
+
+const PosterArt = ({ hero, c1, c2 }) => {
+  // Abstract distinctive art per hero type
+  const common = { position: 'absolute', inset: 0, width: '100%', height: '100%' };
+  switch (hero) {
+    case 'desert': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <defs><radialGradient id={`g-${c1}`} cx="50%" cy="35%" r="70%"><stop offset="0%" stopColor="#FFD89A"/><stop offset="60%" stopColor={c1}/><stop offset="100%" stopColor={c2}/></radialGradient></defs>
+        <rect width="100" height="140" fill={`url(#g-${c1})`}/>
+        <circle cx="50" cy="48" r="18" fill="#FFE8B0" opacity="0.9"/>
+        <path d="M0 90 L25 75 L50 85 L75 70 L100 82 L100 140 L0 140 Z" fill={c2} opacity="0.7"/>
+        <path d="M0 105 L30 92 L60 100 L100 88 L100 140 L0 140 Z" fill={c2}/>
+      </svg>
+    );
+    case 'atomic': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <circle cx="50" cy="55" r="30" fill={c1} opacity="0.9"/>
+        <circle cx="50" cy="55" r="20" fill="#FFD89A" opacity="0.8"/>
+        <circle cx="50" cy="55" r="8" fill="#fff"/>
+        <ellipse cx="50" cy="55" rx="45" ry="12" fill="none" stroke={c1} strokeWidth="1" opacity="0.5" transform="rotate(25 50 55)"/>
+        <ellipse cx="50" cy="55" rx="45" ry="12" fill="none" stroke={c1} strokeWidth="1" opacity="0.5" transform="rotate(-25 50 55)"/>
+      </svg>
+    );
+    case 'victorian': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <circle cx="50" cy="50" r="35" fill={c1}/>
+        <path d="M35 55 Q50 80 65 55" fill="none" stroke="#fff" strokeWidth="2"/>
+        <circle cx="42" cy="45" r="2" fill="#fff"/>
+        <circle cx="58" cy="45" r="2" fill="#fff"/>
+        <rect x="20" y="90" width="60" height="3" fill={c1} opacity="0.6"/>
+      </svg>
+    );
+    case 'concrete': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <rect x="15" y="30" width="25" height="80" fill={c1}/>
+        <rect x="45" y="20" width="15" height="90" fill={c1} opacity="0.8"/>
+        <rect x="65" y="45" width="20" height="65" fill={c1} opacity="0.6"/>
+        {[0,1,2,3,4].map(i => <rect key={i} x="17" y={35 + i*15} width="21" height="2" fill={c2} opacity="0.6"/>)}
+      </svg>
+    );
+    case 'neon': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <circle cx="30" cy="60" r="28" fill={c1} opacity="0.7"/>
+        <circle cx="70" cy="55" r="20" fill="#FF9ACB" opacity="0.6"/>
+        <rect x="0" y="90" width="100" height="1" fill={c1}/>
+        <rect x="0" y="100" width="100" height="1" fill={c1} opacity="0.6"/>
+        <rect x="0" y="110" width="100" height="1" fill={c1} opacity="0.3"/>
+      </svg>
+    );
+    case 'wasteland': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <defs><linearGradient id={`w-${c1}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={c1}/><stop offset="100%" stopColor={c2}/></linearGradient></defs>
+        <rect width="100" height="140" fill={`url(#w-${c1})`}/>
+        <circle cx="50" cy="45" r="22" fill="#FFD89A" opacity="0.85"/>
+        <path d="M0 75 L100 75 L100 140 L0 140 Z" fill={c2} opacity="0.85"/>
+        <path d="M20 75 L25 65 L30 75 M60 75 L68 60 L76 75" stroke={c2} strokeWidth="1" fill="none"/>
+      </svg>
+    );
+    case 'samurai': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <circle cx="50" cy="45" r="28" fill={c1}/>
+        <path d="M35 65 L65 65 L70 110 L30 110 Z" fill={c2}/>
+        <path d="M50 25 L54 45 L50 55 L46 45 Z" fill={c2}/>
+        <rect x="48" y="65" width="4" height="55" fill={c1}/>
+      </svg>
+    );
+    case 'kitchen': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <circle cx="50" cy="65" r="30" fill={c1} opacity="0.9"/>
+        <circle cx="50" cy="65" r="20" fill={c2}/>
+        <circle cx="50" cy="65" r="10" fill={c1}/>
+      </svg>
+    );
+    case 'corporate': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        {[0,1,2,3,4,5].map(i => [0,1,2,3].map(j => (
+          <rect key={`${i}-${j}`} x={15 + j*18} y={20 + i*15} width="12" height="10" fill={c1} opacity={0.3 + (i+j)%3*0.25}/>
+        )))}
+      </svg>
+    );
+    case 'forest': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <path d="M20 100 L30 50 L40 100 Z" fill={c1} opacity="0.9"/>
+        <path d="M50 110 L62 40 L74 110 Z" fill={c1}/>
+        <path d="M80 100 L88 55 L96 100 Z" fill={c1} opacity="0.7"/>
+        <rect x="0" y="100" width="100" height="40" fill={c1} opacity="0.4"/>
+      </svg>
+    );
+    case 'curse': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <path d="M50 20 Q20 55 50 70 Q80 55 50 20" fill={c1}/>
+        <path d="M50 70 Q25 95 50 115 Q75 95 50 70" fill={c1} opacity="0.7"/>
+        <circle cx="50" cy="60" r="4" fill="#fff"/>
+      </svg>
+    );
+    case 'psychic': return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        {[50,40,30,20,10].map((r,i) => <circle key={i} cx="50" cy="55" r={r} fill="none" stroke={c1} strokeWidth="1.5" opacity={0.9 - i*0.15}/>)}
+        <circle cx="50" cy="55" r="5" fill={c1}/>
+      </svg>
+    );
+    default: return (
+      <svg viewBox="0 0 100 140" style={common} preserveAspectRatio="xMidYMid slice">
+        <rect width="100" height="140" fill={c2}/>
+        <circle cx="50" cy="55" r="30" fill={c1} opacity="0.8"/>
+      </svg>
+    );
+  }
+};
+
+// M3 Expressive Chip
+const Chip = ({ children, active = false, onClick, icon, size = 'md' }) => {
+  const pad = size === 'sm' ? '6px 14px' : '10px 16px';
+  const fs = size === 'sm' ? 12 : 14;
+  return (
+    <button onClick={onClick} className="m3-ripple" style={{
+      padding: pad, borderRadius: 999,
+      background: active ? 'var(--m3-primary-container)' : 'transparent',
+      color: active ? 'var(--m3-on-primary-container)' : 'var(--m3-on-surface-variant)',
+      border: active ? 'none' : '1px solid var(--m3-outline-variant)',
+      fontFamily: 'var(--font-display)', fontSize: fs, fontWeight: 600,
+      fontVariationSettings: '"wdth" 100',
+      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+      whiteSpace: 'nowrap',
+      transition: 'all 240ms var(--ease-emphasized)',
+    }}>
+      {active && <Icon name="check" size={16} weight={600}/>}
+      {icon && !active && <Icon name={icon} size={14}/>}
+      {children}
+    </button>
+  );
+};
+
+// M3 Expressive button
+const Btn = ({ children, variant = 'filled', icon, onClick, fullWidth, size = 'md', shape = 'round', style = {} }) => {
+  const sizes = { sm: { p: '8px 16px', fs: 13, h: 36, r: 999 }, md: { p: '12px 24px', fs: 14, h: 44, r: 999 }, lg: { p: '16px 32px', fs: 16, h: 56, r: 999 } };
+  const sz = sizes[size];
+  const variants = {
+    filled: { bg: 'var(--m3-primary-container)', fg: 'var(--m3-on-primary-container)', border: 'none' },
+    tonal: { bg: 'var(--m3-secondary-container)', fg: 'var(--m3-on-secondary-container)', border: 'none' },
+    outlined: { bg: 'transparent', fg: 'var(--m3-on-surface)', border: '1px solid var(--m3-outline)' },
+    text: { bg: 'transparent', fg: 'var(--m3-primary)', border: 'none' },
+    elevated: { bg: 'var(--m3-surface-container-high)', fg: 'var(--m3-primary)', border: 'none' },
+  };
+  const v = variants[variant];
+  const r = shape === 'square' ? 12 : shape === 'asym' ? '28px 48px 28px 48px' : sz.r;
+  return (
+    <button onClick={onClick} className="m3-ripple" style={{
+      padding: sz.p, borderRadius: r, background: v.bg, color: v.fg, border: v.border,
+      fontFamily: 'var(--font-display)', fontSize: sz.fs, fontWeight: 700, letterSpacing: '0.1px',
+      fontVariationSettings: '"wdth" 100',
+      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      width: fullWidth ? '100%' : 'auto', height: sz.h, flexShrink: 0,
+      transition: 'all 280ms var(--ease-emphasized)',
+      ...style,
+    }}>
+      {icon && <Icon name={icon} size={18} weight={600}/>}
+      {children}
+    </button>
+  );
+};
+
+// Rating pill
+const RatingPill = ({ rating, compact = false }) => {
+  const color = rating >= 8.5 ? '#6AC2B0' : rating >= 7.5 ? '#E8A43A' : '#D5C2C8';
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      padding: compact ? '2px 6px' : '4px 10px',
+      borderRadius: 999,
+      background: 'rgba(0,0,0,0.55)',
+      backdropFilter: 'blur(8px)',
+      color, fontSize: compact ? 11 : 12, fontWeight: 700,
+      fontFamily: 'var(--font-display)',
+    }}>
+      <Icon name="star" size={compact ? 11 : 13} filled color={color}/>
+      {rating.toFixed(1)}
+    </div>
+  );
+};
+
+Object.assign(window, { Poster, Chip, Btn, RatingPill });
+
+  </script>
+  <!-- ===== tv/tv-app.jsx (inlined) ===== -->
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ─── Focus grid coordinator ─────────────────────────────
+const FocusCtx = React.createContext(null);
+
+const useFocus = (id) => {
+  const ctx = React.useContext(FocusCtx);
+  const ref = useRef(null);
+  const focused = ctx?.focusId === id;
+  useEffect(() => {
+    if (focused && ref.current) {
+      ref.current.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }
+  }, [focused]);
+  return { focused, ref, setFocus: () => ctx?.setFocusId(id) };
+};
+
+// ─── Top navigation (YouTube TV style) ──────────────────
+const TVTopNav = ({ page, setPage, focusArea }) => {
+  const items = [
+    { id: 'home', label: 'Главная' },
+    { id: 'search', label: 'Поиск' },
+    { id: 'cats', label: 'Жанры' },
+    { id: 'library', label: 'Библиотека' },
+    { id: 'profile', label: 'Профиль' },
+  ];
+  const active = focusArea === 'nav';
+  return (
+    <div style={{
+      position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+      padding: '32px 72px',
+      display: 'flex', alignItems: 'center', gap: 48,
+      background: active ? 'linear-gradient(180deg, rgba(10,8,9,0.95), rgba(10,8,9,0))' : 'linear-gradient(180deg, rgba(10,8,9,0.7), rgba(10,8,9,0))',
+      transition: 'background 400ms var(--ease-emphasized)',
+    }}>
+      <div className="tv-headline" style={{ color: 'var(--m3-on-surface)' }}>
+        Filmax<span style={{ color: 'var(--m3-primary)' }}>.</span>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+        {items.map(it => {
+          const isActive = page === it.id;
+          const isFocused = active && page === it.id;
+          return (
+            <div key={it.id} className={`focus-ring ${isFocused ? 'focused-big' : ''}`} style={{
+              padding: '14px 28px', borderRadius: 999,
+              background: isActive ? 'var(--m3-primary-container)' : 'transparent',
+              color: isActive ? 'var(--m3-on-primary-container)' : 'var(--m3-on-surface-variant)',
+              fontSize: 20, fontWeight: 700,
+              transition: 'all 240ms var(--ease-emphasized)',
+            }}>{it.label}</div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ fontSize: 16, color: 'var(--m3-on-surface-variant)', fontVariant: 'tabular-nums' }}>22:18</div>
+        <div className="focus-ring" style={{
+          width: 48, height: 48, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #B4305A, #F4B792)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#fff', fontWeight: 800, fontSize: 16,
+        }}>АК</div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Shared home rails (used by Home + OK navigation) ───
+const getTVRails = () => ([
+  { title: 'Продолжить просмотр', data: [window.FILMS[1], window.SERIES[0], window.ANIME[0], window.FILMS[3]] },
+  { title: 'В тренде', data: [window.FILMS[4], window.FILMS[5], window.SERIES[1], window.ANIME[1], window.FILMS[2]] },
+  { title: 'Для вас', data: [window.SERIES[2], window.ANIME[2], window.FILMS[3], window.FILMS[5], window.FILMS[0]] },
+  { title: 'Новинки 2024', data: [window.FILMS[0], window.FILMS[3], window.FILMS[5], window.FILMS[4]] },
+]);
+
+// ─── Home page with hero + rails ────────────────────────
+const TVHome = ({ heroIdx, rowFocus, colFocus, focusArea }) => {
+  const hero = window.FILMS[heroIdx % window.FILMS.length];
+  const rails = getTVRails();
+
+  return (
+    <div className="scroll-host" style={{
+      width: '100%', height: '100%', overflow: 'hidden', position: 'relative',
+      background: 'var(--m3-surface)',
+    }}>
+      {/* Hero backdrop */}
+      <div key={hero.id} className="hero-fade" style={{
+        position: 'absolute', inset: 0, height: '70%',
+        opacity: rowFocus > 0 ? 0.25 : 1,
+        transition: 'opacity 400ms var(--ease-emphasized)',
+      }}>
+        <div style={{ position: 'absolute', inset: 0, transform: 'scale(1.05)' }}>
+          <window.Poster film={hero} radius={0} showTitle={false}/>
+        </div>
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: `linear-gradient(90deg, ${hero.color2}F0 0%, ${hero.color2}AA 45%, transparent 80%), linear-gradient(180deg, transparent 30%, var(--m3-surface) 95%)`,
+        }}/>
+      </div>
+
+      {/* Hero info layered */}
+      <div key={`info-${hero.id}`} className="hero-fade" style={{
+        position: 'absolute', top: 180, left: 72, width: 780, zIndex: 3,
+        opacity: rowFocus > 0 ? 0 : 1,
+        transform: rowFocus > 0 ? 'translateY(-40px)' : 'translateY(0)',
+        transition: 'opacity 380ms var(--ease-emphasized), transform 480ms var(--ease-emphasized)',
+        pointerEvents: rowFocus > 0 ? 'none' : 'auto',
+      }}>
+        <div style={{
+          display: 'inline-block', padding: '8px 16px', borderRadius: 999,
+          background: hero.color, color: '#fff',
+          fontSize: 13, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20,
+        }}>
+          ⚡ Выбор редакции
+        </div>
+        <div className="tv-display-lg" style={{
+          color: '#fff', marginBottom: 16, textWrap: 'balance',
+          fontVariationSettings: '"wdth" 125, "opsz" 96',
+        }}>{hero.title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{
+            padding: '6px 14px', borderRadius: 999,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)',
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            color: hero.rating >= 8.5 ? '#6AC2B0' : '#E8A43A',
+            fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap',
+          }}>★ {hero.rating.toFixed(1)}</div>
+          <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.9)' }}>{hero.year}</span>
+          <span style={{ width: 4, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.5)' }}/>
+          <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.9)' }}>{hero.duration}</span>
+          <span style={{ width: 4, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.5)' }}/>
+          <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.9)' }}>{hero.genre.join(' · ')}</span>
+        </div>
+        <div style={{ fontSize: 20, lineHeight: 1.5, color: 'rgba(255,255,255,0.88)', maxWidth: 680, textWrap: 'pretty', marginBottom: 28 }}>
+          {hero.plot}
+        </div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          {['Смотреть', 'В избранное', 'Подробнее'].map((lbl, i) => {
+            const isFocused = focusArea === 'hero' && colFocus === i;
+            return (
+              <div key={lbl} className={`focus-ring ${isFocused ? 'focused-big' : ''}`} style={{
+                height: 64, padding: '0 36px 0 28px', borderRadius: 999,
+                background: i === 0 ? '#fff' : 'rgba(255,255,255,0.15)',
+                color: i === 0 ? '#000' : '#fff',
+                backdropFilter: 'blur(8px)',
+                display: 'inline-flex', alignItems: 'center', gap: 12,
+                fontSize: 18, fontWeight: 700,
+              }}>
+                <span style={{ fontSize: 22 }}>{i === 0 ? '▶' : i === 1 ? '♥' : 'ⓘ'}</span>
+                {lbl}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Side info panel (layered expressive card) */}
+      <div style={{
+        position: 'absolute', right: 72, top: 200, width: 320,
+        padding: 24, borderRadius: '48px 24px 48px 24px',
+        background: 'rgba(20,16,18,0.7)', backdropFilter: 'blur(16px)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        zIndex: 3,
+        opacity: rowFocus > 0 ? 0 : 1,
+        transform: rowFocus > 0 ? 'translateX(40px)' : 'translateX(0)',
+        transition: 'opacity 380ms var(--ease-emphasized), transform 480ms var(--ease-emphasized)',
+      }}>
+        <div className="tv-label" style={{ color: hero.color, marginBottom: 10 }}>В ролях</div>
+        <div style={{ fontSize: 16, lineHeight: 1.6, color: 'var(--m3-on-surface)', marginBottom: 20 }}>
+          {hero.cast.join(', ')}
+        </div>
+        <div className="tv-label" style={{ color: hero.color, marginBottom: 10 }}>Режиссёр</div>
+        <div style={{ fontSize: 16, color: 'var(--m3-on-surface)', marginBottom: 20 }}>{hero.director}</div>
+        <div className="tv-label" style={{ color: hero.color, marginBottom: 10 }}>Качество</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {['4K HDR','Dolby Vision','5.1','Русский','Eng'].map(t => (
+            <div key={t} style={{
+              padding: '6px 12px', borderRadius: 999,
+              background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)',
+              fontSize: 12, fontWeight: 700, color: '#fff',
+            }}>{t}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Rails overlay */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        top: rowFocus > 0 ? 120 : '62%',
+        padding: '40px 0 40px 72px',
+        transition: 'top 480ms var(--ease-emphasized)',
+      }}>
+        <div style={{
+          transform: `translateY(${-rowFocus * 380}px)`,
+          transition: 'transform 480ms var(--ease-emphasized)',
+        }}>
+          {rails.map((rail, rIdx) => (
+            <div key={rail.title} style={{ marginBottom: 32 }}>
+              <div className="tv-title" style={{ color: 'var(--m3-on-surface)', marginBottom: 16 }}>{rail.title}</div>
+              <div style={{
+                display: 'flex', gap: 20,
+                transform: `translateX(${focusArea === 'rail' && rowFocus === rIdx ? -colFocus * 252 : 0}px)`,
+                transition: 'transform 460ms var(--ease-emphasized)',
+              }}>
+                {rail.data.map((f, cIdx) => {
+                  const isFocused = focusArea === 'rail' && rowFocus === rIdx && colFocus === cIdx;
+                  return (
+                    <div key={f.id + cIdx} className={`focus-ring ${isFocused ? 'focused' : ''}`} style={{
+                      width: 232, height: 328, borderRadius: 20, flexShrink: 0, overflow: 'hidden',
+                    }}>
+                      <window.Poster film={f} radius={20}/>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Other pages (lightweight placeholders with real content) ──
+const TVSearch = ({ focusArea, colFocus, rowFocus }) => {
+  const rows = [['й','ц','у','к','е','н','г','ш','щ','з','х'],['ф','ы','в','а','п','р','о','л','д','ж','э'],['я','ч','с','м','и','т','ь','б','ю','—','⌫']];
+  const quick = ['Дюна','Нолан','Оскар','Аниме','Фантастика','Новинки'];
+  return (
+    <div style={{ padding: '140px 72px 40px', height: '100%', overflow: 'hidden' }}>
+      <div className="tv-display-md" style={{ marginBottom: 24 }}>Поиск</div>
+      <div style={{ display: 'flex', gap: 40 }}>
+        {/* Left — keyboard */}
+        <div style={{ width: 640 }}>
+          <div className={`focus-ring`} style={{
+            height: 80, borderRadius: 24, padding: '0 24px',
+            background: 'var(--m3-surface-container)', display: 'flex', alignItems: 'center',
+            fontSize: 22, color: 'var(--m3-on-surface-variant)', marginBottom: 24,
+          }}>Дюна|</div>
+          {rows.map((row, ri) => (
+            <div key={ri} style={{ display: 'flex', gap: 8, marginBottom: 8, paddingLeft: ri * 20 }}>
+              {row.map((k, ki) => {
+                const isFocused = focusArea === 'keyboard' && rowFocus === ri && colFocus === ki;
+                return (
+                  <div key={k + ki} className={`focus-ring ${isFocused ? 'focused-big' : ''}`} style={{
+                    width: 52, height: 52, borderRadius: 14,
+                    background: 'var(--m3-surface-container-high)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 22, fontWeight: 600, color: 'var(--m3-on-surface)',
+                  }}>{k}</div>
+                );
+              })}
+            </div>
+          ))}
+          <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            {quick.map((q, i) => (
+              <div key={q} className="focus-ring" style={{
+                padding: '10px 18px', borderRadius: 999,
+                background: 'var(--m3-surface-container-high)',
+                fontSize: 16, fontWeight: 600, color: 'var(--m3-on-surface)',
+              }}>{q}</div>
+            ))}
+          </div>
+        </div>
+        {/* Right — results */}
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, alignContent: 'start' }}>
+          {window.ALL.slice(0, 12).map(f => (
+            <div key={f.id} className="focus-ring" style={{ aspectRatio: '2/3', borderRadius: 16, overflow: 'hidden' }}>
+              <window.Poster film={f} radius={16}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TVCategories = ({ focusArea, rowFocus, colFocus }) => {
+  const colors = ['#B4305A','#D85A3A','#E8A43A','#6B4B8F','#4A5A8F','#E86D9E','#6AC2B0','#94B9A8','#C67A3E','#8B2C2C','#1E88E5','#4A7C9E'];
+  return (
+    <div style={{ padding: '140px 72px 40px', height: '100%', overflow: 'hidden' }}>
+      <div className="tv-display-md" style={{ marginBottom: 8 }}>Жанры</div>
+      <div className="tv-body" style={{ color: 'var(--m3-on-surface-variant)', marginBottom: 40 }}>Найдите кино по настроению</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 32, rowGap: 48 }}>
+        {window.GENRES.map((g, i) => {
+          const shapes = ['32px 64px 32px 64px', '48% 52% 52% 48%/48% 52% 48% 52%', '32px', '64px 32px 64px 32px'];
+          const r = Math.floor(i / 4), c = i % 4;
+          const isFocused = focusArea === 'content' && rowFocus === r && colFocus === c;
+          return (
+            <div key={g.id} className={`focus-ring ${isFocused ? 'focused-big' : ''}`} style={{
+              height: 200, padding: 28,
+              borderRadius: shapes[i % 4],
+              background: `linear-gradient(135deg, ${colors[i]}, ${colors[i]}99)`,
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            }}>
+              <div style={{ fontSize: 56 }}>{g.emoji}</div>
+              <div>
+                <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', fontVariationSettings: '"wdth" 115' }}>{g.name}</div>
+                <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4 }}>{g.count} фильмов</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const TVLibrary = ({ focusArea, rowFocus, colFocus }) => {
+  return (
+    <div style={{ padding: '140px 72px 40px', height: '100%', overflow: 'hidden' }}>
+      <div className="tv-display-md" style={{ marginBottom: 24 }}>Моя библиотека</div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 40 }}>
+        {[
+          { l: 'Избранное', c: 14 },
+          { l: 'Загружено', c: 4 },
+          { l: 'История', c: 23 },
+          { l: 'Списки', c: 3 },
+        ].map((t, i) => {
+          const isFocused = focusArea === 'content' && rowFocus === 0 && colFocus === i;
+          return (
+            <div key={t.l} className={`focus-ring ${isFocused ? 'focused-big' : ''}`} style={{
+              padding: '14px 28px', borderRadius: 999,
+              background: i === 0 ? 'var(--m3-primary-container)' : 'var(--m3-surface-container)',
+              color: i === 0 ? 'var(--m3-on-primary-container)' : 'var(--m3-on-surface)',
+              fontSize: 18, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              {t.l}
+              <span style={{ padding: '2px 10px', borderRadius: 999, background: 'rgba(0,0,0,0.15)', fontSize: 13 }}>{t.c}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 24 }}>
+        {window.ALL.map((f, i) => {
+          const r = Math.floor(i / 6) + 1, c = i % 6;
+          const isFocused = focusArea === 'content' && rowFocus === r && colFocus === c;
+          return (
+            <div key={f.id} className={`focus-ring ${isFocused ? 'focused' : ''}`} style={{ aspectRatio: '2/3', borderRadius: 18, overflow: 'hidden' }}>
+              <window.Poster film={f} radius={18}/>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const TVProfile = ({ focusArea, colFocus }) => {
+  const profiles = [
+    { n: 'Александр', tag: 'Premium', color: '#B4305A' },
+    { n: 'Мария', tag: 'Premium', color: '#E86D9E' },
+    { n: 'Дети', tag: 'Kids', color: '#6AC2B0' },
+    { n: 'Гость', tag: 'Free', color: '#C5B3B9' },
+  ];
+  return (
+    <div style={{ padding: '140px 72px 40px', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="tv-display-md" style={{ marginBottom: 16, textAlign: 'center' }}>Кто смотрит?</div>
+      <div className="tv-body" style={{ color: 'var(--m3-on-surface-variant)', marginBottom: 60 }}>Выберите профиль</div>
+      <div style={{ display: 'flex', gap: 56 }}>
+        {profiles.map((p, i) => {
+          const isFocused = focusArea === 'content' && colFocus === i;
+          return (
+            <div key={p.n} style={{ textAlign: 'center' }}>
+              <div className={`focus-ring ${isFocused ? 'focused' : ''}`} style={{
+                width: 200, height: 200, borderRadius: i % 2 === 0 ? '48% 52% 52% 48%/48% 52% 48% 52%' : 32,
+                background: `linear-gradient(135deg, ${p.color}, ${p.color}88)`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 64, fontWeight: 800, color: '#fff', marginBottom: 20,
+              }}>{p.n[0]}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--m3-on-surface)' }}>{p.n}</div>
+              <div style={{ fontSize: 13, color: p.color, fontWeight: 700, letterSpacing: 1, marginTop: 6, textTransform: 'uppercase' }}>{p.tag}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+// ─── Details page (10-foot) ─────────────────────────────
+const TVDetails = ({ film, focusIdx = 0 }) => {
+  const buttons = [
+    { label: 'Смотреть', icon: '▶', primary: true },
+    { label: 'Трейлер', icon: '⏵' },
+    { label: 'В избранное', icon: '♥' },
+    { label: 'Поделиться', icon: '↗' },
+  ];
+  const dot = <span style={{ width: 4, height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.5)' }}/>;
+  const meta = { fontSize: 16, color: 'rgba(255,255,255,0.9)' };
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: 'var(--m3-surface)', overflow: 'hidden' }}>
+      {/* Backdrop */}
+      <div key={film.id} className="hero-fade" style={{ position: 'absolute', inset: 0 }}>
+        <div style={{ position: 'absolute', inset: 0, transform: 'scale(1.05)' }}>
+          <window.Poster film={film} radius={0} showTitle={false}/>
+        </div>
+        <div style={{ position: 'absolute', inset: 0, background: `linear-gradient(90deg, ${film.color2}F2 0%, ${film.color2}AA 42%, transparent 76%), linear-gradient(180deg, transparent 38%, var(--m3-surface) 97%)` }}/>
+      </div>
+
+      {/* Left content */}
+      <div style={{ position: 'absolute', top: 144, left: 72, width: 820, zIndex: 3 }}>
+        <div style={{ display: 'inline-block', padding: '8px 16px', borderRadius: 999, background: film.color, color: '#fff', fontSize: 13, fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 20 }}>{film.tagline}</div>
+        <div className="tv-display-lg" style={{ color: '#fff', marginBottom: 16, textWrap: 'balance', fontVariationSettings: '"wdth" 125, "opsz" 96' }}>{film.title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)', color: film.rating >= 8.5 ? '#6AC2B0' : '#E8A43A', fontSize: 16, fontWeight: 700, whiteSpace: 'nowrap' }}>★ {film.rating.toFixed(1)}</div>
+          <span style={meta}>{film.year}</span>{dot}<span style={meta}>{film.duration}</span>{dot}<span style={meta}>{film.country}</span>{dot}<span style={meta}>{film.genre.join(' · ')}</span>
+        </div>
+        <div style={{ fontSize: 20, lineHeight: 1.5, color: 'rgba(255,255,255,0.88)', maxWidth: 700, textWrap: 'pretty', marginBottom: 28 }}>{film.plot}</div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          {buttons.map((b, i) => {
+            const f = focusIdx === i;
+            return (
+              <div key={b.label} className={`focus-ring ${f ? 'focused-big' : ''}`} style={{
+                height: 64, padding: '0 32px', borderRadius: 999,
+                background: b.primary ? '#fff' : 'rgba(255,255,255,0.15)',
+                color: b.primary ? '#000' : '#fff', backdropFilter: 'blur(8px)',
+                display: 'inline-flex', alignItems: 'center', gap: 12, fontSize: 18, fontWeight: 700,
+              }}><span style={{ fontSize: 20 }}>{b.icon}</span>{b.label}</div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Right cast / quality panel */}
+      <div style={{ position: 'absolute', right: 72, top: 168, width: 340, padding: 24, borderRadius: '48px 24px 48px 24px', background: 'rgba(20,16,18,0.7)', backdropFilter: 'blur(16px)', border: '1px solid rgba(255,255,255,0.1)', zIndex: 3 }}>
+        <div className="tv-label" style={{ color: film.color, marginBottom: 10 }}>В ролях</div>
+        <div style={{ fontSize: 16, lineHeight: 1.6, color: 'var(--m3-on-surface)', marginBottom: 18 }}>{film.cast.join(', ')}</div>
+        <div className="tv-label" style={{ color: film.color, marginBottom: 10 }}>Режиссёр</div>
+        <div style={{ fontSize: 16, color: 'var(--m3-on-surface)', marginBottom: 18 }}>{film.director}</div>
+        <div className="tv-label" style={{ color: film.color, marginBottom: 10 }}>Качество</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {['4K HDR', 'Dolby Vision', '5.1', 'Русский', 'Eng'].map(t => (
+            <div key={t} style={{ padding: '6px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', fontSize: 12, fontWeight: 700, color: '#fff' }}>{t}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom similar rail */}
+      <div style={{ position: 'absolute', left: 72, right: 0, bottom: 34, zIndex: 3 }}>
+        <div className="tv-title" style={{ marginBottom: 14, color: '#fff' }}>Похожие</div>
+        <div style={{ display: 'flex', gap: 18 }}>
+          {window.ALL.filter(f => f.id !== film.id).slice(0, 7).map(f => (
+            <div key={f.id} style={{ width: 150, height: 212, borderRadius: 16, overflow: 'hidden', flexShrink: 0 }}>
+              <window.Poster film={f} radius={16}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Player page (10-foot) ──────────────────────────────
+const parseTVDuration = (d) => {
+  const hm = /(\d+)\s*ч/.exec(d), mm = /(\d+)\s*м/.exec(d);
+  if (hm || mm) return (hm ? +hm[1] * 60 : 0) + (mm ? +mm[1] : 0);
+  return 48;
+};
+const TVPlayer = ({ film, playing = true, progress = 0.42, focusIdx = 1, controls = true }) => {
+  const total = parseTVDuration(film.duration);
+  const cur = Math.round(progress * total);
+  const fmt = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+  const ctrls = [
+    { icon: '⟲ 10', i: 0 },
+    { icon: playing ? '❚❚' : '▶', i: 1, big: true },
+    { icon: '10 ⟳', i: 2 },
+  ];
+  return (
+    <div style={{ width: '100%', height: '100%', position: 'relative', background: '#000', overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', inset: 0 }}>
+        <window.Poster film={film} radius={0} showTitle={false}/>
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.32)' }}/>
+      </div>
+
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'linear-gradient(180deg, rgba(0,0,0,0.75) 0%, transparent 26%, transparent 52%, rgba(0,0,0,0.88) 100%)',
+        opacity: controls ? 1 : 0, transition: 'opacity 320ms var(--ease-emphasized)',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '56px 72px 56px',
+      }}>
+        {/* Top */}
+        <div>
+          <div className="tv-label" style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 8 }}>Сейчас играет</div>
+          <div className="tv-display-md" style={{ color: '#fff', fontVariationSettings: '"wdth" 115, "opsz" 72' }}>{film.title}</div>
+        </div>
+
+        {/* Bottom controls */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 48, marginBottom: 40 }}>
+            {ctrls.map(c => {
+              const f = focusIdx === c.i;
+              const size = c.big ? 104 : 76;
+              return (
+                <div key={c.i} className={`focus-ring ${f ? 'focused-big' : ''}`} style={{
+                  width: size, height: size, borderRadius: '50%',
+                  background: c.big ? film.color : 'rgba(255,255,255,0.14)',
+                  backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: c.big ? 34 : 18, fontWeight: 800,
+                  boxShadow: c.big ? `0 16px 44px ${film.color}aa` : 'none',
+                }}>{c.icon}</div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', fontVariant: 'tabular-nums', minWidth: 72 }}>{fmt(cur)}</div>
+            <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.22)', borderRadius: 999, position: 'relative' }}>
+              <div style={{ height: '100%', width: `${progress * 100}%`, background: film.color, borderRadius: 999, position: 'relative' }}>
+                <div style={{ position: 'absolute', right: -9, top: '50%', transform: 'translateY(-50%)', width: 20, height: 20, borderRadius: 999, background: '#fff', boxShadow: `0 0 0 5px ${film.color}66` }}/>
+              </div>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'rgba(255,255,255,0.7)', fontVariant: 'tabular-nums', minWidth: 84, textAlign: 'right' }}>-{fmt(total - cur)}</div>
+            <div style={{ display: 'flex', gap: 10, marginLeft: 16 }}>
+              {['4K HDR', '5.1', 'CC'].map(t => (
+                <div key={t} style={{ padding: '8px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.15)', fontSize: 14, fontWeight: 700, color: '#fff' }}>{t}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Virtual remote sidebar ─────────────────────────────
+const Remote = ({ onDpad, onBack, onOk, onHome, focusArea }) => {
+  const btn = (label, onClick, style = {}) => (
+    <button onClick={onClick} style={{
+      background: 'var(--m3-surface-container-high)', border: 'none', cursor: 'pointer',
+      color: 'var(--m3-on-surface)', fontFamily: 'var(--font-display)', fontWeight: 700,
+      ...style,
+    }}>{label}</button>
+  );
+  return (
+    <div style={{
+      width: 220, height: 600, padding: 24,
+      background: 'linear-gradient(180deg, #2A2527, #1A1518)',
+      borderRadius: 36, border: '1px solid rgba(255,255,255,0.05)',
+      boxShadow: '0 30px 80px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20,
+      fontFamily: 'var(--font-display)',
+    }}>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, color: 'var(--m3-on-surface-variant)' }}>FILMAX REMOTE</div>
+      <div style={{ width: 8, height: 8, borderRadius: 999, background: '#6AC2B0', boxShadow: '0 0 8px #6AC2B0' }}/>
+
+      {/* D-pad */}
+      <div style={{ position: 'relative', width: 160, height: 160, marginTop: 8 }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%',
+          background: 'radial-gradient(circle, #141012 0%, #0A0809 80%)', border: '1px solid rgba(255,255,255,0.08)' }}/>
+        {[
+          ['up','↑', { top: 8, left: '50%', transform: 'translateX(-50%)' }],
+          ['down','↓', { bottom: 8, left: '50%', transform: 'translateX(-50%)' }],
+          ['left','←', { left: 8, top: '50%', transform: 'translateY(-50%)' }],
+          ['right','→', { right: 8, top: '50%', transform: 'translateY(-50%)' }],
+        ].map(([d, arrow, pos]) => (
+          <button key={d} onClick={() => onDpad(d)} style={{
+            position: 'absolute', ...pos,
+            width: 40, height: 40, borderRadius: 12, background: 'transparent',
+            color: 'var(--m3-on-surface-variant)', border: 'none', cursor: 'pointer',
+            fontSize: 18, fontWeight: 700,
+          }}>{arrow}</button>
+        ))}
+        <button onClick={onOk} style={{
+          position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          width: 58, height: 58, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #B4305A, #5E1133)',
+          color: '#fff', border: 'none', cursor: 'pointer',
+          fontSize: 13, fontWeight: 800, letterSpacing: 1,
+          boxShadow: '0 6px 20px rgba(180,48,90,0.5)',
+        }}>OK</button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 14, marginTop: 8 }}>
+        {btn('◁', onBack, { width: 48, height: 48, borderRadius: 16, fontSize: 16 })}
+        {btn('⌂', onHome, { width: 48, height: 48, borderRadius: 16, fontSize: 18 })}
+      </div>
+      <div style={{ flex: 1 }}/>
+      <div style={{
+        fontSize: 10, color: 'var(--m3-on-surface-variant)',
+        textAlign: 'center', lineHeight: 1.5, letterSpacing: 0.3,
+        fontFamily: 'var(--font-mono)',
+      }}>
+        Используй клавиши<br/>
+        ← ↑ → ↓ · Enter · Esc
+      </div>
+    </div>
+  );
+};
+
+// ─── Main App ──────────────────────────────────────────
+const TVApp = () => {
+  const [page, setPage] = useState('home');
+  const [focusArea, setFocusArea] = useState('hero'); // 'nav' | 'hero' | 'rail' | 'keyboard'
+  const [rowFocus, setRowFocus] = useState(0);
+  const [colFocus, setColFocus] = useState(0);
+  const [heroIdx, setHeroIdx] = useState(0);
+  const [overlay, setOverlay] = useState(null); // { type:'details'|'player', film }
+  const [ovFocus, setOvFocus] = useState(0);
+  const [ovPlaying, setOvPlaying] = useState(true);
+  const [ovProgress, setOvProgress] = useState(0.42);
+
+  // Auto hero rotate
+  useEffect(() => {
+    if (page !== 'home') return;
+    const t = setInterval(() => setHeroIdx(i => (i + 1) % window.FILMS.length), 8000);
+    return () => clearInterval(t);
+  }, [page]);
+
+  const nav = ['home', 'search', 'cats', 'library', 'profile'];
+
+  const currentFocusedFilm = () => {
+    if (page === 'home' && focusArea === 'rail') {
+      const rails = getTVRails();
+      return rails[rowFocus] && rails[rowFocus].data[colFocus];
+    }
+    if (page === 'library' && focusArea === 'content' && rowFocus >= 1) {
+      return window.ALL[(rowFocus - 1) * 6 + colFocus];
+    }
+    if (page === 'search' || page === 'cats') return window.ALL[colFocus % window.ALL.length];
+    return null;
+  };
+
+  const handleOk = () => {
+    if (overlay && overlay.type === 'details') {
+      if (ovFocus === 0) { setOverlay({ type: 'player', film: overlay.film }); setOvFocus(1); setOvPlaying(true); setOvProgress(0.06); }
+      return;
+    }
+    if (overlay && overlay.type === 'player') {
+      const tot = parseTVDuration(overlay.film.duration);
+      if (ovFocus === 0) setOvProgress(p => Math.max(0, p - 10 / tot));
+      else if (ovFocus === 1) setOvPlaying(p => !p);
+      else if (ovFocus === 2) setOvProgress(p => Math.min(1, p + 10 / tot));
+      return;
+    }
+    const f = currentFocusedFilm();
+    if (f) { setOverlay({ type: 'details', film: f }); setOvFocus(0); }
+  };
+
+  const handleDpad = (d) => {
+    if (overlay && overlay.type === 'details') {
+      if (d === 'left' && ovFocus > 0) setOvFocus(ovFocus - 1);
+      else if (d === 'right' && ovFocus < 3) setOvFocus(ovFocus + 1);
+      return;
+    }
+    if (overlay && overlay.type === 'player') {
+      if (d === 'left') setOvFocus(Math.max(0, ovFocus - 1));
+      else if (d === 'right') setOvFocus(Math.min(2, ovFocus + 1));
+      return;
+    }
+    if (focusArea === 'nav') {
+      if (d === 'down') { setFocusArea(page === 'home' ? 'hero' : 'content'); setColFocus(0); }
+      else if (d === 'left') { const i = nav.indexOf(page); setPage(nav[(i - 1 + nav.length) % nav.length]); }
+      else if (d === 'right') { const i = nav.indexOf(page); setPage(nav[(i + 1) % nav.length]); }
+    } else if (focusArea === 'hero') {
+      if (d === 'up') setFocusArea('nav');
+      else if (d === 'down') { setFocusArea('rail'); setRowFocus(0); setColFocus(0); }
+      else if (d === 'left' && colFocus > 0) setColFocus(colFocus - 1);
+      else if (d === 'right' && colFocus < 2) setColFocus(colFocus + 1);
+    } else if (focusArea === 'rail') {
+      if (d === 'up') {
+        if (rowFocus === 0) { setFocusArea('hero'); setColFocus(0); }
+        else { setRowFocus(rowFocus - 1); setColFocus(0); }
+      } else if (d === 'down' && rowFocus < 3) { setRowFocus(rowFocus + 1); setColFocus(0); }
+      else if (d === 'left' && colFocus > 0) setColFocus(colFocus - 1);
+      else if (d === 'right') setColFocus(colFocus + 1);
+    } else if (focusArea === 'keyboard') {
+      if (d === 'up' && rowFocus > 0) setRowFocus(rowFocus - 1);
+      else if (d === 'down' && rowFocus < 2) setRowFocus(rowFocus + 1);
+      else if (d === 'left' && colFocus > 0) setColFocus(colFocus - 1);
+      else if (d === 'right' && colFocus < 10) setColFocus(colFocus + 1);
+      if (d === 'up' && rowFocus === 0) setFocusArea('nav');
+    } else if (focusArea === 'content') {
+      if (d === 'up') {
+        if (page === 'cats' && rowFocus > 0) setRowFocus(rowFocus - 1);
+        else if (page === 'library' && rowFocus > 0) setRowFocus(rowFocus - 1);
+        else setFocusArea('nav');
+      } else if (d === 'down') {
+        if (page === 'cats' && rowFocus < 2) setRowFocus(rowFocus + 1);
+        else if (page === 'library') setRowFocus(Math.min(rowFocus + 1, 3));
+      } else if (d === 'left' && colFocus > 0) setColFocus(colFocus - 1);
+      else if (d === 'right') setColFocus(colFocus + 1);
+    }
+  };
+
+  const handleHome = () => { setPage('home'); setFocusArea('hero'); setRowFocus(0); setColFocus(0); setOverlay(null); };
+  const handleBack = () => {
+    if (overlay && overlay.type === 'player') { setOverlay({ type: 'details', film: overlay.film }); setOvFocus(0); return; }
+    if (overlay) { setOverlay(null); return; }
+    setFocusArea('nav');
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      const map = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+      if (map[e.key]) { e.preventDefault(); handleDpad(map[e.key]); }
+      else if (e.key === 'Escape') handleBack();
+      else if (e.key === 'Enter') { e.preventDefault(); handleOk(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [focusArea, rowFocus, colFocus, page, overlay, ovFocus, ovPlaying]);
+
+  // Player progress tick
+  useEffect(() => {
+    if (!(overlay && overlay.type === 'player' && ovPlaying)) return;
+    const t = setInterval(() => setOvProgress(p => Math.min(1, p + 0.003)), 1000);
+    return () => clearInterval(t);
+  }, [overlay, ovPlaying]);
+
+  // When page changes, set sensible default focus per page
+  useEffect(() => {
+    setRowFocus(0); setColFocus(0); setOverlay(null);
+    if (page === 'home') setFocusArea('hero');
+    else if (page === 'search') setFocusArea('keyboard');
+    else setFocusArea('content');
+  }, [page]);
+
+  let content;
+  if (page === 'home') content = <TVHome heroIdx={heroIdx} rowFocus={rowFocus} colFocus={colFocus} focusArea={focusArea}/>;
+  else if (page === 'search') content = <TVSearch focusArea={focusArea} rowFocus={rowFocus} colFocus={colFocus}/>;
+  else if (page === 'cats') content = <TVCategories focusArea={focusArea} rowFocus={rowFocus} colFocus={colFocus}/>;
+  else if (page === 'library') content = <TVLibrary focusArea={focusArea} rowFocus={rowFocus} colFocus={colFocus}/>;
+  else if (page === 'profile') content = <TVProfile focusArea={focusArea} colFocus={colFocus}/>;
+
+  return (
+    <div style={{ display: 'flex', gap: 40, alignItems: 'center' }}>
+      {/* TV bezel */}
+      <div style={{
+        position: 'relative',
+        width: 1440, height: 810,
+        background: '#0A0809',
+        border: '12px solid #1a1618',
+        borderRadius: 16,
+        boxShadow: '0 60px 160px rgba(180,48,90,0.2), 0 40px 100px rgba(0,0,0,0.8), inset 0 0 0 1px rgba(255,255,255,0.04)',
+        overflow: 'hidden',
+      }}>
+        <TVTopNav page={page} setPage={setPage} focusArea={focusArea}/>
+        {content}
+        {overlay && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 20 }}>
+            {overlay.type === 'details'
+              ? <TVDetails film={overlay.film} focusIdx={ovFocus}/>
+              : <TVPlayer film={overlay.film} playing={ovPlaying} progress={ovProgress} focusIdx={ovFocus}/>}
+          </div>
+        )}
+      </div>
+      <div style={{ position: 'relative' }}>
+        <div style={{
+          position: 'absolute', left: '50%', top: -24, transform: 'translateX(-50%)',
+          padding: '6px 14px', borderRadius: 999,
+          background: 'rgba(255,255,255,0.06)',
+          fontSize: 10, fontWeight: 800, letterSpacing: 2,
+          color: 'rgba(255,255,255,0.5)', fontFamily: 'var(--font-mono)',
+        }}>REMOTE</div>
+        <Remote onDpad={handleDpad} onBack={handleBack} onOk={handleOk} onHome={handleHome} focusArea={focusArea}/>
+      </div>
+    </div>
+  );
+};
+
+Object.assign(window, { TVApp, TVTopNav, TVHome, TVSearch, TVCategories, TVLibrary, TVProfile, TVDetails, TVPlayer, getTVRails });
+
+  </script>
+
+  <script type="text/babel">
+    const noop = () => {};
+    const mountAll = () => {
+      if (!(window.TVHome && window.TVSearch && window.TVCategories && window.TVLibrary && window.TVProfile && window.TVDetails && window.TVPlayer && window.TVTopNav && window.FILMS)) {
+        return setTimeout(mountAll, 40);
+      }
+      const Nav = (page, area) => <TVTopNav page={page} setPage={noop} focusArea={area}/>;
+      const screens = [
+        ['tv-home', <React.Fragment>{Nav('home', 'hero')}<TVHome heroIdx={0} rowFocus={0} colFocus={0} focusArea="hero"/></React.Fragment>],
+        ['tv-search', <React.Fragment>{Nav('search', 'content')}<TVSearch focusArea="keyboard" rowFocus={1} colFocus={3}/></React.Fragment>],
+        ['tv-cats', <React.Fragment>{Nav('cats', 'content')}<TVCategories focusArea="content" rowFocus={0} colFocus={1}/></React.Fragment>],
+        ['tv-library', <React.Fragment>{Nav('library', 'content')}<TVLibrary focusArea="content" rowFocus={1} colFocus={2}/></React.Fragment>],
+        ['tv-profile', <React.Fragment>{Nav('profile', 'content')}<TVProfile focusArea="content" colFocus={0}/></React.Fragment>],
+        ['tv-details', <TVDetails film={FILMS[0]} focusIdx={0}/>],
+        ['tv-player', <TVPlayer film={SERIES[0]} playing={false} progress={0.35} focusIdx={1}/>],
+      ];
+      screens.forEach(([id, el]) => {
+        const node = document.getElementById(id);
+        if (!node) return;
+        try { ReactDOM.createRoot(node).render(el); }
+        catch (e) { node.innerHTML = '<div style="padding:40px;color:#fff">' + id + ': ' + e.message + '</div>'; }
+      });
+    };
+    mountAll();
+  </script>
+</body>
+</html>

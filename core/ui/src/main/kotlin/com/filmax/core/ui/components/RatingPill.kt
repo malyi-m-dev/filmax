@@ -17,17 +17,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import java.util.Locale
 
+/**
+ * Бейдж рейтинга. [rating] — средняя внешняя оценка (IMDb + Кинопоиск) по шкале 0–10;
+ * `null` означает отсутствие оценок и отображается как «N/A».
+ */
 @Composable
 fun RatingPill(
-    rating: Float,
+    rating: Double?,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
     val color = when {
-        rating >= 8.5f -> Color(0xFF6AC2B0)
-        rating >= 7.5f -> Color(0xFFE8A43A)
-        else           -> Color(0xFFD5C2C8)
+        rating == null  -> Color(0xFFD5C2C8)
+        rating >= 8.5   -> Color(0xFF6AC2B0)
+        rating >= 7.5   -> Color(0xFFE8A43A)
+        else            -> Color(0xFFD5C2C8)
     }
     val padding = if (compact) 4.dp to 6.dp else 6.dp to 10.dp
     val iconSize = if (compact) 11.dp else 13.dp
@@ -47,7 +53,7 @@ fun RatingPill(
         )
         Spacer(Modifier.width(3.dp))
         Text(
-            text = "%.1f".format(rating),
+            text = rating?.let { String.format(Locale.US, "%.1f", it) } ?: "N/A",
             color = color,
             fontSize = fontSize,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,

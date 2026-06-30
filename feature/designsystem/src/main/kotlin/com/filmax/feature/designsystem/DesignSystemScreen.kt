@@ -573,10 +573,11 @@ private fun InputsSection() = Section(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RatingPill(rating = 9.1f)
-            RatingPill(rating = 7.8f)
-            RatingPill(rating = 6.4f)
-            RatingPill(rating = 8.6f, compact = true)
+            RatingPill(rating = 9.1)
+            RatingPill(rating = 7.8)
+            RatingPill(rating = 6.4)
+            RatingPill(rating = 8.6, compact = true)
+            RatingPill(rating = null, compact = true)
         }
         Spacer(Modifier.height(12.dp))
         Text(
@@ -615,7 +616,7 @@ private fun PostersSection() = Section(
             ) {
                 GradientPosterPlaceholder(accent, modifier = Modifier.fillMaxSize())
                 Box(Modifier.align(Alignment.TopStart).padding(8.dp)) {
-                    RatingPill(rating = 8.4f, compact = true)
+                    RatingPill(rating = 8.4, compact = true)
                 }
             }
         }

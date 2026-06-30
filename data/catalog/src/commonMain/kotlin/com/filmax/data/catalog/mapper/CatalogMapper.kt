@@ -47,8 +47,10 @@ fun ItemDto.toDomain(): Item = Item(
     rating = ItemRating(
         filmax = rating,
         filmaxPercentage = ratingPercentage.toString(),
-        imdb = imdbRating.toString(),
-        kinopoisk = kinopoiskRating.toString(),
+        // API отдаёт оценки числом или null; `null?.toString()` дал бы строку "null",
+        // поэтому маппим только реальные значения, отсутствие — настоящий null.
+        imdb = imdbRating?.toString(),
+        kinopoisk = kinopoiskRating?.toString(),
     ),
     posters = posters?.toDomain() ?: Posters("", "", "", ""),
     duration = duration.toDomain(),

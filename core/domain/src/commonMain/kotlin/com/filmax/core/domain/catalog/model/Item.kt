@@ -38,7 +38,17 @@ data class ItemRating(
     val filmaxPercentage: String,
     val imdb: String?,
     val kinopoisk: String?,
-)
+) {
+    /**
+     * Средняя внешняя оценка по шкале 0–10: берём доступные значения IMDb и Кинопоиска
+     * и усредняем их. Если ни одной оценки нет — `null` (в UI показываем «N/A»).
+     */
+    val external: Double?
+        get() {
+            val scores = listOfNotNull(imdb?.toDoubleOrNull(), kinopoisk?.toDoubleOrNull())
+            return scores.takeIf { it.isNotEmpty() }?.average()
+        }
+}
 
 data class Posters(
     val small: String,
