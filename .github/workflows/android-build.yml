@@ -92,10 +92,81 @@ jobs:
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
 
+      # Краткое содержание коммита и ссылка на связанную задачу борда.
+      # Считаем один раз и переиспользуем в уведомлениях ниже.
+      - name: Resolve commit info
+        id: commit
+        env:
+          # Для push сообщение доступно из события; для PR/merge/workflow_dispatch
+          # оно пустое — тогда берём subject HEAD текущего checkout.
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          commit_message="$HEAD_COMMIT_MESSAGE"
+          if [ -z "$commit_message" ]; then
+            commit_message=$(git log -1 --pretty=%B)
+          fi
+          # Только первая строка (subject), не всё тело сообщения.
+          commit_subject=$(printf '%s\n' "$commit_message" | head -n1)
+          # Первый номер задачи (#N) из сообщения: Closes #N, (#N) и т.п.
+          # `|| true` — без совпадения grep вернёт 1 и уронит шаг под `set -e -o pipefail`.
+          issue_number=$(printf '%s' "$commit_message" | grep -oE '#[0-9]+' | head -n1 | tr -d '#' || true)
+          if [ -n "$issue_number" ]; then
+            task_url="https://github.com/malyi-m-dev/filmax/issues/${issue_number}"
+            task_text="задача #${issue_number}"
+          else
+            task_url="https://github.com/users/malyi-m-dev/projects/1"
+            task_text="доска проекта"
+          fi
+          # subject гарантированно однострочный — безопасно для формата name=value.
+          {
+            echo "subject=${commit_subject}"
+            echo "task_url=${task_url}"
+            echo "task_text=${task_text}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Subject: ${commit_subject}"
+          echo "Task: ${task_text} -> ${task_url}"
+
+      # Текстовое уведомление с кликабельной ссылкой на задачу (parse_mode=HTML).
+      # Отдельный шаг — приходит независимо от размера/успеха отправки APK ниже.
+      # Ограничено master/ручным запуском, чтобы не спамить на каждый push в TV-ветку
+      # (на прочих ветках ссылка на задачу всё равно уезжает в caption документа).
+      - name: Send build notification to Telegram
+        if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Значения из step output попадают в окружение — это безопасно
+          # (никакой подстановки untrusted-данных прямо в текст скрипта).
+          COMMIT_SUBJECT: ${{ steps.commit.outputs.subject }}
+          TASK_URL: ${{ steps.commit.outputs.task_url }}
+          TASK_TEXT: ${{ steps.commit.outputs.task_text }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::Секреты TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы — пропускаю текстовое уведомление."
+            exit 0
+          fi
+          # Экранируем HTML-спецсимволы в subject (& < >) перед вставкой в parse_mode=HTML.
+          escape_html() {
+            printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+          }
+          subject_html=$(escape_html "$COMMIT_SUBJECT")
+          message=$(printf '<b>Filmax · debug APK собран</b>\nВетка: <code>%s</code> · Run #%s\nКоммит <code>%s</code>: %s\nЗадача: <a href="%s">%s</a>' \
+            "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA::8}" "$subject_html" "$TASK_URL" "$TASK_TEXT")
+          # --data-urlencode корректно кодирует HTML-теги и кириллицу в теле запроса.
+          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${message}" \
+            -d parse_mode=HTML \
+            -d disable_web_page_preview=true
+          echo "Текстовое уведомление отправлено в Telegram."
+
       - name: Send APK to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Подставляем краткое содержание коммита и ссылку на задачу в caption.
+          COMMIT_SUBJECT: ${{ steps.commit.outputs.subject }}
+          TASK_URL: ${{ steps.commit.outputs.task_url }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
             echo "::warning::Секреты TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы — пропускаю отправку. APK доступен в Artifacts."
@@ -104,7 +175,8 @@ jobs:
           apk="${{ steps.apk.outputs.path }}"
           # Лимит Bot API на отправку файла — 50 МБ.
           size_mb=$(( $(stat -c%s "$apk") / 1048576 ))
-          caption=$(printf 'Filmax · debug APK\nВетка: %s\nКоммит: %s\nRun: #%s' "$GITHUB_REF_NAME" "${GITHUB_SHA::8}" "$GITHUB_RUN_NUMBER")
+          # Telegram сам делает ссылку из URL — в caption кладём её обычным текстом.
+          caption=$(printf 'Filmax · debug APK\nВетка: %s · Run #%s\nКоммит %s: %s\nЗадача: %s' "$GITHUB_REF_NAME" "$GITHUB_RUN_NUMBER" "${GITHUB_SHA::8}" "$COMMIT_SUBJECT" "$TASK_URL")
           if [ "$size_mb" -ge 50 ]; then
             echo "::warning::APK ${size_mb}MB ≥ 50MB — Telegram-бот не примет файл. Возьми APK из Artifacts."
             curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
