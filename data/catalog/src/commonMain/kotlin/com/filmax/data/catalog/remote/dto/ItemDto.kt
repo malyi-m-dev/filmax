@@ -19,7 +19,7 @@ data class MovieInfoDto(
 data class ItemDto(
     val id: Int,
     val title: String,
-    @SerialName("type") val type: String ="",
+    @SerialName("type") val type: String = "",
     val year: Int = 0,
     val plot: String = "",
     val cast: String = "",

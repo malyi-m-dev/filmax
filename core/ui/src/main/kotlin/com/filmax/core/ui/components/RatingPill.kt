@@ -30,10 +30,10 @@ fun RatingPill(
     compact: Boolean = false,
 ) {
     val color = when {
-        rating == null  -> Color(0xFFD5C2C8)
-        rating >= 8.5   -> Color(0xFF6AC2B0)
-        rating >= 7.5   -> Color(0xFFE8A43A)
-        else            -> Color(0xFFD5C2C8)
+        rating == null -> Color(0xFFD5C2C8)
+        rating >= 8.5 -> Color(0xFF6AC2B0)
+        rating >= 7.5 -> Color(0xFFE8A43A)
+        else -> Color(0xFFD5C2C8)
     }
     val padding = if (compact) 4.dp to 6.dp else 6.dp to 10.dp
     val iconSize = if (compact) 11.dp else 13.dp

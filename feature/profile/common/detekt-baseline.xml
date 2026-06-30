@@ -1,8 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>FinalNewline:ProfileModule.kt$com.filmax.feature.profile.common.di.ProfileModule.kt</ID>
-    <ID>NewLineAtEndOfFile:ProfileModule.kt$com.filmax.feature.profile.common.di.ProfileModule.kt</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

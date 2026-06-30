@@ -1,13 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>ModifierListSpacing:AuthDto.kt$DeviceCodeDto$@SerialName("expires_in")</ID>
-    <ID>ModifierListSpacing:AuthDto.kt$DeviceCodeDto$@SerialName("user_code")</ID>
-    <ID>ModifierListSpacing:AuthDto.kt$TokenDto$@SerialName("access_token")</ID>
-    <ID>ModifierListSpacing:AuthDto.kt$TokenDto$@SerialName("expires_in")</ID>
-    <ID>ModifierListSpacing:AuthDto.kt$TokenDto$@SerialName("refresh_token")</ID>
-    <ID>NoMultipleSpaces:AuthDto.kt$DeviceCodeDto$ </ID>
-    <ID>NoMultipleSpaces:AuthDto.kt$TokenDto$ </ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

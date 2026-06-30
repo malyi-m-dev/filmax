@@ -1,10 +1,5 @@
 package com.filmax.feature.profile.mobile
 
-import com.filmax.feature.profile.common.ProfileEvent
-import com.filmax.feature.profile.common.ProfileScreenModel
-import com.filmax.feature.profile.common.ProfileSideEffect
-import com.filmax.feature.profile.common.ProfileState
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +64,10 @@ import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.ui.components.FilmaxListGroup
 import com.filmax.core.ui.components.FilmaxListRow
+import com.filmax.feature.profile.common.ProfileEvent
+import com.filmax.feature.profile.common.ProfileScreenModel
+import com.filmax.feature.profile.common.ProfileSideEffect
+import com.filmax.feature.profile.common.ProfileState
 import org.koin.androidx.compose.koinViewModel
 
 private val SectionPadding = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp)

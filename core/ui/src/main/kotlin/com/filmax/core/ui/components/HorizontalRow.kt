@@ -56,7 +56,11 @@ fun HorizontalRow(
                         )
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
                 if (subtitle != null) {
                     Text(

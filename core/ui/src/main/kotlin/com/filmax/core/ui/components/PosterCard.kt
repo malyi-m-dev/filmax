@@ -19,7 +19,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,9 +57,11 @@ fun PosterCard(
                 accentColor = Color(0xFFB4305A),
             )
             // Rating pill
-            Box(Modifier
-                .align(Alignment.TopStart)
-                .padding(8.dp)) {
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+            ) {
                 RatingPill(rating = item.rating.external, compact = true)
             }
             // Fav button
