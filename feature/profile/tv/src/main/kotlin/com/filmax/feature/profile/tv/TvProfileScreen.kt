@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.designsystem.ShapeCookie
+import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
@@ -184,7 +185,9 @@ private fun ProfileSettings(
     modifier: Modifier = Modifier,
 ) {
     val active = state.profile?.subscription?.active == true
-    Column(modifier = modifier.verticalScroll(rememberScrollState())) {
+    val scrollState = rememberScrollState()
+    ScrollToTopOnNavFocus(scrollState)
+    Column(modifier = modifier.verticalScroll(scrollState)) {
         SettingsGroup(title = "Просмотр") {
             SettingRow(
                 icon = Icons.Filled.HighQuality,

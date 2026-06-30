@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.TvFocusCard
+import com.filmax.core.tv.designsystem.TvPosterTitle
+import com.filmax.core.tv.designsystem.posterSubtitle
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
@@ -93,6 +95,10 @@ private fun PosterTile(item: Item, onClick: () -> Unit) {
                 rating = item.rating.external,
                 compact = true,
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            )
+            TvPosterTitle(
+                title = item.title,
+                subtitle = posterSubtitle(item.year, item.genres.firstOrNull()?.title),
             )
         }
     }

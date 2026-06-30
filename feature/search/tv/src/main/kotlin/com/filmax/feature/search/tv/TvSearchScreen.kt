@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.shape.CircleShape
@@ -36,7 +37,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvFocusCard
+import com.filmax.core.tv.designsystem.TvPosterTitle
+import com.filmax.core.tv.designsystem.posterSubtitle
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import com.filmax.core.ui.components.rememberVoiceSearch
@@ -74,6 +78,9 @@ fun TvSearchScreen(
     val startVoiceSearch = rememberVoiceSearch { spoken ->
         screenModel.dispatch(SearchEvent.SubmitQuery(spoken))
     }
+
+    val resultsGridState = rememberLazyGridState()
+    ScrollToTopOnNavFocus(resultsGridState)
 
     Box(
         modifier = modifier
@@ -136,6 +143,7 @@ fun TvSearchScreen(
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
+                        state = resultsGridState,
                         modifier = Modifier.fillMaxSize(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -227,6 +235,10 @@ private fun PosterTile(item: Item, onClick: () -> Unit) {
                 rating = item.rating.external,
                 compact = true,
                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+            )
+            TvPosterTitle(
+                title = item.title,
+                subtitle = posterSubtitle(item.year, item.genres.firstOrNull()?.title),
             )
         }
     }

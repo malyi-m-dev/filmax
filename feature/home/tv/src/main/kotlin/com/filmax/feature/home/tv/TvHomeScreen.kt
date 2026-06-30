@@ -47,8 +47,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvFocusCard
+import com.filmax.core.tv.designsystem.TvPosterTitle
+import com.filmax.core.tv.designsystem.posterSubtitle
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import com.filmax.feature.home.common.HomeEvent
@@ -97,6 +100,7 @@ private fun TvHomeContent(
     onLoadMore: () -> Unit,
 ) {
     val listState = rememberLazyListState()
+    ScrollToTopOnNavFocus(listState)
     // Триггер догрузки «Все»: когда фокус/скролл подводит к последним строкам списка.
     val loadMore by remember {
         derivedStateOf {
@@ -225,6 +229,10 @@ private fun RowScope.TvAllPosterCell(item: Item, onClick: () -> Unit) {
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .padding(8.dp),
+                )
+                TvPosterTitle(
+                    title = item.title,
+                    subtitle = posterSubtitle(item.year, item.genres.firstOrNull()?.title),
                 )
             }
         }
@@ -392,6 +400,10 @@ private fun TvPosterCard(item: Item, onClick: () -> Unit) {
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(10.dp),
+            )
+            TvPosterTitle(
+                title = item.title,
+                subtitle = posterSubtitle(item.year, item.genres.firstOrNull()?.title),
             )
         }
     }

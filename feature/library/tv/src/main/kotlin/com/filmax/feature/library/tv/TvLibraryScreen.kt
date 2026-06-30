@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -26,7 +27,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvFocusCard
+import com.filmax.core.tv.designsystem.TvPosterTitle
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.library.common.LibraryEvent
 import com.filmax.feature.library.common.LibraryScreenModel
@@ -56,6 +59,10 @@ fun TvLibraryScreen(
         LibraryTab.DOWNLOADS -> state.downloads.map { Tile(it.id, it.title, it.posterSmall) }
         LibraryTab.LISTS -> emptyList()
     }
+
+    // В композиции единовременно только одна сетка (LISTS либо остальные) — общий state безопасен.
+    val gridState = rememberLazyGridState()
+    ScrollToTopOnNavFocus(gridState)
 
     Column(
         modifier = modifier
@@ -89,6 +96,7 @@ fun TvLibraryScreen(
         if (state.tab == LibraryTab.LISTS) {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
+                state = gridState,
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 contentPadding = PaddingValues(bottom = 40.dp),
@@ -100,6 +108,7 @@ fun TvLibraryScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(6),
+                state = gridState,
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 contentPadding = PaddingValues(bottom = 40.dp),
@@ -154,13 +163,16 @@ private fun TabChip(label: String, count: Int, active: Boolean, onClick: () -> U
 private fun PosterTile(tile: Tile, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     TvFocusCard(onClick = onClick, shape = shape, modifier = Modifier.height(240.dp)) {
-        PosterImage(
-            url = tile.poster,
-            contentDescription = tile.title,
-            modifier = Modifier.fillMaxSize(),
-            shape = shape,
-            accentColor = Accent,
-        )
+        Box(Modifier.fillMaxSize()) {
+            PosterImage(
+                url = tile.poster,
+                contentDescription = tile.title,
+                modifier = Modifier.fillMaxSize(),
+                shape = shape,
+                accentColor = Accent,
+            )
+            TvPosterTitle(title = tile.title)
+        }
     }
 }
 

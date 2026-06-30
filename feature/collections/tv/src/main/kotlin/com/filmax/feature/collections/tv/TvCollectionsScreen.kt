@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.catalog.model.Collection
+import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.collections.common.CollectionsScreenModel
@@ -44,6 +46,9 @@ fun TvCollectionsScreen(
     screenModel: CollectionsScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+
+    val gridState = rememberLazyGridState()
+    ScrollToTopOnNavFocus(gridState)
 
     Column(
         modifier = modifier
@@ -66,6 +71,7 @@ fun TvCollectionsScreen(
 
             else -> LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
+                state = gridState,
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
                 contentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 16.dp, bottom = 40.dp),

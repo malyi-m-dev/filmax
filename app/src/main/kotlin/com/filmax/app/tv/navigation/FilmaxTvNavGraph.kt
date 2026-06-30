@@ -8,14 +8,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import com.filmax.core.tv.designsystem.LocalTvScrollToTop
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -71,6 +76,10 @@ fun FilmaxTvNavGraph(
     val navBarFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
 
+    // Сигнал «контент — в начало»: растёт при каждом заходе фокуса в шапку, экраны слушают его
+    // через LocalTvScrollToTop и скроллят свой контейнер вверх, чтобы он не «застревал» внизу.
+    var scrollToTopSignal by remember { mutableIntStateOf(0) }
+
     // Переход по вкладкам: единственный экземпляр + сохранение/восстановление состояния.
     fun navigateTab(route: Any) {
         navController.navigate(route) {
@@ -85,6 +94,7 @@ fun FilmaxTvNavGraph(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
+        CompositionLocalProvider(LocalTvScrollToTop provides scrollToTopSignal) {
         NavHost(
             navController = navController,
             startDestination = TvSplashRoute,
@@ -127,6 +137,7 @@ fun FilmaxTvNavGraph(
             )
             tvPlayerScreen(onBack = { navController.popBackStack() })
         }
+        }
 
         if (showTopBar) {
             TvTopNavBar(
@@ -135,7 +146,10 @@ fun FilmaxTvNavGraph(
                 navBarFocus = navBarFocus,
                 contentFocus = contentFocus,
                 initials = rootState.initials,
-                modifier = Modifier.align(Alignment.TopCenter),
+                // Любой заход фокуса в шапку (с контента или стартовый) — повод увести контент вверх.
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .onFocusChanged { if (it.hasFocus) scrollToTopSignal++ },
             )
         }
     }
