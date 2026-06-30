@@ -6,6 +6,5 @@
     <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHomeContent( state: HomeState, onOpenItem: (Int) -&gt; Unit, onLoadMore: () -&gt; Unit, )</ID>
     <ID>MatchingDeclarationName:TvHomeNavigation.kt$TvHomeRoute</ID>
     <ID>TooManyFunctions:TvHomeScreen.kt$com.filmax.feature.home.tv.TvHomeScreen.kt</ID>
-    <ID>Wrapping:TvHomeScreen.kt$;</ID>
   </CurrentIssues>
 </SmellBaseline>

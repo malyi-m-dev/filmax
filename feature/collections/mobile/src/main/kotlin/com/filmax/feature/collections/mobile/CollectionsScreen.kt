@@ -1,16 +1,11 @@
 package com.filmax.feature.collections.mobile
 
-import com.filmax.feature.collections.common.CollectionsScreenModel
-import com.filmax.feature.collections.common.CollectionsState
-import com.filmax.feature.collections.common.CollectionsEvent
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -46,12 +41,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.ui.components.FilmaxCollectionCard
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.FilmaxSearchField
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.feature.collections.common.CollectionsEvent
+import com.filmax.feature.collections.common.CollectionsScreenModel
+import com.filmax.feature.collections.common.CollectionsState
+import org.koin.androidx.compose.koinViewModel
 
 private val CollectionPalette = listOf(
     Color(0xFFD4A84A),
@@ -265,4 +263,3 @@ private fun FeaturedCollectionCard(
         }
     }
 }
-

@@ -11,7 +11,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import org.koin.androidx.compose.koinViewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -23,10 +22,10 @@ import com.filmax.core.ui.components.FilmaxTab
 import com.filmax.core.ui.components.FilmaxTabBar
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.common.navigation.CollectionsRoute
-import com.filmax.feature.designsystem.navigation.DesignSystemRoute
-import com.filmax.feature.designsystem.navigation.designSystemScreen
 import com.filmax.feature.collections.mobile.navigation.collectionDetailScreen
 import com.filmax.feature.collections.mobile.navigation.collectionsScreen
+import com.filmax.feature.designsystem.navigation.DesignSystemRoute
+import com.filmax.feature.designsystem.navigation.designSystemScreen
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.details.mobile.navigation.detailsScreen
 import com.filmax.feature.home.mobile.navigation.HomeRoute
@@ -42,6 +41,7 @@ import com.filmax.feature.profile.mobile.navigation.profileScreen
 import com.filmax.feature.search.mobile.navigation.SearchRoute
 import com.filmax.feature.search.mobile.navigation.searchScreen
 import kotlinx.serialization.Serializable
+import org.koin.androidx.compose.koinViewModel
 
 @Serializable
 private object SplashRoute

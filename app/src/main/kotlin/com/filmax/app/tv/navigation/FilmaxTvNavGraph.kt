@@ -20,28 +20,28 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import com.filmax.core.tv.designsystem.LocalTvScrollToTop
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.filmax.feature.details.common.navigation.DetailsRoute
-import com.filmax.feature.player.common.navigation.PlayerRoute
+import com.filmax.app.navigation.RootScreenModel
+import com.filmax.core.tv.designsystem.LocalTvScrollToTop
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
 import com.filmax.feature.collections.tv.navigation.tvCollectionsScreen
+import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
 import com.filmax.feature.library.tv.navigation.tvLibraryScreen
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
+import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
-import com.filmax.app.navigation.RootScreenModel
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 
@@ -95,48 +95,48 @@ fun FilmaxTvNavGraph(
             .background(MaterialTheme.colorScheme.background),
     ) {
         CompositionLocalProvider(LocalTvScrollToTop provides scrollToTopSignal) {
-        NavHost(
-            navController = navController,
-            startDestination = TvSplashRoute,
-            modifier = Modifier
-                .fillMaxSize()
-                .focusRequester(contentFocus)
-                .focusProperties { up = navBarFocus }
-                .focusGroup(),
-            enterTransition = { fadeIn() },
-            exitTransition = { fadeOut() },
-            popEnterTransition = { fadeIn() },
-            popExitTransition = { fadeOut() },
-        ) {
-            composable<TvSplashRoute> { Box(Modifier.fillMaxSize()) }
+            NavHost(
+                navController = navController,
+                startDestination = TvSplashRoute,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .focusRequester(contentFocus)
+                    .focusProperties { up = navBarFocus }
+                    .focusGroup(),
+                enterTransition = { fadeIn() },
+                exitTransition = { fadeOut() },
+                popEnterTransition = { fadeIn() },
+                popExitTransition = { fadeOut() },
+            ) {
+                composable<TvSplashRoute> { Box(Modifier.fillMaxSize()) }
 
-            tvOnboardingScreen(
-                onAuthenticated = {
-                    navController.navigate(TvHomeRoute) { popUpTo(TvOnboardingRoute) { inclusive = true } }
-                },
-            )
+                tvOnboardingScreen(
+                    onAuthenticated = {
+                        navController.navigate(TvHomeRoute) { popUpTo(TvOnboardingRoute) { inclusive = true } }
+                    },
+                )
 
-            tvHomeScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-            tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-            tvCollectionsScreen(
-                onOpenCollection = { id, title ->
-                    navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
-                },
-            )
-            tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-            tvLibraryScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-            tvProfileScreen(
-                onLogout = {
-                    navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
-                },
-            )
+                tvHomeScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+                tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+                tvCollectionsScreen(
+                    onOpenCollection = { id, title ->
+                        navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
+                    },
+                )
+                tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+                tvLibraryScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+                tvProfileScreen(
+                    onLogout = {
+                        navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
+                    },
+                )
 
-            tvDetailsScreen(
-                onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
-                onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            )
-            tvPlayerScreen(onBack = { navController.popBackStack() })
-        }
+                tvDetailsScreen(
+                    onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+                    onOpenItem = { navController.navigate(DetailsRoute(it)) },
+                )
+                tvPlayerScreen(onBack = { navController.popBackStack() })
+            }
         }
 
         if (showTopBar) {

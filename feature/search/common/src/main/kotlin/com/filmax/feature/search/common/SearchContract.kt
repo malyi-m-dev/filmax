@@ -16,6 +16,7 @@ data class SearchState(
 sealed interface SearchEvent {
     data class QueryChange(val query: String) : SearchEvent
     data class FilterChange(val filter: ItemType?) : SearchEvent
+
     /** Тап по подсказке (тренды/недавние): подставить запрос и сразу искать. */
     data class SubmitQuery(val query: String) : SearchEvent
     data object ClearRecent : SearchEvent

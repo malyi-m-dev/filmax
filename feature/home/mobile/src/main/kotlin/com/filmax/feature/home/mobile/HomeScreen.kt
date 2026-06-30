@@ -1,8 +1,5 @@
 package com.filmax.feature.home.mobile
 
-import com.filmax.feature.home.common.HomeEvent
-import com.filmax.feature.home.common.HomeScreenModel
-import com.filmax.feature.home.common.HomeState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.domain.catalog.model.Duration
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
@@ -58,6 +54,10 @@ import com.filmax.core.ui.components.HorizontalRow
 import com.filmax.core.ui.components.PosterCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
+import com.filmax.feature.home.common.HomeEvent
+import com.filmax.feature.home.common.HomeScreenModel
+import com.filmax.feature.home.common.HomeState
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun HomeScreen(
@@ -287,11 +287,17 @@ private fun HomeTopBar(initials: String, modifier: Modifier = Modifier) {
             Column(Modifier.weight(1f)) {
                 Text(
                     "Добрый вечер",
-                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, letterSpacing = 1.sp,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    letterSpacing = 1.sp,
                 )
                 Row(verticalAlignment = Alignment.Bottom) {
-                    Text("Filmax", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "Filmax",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                     Text(".", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
@@ -305,7 +311,12 @@ private fun HomeTopBar(initials: String, modifier: Modifier = Modifier) {
                 if (initials.isNotBlank()) {
                     Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 } else {
-                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(
+                        Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
@@ -418,8 +429,10 @@ private fun HeroCard(
             Text(
                 "🔥 Выбор редакции",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                fontSize = 11.sp, fontWeight = FontWeight.ExtraBold,
-                color = Color.White, letterSpacing = 1.sp,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                letterSpacing = 1.sp,
             )
         }
         Box(
@@ -436,8 +449,10 @@ private fun HeroCard(
         ) {
             Text(
                 item.genres.take(2).joinToString(" · ") { it.title } + " · ${item.year}",
-                fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                color = Color.White.copy(alpha = 0.8f), letterSpacing = 1.5.sp,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = 0.8f),
+                letterSpacing = 1.5.sp,
             )
             Spacer(Modifier.height(8.dp))
             Text(
@@ -452,7 +467,12 @@ private fun HeroCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(20.dp)
+                    )
                     Text("Смотреть", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }

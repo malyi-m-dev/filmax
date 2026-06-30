@@ -73,11 +73,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 import com.filmax.core.designsystem.FilmaxError
 import com.filmax.core.designsystem.FilmaxOnSurface
 import com.filmax.core.designsystem.FilmaxOnSurfaceVariant
@@ -117,6 +115,7 @@ import com.filmax.core.ui.components.FilmaxTabBar
 import com.filmax.core.ui.components.GradientPosterPlaceholder
 import com.filmax.core.ui.components.PosterCard
 import com.filmax.core.ui.components.RatingPill
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -598,8 +597,12 @@ private fun PostersSection() = Section(
 ) {
     SubLabel("Плейсхолдеры")
     val accents = listOf(
-        Color(0xFFB4305A), Color(0xFF6750A4), Color(0xFFE46962),
-        Color(0xFFFFB86B), Color(0xFF1E88E5), Color(0xFF2E7D52),
+        Color(0xFFB4305A),
+        Color(0xFF6750A4),
+        Color(0xFFE46962),
+        Color(0xFFFFB86B),
+        Color(0xFF1E88E5),
+        Color(0xFF2E7D52),
     )
     Row(
         modifier = Modifier

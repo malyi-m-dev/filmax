@@ -5,8 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +25,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
@@ -159,7 +159,13 @@ private fun TagPill(text: String) {
             .background(Accent)
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
-        Text(text.uppercase(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)
+        Text(
+            text.uppercase(),
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 2.sp
+        )
     }
 }
 
@@ -174,9 +180,22 @@ private fun MetaRow(item: Item, includeDuration: Boolean) {
                     .background(Color(0x8C000000))
                     .padding(horizontal = 14.dp, vertical = 6.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A), modifier = Modifier.size(16.dp))
-                    Text(String.format("%.1f", rating), color = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        String.format("%.1f", rating),
+                        color = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -184,19 +203,31 @@ private fun MetaRow(item: Item, includeDuration: Boolean) {
             buildString {
                 append(item.year)
                 if (includeDuration) {
-                    item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let { append("  ·  ${it / 60}ч ${it % 60}м") }
+                    item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let {
+                        append(
+                            "  ·  ${it / 60}ч ${it % 60}м"
+                        )
+                    }
                 }
                 if (item.country.isNotBlank()) append("  ·  ${item.country}")
                 if (item.genres.isNotEmpty()) append("  ·  ${item.genres.take(2).joinToString(" · ") { it.title }}")
             },
-            fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f),
+            fontSize = 16.sp,
+            color = Color.White.copy(alpha = 0.9f),
         )
     }
 }
 
 @Composable
 private fun Label(text: String, color: Color = Accent) {
-    Text(text.uppercase(), color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, modifier = Modifier.padding(bottom = 8.dp))
+    Text(
+        text.uppercase(),
+        color = color,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = 1.5.sp,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
 }
 
 // ─────────────────────────────── Детали ФИЛЬМА ──────────────────────────────
@@ -230,14 +261,31 @@ private fun MovieContent(
                     Column(modifier = Modifier.weight(1f)) {
                         TagPill(item.genres.take(2).joinToString(" · ") { it.title })
                         Spacer(Modifier.height(16.dp))
-                        Text(item.title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text(
+                            item.title,
+                            style = MaterialTheme.typography.displayMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
                         Spacer(Modifier.height(14.dp))
                         MetaRow(item, includeDuration = true)
                         Spacer(Modifier.height(16.dp))
-                        Text(item.plot, fontSize = 18.sp, lineHeight = 26.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4, modifier = Modifier.fillMaxWidth(0.9f))
+                        Text(
+                            item.plot,
+                            fontSize = 18.sp,
+                            lineHeight = 26.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            maxLines = 4,
+                            modifier = Modifier.fillMaxWidth(0.9f)
+                        )
                         Spacer(Modifier.height(28.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow, focusRequester = playFocus)
+                            TvButton(
+                                "Смотреть",
+                                onClick = onPlay,
+                                leadingIcon = Icons.Filled.PlayArrow,
+                                focusRequester = playFocus
+                            )
                             TvButton(
                                 text = if (isFav) "В избранном" else "В избранное",
                                 onClick = onToggleFav,
@@ -258,7 +306,13 @@ private fun MovieContent(
             if (similar.isNotEmpty()) {
                 item(key = "similar") {
                     Column(Modifier.padding(start = 72.dp, bottom = 32.dp)) {
-                        Text("Похожие", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(bottom = 14.dp))
+                        Text(
+                            "Похожие",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            modifier = Modifier.padding(bottom = 14.dp)
+                        )
                         LazyRow(
                             contentPadding = PaddingValues(end = 72.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -373,7 +427,12 @@ private fun InfoPanelDialog(item: Item, quality: List<String>, onDismiss: () -> 
                 .focusable()
                 .padding(36.dp),
         ) {
-            Text(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text(
+                item.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
             if (item.cast.isNotBlank()) {
                 Spacer(Modifier.height(20.dp))
                 Label("В ролях")
@@ -462,11 +521,23 @@ private fun SeriesContent(
             Column(modifier = Modifier.weight(1f).padding(end = 20.dp)) {
                 TagPill("Сериал · ${seasons.size} ${seasonsWord(seasons.size)}")
                 Spacer(Modifier.height(16.dp))
-                Text(item.title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)
+                Text(
+                    item.title,
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    maxLines = 2
+                )
                 Spacer(Modifier.height(14.dp))
                 MetaRow(item, includeDuration = false)
                 Spacer(Modifier.height(16.dp))
-                Text(item.plot, fontSize = 17.sp, lineHeight = 25.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4)
+                Text(
+                    item.plot,
+                    fontSize = 17.sp,
+                    lineHeight = 25.sp,
+                    color = Color.White.copy(alpha = 0.85f),
+                    maxLines = 4
+                )
 
                 if (resume != null && resume.durationSeconds > 0) {
                     Spacer(Modifier.height(22.dp))
@@ -502,7 +573,10 @@ private fun SeriesContent(
                     )
                     Spacer(Modifier.height(16.dp))
                 }
-                Label("${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}", color = Color.White.copy(alpha = 0.7f))
+                Label(
+                    "${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}",
+                    color = Color.White.copy(alpha = 0.7f)
+                )
                 Spacer(Modifier.height(4.dp))
                 LazyColumn(
                     modifier = Modifier.fillMaxHeight(),
@@ -546,7 +620,12 @@ private fun ResumeStrip(episode: MediaTrack) {
         }
         Column(modifier = Modifier.weight(1f)) {
             Label("Вы остановились")
-            Text("Сезон ${episode.seasonNumber} · Серия ${episode.number}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text(
+                "Сезон ${episode.seasonNumber} · Серия ${episode.number}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
             Spacer(Modifier.height(8.dp))
             Box(
                 Modifier
@@ -646,7 +725,10 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
                         append("Серия ${episode.number}")
                         if (episode.title.isNotBlank()) append(". ${episode.title}")
                     },
-                    fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -654,7 +736,8 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
                         episode.durationSeconds.takeIf { it > 0 }?.let { append("${it / 60} мин") }
                         if (isResume) append(if (length > 0) " · продолжить" else "продолжить")
                     },
-                    fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    color = Color.White.copy(alpha = 0.7f),
                 )
             }
             Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))

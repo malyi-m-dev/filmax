@@ -1,11 +1,5 @@
 package com.filmax.feature.library.mobile
 
-import com.filmax.feature.library.common.LibraryScreenModel
-import com.filmax.feature.library.common.LibraryState
-import com.filmax.feature.library.common.LibraryEvent
-import com.filmax.feature.library.common.LibrarySideEffect
-import com.filmax.feature.library.common.LibraryTab
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -57,11 +51,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.feature.library.common.LibraryEvent
+import com.filmax.feature.library.common.LibraryScreenModel
+import com.filmax.feature.library.common.LibraryState
+import com.filmax.feature.library.common.LibraryTab
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun LibraryScreen(
@@ -369,9 +367,22 @@ private fun DownloadsTab(state: LibraryState, onOpenItem: (Int) -> Unit) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Filled.Check, contentDescription = null, tint = Color(0xFF6AC2B0), modifier = Modifier.size(14.dp))
-                            Text("В библиотеке", fontSize = 11.sp, color = Color(0xFF6AC2B0), fontWeight = FontWeight.SemiBold)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF6AC2B0),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                "В библиотеке",
+                                fontSize = 11.sp,
+                                color = Color(0xFF6AC2B0),
+                                fontWeight = FontWeight.SemiBold
+                            )
                         }
                     }
                 }
@@ -411,8 +422,11 @@ private fun LibraryTabPill(
             modifier = Modifier
                 .clip(shape)
                 .background(
-                    if (selected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f)
-                    else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    if (selected) {
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f)
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
                 )
                 .padding(horizontal = 7.dp, vertical = 2.dp),
         ) {

@@ -1,10 +1,5 @@
 package com.filmax.feature.search.mobile
 
-import com.filmax.feature.search.common.SearchScreenModel
-import com.filmax.feature.search.common.SearchState
-import com.filmax.feature.search.common.SearchEvent
-import com.filmax.feature.search.common.SearchSideEffect
-
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -59,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.domain.catalog.model.Item
@@ -67,6 +61,9 @@ import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import com.filmax.core.ui.components.rememberVoiceSearch
+import com.filmax.feature.search.common.SearchEvent
+import com.filmax.feature.search.common.SearchScreenModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun SearchScreen(
@@ -226,10 +223,10 @@ private fun FilterChips(
     modifier: Modifier = Modifier,
 ) {
     val filters = listOf(
-        null             to "Все",
-        ItemType.MOVIE   to "Фильмы",
-        ItemType.SERIES  to "Сериалы",
-        ItemType.ANIME   to "Аниме",
+        null to "Все",
+        ItemType.MOVIE to "Фильмы",
+        ItemType.SERIES to "Сериалы",
+        ItemType.ANIME to "Аниме",
         ItemType.DOCUMENTARY to "Документалки",
     )
 

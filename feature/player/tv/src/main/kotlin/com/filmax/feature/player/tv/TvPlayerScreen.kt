@@ -67,8 +67,8 @@ import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
 import com.filmax.feature.player.common.PlayerState
 import kotlinx.coroutines.delay
-import kotlin.math.roundToInt
 import org.koin.androidx.compose.koinViewModel
+import kotlin.math.roundToInt
 
 /** Категория настроек, показываемая в всплывающей панели выбора. */
 private enum class SettingsCategory(val title: String) {
@@ -115,8 +115,11 @@ fun TvPlayerScreen(
 
     // Фокус: видимы контролы — на «play», скрыты — на невидимый перехватчик клавиш.
     LaunchedEffect(controlsVisible) {
-        if (controlsVisible) runCatching { playFocus.requestFocus() }
-        else runCatching { hiddenFocus.requestFocus() }
+        if (controlsVisible) {
+            runCatching { playFocus.requestFocus() }
+        } else {
+            runCatching { hiddenFocus.requestFocus() }
+        }
     }
 
     // «Назад»: сначала закрыть панель, потом спрятать UI, и только затем выйти из плеера.
@@ -144,7 +147,10 @@ fun TvPlayerScreen(
         )
 
         if (state.loading) {
-            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, modifier = Modifier.align(Alignment.Center))
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
 
         // UI скрыт — невидимый фокусируемый слой возвращает контролы на любое нажатие.
@@ -181,9 +187,20 @@ fun TvPlayerScreen(
             ) {
                 // Сверху — заголовок
                 Column(Modifier.align(Alignment.TopStart).padding(56.dp)) {
-                    Text("СЕЙЧАС ИГРАЕТ", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
+                    Text(
+                        "СЕЙЧАС ИГРАЕТ",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text(state.item?.title ?: "", color = Color.White, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold)
+                    Text(
+                        state.item?.title ?: "",
+                        color = Color.White,
+                        style = MaterialTheme.typography.displaySmall,
+                        fontWeight = FontWeight.ExtraBold
+                    )
                 }
 
                 // Центр — контролы перемотки/паузы (размеры по дизайну)
@@ -194,7 +211,9 @@ fun TvPlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ControlButton(size = 52.dp, icon = Icons.Filled.Replay10, modifier = chipDown, onClick = { screenModel.player.seekBack() })
+                    ControlButton(size = 52.dp, icon = Icons.Filled.Replay10, modifier = chipDown, onClick = {
+                        screenModel.player.seekBack()
+                    })
                     ControlButton(
                         size = 68.dp,
                         icon = if (screenModel.player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
@@ -203,14 +222,21 @@ fun TvPlayerScreen(
                         modifier = chipDown,
                         onClick = { if (screenModel.player.isPlaying) screenModel.player.pause() else screenModel.player.play() },
                     )
-                    ControlButton(size = 52.dp, icon = Icons.Filled.Forward10, modifier = chipDown, onClick = { screenModel.player.seekForward() })
+                    ControlButton(size = 52.dp, icon = Icons.Filled.Forward10, modifier = chipDown, onClick = {
+                        screenModel.player.seekForward()
+                    })
                 }
 
                 // Снизу — прогресс-бар + чипы настроек
-                Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 72.dp, vertical = 48.dp)) {
+                Column(
+                    Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 72.dp, vertical = 48.dp)
+                ) {
                     val duration = screenModel.player.duration.takeIf { it > 0 } ?: 0L
                     val current = (progress * duration).toLong()
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
                         Text(formatMs(current), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Box(
                             Modifier
@@ -227,7 +253,12 @@ fun TvPlayerScreen(
                                     .background(MaterialTheme.colorScheme.primary),
                             )
                         }
-                        Text("-${formatMs(duration - current)}", color = Color.White.copy(alpha = 0.7f), fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            "-${formatMs(duration - current)}",
+                            color = Color.White.copy(alpha = 0.7f),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
 
                     SettingsChips(
@@ -356,7 +387,10 @@ private fun SettingsPopover(
                     y = (chipsRowTop - panelHeight - gapPx).coerceAtLeast(0),
                 )
             }
-            .onSizeChanged { panelWidth = it.width; panelHeight = it.height },
+            .onSizeChanged {
+                panelWidth = it.width
+                panelHeight = it.height
+            },
     )
 }
 
@@ -441,12 +475,19 @@ private fun ControlButton(
     primary: Boolean = false,
     focusRequester: FocusRequester? = null,
 ) {
-    TvFocusCard(onClick = onClick, shape = CircleShape, focusRequester = focusRequester, modifier = modifier.size(size)) {
+    TvFocusCard(
+        onClick = onClick,
+        shape = CircleShape,
+        focusRequester = focusRequester,
+        modifier = modifier.size(size)
+    ) {
         Box(
             Modifier
                 .fillMaxSize()
                 .clip(CircleShape)
-                .background(if (primary) MaterialTheme.colorScheme.primaryContainer else Color.White.copy(alpha = 0.16f)),
+                .background(
+                    if (primary) MaterialTheme.colorScheme.primaryContainer else Color.White.copy(alpha = 0.16f)
+                ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
