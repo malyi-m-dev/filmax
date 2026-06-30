@@ -1,0 +1,85 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$( buildString { append("Серия ${episode.number}") if (episode.title.isNotBlank()) append(". ${episode.title}") }, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1, )</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$( buildString { append(item.year) if (includeDuration) { item.duration.averageMinutes?.toInt()?.takeIf { it &gt; 0 }?.let { append(" · ${it / 60}ч ${it % 60}м") } } if (item.country.isNotBlank()) append(" · ${item.country}") if (item.genres.isNotEmpty()) append(" · ${item.genres.take(2).joinToString(" · ") { it.title }}") }, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f), )</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$( buildString { episode.durationSeconds.takeIf { it &gt; 0 }?.let { append("${it / 60} мин") } if (isResume) append(if (length &gt; 0) " · продолжить" else "продолжить") }, fontSize = 14.sp, color = Color.White.copy(alpha = 0.7f), )</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(" · ${it / 60}ч ${it % 60}м")</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$("${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}", color = Color.White.copy(alpha = 0.7f))</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$("%.1f", rating)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$("Похожие", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(bottom = 14.dp))</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$("Сезон ${episode.seasonNumber} · Серия ${episode.number}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow, focusRequester = playFocus)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(0.9f)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(0xFF6AC2B0)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(0xFFE8A43A)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(16.dp)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(5.dp)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(Icons.Filled.Star, contentDescription = null, tint = if (rating &gt;= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A), modifier = Modifier.size(16.dp))</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(String.format("%.1f", rating), color = if (rating &gt;= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A), fontSize = 16.sp, fontWeight = FontWeight.Bold)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(alpha = 0.7f)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(alpha = 0.85f)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(bottom = 14.dp)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(bottom = 8.dp)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(currentEpisodes.size)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(item.plot, fontSize = 17.sp, lineHeight = 25.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(item.plot, fontSize = 18.sp, lineHeight = 26.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4, modifier = Modifier.fillMaxWidth(0.9f))</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(item.title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(item.title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(text.uppercase(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(text.uppercase(), color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, modifier = Modifier.padding(bottom = 8.dp))</ID>
+    <ID>ArgumentListWrapping:TvDetailsScreen.kt$(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp))</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable fun TvDetailsScreen( onPlay: (itemId: Int, videoId: Int) -&gt; Unit, onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: DetailsScreenModel = koinViewModel(), )</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun BoxScope.Backdrop(item: Item)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun Label(text: String, color: Color = Accent)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun MetaRow(item: Item, includeDuration: Boolean)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun MovieContent( item: Item, similar: List&lt;Item&gt;, isFav: Boolean, onPlay: () -&gt; Unit, onToggleFav: () -&gt; Unit, onOpenItem: (Int) -&gt; Unit, )</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun QualityChip(text: String)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun ResumeStrip(episode: MediaTrack)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun SeasonChip(label: String, active: Boolean, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun SeriesContent( item: Item, isFav: Boolean, onPlayEpisode: (videoId: Int) -&gt; Unit, onToggleFav: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun SimilarCard(item: Item, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@Composable private fun TagPill(text: String)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun InfoPanel(item: Item, modifier: Modifier = Modifier)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun InfoPanelDialog(item: Item, quality: List&lt;String&gt;, onDismiss: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvDetailsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun SeasonChips( seasons: List&lt;Pair&lt;Int, List&lt;MediaTrack&gt;&gt;&gt;, selectedSeason: Int, onSelect: (Int) -&gt; Unit, )</ID>
+    <ID>ImplicitDefaultLocale:TvDetailsScreen.kt$String.format("%.1f", rating)</ID>
+    <ID>ImportOrdering:TvDetailsScreen.kt$import androidx.compose.foundation.background import androidx.compose.foundation.border import androidx.compose.foundation.clickable import androidx.compose.foundation.focusable import androidx.compose.foundation.interaction.MutableInteractionSource import androidx.compose.foundation.rememberScrollState import androidx.compose.foundation.verticalScroll import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.BoxScope import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.ExperimentalLayoutApi import androidx.compose.foundation.layout.FlowRow import androidx.compose.foundation.layout.PaddingValues import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.fillMaxHeight import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.fillMaxWidth import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.heightIn import androidx.compose.foundation.layout.padding import androidx.compose.foundation.layout.size import androidx.compose.foundation.layout.width import androidx.compose.foundation.layout.widthIn import androidx.compose.foundation.lazy.LazyColumn import androidx.compose.foundation.lazy.LazyRow import androidx.compose.foundation.lazy.items import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.material.icons.Icons import androidx.compose.material.icons.filled.Bookmark import androidx.compose.material.icons.filled.BookmarkBorder import androidx.compose.material.icons.filled.PlayArrow import androidx.compose.material.icons.filled.Star import androidx.compose.material3.CircularProgressIndicator import androidx.compose.material3.Icon import androidx.compose.material3.MaterialTheme import androidx.compose.material3.Text import androidx.compose.runtime.Composable import androidx.compose.runtime.LaunchedEffect import androidx.compose.runtime.getValue import androidx.compose.runtime.mutableIntStateOf import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.remember import androidx.compose.runtime.setValue import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.focus.FocusRequester import androidx.compose.ui.focus.onFocusChanged import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.text.style.TextOverflow import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import androidx.compose.ui.window.Dialog import androidx.compose.ui.window.DialogProperties import com.filmax.core.domain.catalog.model.Item import com.filmax.core.domain.catalog.model.ItemType import com.filmax.core.domain.catalog.model.MediaTrack import com.filmax.core.tv.designsystem.TvButton import com.filmax.core.tv.designsystem.TvFocus import com.filmax.core.tv.designsystem.TvFocusCard import com.filmax.core.ui.components.PosterImage import com.filmax.feature.details.common.DetailsEvent import com.filmax.feature.details.common.DetailsScreenModel import org.koin.androidx.compose.koinViewModel</ID>
+    <ID>LongMethod:TvDetailsScreen.kt$@Composable private fun SeriesContent( item: Item, isFav: Boolean, onPlayEpisode: (videoId: Int) -&gt; Unit, onToggleFav: () -&gt; Unit, )</ID>
+    <ID>LongMethod:TvDetailsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun InfoPanel(item: Item, modifier: Modifier = Modifier)</ID>
+    <ID>LongParameterList:TvDetailsScreen.kt$( item: Item, similar: List&lt;Item&gt;, isFav: Boolean, onPlay: () -&gt; Unit, onToggleFav: () -&gt; Unit, onOpenItem: (Int) -&gt; Unit, )</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0.45f</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0.55f</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0.5f</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0.85f</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0.9f</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0x8C000000</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0xF21A1518</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0xFF6AC2B0</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$0xFFE8A43A</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$10</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$100</ID>
+    <ID>MagicNumber:TvDetailsScreen.kt$60</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Icon(Icons.Filled.Star, contentDescription = null, tint = if (rating &gt;= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A), modifier = Modifier.size(16.dp))</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Label("${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}", color = Color.White.copy(alpha = 0.7f))</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Row</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text("Похожие", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(bottom = 14.dp))</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text("Сезон ${episode.seasonNumber} · Серия ${episode.number}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(String.format("%.1f", rating), color = if (rating &gt;= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A), fontSize = 16.sp, fontWeight = FontWeight.Bold)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(item.plot, fontSize = 17.sp, lineHeight = 25.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(item.plot, fontSize = 18.sp, lineHeight = 26.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4, modifier = Modifier.fillMaxWidth(0.9f))</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(item.title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(item.title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(text.uppercase(), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 2.sp)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$Text(text.uppercase(), color = color, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, modifier = Modifier.padding(bottom = 8.dp))</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow, focusRequester = playFocus)</ID>
+    <ID>MaxLineLength:TvDetailsScreen.kt$item.duration.averageMinutes?.toInt()?.takeIf { it &gt; 0 }?.let { append(" · ${it / 60}ч ${it % 60}м") }</ID>
+    <ID>MaximumLineLength:TvDetailsScreen.kt$ </ID>
+    <ID>TooManyFunctions:TvDetailsScreen.kt$com.filmax.feature.details.tv.TvDetailsScreen.kt</ID>
+    <ID>UnusedPrivateProperty:TvDetailsScreen.kt$private val ChipBorder = Color(0x26FFFFFF)</ID>
+  </CurrentIssues>
+</SmellBaseline>

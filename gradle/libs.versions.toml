@@ -15,6 +15,7 @@ media3 = "1.5.1"
 activity-compose = "1.10.1"
 tv-material = "1.0.0"
 chucker = "4.0.0"
+detekt = "1.23.8"
 # KMP
 ktor = "3.0.3"
 multiplatform-settings = "1.2.0"
@@ -25,6 +26,10 @@ skie = "0.10.1"
 android-gradle-plugin = { group = "com.android.tools.build", name = "gradle", version.ref = "agp" }
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 compose-gradle-plugin = { group = "org.jetbrains.kotlin", name = "compose-compiler-gradle-plugin", version.ref = "kotlin" }
+detekt-gradle-plugin = { group = "io.gitlab.arturbosch.detekt", name = "detekt-gradle-plugin", version.ref = "detekt" }
+
+# Detekt formatting ruleset (обёртка над ktlint, стиль official) — для detektPlugins
+detekt-formatting = { group = "io.gitlab.arturbosch.detekt", name = "detekt-formatting", version.ref = "detekt" }
 
 # Kotlin
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

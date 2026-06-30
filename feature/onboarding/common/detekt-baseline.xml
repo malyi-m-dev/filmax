@@ -1,0 +1,7 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>MagicNumber:OnboardingScreenModel.kt$OnboardingScreenModel$1000L</ID>
+  </CurrentIssues>
+</SmellBaseline>

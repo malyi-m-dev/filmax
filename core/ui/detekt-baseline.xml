@@ -1,0 +1,99 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:ContinueCard.kt$("Осталось $remainMin мин", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>ArgumentListWrapping:ContinueCard.kt$(28.dp)</ID>
+    <ID>ArgumentListWrapping:ContinueCard.kt$(Icons.Filled.PlayArrow, contentDescription = "Играть", tint = Color.Black, modifier = Modifier.size(28.dp))</ID>
+    <ID>ArgumentListWrapping:ContinueCard.kt$(item.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
+    <ID>ArgumentListWrapping:FilmaxChip.kt$( if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant, tween(240), label = "chipFg", )</ID>
+    <ID>ArgumentListWrapping:FilmaxChip.kt$( if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, tween(240), label = "chipBg", )</ID>
+    <ID>ArgumentListWrapping:FilmaxCollectionCard.kt$(alpha = 0.85f)</ID>
+    <ID>ArgumentListWrapping:FilmaxErrorModal.kt$(20.dp)</ID>
+    <ID>ArgumentListWrapping:FilmaxErrorModal.kt$(Icons.Filled.Refresh, contentDescription = null, tint = v.onColor, modifier = Modifier.size(20.dp))</ID>
+    <ID>ArgumentListWrapping:HorizontalRow.kt$(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>ArgumentListWrapping:PosterCard.kt$(Modifier .align(Alignment.TopStart) .padding(8.dp))</ID>
+    <ID>FunctionNaming:ContinueCard.kt$@Composable fun ContinueCard( item: Item, progress: Float, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FilmaxBadge.kt$@Composable fun FilmaxBadge( text: String, modifier: Modifier = Modifier, style: FilmaxBadgeStyle = FilmaxBadgeStyle.Primary, icon: ImageVector? = null, )</ID>
+    <ID>FunctionNaming:FilmaxButton.kt$@Composable fun FilmaxButton( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, variant: FilmaxButtonVariant = FilmaxButtonVariant.Filled, icon: ImageVector? = null, enabled: Boolean = true, )</ID>
+    <ID>FunctionNaming:FilmaxChip.kt$@Composable fun FilmaxChip( label: String, selected: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FilmaxCollectionCard.kt$@Composable fun FilmaxCollectionCard( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
+    <ID>FunctionNaming:FilmaxEmptyState.kt$@Composable fun FilmaxEmptyState( icon: ImageVector, title: String, modifier: Modifier = Modifier, subtitle: String? = null, )</ID>
+    <ID>FunctionNaming:FilmaxErrorModal.kt$@Composable fun FilmaxErrorModal( error: AppError, onDismiss: () -&gt; Unit, onPrimary: () -&gt; Unit, onSecondary: (() -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:FilmaxListGroup.kt$@Composable fun FilmaxListGroup( modifier: Modifier = Modifier, title: String? = null, content: @Composable ColumnScope.() -&gt; Unit, )</ID>
+    <ID>FunctionNaming:FilmaxListGroup.kt$@Composable fun FilmaxListRow( icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, accent: Color = MaterialTheme.colorScheme.primary, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, showDivider: Boolean = false, )</ID>
+    <ID>FunctionNaming:FilmaxSearchField.kt$@Composable fun FilmaxSearchField( query: String, onQueryChange: (String) -&gt; Unit, modifier: Modifier = Modifier, placeholder: String = "Поиск", )</ID>
+    <ID>FunctionNaming:FilmaxStatCard.kt$@Composable fun FilmaxStatCard( label: String, value: String, accent: Color, modifier: Modifier = Modifier, sub: String? = null, shape: Shape = RoundedCornerShape(20.dp), )</ID>
+    <ID>FunctionNaming:FilmaxTabBar.kt$@Composable fun FilmaxTabBar( selected: FilmaxTab, onSelect: (FilmaxTab) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:FilmaxTabBar.kt$@Composable private fun TabItem( tab: FilmaxTab, selected: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:HorizontalRow.kt$@Composable fun HorizontalRow( title: String, accentColor: Color, modifier: Modifier = Modifier, subtitle: String? = null, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:PosterCard.kt$@Composable fun FavButton( isFav: Boolean, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:PosterCard.kt$@Composable fun PosterCard( item: Item, onClick: () -&gt; Unit, modifier: Modifier = Modifier, isFav: Boolean = false, // null — карточка без сердечка (напр. на Главной избранное не показываем). onFavClick: (() -&gt; Unit)? = null, )</ID>
+    <ID>FunctionNaming:PosterImage.kt$@Composable fun GradientPosterPlaceholder(accentColor: Color, modifier: Modifier = Modifier)</ID>
+    <ID>FunctionNaming:PosterImage.kt$@Composable fun PosterImage( url: String, contentDescription: String?, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(20.dp), accentColor: Color = Color(0xFFB4305A), )</ID>
+    <ID>FunctionNaming:RatingPill.kt$@Composable fun RatingPill( rating: Double?, modifier: Modifier = Modifier, compact: Boolean = false, )</ID>
+    <ID>LongMethod:ContinueCard.kt$@Composable fun ContinueCard( item: Item, progress: Float, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:FilmaxCollectionCard.kt$@Composable fun FilmaxCollectionCard( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
+    <ID>LongMethod:FilmaxErrorModal.kt$@Composable fun FilmaxErrorModal( error: AppError, onDismiss: () -&gt; Unit, onPrimary: () -&gt; Unit, onSecondary: (() -&gt; Unit)? = null, )</ID>
+    <ID>LongMethod:FilmaxListGroup.kt$@Composable fun FilmaxListRow( icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, accent: Color = MaterialTheme.colorScheme.primary, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, showDivider: Boolean = false, )</ID>
+    <ID>LongMethod:FilmaxSearchField.kt$@Composable fun FilmaxSearchField( query: String, onQueryChange: (String) -&gt; Unit, modifier: Modifier = Modifier, placeholder: String = "Поиск", )</ID>
+    <ID>LongParameterList:FilmaxButton.kt$( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, variant: FilmaxButtonVariant = FilmaxButtonVariant.Filled, icon: ImageVector? = null, enabled: Boolean = true, )</ID>
+    <ID>LongParameterList:FilmaxCollectionCard.kt$( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
+    <ID>LongParameterList:FilmaxListGroup.kt$( icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, accent: Color = MaterialTheme.colorScheme.primary, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, showDivider: Boolean = false, )</ID>
+    <ID>LongParameterList:FilmaxStatCard.kt$( label: String, value: String, accent: Color, modifier: Modifier = Modifier, sub: String? = null, shape: Shape = RoundedCornerShape(20.dp), )</ID>
+    <ID>MagicNumber:ContinueCard.kt$0xFF141012</ID>
+    <ID>MagicNumber:ContinueCard.kt$0xFFB4305A</ID>
+    <ID>MagicNumber:FilmaxBadge.kt$0xFF1E4D40</ID>
+    <ID>MagicNumber:FilmaxBadge.kt$0xFF5A3B1A</ID>
+    <ID>MagicNumber:FilmaxBadge.kt$0xFF8FD6B5</ID>
+    <ID>MagicNumber:FilmaxBadge.kt$0xFFF4B792</ID>
+    <ID>MagicNumber:FilmaxCollectionCard.kt$0xF2141012</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF06251D</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF1A1012</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF3A2705</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF3A2C05</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF4F2500</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF6AC2B0</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF6B4B8F</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFF9E8B91</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFFB4305A</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFFD4A84A</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFFE46962</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFFE8A43A</ID>
+    <ID>MagicNumber:FilmaxErrorModal.kt$0xFFF4B792</ID>
+    <ID>MagicNumber:PosterCard.kt$0x80000000</ID>
+    <ID>MagicNumber:PosterCard.kt$0xFFB4305A</ID>
+    <ID>MagicNumber:PosterCard.kt$0xFFFFB1C8</ID>
+    <ID>MagicNumber:PosterCard.kt$3f</ID>
+    <ID>MagicNumber:PosterImage.kt$0xFF141012</ID>
+    <ID>MagicNumber:PosterImage.kt$0xFFB4305A</ID>
+    <ID>MagicNumber:PosterImage.kt$200f</ID>
+    <ID>MagicNumber:PosterImage.kt$600f</ID>
+    <ID>MagicNumber:RatingPill.kt$0x8C000000</ID>
+    <ID>MatchingDeclarationName:FilmaxBadge.kt$FilmaxBadgeStyle</ID>
+    <ID>MatchingDeclarationName:FilmaxButton.kt$FilmaxButtonVariant</ID>
+    <ID>MatchingDeclarationName:FilmaxTabBar.kt$FilmaxTab</ID>
+    <ID>MaxLineLength:ContinueCard.kt$Icon(Icons.Filled.PlayArrow, contentDescription = "Играть", tint = Color.Black, modifier = Modifier.size(28.dp))</ID>
+    <ID>MaxLineLength:ContinueCard.kt$Text("Осталось $remainMin мин", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
+    <ID>MaxLineLength:ContinueCard.kt$Text(item.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
+    <ID>MaxLineLength:FilmaxCollectionCard.kt$color = if (hasPoster) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant</ID>
+    <ID>MaxLineLength:FilmaxErrorModal.kt$Icon(Icons.Filled.Refresh, contentDescription = null, tint = v.onColor, modifier = Modifier.size(20.dp))</ID>
+    <ID>MaxLineLength:FilmaxTabBar.kt$fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal</ID>
+    <ID>MaxLineLength:HorizontalRow.kt$Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>MaximumLineLength:ContinueCard.kt$ </ID>
+    <ID>MaximumLineLength:FilmaxCollectionCard.kt$ </ID>
+    <ID>MaximumLineLength:FilmaxErrorModal.kt$ </ID>
+    <ID>MaximumLineLength:FilmaxTabBar.kt$ </ID>
+    <ID>MaximumLineLength:HorizontalRow.kt$ </ID>
+    <ID>MultiLineIfElse:FilmaxChip.kt$MaterialTheme.colorScheme.onPrimaryContainer</ID>
+    <ID>MultiLineIfElse:FilmaxChip.kt$MaterialTheme.colorScheme.onSurfaceVariant</ID>
+    <ID>MultiLineIfElse:FilmaxChip.kt$Modifier</ID>
+    <ID>MultiLineIfElse:FilmaxChip.kt$Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)</ID>
+    <ID>MultiLineIfElse:FilmaxTabBar.kt$MaterialTheme.colorScheme.onPrimaryContainer</ID>
+    <ID>MultiLineIfElse:FilmaxTabBar.kt$MaterialTheme.colorScheme.onSurfaceVariant</ID>
+    <ID>NoMultipleSpaces:RatingPill.kt$ </ID>
+    <ID>NoUnusedImports:ContinueCard.kt$com.filmax.core.ui.components.ContinueCard.kt</ID>
+    <ID>NoUnusedImports:PosterCard.kt$com.filmax.core.ui.components.PosterCard.kt</ID>
+    <ID>Wrapping:PosterCard.kt$(</ID>
+  </CurrentIssues>
+</SmellBaseline>

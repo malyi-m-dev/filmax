@@ -5,6 +5,8 @@ name: Android Build → Telegram
 on:
   push:
     branches: [ claude/android-tv, master ]
+  pull_request:
+    branches: [ master ]
   workflow_dispatch:
     inputs:
       module:
@@ -16,6 +18,39 @@ permissions:
   contents: read
 
 jobs:
+  # Gate на PR: статический анализ detekt + проверка формата (detekt-formatting → ktlint, official).
+  detekt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      # detekt включает detekt-formatting (ktlint) — единый прогон покрывает
+      # и статический анализ, и проверку форматирования. Бейзлайн пропускает
+      # существующий код; новые нарушения валят сборку.
+      - name: Run detekt + format check
+        run: ./gradlew detekt --stacktrace
+
+      - name: Upload detekt reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-reports
+          path: "**/build/reports/detekt/*.html"
+          if-no-files-found: ignore
+
   build:
     runs-on: ubuntu-latest
     steps:

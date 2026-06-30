@@ -1,0 +1,78 @@
+# Filmax — конфиг detekt. Накатывается поверх дефолтного набора (buildUponDefaultConfig = true).
+# Цель: правила из docs/REFACTORING_PLAN.md (§1–2) — единый стиль, запрет `!!`, контроль сложности.
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+# Форматирование (обёртка над ktlint, стиль official). Существующие нарушения уезжают в baseline,
+# новый код проверяется. autoCorrect срабатывает только при запуске detekt с --auto-correct.
+formatting:
+  active: true
+  android: false
+  autoCorrect: true
+  Indentation:
+    active: true
+    autoCorrect: true
+    indentSize: 4
+  MaximumLineLength:
+    active: true
+    maxLineLength: 120
+  NoWildcardImports:
+    active: true
+  NoUnusedImports:
+    active: true
+    autoCorrect: true
+  FinalNewline:
+    active: true
+    autoCorrect: true
+  TrailingCommaOnCallSite:
+    active: false
+  TrailingCommaOnDeclarationSite:
+    active: false
+
+complexity:
+  active: true
+  ComplexCondition:
+    active: true
+    threshold: 4
+  LongMethod:
+    active: true
+    threshold: 60
+  LongParameterList:
+    active: true
+    functionThreshold: 6
+    constructorThreshold: 7
+    ignoreDefaultParameters: false
+    ignoreDataClasses: true
+    ignoreAnnotatedParameter: []
+  NestedBlockDepth:
+    active: true
+    threshold: 4
+
+style:
+  active: true
+  MagicNumber:
+    active: true
+    excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/*Test.kt', '**/*Spec.kt']
+    ignoreNumbers: ['-1', '0', '1', '2']
+    ignoreHashCodeFunction: true
+    ignorePropertyDeclaration: true
+    ignoreLocalVariableDeclaration: true
+    ignoreConstantDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+    ignoreAnnotation: true
+    ignoreNamedArgument: true
+    ignoreEnums: true
+    ignoreRanges: true
+    ignoreExtensionFunctions: true
+
+potential-bugs:
+  active: true
+  # Ловит `!!` (unsafe call on nullable). Требует type resolution — см. CI-шаг detektMain.
+  UnsafeCallOnNullableType:
+    active: true

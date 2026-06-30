@@ -1,0 +1,16 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>FunctionNaming:FilmaxTvTheme.kt$@Composable fun FilmaxTvTheme(content: @Composable () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvComponents.kt$@Composable fun TvButton( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, primary: Boolean = true, leadingIcon: ImageVector? = null, focusRequester: FocusRequester? = null, )</ID>
+    <ID>FunctionNaming:TvComponents.kt$@Composable fun TvFocusCard( onClick: () -&gt; Unit, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(16.dp), focusRequester: FocusRequester? = null, content: @Composable () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:TvPosterTitle.kt$@Composable fun BoxScope.TvPosterTitle( title: String, subtitle: String? = null, modifier: Modifier = Modifier, )</ID>
+    <ID>FunctionNaming:TvScrollToTop.kt$@Composable fun ScrollToTopOnNavFocus(state: LazyGridState)</ID>
+    <ID>FunctionNaming:TvScrollToTop.kt$@Composable fun ScrollToTopOnNavFocus(state: LazyListState)</ID>
+    <ID>FunctionNaming:TvScrollToTop.kt$@Composable fun ScrollToTopOnNavFocus(state: ScrollState)</ID>
+    <ID>ImportOrdering:FilmaxTvTheme.kt$import androidx.compose.runtime.Composable import androidx.compose.runtime.CompositionLocalProvider import androidx.tv.material3.ExperimentalTvMaterial3Api import androidx.tv.material3.MaterialTheme as TvMaterialTheme import androidx.tv.material3.darkColorScheme as tvDarkColorScheme import androidx.compose.material3.MaterialTheme as ComposeMaterialTheme import com.filmax.core.designsystem.FilmaxDarkColorScheme import com.filmax.core.designsystem.FilmaxShapes import com.filmax.core.designsystem.FilmaxTypography</ID>
+    <ID>LongParameterList:TvComponents.kt$( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, primary: Boolean = true, leadingIcon: ImageVector? = null, focusRequester: FocusRequester? = null, )</ID>
+    <ID>MagicNumber:TvPosterTitle.kt$0.55f</ID>
+  </CurrentIssues>
+</SmellBaseline>

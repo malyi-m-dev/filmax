@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:AppError.kt$AppError.Companion$causeName.contains("UnknownHost") || causeName.contains("ConnectException") || causeName.contains("UnresolvedAddress") || text.contains("Unable to resolve host", ignoreCase = true) || text.contains("Failed to connect", ignoreCase = true)</ID>
+    <ID>CyclomaticComplexMethod:AppError.kt$AppError.Companion$fun resolve(message: String?, cause: Throwable? = null): AppError</ID>
+    <ID>MagicNumber:AppError.kt$AppError.Companion$401</ID>
+    <ID>MagicNumber:AppError.kt$AppError.Companion$402</ID>
+    <ID>MagicNumber:AppError.kt$AppError.Companion$403</ID>
+    <ID>MagicNumber:AppError.kt$AppError.Companion$404</ID>
+    <ID>MagicNumber:AppError.kt$AppError.Companion$408</ID>
+    <ID>MagicNumber:GetHomeFeedUseCase.kt$GetHomeFeedUseCase$10</ID>
+    <ID>MagicNumber:GetHomeFeedUseCase.kt$GetHomeFeedUseCase$5</ID>
+    <ID>ReturnCount:AppError.kt$AppError.Companion$fun resolve(message: String?, cause: Throwable? = null): AppError</ID>
+    <ID>TooGenericExceptionCaught:RequestResult.kt$e: Throwable</ID>
+  </CurrentIssues>
+</SmellBaseline>
