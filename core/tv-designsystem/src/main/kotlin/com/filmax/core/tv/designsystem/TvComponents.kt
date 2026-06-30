@@ -3,24 +3,27 @@
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -103,7 +106,11 @@ fun TvFocusCard(
     focusRequester: FocusRequester? = null,
     content: @Composable () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
+    // focused держим в обычном State и читаем ТОЛЬКО внутри draw-лямбды ниже, поэтому смена
+    // фокуса инвалидирует лишь фазу отрисовки рамки, а не рекомпозицию content() (постера).
+    // Это критично для TV: при навигации пультом фокус прыгает по десяткам карточек, и лишняя
+    // рекомпозиция каждого PosterImage на каждый шаг фокуса заметно роняла FPS.
+    val focused = remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape),
@@ -115,22 +122,35 @@ fun TvFocusCard(
             contentColor = TvOnSurface,
             focusedContentColor = TvOnSurface,
         ),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(3.dp, TvFocus), shape = shape),
-        ),
         modifier = modifier
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged { focused.value = it.isFocused }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
     ) {
-        Box {
-            content()
-            if (focused) {
-                Box(
-                    Modifier
-                        .matchParentSize()
-                        .border(3.dp, TvFocus, shape)
-                )
+        // Одна обводка вместо двух: рисуем её поверх контента прямо в draw-фазе (внутри Surface,
+        // чтобы фокус-масштаб 1.1 применился и к рамке). Никакого второго Box со своим border.
+        Box(
+            Modifier.drawWithContent {
+                drawContent()
+                if (focused.value) {
+                    val stroke = Stroke(width = 3.dp.toPx())
+                    when (val outline = shape.createOutline(size, layoutDirection, this)) {
+                        is Outline.Rectangle -> drawRect(color = TvFocus, style = stroke)
+                        is Outline.Rounded -> {
+                            val rr = outline.roundRect
+                            drawRoundRect(
+                                color = TvFocus,
+                                topLeft = Offset(rr.left, rr.top),
+                                size = Size(rr.width, rr.height),
+                                cornerRadius = CornerRadius(rr.topLeftCornerRadius.x, rr.topLeftCornerRadius.y),
+                                style = stroke,
+                            )
+                        }
+                        is Outline.Generic -> drawPath(path = outline.path, color = TvFocus, style = stroke)
+                    }
+                }
             }
+        ) {
+            content()
         }
     }
 }
