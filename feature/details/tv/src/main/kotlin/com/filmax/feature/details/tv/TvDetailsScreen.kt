@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -64,6 +63,8 @@ import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvFocusCard
+import com.filmax.core.ui.components.BackdropGradients
+import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
@@ -136,34 +137,17 @@ fun TvDetailsScreen(
 
 /** Бэкдроп + горизонтальный и вертикальный градиенты затемнения (как в макете). */
 @Composable
-private fun BoxScope.Backdrop(item: Item) {
-    PosterImage(
-        url = item.posters.wide ?: item.posters.big,
-        contentDescription = item.title,
+private fun Backdrop(item: Item) {
+    val surface = MaterialTheme.colorScheme.surface
+    HeroBackdrop(
+        item = item,
+        scrims = listOf(
+            BackdropGradients.tvHorizontal(surface),
+            BackdropGradients.tvVerticalBottom(surface),
+        ),
         modifier = Modifier.fillMaxSize(),
-        shape = RoundedCornerShape(0.dp),
+        posterUrl = item.posters.wide ?: item.posters.big,
         accentColor = Accent,
-    )
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(
-                Brush.horizontalGradient(
-                    0f to MaterialTheme.colorScheme.surface,
-                    0.5f to MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-                    0.85f to Color.Transparent,
-                )
-            )
-    )
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    0.45f to Color.Transparent,
-                    1f to MaterialTheme.colorScheme.surface,
-                )
-            )
     )
 }
 

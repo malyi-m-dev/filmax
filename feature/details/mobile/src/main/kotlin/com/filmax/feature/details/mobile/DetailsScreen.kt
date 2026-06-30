@@ -62,9 +62,11 @@ import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
 import com.filmax.core.designsystem.ShapeLg
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.ui.components.BackdropGradients
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.FilmaxStatCard
+import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import java.util.Locale
@@ -126,6 +128,7 @@ private fun DetailsContent(
     val collapseRange = with(density) { 360.dp.toPx() }
     val p = (scroll.value / collapseRange).coerceIn(0f, 1f)
 
+    val surface = MaterialTheme.colorScheme.surface
     Box(Modifier.fillMaxSize()) {
         // ── Sticky hero backdrop (за контентом, с параллакс-зумом) ─────────────
         Box(
@@ -137,23 +140,15 @@ private fun DetailsContent(
                     scaleY = 1f + p * 0.06f
                 },
         ) {
-            PosterImage(
-                url = item.posters.big,
-                contentDescription = item.title,
+            // Общий постер + базовый вертикальный градиент (см. core:ui HeroBackdrop).
+            HeroBackdrop(
+                item = item,
+                scrims = listOf(BackdropGradients.mobileVertical(surface)),
                 modifier = Modifier.matchParentSize(),
-                shape = RoundedCornerShape(0.dp),
-                accentColor = Color(0xFFB4305A),
+                accentColor = AccentColor,
             )
-            Box(Modifier.matchParentSize().background(
-                Brush.verticalGradient(
-                    0f to Color(0xFF141012).copy(0.3f),
-                    0.3f to Color.Transparent,
-                    0.7f to Color.Transparent,
-                    1f to MaterialTheme.colorScheme.surface,
-                )
-            ))
             // Затемнение нарастает по мере сворачивания.
-            Box(Modifier.matchParentSize().background(Color(0xFF0A0809).copy(alpha = p * 0.55f)))
+            Box(Modifier.matchParentSize().background(BackdropGradients.collapseScrim(p)))
             // Bottom info — гаснет и слегка уезжает вниз.
             Column(
                 Modifier
