@@ -215,7 +215,12 @@ fun FilmaxErrorModal(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (v.retry) {
-                        Icon(Icons.Filled.Refresh, contentDescription = null, tint = v.onColor, modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = null,
+                            tint = v.onColor,
+                            modifier = Modifier.size(20.dp)
+                        )
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(v.primary, color = v.onColor, fontWeight = FontWeight.Bold, fontSize = 16.sp)

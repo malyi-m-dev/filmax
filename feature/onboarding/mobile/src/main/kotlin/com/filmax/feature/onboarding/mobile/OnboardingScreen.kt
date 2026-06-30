@@ -1,10 +1,5 @@
 package com.filmax.feature.onboarding.mobile
 
-import com.filmax.feature.onboarding.common.OnboardingScreenModel
-import com.filmax.feature.onboarding.common.OnboardingState
-import com.filmax.feature.onboarding.common.OnboardingEvent
-import com.filmax.feature.onboarding.common.OnboardingSideEffect
-
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
@@ -71,11 +66,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
+import com.filmax.feature.onboarding.common.OnboardingEvent
+import com.filmax.feature.onboarding.common.OnboardingScreenModel
+import com.filmax.feature.onboarding.common.OnboardingSideEffect
+import com.filmax.feature.onboarding.common.OnboardingState
 import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
 
 private val CardCornerRadius = 24.dp
 private val SmallIconSize = 16.dp
@@ -134,9 +133,9 @@ fun OnboardingScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) { step ->
                 when (step) {
-                    0    -> StepWelcome()
-                    1    -> StepFeatures()
-                    2    -> StepAuth(
+                    0 -> StepWelcome()
+                    1 -> StepFeatures()
+                    2 -> StepAuth(
                         state = state,
                         onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
                     )
@@ -625,8 +624,11 @@ private fun StepIndicators(current: Int, total: Int) {
                     .width(width)
                     .clip(CircleShape)
                     .background(
-                        if (isActive) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.surfaceContainerHigh
+                        if (isActive) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHigh
+                        }
                     ),
             )
         }

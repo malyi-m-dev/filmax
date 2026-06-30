@@ -33,12 +33,17 @@ fun FilmaxChip(
 ) {
     val bgColor by animateColorAsState(
         if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        tween(240), label = "chipBg",
+        tween(240),
+        label = "chipBg",
     )
     val contentColor by animateColorAsState(
-        if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-        else MaterialTheme.colorScheme.onSurfaceVariant,
-        tween(240), label = "chipFg",
+        if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        tween(240),
+        label = "chipFg",
     )
     val shape = RoundedCornerShape(percent = 50)
 
@@ -49,8 +54,11 @@ fun FilmaxChip(
             .clip(shape)
             .clickable(onClick = onClick)
             .then(
-                if (!selected) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                else Modifier
+                if (!selected) {
+                    Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
+                } else {
+                    Modifier
+                }
             ),
     ) {
         Row(

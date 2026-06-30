@@ -56,8 +56,18 @@ fun TvCollectionDetailScreen(
         // Отступы сетки вынесены в contentPadding, чтобы постер при фокусе (scale 1.1) рос
         // внутрь viewport и не срезался границей по краям/сверху.
         Column(Modifier.padding(horizontal = 72.dp)) {
-            Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
-            Text("Подборка", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 20.dp))
+            Text(
+                title,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "Подборка",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 6.dp, bottom = 20.dp)
+            )
         }
 
         when {

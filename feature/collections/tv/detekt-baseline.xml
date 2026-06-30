@@ -2,28 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>ArgumentListWrapping:TvCollectionDetailScreen.kt$("Подборка", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 20.dp))</ID>
-    <ID>ArgumentListWrapping:TvCollectionDetailScreen.kt$(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)</ID>
-    <ID>ArgumentListWrapping:TvCollectionDetailScreen.kt$(top = 6.dp, bottom = 20.dp)</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$("Подборки", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$("Тематические коллекции", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(alpha = 0.8f)</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(collection = collection, onClick = { onOpenCollection(collection.id, collection.title) })</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(collection.id, collection.title)</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(collection.title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(it, fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f), maxLines = 1, modifier = Modifier.padding(top = 4.dp))</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(top = 4.dp)</ID>
-    <ID>ArgumentListWrapping:TvCollectionsScreen.kt$(top = 8.dp, bottom = 20.dp)</ID>
-    <ID>ImportOrdering:TvCollectionsScreen.kt$import androidx.compose.foundation.background import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.PaddingValues import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.lazy.grid.GridCells import androidx.compose.foundation.lazy.grid.LazyVerticalGrid import androidx.compose.foundation.lazy.grid.items import androidx.compose.foundation.lazy.grid.rememberLazyGridState import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.material3.CircularProgressIndicator import androidx.compose.material3.MaterialTheme import androidx.compose.material3.Text import androidx.compose.runtime.Composable import androidx.compose.runtime.getValue import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import com.filmax.core.domain.catalog.model.Collection import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus import com.filmax.core.tv.designsystem.TvFocusCard import com.filmax.core.ui.components.PosterImage import com.filmax.feature.collections.common.CollectionsScreenModel import org.koin.androidx.compose.koinViewModel</ID>
     <ID>MatchingDeclarationName:TvCollectionsNavigation.kt$TvCollectionsRoute</ID>
-    <ID>MaxLineLength:TvCollectionDetailScreen.kt$Text("Подборка", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 20.dp))</ID>
-    <ID>MaxLineLength:TvCollectionDetailScreen.kt$Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)</ID>
-    <ID>MaxLineLength:TvCollectionsScreen.kt$CollectionCard(collection = collection, onClick = { onOpenCollection(collection.id, collection.title) })</ID>
-    <ID>MaxLineLength:TvCollectionsScreen.kt$Text("Подборки", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)</ID>
-    <ID>MaxLineLength:TvCollectionsScreen.kt$Text("Тематические коллекции", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))</ID>
-    <ID>MaxLineLength:TvCollectionsScreen.kt$Text(collection.title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)</ID>
-    <ID>MaxLineLength:TvCollectionsScreen.kt$Text(it, fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f), maxLines = 1, modifier = Modifier.padding(top = 4.dp))</ID>
-    <ID>MaximumLineLength:TvCollectionDetailScreen.kt$ </ID>
-    <ID>MaximumLineLength:TvCollectionsScreen.kt$ </ID>
   </CurrentIssues>
 </SmellBaseline>

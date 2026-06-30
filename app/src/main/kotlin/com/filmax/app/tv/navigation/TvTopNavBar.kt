@@ -54,8 +54,11 @@ private val TABS = listOf(
 
 /** Маршруты, на которых показывается таб-бар (5 основных разделов). */
 val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
-    TvHomeRoute::class, TvSearchRoute::class, TvCollectionsRoute::class,
-    TvLibraryRoute::class, TvProfileRoute::class,
+    TvHomeRoute::class,
+    TvSearchRoute::class,
+    TvCollectionsRoute::class,
+    TvLibraryRoute::class,
+    TvProfileRoute::class,
 )
 
 /**
@@ -93,8 +96,20 @@ fun TvTopNavBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text("Filmax", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, softWrap = false)
-            Text(".", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary, maxLines = 1, softWrap = false)
+            Text(
+                "Filmax",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                softWrap = false
+            )
+            Text(
+                ".",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+                maxLines = 1,
+                softWrap = false
+            )
         }
         Spacer(Modifier.width(32.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -118,9 +133,21 @@ fun TvTopNavBar(
             contentAlignment = Alignment.Center,
         ) {
             if (initials.isNotBlank()) {
-                Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
+                Text(
+                    initials,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    softWrap = false
+                )
             } else {
-                Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                Icon(
+                    Icons.Filled.Person,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

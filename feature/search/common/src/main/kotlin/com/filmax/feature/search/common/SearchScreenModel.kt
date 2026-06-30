@@ -39,8 +39,14 @@ class SearchScreenModel(
             updateState {
                 it.copy(
                     trendingQueries = listOf(
-                        "Мстители", "Дюна", "Офис", "Ведьмак",
-                        "Интерстеллар", "Breaking Bad", "Опpenheimer", "Игра престолов",
+                        "Мстители",
+                        "Дюна",
+                        "Офис",
+                        "Ведьмак",
+                        "Интерстеллар",
+                        "Breaking Bad",
+                        "Опpenheimer",
+                        "Игра престолов",
                     )
                 )
             }

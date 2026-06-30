@@ -1,10 +1,10 @@
 package com.filmax.feature.collections.tv
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -60,8 +60,18 @@ fun TvCollectionsScreen(
         // contentPadding, чтобы карточка при фокусе (scale 1.1) росла внутрь viewport и
         // не срезалась его границей по краям/сверху.
         Column(Modifier.padding(horizontal = 72.dp)) {
-            Text("Подборки", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
-            Text("Тематические коллекции", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))
+            Text(
+                "Подборки",
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                "Тематические коллекции",
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp, bottom = 20.dp)
+            )
         }
 
         when {
@@ -77,7 +87,10 @@ fun TvCollectionsScreen(
                 contentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 16.dp, bottom = 40.dp),
             ) {
                 items(state.collections, key = { it.id }) { collection ->
-                    CollectionCard(collection = collection, onClick = { onOpenCollection(collection.id, collection.title) })
+                    CollectionCard(
+                        collection = collection,
+                        onClick = { onOpenCollection(collection.id, collection.title) }
+                    )
                 }
             }
         }
@@ -108,9 +121,21 @@ private fun CollectionCard(collection: Collection, onClick: () -> Unit) {
                     )
             )
             Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-                Text(collection.title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)
+                Text(
+                    collection.title,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    maxLines = 2
+                )
                 collection.description?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, fontSize = 14.sp, color = Color.White.copy(alpha = 0.8f), maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        it,
+                        fontSize = 14.sp,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
                 }
             }
         }

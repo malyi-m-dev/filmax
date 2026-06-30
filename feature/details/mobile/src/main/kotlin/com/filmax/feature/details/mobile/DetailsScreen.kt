@@ -1,9 +1,5 @@
 package com.filmax.feature.details.mobile
 
-import com.filmax.feature.details.common.DetailsScreenModel
-import com.filmax.feature.details.common.DetailsState
-import com.filmax.feature.details.common.DetailsEvent
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -56,7 +52,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
@@ -69,6 +64,10 @@ import com.filmax.core.ui.components.FilmaxStatCard
 import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
+import com.filmax.feature.details.common.DetailsEvent
+import com.filmax.feature.details.common.DetailsScreenModel
+import com.filmax.feature.details.common.DetailsState
+import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
 
 private val AccentColor = Color(0xFFB4305A)
@@ -164,19 +163,28 @@ private fun DetailsContent(
                     Text(
                         item.genres.firstOrNull()?.title ?: "",
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 10.sp, fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.5.sp,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        letterSpacing = 1.5.sp,
                     )
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(item.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
                 Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     RatingPill(rating = item.rating.external)
                     Dot()
                     Text("${item.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
                     Dot()
-                    Text("${item.duration.averageMinutes?.toInt() ?: "?"} мин", fontSize = 13.sp, color = Color.White.copy(0.85f))
+                    Text(
+                        "${item.duration.averageMinutes?.toInt() ?: "?"} мин",
+                        fontSize = 13.sp,
+                        color = Color.White.copy(0.85f)
+                    )
                     Dot()
                     Text(item.country, fontSize = 13.sp, color = Color.White.copy(0.85f))
                 }
@@ -196,7 +204,11 @@ private fun DetailsContent(
             Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(top = 16.dp)) {
                     // ── Action row ──────────────────────────────────────────────
-                    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
@@ -211,10 +223,23 @@ private fun DetailsContent(
                             color = MaterialTheme.colorScheme.primaryContainer,
                             onClick = onPlay,
                         ) {
-                            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Row(
+                                Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Filled.PlayArrow,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Смотреть", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                Text(
+                                    "Смотреть",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
                             }
                         }
                         ActionSquare(
@@ -237,7 +262,10 @@ private fun DetailsContent(
                     }
 
                     // ── Tabs ────────────────────────────────────────────────────
-                    Row(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         listOf("about" to "О фильме", "cast" to "Актёры").forEach { (id, label) ->
                             FilmaxChip(label = label, selected = tab == id, onClick = { tab = id })
                         }
@@ -248,7 +276,7 @@ private fun DetailsContent(
                         "about" -> AboutTab(item = item, onPlayTrailer = {
                             item.trailer?.url?.let { openExternalUrl(context, it) }
                         })
-                        "cast"  -> CastTab(item)
+                        "cast" -> CastTab(item)
                     }
                 }
             }
@@ -265,9 +293,22 @@ private fun DetailsContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             GlassButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
             }
-            GlassButton(onClick = {}) { Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) }
+            GlassButton(onClick = {
+            }) {
+                Icon(
+                    Icons.Filled.MoreVert,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
         // ── Collapsed compact app bar — проявляется при p > 0.65 ───────────────
@@ -288,7 +329,11 @@ private fun DetailsContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     Text(
                         item.title,
@@ -347,16 +392,39 @@ private fun openExternalUrl(context: android.content.Context, url: String) {
 @Composable
 private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp)) {
-        Text(item.plot, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 20.dp))
+        Text(
+            item.plot,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 20.dp)
+        )
 
         // Stats grid — M3 Expressive colored surfaces
         val director = item.director.ifBlank { "—" }
         val ratingValue = item.rating.external?.let { String.format(Locale.US, "%.1f", it) } ?: "N/A"
         val stats = listOf(
             StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "IMDb · КП"),
-            StatItem(Color(0xFFF4B792), ShapeCookie, "Длительность", "${item.duration.averageMinutes?.toInt() ?: "?"}", "мин"),
-            StatItem(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр", director.substringBefore(" "), director.substringAfter(" ", "")),
-            StatItem(Color(0xFFE86D9E), ShapeLg, "Жанр", item.genres.firstOrNull()?.title ?: "—", item.genres.getOrNull(1)?.title ?: "—"),
+            StatItem(
+                Color(0xFFF4B792),
+                ShapeCookie,
+                "Длительность",
+                "${item.duration.averageMinutes?.toInt() ?: "?"}",
+                "мин"
+            ),
+            StatItem(
+                Color(0xFF6AC2B0),
+                ShapeAsymB,
+                "Режиссёр",
+                director.substringBefore(" "),
+                director.substringAfter(" ", "")
+            ),
+            StatItem(
+                Color(0xFFE86D9E),
+                ShapeLg,
+                "Жанр",
+                item.genres.firstOrNull()?.title ?: "—",
+                item.genres.getOrNull(1)?.title ?: "—"
+            ),
         )
         // Два ряда обычных Row — сетка измеряется по контенту и не накладывается на трейлер.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -379,7 +447,12 @@ private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
         // Trailer preview
         if (item.trailer != null) {
             Spacer(Modifier.height(24.dp))
-            Text("Трейлер", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 12.dp))
+            Text(
+                "Трейлер",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -403,7 +476,12 @@ private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
                         .background(Color.White),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))
+                    Icon(
+                        Icons.Filled.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
                 Text(
                     "Официальный трейлер",
@@ -429,7 +507,12 @@ private data class StatItem(
 private fun CastTab(item: Item) {
     val colors = listOf(Color(0xFFB4305A), Color(0xFFE86D9E), Color(0xFFF4B792), Color(0xFF6AC2B0), Color(0xFF6B4B8F))
     Column(Modifier.padding(horizontal = 20.dp)) {
-        Text("В ролях", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))
+        Text(
+            "В ролях",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 14.dp)
+        )
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             item.cast.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEachIndexed { i, name ->
                 val initials = name.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("")
@@ -437,20 +520,33 @@ private fun CastTab(item: Item) {
                     Box(
                         modifier = Modifier.size(88.dp)
                             .clip(if (i % 2 == 0) ShapeCookie else CircleShape)
-                            .background(Brush.linearGradient(listOf(colors[i % colors.size], colors[(i + 1) % colors.size]))),
+                            .background(
+                                Brush.linearGradient(listOf(colors[i % colors.size], colors[(i + 1) % colors.size]))
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(initials, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text(name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, modifier = Modifier.fillMaxWidth())
+                    Text(
+                        name,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
 
         // Команда
         Spacer(Modifier.height(24.dp))
-        Text("Команда", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))
+        Text(
+            "Команда",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 14.dp)
+        )
         Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
             Column(Modifier.padding(16.dp)) {
                 InfoRow("Режиссёр", item.director.ifBlank { "—" })

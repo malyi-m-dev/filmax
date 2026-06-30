@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -70,7 +70,12 @@ fun TvLibraryScreen(
             .background(MaterialTheme.colorScheme.background)
             .padding(start = 72.dp, end = 72.dp, top = 120.dp),
     ) {
-        Text("Моя библиотека", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            "Моя библиотека",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(Modifier.height(24.dp))
 
         // ── Табы ────────────────────────────────────────────────────────
@@ -139,7 +144,9 @@ private fun TabChip(label: String, count: Int, active: Boolean, onClick: () -> U
         Row(
             modifier = Modifier
                 .clip(shape)
-                .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
+                .background(
+                    if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+                )
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -153,7 +160,13 @@ private fun TabChip(label: String, count: Int, active: Boolean, onClick: () -> U
             Text(
                 "$count",
                 fontSize = 13.sp,
-                color = if (active) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (active) {
+                    MaterialTheme.colorScheme.onPrimaryContainer.copy(
+                        alpha = 0.8f
+                    )
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
             )
         }
     }

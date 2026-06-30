@@ -326,7 +326,8 @@ private fun HeroMeta(item: Item) {
         MetaText("${item.year}")
         MetaDot()
         item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let {
-            MetaText(formatDuration(it)); MetaDot()
+            MetaText(formatDuration(it))
+            MetaDot()
         }
         MetaText(item.genres.take(3).joinToString(" · ") { it.title })
     }

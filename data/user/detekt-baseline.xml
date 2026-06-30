@@ -4,11 +4,6 @@
   <CurrentIssues>
     <ID>LongParameterList:UserApi.kt$UserApi$( id: Int, supportSsl: Int, supportHevc: Int, supportHdr: Int, support4k: Int, mixedPlaylist: Int, streamingType: Int, serverLocation: Int, )</ID>
     <ID>MagicNumber:UserRepositoryImpl.kt$UserRepositoryImpl$1000</ID>
-    <ID>ModifierListSpacing:UserDto.kt$DeviceInfoDto$@SerialName("support_4k")</ID>
-    <ID>ModifierListSpacing:UserDto.kt$DeviceInfoDto$@SerialName("support_hdr")</ID>
-    <ID>ModifierListSpacing:UserDto.kt$DeviceInfoDto$@SerialName("support_hevc")</ID>
-    <ID>ModifierListSpacing:UserDto.kt$DeviceInfoDto$@SerialName("support_ssl")</ID>
-    <ID>NoMultipleSpaces:UserDto.kt$DeviceInfoDto$ </ID>
     <ID>TooManyFunctions:UserRepositoryImpl.kt$UserRepositoryImpl : UserRepository</ID>
   </CurrentIssues>
 </SmellBaseline>

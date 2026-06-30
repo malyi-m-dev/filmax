@@ -45,11 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.designsystem.ShapeCookie
-import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.user.model.initials
+import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
@@ -109,9 +109,23 @@ fun TvProfileScreen(
         ProfileHero(state = state, modifier = Modifier.width(400.dp))
         ProfileSettings(
             state = state,
-            onCycleQuality = { screenModel.dispatch(ProfileEvent.SetQuality(next(PlaybackSettings.qualityOptions, state.playback.quality))) },
-            onCycleAudio = { screenModel.dispatch(ProfileEvent.SetAudioLanguage(next(PlaybackSettings.audioOptions, state.playback.audioLanguage))) },
-            onCycleSubtitle = { screenModel.dispatch(ProfileEvent.SetSubtitleLanguage(next(PlaybackSettings.subtitleOptions, state.playback.subtitleLanguage))) },
+            onCycleQuality = {
+                screenModel.dispatch(
+                    ProfileEvent.SetQuality(next(PlaybackSettings.qualityOptions, state.playback.quality))
+                )
+            },
+            onCycleAudio = {
+                screenModel.dispatch(
+                    ProfileEvent.SetAudioLanguage(next(PlaybackSettings.audioOptions, state.playback.audioLanguage))
+                )
+            },
+            onCycleSubtitle = {
+                screenModel.dispatch(
+                    ProfileEvent.SetSubtitleLanguage(
+                        next(PlaybackSettings.subtitleOptions, state.playback.subtitleLanguage)
+                    )
+                )
+            },
             onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
             modifier = Modifier.weight(1f),
         )
@@ -137,14 +151,24 @@ private fun ProfileHero(state: ProfileState, modifier: Modifier = Modifier) {
                     .background(Brush.linearGradient(AvatarGradient)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(profile.initialsOrFallback(), color = InitialsColor, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                Text(
+                    profile.initialsOrFallback(),
+                    color = InitialsColor,
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.ExtraBold
+                )
             }
             Spacer(Modifier.width(18.dp))
             Column(Modifier.weight(1f)) {
                 Text(username, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, contentDescription = null, tint = Color(0xFFFFD89A), modifier = Modifier.size(13.dp))
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = Color(0xFFFFD89A),
+                        modifier = Modifier.size(13.dp)
+                    )
                     Spacer(Modifier.width(6.dp))
                     Text(profile?.subscription.label(), fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f))
                 }
@@ -312,7 +336,13 @@ private fun SettingRow(
                             .background(accent)
                             .padding(horizontal = 10.dp, vertical = 3.dp),
                     ) {
-                        Text(badge, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = Color.White)
+                        Text(
+                            badge,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.sp,
+                            color = Color.White
+                        )
                     }
                 }
             }
