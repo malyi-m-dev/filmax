@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,10 +31,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +51,7 @@ import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
+import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
 import com.filmax.feature.home.common.HomeState
 import org.koin.androidx.compose.koinViewModel
@@ -71,14 +81,34 @@ fun TvHomeScreen(
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
 
-            else -> TvHomeContent(state = state, onOpenItem = onOpenItem)
+            else -> TvHomeContent(
+                state = state,
+                onOpenItem = onOpenItem,
+                onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
+            )
         }
     }
 }
 
 @Composable
-private fun TvHomeContent(state: HomeState, onOpenItem: (Int) -> Unit) {
+private fun TvHomeContent(
+    state: HomeState,
+    onOpenItem: (Int) -> Unit,
+    onLoadMore: () -> Unit,
+) {
+    val listState = rememberLazyListState()
+    // Триггер догрузки «Все»: когда фокус/скролл подводит к последним строкам списка.
+    val loadMore by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
+        }
+    }
+    LaunchedEffect(loadMore) { if (loadMore) onLoadMore() }
+
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = 0.dp, bottom = 56.dp),
         verticalArrangement = Arrangement.spacedBy(36.dp),
@@ -120,6 +150,82 @@ private fun TvHomeContent(state: HomeState, onOpenItem: (Int) -> Unit) {
                         TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
                     }
                 }
+            }
+        }
+
+        // ── Все — постранично подгружаемая сетка (6 в ряд) ──────────────────────
+        if (state.all.isNotEmpty()) {
+            item(key = "all_title") { TvSectionTitle("Все") }
+            val rows = state.all.chunked(ALL_COLUMNS)
+            itemsIndexed(rows, key = { index, _ -> "all_row_$index" }) { _, rowItems ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 72.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                ) {
+                    rowItems.forEach { itm ->
+                        TvAllPosterCell(item = itm, onClick = { onOpenItem(itm.id) })
+                    }
+                    // Добиваем неполную строку, чтобы колонки не растягивались.
+                    repeat(ALL_COLUMNS - rowItems.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+            if (state.allLoadingMore) {
+                item(key = "all_loading") {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val ALL_COLUMNS = 6
+
+@Composable
+private fun TvSectionTitle(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(start = 72.dp),
+    )
+}
+
+@Composable
+private fun RowScope.TvAllPosterCell(item: Item, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(16.dp)
+    Box(Modifier.weight(1f)) {
+        TvFocusCard(
+            onClick = onClick,
+            shape = shape,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f),
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                PosterImage(
+                    url = item.posters.medium.ifEmpty { item.posters.big },
+                    contentDescription = item.title,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = shape,
+                    accentColor = Accent,
+                )
+                RatingPill(
+                    rating = item.rating.external,
+                    compact = true,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                )
             }
         }
     }
@@ -246,6 +352,7 @@ private fun EditorsChoicePill() {
 }
 
 // ── Rails ─────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun TvRail(title: String, content: LazyListScope.() -> Unit) {
     Column {
@@ -256,7 +363,10 @@ private fun TvRail(title: String, content: LazyListScope.() -> Unit) {
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(start = 72.dp, bottom = 16.dp),
         )
+        // focusRestorer: «вниз» в ряд ведёт на первый элемент, дальше запоминает позицию —
+        // иначе D-pad ищет пространственно-ближайшую карточку и после скролла мажет мимо первой.
         LazyRow(
+            modifier = Modifier.focusRestorer(),
             contentPadding = PaddingValues(horizontal = 72.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             content = content,

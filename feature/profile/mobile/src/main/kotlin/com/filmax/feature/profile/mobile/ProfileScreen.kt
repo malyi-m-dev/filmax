@@ -1,11 +1,12 @@
 package com.filmax.feature.profile.mobile
 
-import com.filmax.feature.profile.common.ProfileScreenModel
-import com.filmax.feature.profile.common.ProfileState
 import com.filmax.feature.profile.common.ProfileEvent
+import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
+import com.filmax.feature.profile.common.ProfileState
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,15 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,10 +36,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,7 +53,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.designsystem.ShapeCookie
@@ -62,6 +72,9 @@ import com.filmax.core.ui.components.FilmaxListRow
 import org.koin.androidx.compose.koinViewModel
 
 private val SectionPadding = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp)
+
+private val AvatarGradient = listOf(Color(0xFFFFD89A), Color(0xFFF4B792))
+private val InitialsColor = Color(0xFF5E1133)
 
 @Composable
 fun ProfileScreen(
@@ -85,101 +98,38 @@ fun ProfileScreen(
         return
     }
 
-    val subscription = state.profile?.subscription
     var activeSheet by remember { mutableStateOf<ProfileSheet?>(null) }
+    val density = LocalDensity.current
+    val header = rememberCollapsingHeaderState(initialHeightPx = with(density) { 340.dp.roundToPx() })
 
-    Box(modifier.fillMaxSize()) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState()),
-    ) {
-        ProfileHero(
-            username = state.profile?.username ?: "",
-            watchedCount = state.watchedCount,
-            favoritesCount = state.favoritesCount,
-            quality = state.quality,
-            subscription = subscription,
+    Box(modifier.fillMaxSize().nestedScroll(header.nestedScrollConnection)) {
+        ProfileContent(
+            state = state,
+            topInset = with(density) { header.spacerHeightPx.toDp() },
+            onOpenSheet = { activeSheet = it },
+            onOpenDesignSystem = onOpenDesignSystem,
+            onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
         )
 
-        // TODO: значения строк ниже (кроме «Подписка») — статичные заглушки.
-        //  Эти настройки клиентские и в API отсутствуют: «Качество видео (Авто)»,
-        //  «Загрузки», «Субтитры и аудио», «Уведомления (вкл/выкл)», «Приватность»,
-        //  число подключённых устройств. В будущем их нужно хранить локально
-        //  (DataStore/multiplatform-settings) и завести соответствующие экраны.
-        // ── Просмотр ────────────────────────────────────────────────────────────
-        FilmaxListGroup(
-            title = "Просмотр",
-            modifier = SectionPadding,
-        ) {
-            FilmaxListRow(
-                icon = Icons.Filled.HighQuality,
-                accent = Color(0xFFB4305A),
-                label = "Качество видео",
-                value = state.playback.quality,
-                onClick = { activeSheet = ProfileSheet.QUALITY },
-                showDivider = true,
-            )
-            FilmaxListRow(
-                icon = Icons.Filled.Subtitles,
-                accent = Color(0xFFF4B792),
-                label = "Субтитры и аудио",
-                value = subtitleSummary(state.playback),
-                onClick = { activeSheet = ProfileSheet.SUBTITLES },
-                showDivider = true,
-            )
-            FilmaxListRow(
-                icon = Icons.Filled.Download,
-                accent = Color(0xFF6AC2B0),
-                label = "Загрузки",
-                value = "Только по Wi-Fi",
+        // Закреплённая шапка: уезжает вверх и гаснет по мере сворачивания.
+        ProfileHero(
+            state = state,
+            modifier = Modifier
+                .onSizeChanged { header.heightPx = it.height }
+                .graphicsLayer {
+                    translationY = header.offsetPx
+                    alpha = (1f - header.progress * 1.3f).coerceIn(0f, 1f)
+                },
+        )
+
+        // Компактная шапка: проявляется на финальной трети сворачивания.
+        val barAlpha = ((header.progress - 0.65f) / 0.35f).coerceIn(0f, 1f)
+        if (barAlpha > 0f) {
+            ProfileCompactBar(
+                username = state.username,
+                modifier = Modifier.graphicsLayer { alpha = barAlpha },
             )
         }
-
-        // ── Аккаунт ─────────────────────────────────────────────────────────────
-        FilmaxListGroup(
-            title = "Аккаунт",
-            modifier = SectionPadding,
-        ) {
-            FilmaxListRow(
-                icon = Icons.Filled.Star,
-                accent = Color(0xFFD4A84A),
-                label = "Подписка",
-                value = if (subscription?.active == true) "Premium" else "Неактивна",
-                badge = if (subscription?.active == true) "PREMIUM" else null,
-            )
-        }
-
-        // ── Разработчикам ───────────────────────────────────────────────────────
-        if (onOpenDesignSystem != null) {
-            FilmaxListGroup(
-                title = "Разработчикам",
-                modifier = SectionPadding,
-            ) {
-                FilmaxListRow(
-                    icon = Icons.Filled.Code,
-                    accent = MaterialTheme.colorScheme.primaryContainer,
-                    label = "Дизайн-система",
-                    value = "Каталог компонентов",
-                    onClick = onOpenDesignSystem,
-                )
-            }
-        }
-
-        // ── Выход ───────────────────────────────────────────────────────────────
-        FilmaxListGroup(modifier = SectionPadding) {
-            FilmaxListRow(
-                icon = Icons.AutoMirrored.Filled.Logout,
-                accent = MaterialTheme.colorScheme.error,
-                label = "Выйти",
-                labelColor = MaterialTheme.colorScheme.error,
-                onClick = { screenModel.dispatch(ProfileEvent.Logout) },
-            )
-        }
-
-        Spacer(Modifier.height(120.dp))
-    }
 
         PlaybackSettingsSheets(
             activeSheet = activeSheet,
@@ -192,16 +142,250 @@ fun ProfileScreen(
     }
 }
 
-private enum class ProfileSheet { QUALITY, SUBTITLES }
+@Composable
+private fun ProfileContent(
+    state: ProfileState,
+    topInset: Dp,
+    onOpenSheet: (ProfileSheet) -> Unit,
+    onOpenDesignSystem: (() -> Unit)?,
+    onLogout: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        // Резерв под закреплённую шапку — ужимается синхронно с её сворачиванием.
+        Spacer(Modifier.height(topInset))
 
-private fun subtitleSummary(playback: PlaybackSettings): String {
-    val subs = if (playback.subtitleLanguage == PlaybackSettings.SubtitleOff) {
-        "субтитры выкл"
-    } else {
-        "суб: ${playback.subtitleLanguage}"
+        // TODO: значения строк ниже (кроме «Подписка») — статичные заглушки.
+        //  Эти настройки клиентские и в API отсутствуют: «Качество видео (Авто)»,
+        //  «Загрузки», «Субтитры и аудио», «Уведомления (вкл/выкл)», «Приватность».
+        //  В будущем их нужно хранить локально (DataStore/multiplatform-settings).
+        FilmaxListGroup(title = "Просмотр", modifier = SectionPadding) {
+            FilmaxListRow(
+                icon = Icons.Filled.HighQuality,
+                accent = Color(0xFFB4305A),
+                label = "Качество видео",
+                value = state.playback.quality,
+                onClick = { onOpenSheet(ProfileSheet.QUALITY) },
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Subtitles,
+                accent = Color(0xFFF4B792),
+                label = "Субтитры и аудио",
+                value = state.playback.subtitleSummary(),
+                onClick = { onOpenSheet(ProfileSheet.SUBTITLES) },
+                showDivider = true,
+            )
+            FilmaxListRow(
+                icon = Icons.Filled.Download,
+                accent = Color(0xFF6AC2B0),
+                label = "Загрузки",
+                value = "Только по Wi-Fi",
+            )
+        }
+
+        FilmaxListGroup(title = "Аккаунт", modifier = SectionPadding) {
+            val active = state.profile?.subscription?.active == true
+            FilmaxListRow(
+                icon = Icons.Filled.Star,
+                accent = Color(0xFFD4A84A),
+                label = "Подписка",
+                value = if (active) "Premium" else "Неактивна",
+                badge = if (active) "PREMIUM" else null,
+            )
+        }
+
+        if (onOpenDesignSystem != null) {
+            FilmaxListGroup(title = "Разработчикам", modifier = SectionPadding) {
+                FilmaxListRow(
+                    icon = Icons.Filled.Code,
+                    accent = MaterialTheme.colorScheme.primaryContainer,
+                    label = "Дизайн-система",
+                    value = "Каталог компонентов",
+                    onClick = onOpenDesignSystem,
+                )
+            }
+        }
+
+        FilmaxListGroup(modifier = SectionPadding) {
+            FilmaxListRow(
+                icon = Icons.AutoMirrored.Filled.Logout,
+                accent = MaterialTheme.colorScheme.error,
+                label = "Выйти",
+                labelColor = MaterialTheme.colorScheme.error,
+                onClick = onLogout,
+            )
+        }
+
+        Spacer(Modifier.height(120.dp))
     }
-    return "${playback.audioLanguage} · $subs"
 }
+
+// ── Шапка ───────────────────────────────────────────────────────────────────
+@Composable
+private fun ProfileHero(state: ProfileState, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .background(
+                Brush.linearGradient(
+                    0.0f to Color(0xFFB4305A),
+                    0.6f to Color(0xFF6B4B8F),
+                    1.0f to MaterialTheme.colorScheme.surface,
+                    start = Offset(Float.POSITIVE_INFINITY, 0f),
+                    end = Offset(0f, Float.POSITIVE_INFINITY),
+                )
+            )
+            .statusBarsPadding()
+            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 28.dp),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            HeroTitleRow()
+            Spacer(Modifier.height(20.dp))
+            HeroIdentity(username = state.username, subscription = state.profile?.subscription)
+            Spacer(Modifier.height(20.dp))
+            HeroStats(
+                watchedCount = state.watchedCount,
+                favoritesCount = state.favoritesCount,
+                quality = state.quality,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroTitleRow() {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            "Профиль",
+            style = MaterialTheme.typography.titleLarge,
+            color = Color.White,
+            modifier = Modifier.weight(1f),
+        )
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.Settings,
+                contentDescription = "Настройки",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroIdentity(username: String, subscription: Subscription?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Avatar(username = username, size = 80.dp, fontSize = 28.sp)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                username.ifEmpty { "Гость" },
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+            )
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.Star,
+                    contentDescription = null,
+                    tint = Color(0xFFFFD89A),
+                    modifier = Modifier.size(12.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    subscription.label(),
+                    fontSize = 12.sp,
+                    color = Color.White.copy(alpha = 0.8f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroStats(watchedCount: Int, favoritesCount: Int, quality: String?) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        StatCard(value = watchedCount.toString(), label = "Просмотрено", modifier = Modifier.weight(1f))
+        StatCard(value = favoritesCount.toString(), label = "В избранном", modifier = Modifier.weight(1f))
+        StatCard(value = quality ?: "—", label = "Качество", modifier = Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White.copy(alpha = 0.15f))
+            .padding(vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(value, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            label,
+            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.75f),
+            letterSpacing = 0.3.sp,
+        )
+    }
+}
+
+@Composable
+private fun ProfileCompactBar(username: String, modifier: Modifier = Modifier) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Профиль",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+            )
+            Avatar(username = username, size = 32.dp, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
+private fun Avatar(
+    username: String,
+    size: Dp,
+    fontSize: TextUnit,
+) {
+    Box(
+        modifier = Modifier
+            .size(size)
+            .clip(ShapeCookie)
+            .background(Brush.linearGradient(AvatarGradient)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(username.initials(), fontSize = fontSize, fontWeight = FontWeight.ExtraBold, color = InitialsColor)
+    }
+}
+
+// ── Bottom sheets настроек воспроизведения ───────────────────────────────────
+private enum class ProfileSheet { QUALITY, SUBTITLES }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -221,35 +405,27 @@ private fun PlaybackSettingsSheets(
     ) {
         Column(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 32.dp)) {
             when (activeSheet) {
-                ProfileSheet.QUALITY -> {
-                    SheetTitle("Качество видео")
-                    PlaybackSettings.qualityOptions.forEach { option ->
-                        OptionRow(
-                            label = option,
-                            selected = option == playback.quality,
-                            onClick = { onSelectQuality(option) },
-                        )
-                    }
-                }
+                ProfileSheet.QUALITY -> OptionList(
+                    title = "Качество видео",
+                    options = PlaybackSettings.qualityOptions,
+                    selected = playback.quality,
+                    onSelect = onSelectQuality,
+                )
 
                 ProfileSheet.SUBTITLES -> {
-                    SheetTitle("Аудио")
-                    PlaybackSettings.audioOptions.forEach { option ->
-                        OptionRow(
-                            label = option,
-                            selected = option == playback.audioLanguage,
-                            onClick = { onSelectAudio(option) },
-                        )
-                    }
+                    OptionList(
+                        title = "Аудио",
+                        options = PlaybackSettings.audioOptions,
+                        selected = playback.audioLanguage,
+                        onSelect = onSelectAudio,
+                    )
                     Spacer(Modifier.height(12.dp))
-                    SheetTitle("Субтитры")
-                    PlaybackSettings.subtitleOptions.forEach { option ->
-                        OptionRow(
-                            label = option,
-                            selected = option == playback.subtitleLanguage,
-                            onClick = { onSelectSubtitle(option) },
-                        )
-                    }
+                    OptionList(
+                        title = "Субтитры",
+                        options = PlaybackSettings.subtitleOptions,
+                        selected = playback.subtitleLanguage,
+                        onSelect = onSelectSubtitle,
+                    )
                 }
             }
         }
@@ -257,192 +433,97 @@ private fun PlaybackSettingsSheets(
 }
 
 @Composable
-private fun SheetTitle(text: String) {
+private fun OptionList(
+    title: String,
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
     Text(
-        text,
+        title,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.Bold,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(vertical = 12.dp),
     )
-}
-
-@Composable
-private fun OptionRow(label: String, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        RadioButton(selected = selected, onClick = onClick)
-        Spacer(Modifier.width(8.dp))
-        Text(label, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
-    }
-}
-
-@Composable
-private fun ProfileHero(
-    username: String,
-    watchedCount: Int,
-    favoritesCount: Int,
-    quality: String?,
-    subscription: Subscription?,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
-            .background(
-                Brush.linearGradient(
-                    0.0f to Color(0xFFB4305A),
-                    0.6f to Color(0xFF6B4B8F),
-                    1.0f to MaterialTheme.colorScheme.surface,
-                    start = Offset(Float.POSITIVE_INFINITY, 0f),
-                    end = Offset(0f, Float.POSITIVE_INFINITY),
-                )
-            )
-            .statusBarsPadding()
-            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 28.dp),
-    ) {
-        Column(Modifier.fillMaxWidth()) {
-            // Top row: title + settings button
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Профиль",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f),
-                )
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.Settings,
-                        contentDescription = "Настройки",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // Avatar + name
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(ShapeCookie)
-                        .background(
-                            Brush.linearGradient(listOf(Color(0xFFFFD89A), Color(0xFFF4B792)))
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    val initials = username.split(' ', '.')
-                        .filter { it.isNotBlank() }
-                        .take(2)
-                        .map { it.first().uppercaseChar() }
-                        .joinToString("")
-                        .ifEmpty { "?" }
-                    Text(
-                        initials,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF5E1133),
-                    )
-                }
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        username.ifEmpty { "Гость" },
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Filled.Star,
-                            contentDescription = null,
-                            tint = Color(0xFFFFD89A),
-                            modifier = Modifier.size(12.dp),
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            subscriptionLabel(subscription),
-                            fontSize = 12.sp,
-                            color = Color.White.copy(alpha = 0.8f),
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            // Stats row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                StatCard(
-                    value = watchedCount.toString(),
-                    label = "Просмотрено",
-                    modifier = Modifier.weight(1f),
-                )
-                StatCard(
-                    value = favoritesCount.toString(),
-                    label = "В избранном",
-                    modifier = Modifier.weight(1f),
-                )
-                StatCard(
-                    value = quality ?: "—",
-                    label = "Качество",
-                    modifier = Modifier.weight(1f),
-                )
-            }
+    options.forEach { option ->
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable { onSelect(option) }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RadioButton(selected = option == selected, onClick = { onSelect(option) })
+            Spacer(Modifier.width(8.dp))
+            Text(option, color = MaterialTheme.colorScheme.onSurface, style = MaterialTheme.typography.bodyLarge)
         }
     }
 }
 
-private fun subscriptionLabel(subscription: Subscription?): String = when {
-    subscription?.active == true && subscription.daysLeft != null ->
-        "Filmax Premium · ещё ${subscription.daysLeft} дн."
-    subscription?.active == true -> "Filmax Premium"
+// ── Вспомогательное ──────────────────────────────────────────────────────────
+private val ProfileState.username: String get() = profile?.username ?: ""
+
+private fun String.initials(): String = split(' ', '.')
+    .filter { it.isNotBlank() }
+    .take(2)
+    .map { it.first().uppercaseChar() }
+    .joinToString("")
+    .ifEmpty { "?" }
+
+private fun PlaybackSettings.subtitleSummary(): String {
+    val subs = if (subtitleLanguage == PlaybackSettings.SubtitleOff) "субтитры выкл" else "суб: $subtitleLanguage"
+    return "$audioLanguage · $subs"
+}
+
+private fun Subscription?.label(): String = when {
+    this?.active == true && daysLeft != null -> "Filmax Premium · ещё $daysLeft дн."
+    this?.active == true -> "Filmax Premium"
     else -> "Бесплатный аккаунт"
 }
 
+// ── Состояние коллапсирующей шапки ───────────────────────────────────────────
 @Composable
-private fun StatCard(value: String, label: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White.copy(alpha = 0.15f))
-            .padding(vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            value,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
-        )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            label,
-            fontSize = 10.sp,
-            color = Color.White.copy(alpha = 0.75f),
-            letterSpacing = 0.3.sp,
-        )
+private fun rememberCollapsingHeaderState(initialHeightPx: Int): CollapsingHeaderState =
+    remember { CollapsingHeaderState(initialHeightPx) }
+
+/**
+ * Управляет сворачиванием закреплённой шапки: потребляет вертикальный скролл
+ * (через [nestedScrollConnection]) и отдаёт прогресс/смещение для анимаций.
+ * Шапка сворачивается при скролле вверх и разворачивается, когда список уже у верха.
+ */
+@Stable
+private class CollapsingHeaderState(initialHeightPx: Int) {
+    /** Полная высота шапки — измеряется UI через `onSizeChanged`. */
+    var heightPx by mutableIntStateOf(initialHeightPx)
+
+    /** Текущее смещение шапки вверх: 0 (раскрыта) … -[heightPx] (свёрнута). */
+    var offsetPx by mutableFloatStateOf(0f)
+        private set
+
+    /** Прогресс сворачивания 0..1. */
+    val progress: Float
+        get() = if (heightPx > 0) (-offsetPx / heightPx).coerceIn(0f, 1f) else 0f
+
+    /** Высота резерва-спейсера под шапку (ужимается вместе с ней). */
+    val spacerHeightPx: Float
+        get() = (heightPx + offsetPx).coerceAtLeast(0f)
+
+    val nestedScrollConnection = object : NestedScrollConnection {
+        // Сворачиваем первыми, пока есть движение вверх.
+        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset =
+            if (available.y < 0f) consume(available.y) else Offset.Zero
+
+        // Разворачиваем только то, что список не использовал (т.е. он уже у верха).
+        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+            if (available.y > 0f) consume(available.y) else Offset.Zero
+    }
+
+    private fun consume(delta: Float): Offset {
+        val newOffset = (offsetPx + delta).coerceIn(-heightPx.toFloat(), 0f)
+        val used = newOffset - offsetPx
+        offsetPx = newOffset
+        return Offset(0f, used)
     }
 }
-

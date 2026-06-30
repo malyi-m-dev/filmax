@@ -10,7 +10,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.toRoute
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
@@ -37,11 +39,17 @@ class PlayerScreenModel(
     private var trackSubtitles: List<SubtitleTrack> = emptyList()
     private var audioPreference: String = PlaybackSettings.AudioOriginal
 
+    /** Выбранный трек/эпизод — нужен для сохранения прогресса (сериалы пишутся по сезону). */
+    private var selectedTrack: MediaTrack? = null
+
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 screenModelScope { showError(AppError.Playback) }
             }
+
+            // Аудиодорожки известны только после разбора манифеста — читаем их здесь.
+            override fun onTracksChanged(tracks: Tracks) = updateAudioTracks(tracks)
         })
         onFetchData()
     }
@@ -50,6 +58,7 @@ class PlayerScreenModel(
         when (event) {
             is PlayerEvent.SaveProgress -> saveProgress(event.positionMs)
             is PlayerEvent.SelectQuality -> selectQuality(event.label)
+            is PlayerEvent.SelectAudio -> selectAudio(event.label)
             is PlayerEvent.SelectSubtitle -> selectSubtitle(event.label)
         }
     }
@@ -61,7 +70,10 @@ class PlayerScreenModel(
             when (val result = catalog.getItemDetails(route.itemId)) {
                 is RequestResult.Success -> {
                     val item = result.data
-                    val track = item.tracklist.firstOrNull()
+                    // Сериал: играем выбранный эпизод (videoId из маршрута). Фильм/нет совпадения — первый трек.
+                    val track = item.tracklist.firstOrNull { it.id == route.videoId }
+                        ?: item.tracklist.firstOrNull()
+                    selectedTrack = track
                     trackSubtitles = track?.subtitles.orEmpty()
 
                     // Доступные качества — из файлов трека (метка + лучшая ссылка).
@@ -131,6 +143,32 @@ class PlayerScreenModel(
         screenModelScope { updateState { it.copy(currentSubtitle = label) } }
     }
 
+    private fun selectAudio(label: String) {
+        val option = state.audioTracks.firstOrNull { it.label == label } ?: return
+        val builder = player.trackSelectionParameters.buildUpon()
+        option.lang?.let { builder.setPreferredAudioLanguage(it) }
+        player.trackSelectionParameters = builder.build()
+        screenModelScope { updateState { it.copy(currentAudio = label) } }
+    }
+
+    /** Снимает список аудиодорожек с плеера; селектор показываем только при выборе из нескольких. */
+    private fun updateAudioTracks(tracks: Tracks) {
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        val options = audioGroups
+            .map { group -> group.getTrackFormat(0).language }
+            .distinct()
+            .map { code -> AudioOption(audioDisplay(code), code) }
+        val selectedLang = audioGroups.firstOrNull { it.isSelected }?.getTrackFormat(0)?.language
+        screenModelScope {
+            updateState {
+                it.copy(
+                    audioTracks = if (options.size > 1) options else emptyList(),
+                    currentAudio = audioDisplay(selectedLang),
+                )
+            }
+        }
+    }
+
     /** Собирает MediaItem с вложенными конфигурациями субтитров текущего трека. */
     private fun buildMediaItem(url: String): MediaItem {
         val subtitleConfigs = trackSubtitles.map { subtitle ->
@@ -166,9 +204,15 @@ class PlayerScreenModel(
 
     private fun saveProgress(positionMs: Long) {
         val item = state.item ?: return
-        val videoId = item.tracklist.firstOrNull()?.id ?: return
+        val track = selectedTrack ?: return
+        val seconds = (positionMs / 1000).toInt()
         screenModelScope {
-            watching.saveProgress(item.id, videoId, (positionMs / 1000).toInt())
+            // Сериалы прогресс пишут по сезону+эпизоду, фильмы — по одному видео.
+            if (track.seasonNumber > 0) {
+                watching.saveProgressSerial(item.id, track.seasonNumber, track.id, seconds)
+            } else {
+                watching.saveProgress(item.id, track.id, seconds)
+            }
         }
     }
 
@@ -189,6 +233,14 @@ class PlayerScreenModel(
             "eng", "en" -> "English"
             "ukr", "uk" -> "Українська"
             null, "" -> "Субтитры"
+            else -> code
+        }
+
+        fun audioDisplay(code: String?): String = when (code?.lowercase()) {
+            "rus", "ru" -> "Русский"
+            "eng", "en" -> "English"
+            "ukr", "uk" -> "Українська"
+            null, "" -> "Оригинал"
             else -> code
         }
     }

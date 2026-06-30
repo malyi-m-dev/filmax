@@ -122,7 +122,7 @@ fun FilmaxTvNavGraph(
             )
 
             tvDetailsScreen(
-                onPlay = { navController.navigate(PlayerRoute(it)) },
+                onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
                 onOpenItem = { navController.navigate(DetailsRoute(it)) },
             )
             tvPlayerScreen(onBack = { navController.popBackStack() })
@@ -134,14 +134,17 @@ fun FilmaxTvNavGraph(
                 onSelectTab = { navigateTab(it) },
                 navBarFocus = navBarFocus,
                 contentFocus = contentFocus,
+                initials = rootState.initials,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
     }
 
-    // При входе на любой верхнеуровневый экран отдаём фокус контенту — чтобы экран сразу
-    // листался пультом, а к шапке можно было вернуться кнопкой «вверх».
-    LaunchedEffect(currentDest?.route, showTopBar) {
-        if (showTopBar) runCatching { contentFocus.requestFocus() }
+    // При первом входе в top-level отдаём фокус таб-бару (его активной вкладке). Не
+    // перезапрашиваем фокус при каждой смене вкладки: иначе переброс на ещё не готовый
+    // контент срывается, и фокус откатывается на первую вкладку («Главная»). Вниз к
+    // контенту пользователь уходит «вниз» (down=contentFocus на вкладках).
+    LaunchedEffect(showTopBar) {
+        if (showTopBar) runCatching { navBarFocus.requestFocus() }
     }
 }

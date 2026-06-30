@@ -54,7 +54,12 @@ fun ItemDto.toDomain(): Item = Item(
     ),
     posters = posters?.toDomain() ?: Posters("", "", "", ""),
     duration = duration.toDomain(),
-    tracklist = videos?.map { it.toDomain() } ?: emptyList(),
+    // Сериал: эпизоды лежат в seasons[].episodes (номер сезона — на родителе). Фильм: в videos.
+    tracklist = if (!seasons.isNullOrEmpty()) {
+        seasons.flatMap { season -> season.episodes.map { it.toDomain(season.number) } }
+    } else {
+        videos?.map { it.toDomain() } ?: emptyList()
+    },
     trailer = trailer?.toDomain(),
     inWatchlist = inWatchlist,
     finished = finished,
@@ -75,16 +80,18 @@ fun DurationDto.toDomain() = Duration(
     totalMinutes = total?.let { it / 60 },
 )
 
-fun MediaTrackDto.toDomain() = MediaTrack(
+fun MediaTrackDto.toDomain(seasonNumber: Int = snumber) = MediaTrack(
     id = id,
     number = number,
-    seasonNumber = snumber,
+    seasonNumber = seasonNumber,
     title = title,
     thumbnail = thumbnail,
     durationSeconds = duration,
     files = files.map { it.toDomain() },
     audios = audios.map { it.toDomain() },
     subtitles = subtitles.map { it.toDomain() },
+    watchedSeconds = watching?.time?.coerceAtLeast(0) ?: 0,
+    watchStatus = watching?.status ?: -1,
 )
 
 fun VideoFileDto.toDomain() = VideoFile(

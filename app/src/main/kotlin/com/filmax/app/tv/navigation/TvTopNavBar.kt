@@ -12,10 +12,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -57,14 +62,20 @@ val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
  * Верхний таб-бар Filmax TV (как в макете): бренд «Filmax.», 5 разделов и аватар.
  * Вкладки фокусируемы пультом; выбор переходит на соответствующий маршрут.
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TvTopNavBar(
     currentDestination: NavDestination?,
     onSelectTab: (route: Any) -> Unit,
     navBarFocus: FocusRequester,
     contentFocus: FocusRequester,
+    initials: String,
     modifier: Modifier = Modifier,
 ) {
+    val activeIndex = TABS.indexOfFirst { it.match(currentDestination) }.coerceAtLeast(0)
+    // Стабильный requester на каждую вкладку (не «переезжает» между нодами).
+    val tabFocusRequesters = remember { TABS.map { FocusRequester() } }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -74,6 +85,9 @@ fun TvTopNavBar(
                 )
             )
             .focusRequester(navBarFocus)
+            // Любой вход фокуса в таб-бар уводим на активную вкладку — фокус всегда
+            // совпадает с открытым разделом.
+            .focusProperties { enter = { tabFocusRequesters[activeIndex] } }
             .focusGroup()
             .padding(horizontal = 48.dp, vertical = 22.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -84,12 +98,14 @@ fun TvTopNavBar(
         }
         Spacer(Modifier.width(32.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TABS.forEach { tab ->
+            TABS.forEachIndexed { index, tab ->
                 NavTab(
                     label = tab.label,
-                    active = tab.match(currentDestination),
+                    active = index == activeIndex,
                     onClick = { onSelectTab(tab.route) },
-                    modifier = Modifier.focusProperties { down = contentFocus },
+                    modifier = Modifier
+                        .focusRequester(tabFocusRequesters[index])
+                        .focusProperties { down = contentFocus },
                 )
             }
         }
@@ -101,7 +117,11 @@ fun TvTopNavBar(
                 .background(Brush.linearGradient(listOf(Color(0xFFB4305A), Color(0xFFF4B792)))),
             contentAlignment = Alignment.Center,
         ) {
-            Text("АК", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
+            if (initials.isNotBlank()) {
+                Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 1, softWrap = false)
+            } else {
+                Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
         }
     }
 }

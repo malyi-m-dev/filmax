@@ -1,5 +1,6 @@
 package com.filmax.feature.home.mobile
 
+import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
 import com.filmax.feature.home.common.HomeState
 import androidx.compose.foundation.background
@@ -8,7 +9,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -22,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -29,13 +33,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
@@ -73,6 +81,7 @@ fun HomeScreen(
             else -> HomeContent(
                 state = state,
                 onOpenItem = onOpenItem,
+                onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
             )
         }
 
@@ -90,12 +99,21 @@ fun HomeScreen(
 private fun HomeContent(
     state: HomeState,
     onOpenItem: (Int) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
+    val scrollState = rememberScrollState()
+    // Триггер догрузки секции «Все»: когда скролл подходит к низу (порог ~700px).
+    // dispatch идемпотентен — лишние вызовы во время загрузки/в конце игнорируются.
+    val nearBottom by remember {
+        derivedStateOf { scrollState.maxValue > 0 && scrollState.value >= scrollState.maxValue - 700 }
+    }
+    LaunchedEffect(nearBottom) { if (nearBottom) onLoadMore() }
+
     Box(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(bottom = 120.dp),
         ) {
             // Reserve space for the pinned top bar (status bar inset + bar height)
@@ -166,15 +184,90 @@ private fun HomeContent(
                     }
                 }
             }
+
+            // ── Все — постранично подгружаемая сетка ─────────────────────────────
+            if (state.all.isNotEmpty()) {
+                SectionHeader(title = "Все", accent = Color(0xFFB4305A))
+                AllGrid(items = state.all, onOpenItem = onOpenItem)
+                if (state.allLoadingMore) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 20.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
         }
 
         // Pinned, edge-to-edge top bar with frosted gradient
-        HomeTopBar(modifier = Modifier.align(Alignment.TopCenter))
+        HomeTopBar(initials = state.initials, modifier = Modifier.align(Alignment.TopCenter))
+    }
+}
+
+/** Сетка секции «Все»: 3 колонки, ячейки на всю ширину (chunked-строки в нелениво-Column). */
+@Composable
+private fun AllGrid(items: List<Item>, onOpenItem: (Int) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        items.chunked(3).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                rowItems.forEach { item ->
+                    AllPosterCell(item = item, onClick = { onOpenItem(item.id) })
+                }
+                // Добиваем неполную строку пустыми ячейками, чтобы выровнять колонки.
+                repeat(3 - rowItems.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
     }
 }
 
 @Composable
-private fun HomeTopBar(modifier: Modifier = Modifier) {
+private fun RowScope.AllPosterCell(item: Item, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clickable(onClick = onClick),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f)
+                .clip(RoundedCornerShape(18.dp)),
+        ) {
+            PosterImage(
+                url = item.posters.medium,
+                contentDescription = item.title,
+                modifier = Modifier.matchParentSize(),
+                accentColor = Color(0xFFB4305A),
+            )
+            Box(
+                Modifier
+                    .align(Alignment.TopStart)
+                    .padding(6.dp),
+            ) {
+                RatingPill(rating = item.rating.external, compact = true)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun HomeTopBar(initials: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -209,7 +302,11 @@ private fun HomeTopBar(modifier: Modifier = Modifier) {
                     .background(Brush.linearGradient(listOf(Color(0xFFB4305A), Color(0xFFF4B792)))),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("АК", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                if (initials.isNotBlank()) {
+                    Text(initials, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                } else {
+                    Icon(Icons.Filled.Person, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                }
             }
         }
     }

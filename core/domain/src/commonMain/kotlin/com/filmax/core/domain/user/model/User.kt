@@ -8,6 +8,13 @@ data class UserProfile(
     val subscription: Subscription?,
 )
 
+/** Инициалы для аватара: 1–2 заглавные буквы из имени (по словам/точкам). */
+fun UserProfile.initials(): String =
+    username.split(' ', '.', '_').filter { it.isNotBlank() }
+        .take(2)
+        .map { it.first().uppercaseChar() }
+        .joinToString("")
+
 data class Subscription(
     val active: Boolean,
     val endsAt: Long?,

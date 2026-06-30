@@ -35,8 +35,17 @@ data class ItemDto(
     val duration: DurationDto = DurationDto(),
     val genres: List<GenreDto> = emptyList(),
     val countries: List<CountryDto> = emptyList(),
+    // Фильмы отдают список видео в `videos`, сериалы — сезоны с эпизодами в `seasons`.
     val videos: List<MediaTrackDto>? = null,
+    val seasons: List<SeasonDto>? = null,
     val trailer: TrailerDto? = null,
+)
+
+@Serializable
+data class SeasonDto(
+    val number: Int = 0,
+    val title: String = "",
+    val episodes: List<MediaTrackDto> = emptyList(),
 )
 
 @Serializable
@@ -76,6 +85,13 @@ data class MediaTrackDto(
     val files: List<VideoFileDto> = emptyList(),
     val audios: List<AudioDto> = emptyList(),
     val subtitles: List<SubtitleDto> = emptyList(),
+    val watching: WatchingStateDto? = null,
+)
+
+@Serializable
+data class WatchingStateDto(
+    val status: Int = -1,
+    val time: Int = 0,
 )
 
 @Serializable
@@ -127,7 +143,8 @@ data class TrailerDto(
 
 @Serializable
 data class PaginationDto(
+    // kino.pub: `total` — число страниц, `perpage` — элементов на странице.
     val total: Int = 0,
     val current: Int = 1,
-    @SerialName("per_page") val perPage: Int = 20,
+    @SerialName("perpage") val perPage: Int = 50,
 )

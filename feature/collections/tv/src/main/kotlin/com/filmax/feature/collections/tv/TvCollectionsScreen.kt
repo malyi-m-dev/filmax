@@ -49,10 +49,15 @@ fun TvCollectionsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(start = 72.dp, end = 72.dp, top = 120.dp),
+            .padding(top = 120.dp),
     ) {
-        Text("Подборки", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
-        Text("Тематические коллекции", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 28.dp))
+        // Заголовок отступаем горизонтально сам по себе; у сетки отступы вынесены в
+        // contentPadding, чтобы карточка при фокусе (scale 1.1) росла внутрь viewport и
+        // не срезалась его границей по краям/сверху.
+        Column(Modifier.padding(horizontal = 72.dp)) {
+            Text("Подборки", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
+            Text("Тематические коллекции", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))
+        }
 
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -63,7 +68,7 @@ fun TvCollectionsScreen(
                 columns = GridCells.Fixed(3),
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
-                contentPadding = PaddingValues(bottom = 40.dp),
+                contentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 16.dp, bottom = 40.dp),
             ) {
                 items(state.collections, key = { it.id }) { collection ->
                     CollectionCard(collection = collection, onClick = { onOpenCollection(collection.id, collection.title) })

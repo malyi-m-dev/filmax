@@ -42,10 +42,22 @@ class ProfileScreenModel(
     override fun dispatch(event: ProfileEvent) {
         when (event) {
             ProfileEvent.Logout -> logout()
-            is ProfileEvent.SetQuality -> screenModelScope { playbackSettings.setQuality(event.quality) }
-            is ProfileEvent.SetAudioLanguage -> screenModelScope { playbackSettings.setAudioLanguage(event.language) }
-            is ProfileEvent.SetSubtitleLanguage -> screenModelScope { playbackSettings.setSubtitleLanguage(event.language) }
+            is ProfileEvent.SetQuality -> setQuality(event.quality)
+            is ProfileEvent.SetAudioLanguage -> setAudioLanguage(event.language)
+            is ProfileEvent.SetSubtitleLanguage -> setSubtitleLanguage(event.language)
         }
+    }
+
+    private fun setQuality(quality: String) = screenModelScope {
+        playbackSettings.setQuality(quality)
+    }
+
+    private fun setAudioLanguage(language: String) = screenModelScope {
+        playbackSettings.setAudioLanguage(language)
+    }
+
+    private fun setSubtitleLanguage(language: String) = screenModelScope {
+        playbackSettings.setSubtitleLanguage(language)
     }
 
     override fun onFetchData() {

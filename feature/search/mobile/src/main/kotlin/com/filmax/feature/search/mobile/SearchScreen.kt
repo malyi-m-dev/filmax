@@ -66,6 +66,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
+import com.filmax.core.ui.components.rememberVoiceSearch
 
 @Composable
 fun SearchScreen(
@@ -82,10 +83,14 @@ fun SearchScreen(
             .statusBarsPadding()
             .padding(top = 16.dp),
     ) {
+        val startVoiceSearch = rememberVoiceSearch { spoken ->
+            screenModel.dispatch(SearchEvent.SubmitQuery(spoken))
+        }
         SearchBar(
             query = state.query,
             onQueryChange = { screenModel.dispatch(SearchEvent.QueryChange(it)) },
             onClear = { screenModel.dispatch(SearchEvent.QueryChange("")) },
+            onVoiceSearch = startVoiceSearch,
             modifier = Modifier.padding(horizontal = 20.dp),
         )
 
@@ -147,6 +152,7 @@ private fun SearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     onClear: () -> Unit,
+    onVoiceSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
@@ -201,12 +207,14 @@ private fun SearchBar(
                 )
             }
         } else {
-            Icon(
-                imageVector = Icons.Filled.Mic,
-                contentDescription = "Голосовой поиск",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
+            IconButton(onClick = onVoiceSearch, modifier = Modifier.size(20.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.Mic,
+                    contentDescription = "Голосовой поиск",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

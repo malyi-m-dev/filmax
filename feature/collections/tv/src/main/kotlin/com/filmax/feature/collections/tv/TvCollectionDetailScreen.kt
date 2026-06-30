@@ -49,10 +49,14 @@ fun TvCollectionDetailScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(start = 72.dp, end = 72.dp, top = 72.dp),
+            .padding(top = 72.dp),
     ) {
-        Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
-        Text("Подборка", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 28.dp))
+        // Отступы сетки вынесены в contentPadding, чтобы постер при фокусе (scale 1.1) рос
+        // внутрь viewport и не срезался границей по краям/сверху.
+        Column(Modifier.padding(horizontal = 72.dp)) {
+            Text(title, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)
+            Text("Подборка", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 20.dp))
+        }
 
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -63,7 +67,7 @@ fun TvCollectionDetailScreen(
                 columns = GridCells.Fixed(6),
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(bottom = 40.dp),
+                contentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 16.dp, bottom = 40.dp),
             ) {
                 items(state.items, key = { it.id }) { item ->
                     PosterTile(item = item, onClick = { onOpenItem(item.id) })

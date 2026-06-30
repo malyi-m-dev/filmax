@@ -10,7 +10,7 @@ import com.filmax.feature.details.tv.TvDetailsScreen
  * благодаря этому [com.filmax.feature.details.common.DetailsScreenModel] получает itemId из SavedStateHandle.
  */
 fun NavGraphBuilder.tvDetailsScreen(
-    onPlay: (Int) -> Unit,
+    onPlay: (itemId: Int, videoId: Int) -> Unit,
     onOpenItem: (Int) -> Unit,
 ) {
     composable<DetailsRoute> {

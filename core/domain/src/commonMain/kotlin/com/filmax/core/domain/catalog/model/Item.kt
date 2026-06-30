@@ -72,6 +72,10 @@ data class MediaTrack(
     val files: List<VideoFile>,
     val audios: List<AudioTrack>,
     val subtitles: List<SubtitleTrack>,
+    /** Прогресс просмотра в секундах (kino.pub `watching.time`); 0 — не начат. */
+    val watchedSeconds: Int = 0,
+    /** Статус просмотра: -1 не начат, 0 в процессе, 1 досмотрен (kino.pub `watching.status`). */
+    val watchStatus: Int = -1,
 )
 
 data class VideoFile(
