@@ -1,7 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>ImportOrdering:PlayerScreenModel.kt$import android.content.Context import android.net.Uri import androidx.lifecycle.SavedStateHandle import androidx.media3.common.C import androidx.media3.common.MediaItem import androidx.media3.common.MimeTypes import androidx.media3.exoplayer.ExoPlayer import androidx.navigation.toRoute import androidx.media3.common.PlaybackException import androidx.media3.common.Player import androidx.media3.common.Tracks import com.filmax.core.domain.catalog.CatalogRepository import com.filmax.core.domain.catalog.model.MediaTrack import com.filmax.core.domain.catalog.model.SubtitleTrack import com.filmax.core.domain.common.RequestResult import com.filmax.core.domain.error.AppError import com.filmax.core.domain.playback.PlaybackSettings import com.filmax.core.domain.playback.PlaybackSettingsRepository import com.filmax.core.domain.watching.WatchingRepository import com.filmax.core.presentation.BaseScreenModel import com.filmax.feature.player.common.navigation.PlayerRoute import kotlinx.coroutines.flow.first</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

@@ -4,7 +4,6 @@
   <CurrentIssues>
     <ID>MagicNumber:CatalogMapper.kt$20</ID>
     <ID>MagicNumber:CatalogMapper.kt$60</ID>
-    <ID>SpacingAroundOperators:ItemDto.kt$ItemDto$=</ID>
     <ID>TooManyFunctions:CatalogMapper.kt$com.filmax.data.catalog.mapper.CatalogMapper.kt</ID>
   </CurrentIssues>
 </SmellBaseline>

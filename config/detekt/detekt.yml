@@ -87,3 +87,11 @@ potential-bugs:
   # Ловит `!!` (unsafe call on nullable). Требует type resolution — см. CI-шаг detektMain.
   UnsafeCallOnNullableType:
     active: true
+
+# Кастомные правила Filmax (модуль :detekt-rules, подключается через detektPlugins).
+filmax-rules:
+  active: true
+  # Запрет вложенного `if` внутри `if` (then-ветка/условие). `else if` — не нарушение.
+  # Существующие случаи уезжают в baseline, новый код проверяется.
+  NestedIf:
+    active: true

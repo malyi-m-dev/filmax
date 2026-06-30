@@ -5,7 +5,7 @@
     <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHero( item: Item, onPlay: () -&gt; Unit, onDetails: () -&gt; Unit, )</ID>
     <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHomeContent( state: HomeState, onOpenItem: (Int) -&gt; Unit, onLoadMore: () -&gt; Unit, )</ID>
     <ID>MatchingDeclarationName:TvHomeNavigation.kt$TvHomeRoute</ID>
+    <ID>NestedIf:TvHomeScreen.kt$if (state.allLoadingMore) { item(key = "all_loading") { Box( Modifier .fillMaxWidth() .padding(vertical = 16.dp), contentAlignment = Alignment.Center, ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) } } }</ID>
     <ID>TooManyFunctions:TvHomeScreen.kt$com.filmax.feature.home.tv.TvHomeScreen.kt</ID>
-    <ID>Wrapping:TvHomeScreen.kt$;</ID>
   </CurrentIssues>
 </SmellBaseline>

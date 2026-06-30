@@ -2,8 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>ArgumentListWrapping:SearchScreenModel.kt$SearchScreenModel$( "Мстители", "Дюна", "Офис", "Ведьмак", "Интерстеллар", "Breaking Bad", "Опpenheimer", "Игра престолов", )</ID>
     <ID>MagicNumber:SearchScreenModel.kt$SearchScreenModel$400</ID>
-    <ID>SpacingBetweenDeclarationsWithComments:SearchContract.kt$SearchEvent.SubmitQuery$/** Тап по подсказке (тренды/недавние): подставить запрос и сразу искать. */</ID>
   </CurrentIssues>
 </SmellBaseline>

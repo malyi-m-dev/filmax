@@ -5,12 +5,12 @@ package com.filmax.core.tv.designsystem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.MaterialTheme as TvMaterialTheme
-import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
-import androidx.compose.material3.MaterialTheme as ComposeMaterialTheme
 import com.filmax.core.designsystem.FilmaxDarkColorScheme
 import com.filmax.core.designsystem.FilmaxShapes
 import com.filmax.core.designsystem.FilmaxTypography
+import androidx.compose.material3.MaterialTheme as ComposeMaterialTheme
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
+import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 
 /**
  * TV-тема Filmax. Оборачивает контент в ДВЕ темы:

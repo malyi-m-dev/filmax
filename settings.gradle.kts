@@ -17,6 +17,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "filmax"
 
+// Кастомные detekt-правила (чистый JVM-модуль, подключается через detektPlugins).
+include(":detekt-rules")
+
 include(":app")
 
 include(":core:network")

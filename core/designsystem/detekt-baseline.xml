@@ -1,7 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>NoUnusedImports:FilmaxTheme.kt$com.filmax.core.designsystem.FilmaxTheme.kt</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

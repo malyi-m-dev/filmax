@@ -1,8 +1,5 @@
 package com.filmax.feature.collections.mobile
 
-import com.filmax.feature.collections.common.CollectionDetailScreenModel
-import com.filmax.feature.collections.common.CollectionDetailState
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import org.koin.androidx.compose.koinViewModel
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.feature.collections.common.CollectionDetailScreenModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun CollectionDetailScreen(

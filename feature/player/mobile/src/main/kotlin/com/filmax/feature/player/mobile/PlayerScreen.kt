@@ -1,9 +1,5 @@
 package com.filmax.feature.player.mobile
 
-import com.filmax.feature.player.common.PlayerScreenModel
-import com.filmax.feature.player.common.PlayerState
-import com.filmax.feature.player.common.PlayerEvent
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -27,12 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,7 +46,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,10 +57,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import org.koin.androidx.compose.koinViewModel
 import androidx.media3.ui.PlayerView
 import com.filmax.core.ui.components.FilmaxErrorModal
+import com.filmax.feature.player.common.PlayerEvent
+import com.filmax.feature.player.common.PlayerScreenModel
 import kotlinx.coroutines.delay
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun PlayerScreen(
@@ -129,7 +126,10 @@ fun PlayerScreen(
             FilmaxErrorModal(
                 error = error,
                 onDismiss = screenModel::dismissError,
-                onPrimary = { screenModel.dismissError(); onBack() },
+                onPrimary = {
+                    screenModel.dismissError()
+                    onBack()
+                },
                 onSecondary = onBack,
             )
         }
@@ -158,16 +158,38 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     GlassBtn(size = 44.dp, onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(22.dp))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                     Column(Modifier.weight(1f)) {
-                        Text("СЕЙЧАС ИГРАЕТ", fontSize = 11.sp, color = Color.White.copy(0.7f), fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
-                        Text(state.item?.title ?: "", fontSize = 15.sp, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1)
+                        Text(
+                            "СЕЙЧАС ИГРАЕТ",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(0.7f),
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 1.sp
+                        )
+                        Text(
+                            state.item?.title ?: "",
+                            fontSize = 15.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1
+                        )
                     }
                     if (state.subtitles.size > 1) {
                         Box {
                             GlassBtn(size = 44.dp, onClick = { subtitleMenu = true }) {
-                                Icon(Icons.Filled.ClosedCaption, contentDescription = "Субтитры", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.Filled.ClosedCaption,
+                                    contentDescription = "Субтитры",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                             DropdownMenu(
                                 expanded = subtitleMenu,
@@ -199,15 +221,23 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     GlassBtn(size = 64.dp, onClick = { screenModel.player.seekBack() }) {
-                        Icon(Icons.Filled.Replay10, contentDescription = "Назад 10 сек", tint = Color.White, modifier = Modifier.size(30.dp))
+                        Icon(
+                            Icons.Filled.Replay10,
+                            contentDescription = "Назад 10 сек",
+                            tint = Color.White,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                     Surface(
                         modifier = Modifier.size(88.dp),
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         onClick = {
-                            if (screenModel.player.isPlaying) screenModel.player.pause()
-                            else screenModel.player.play()
+                            if (screenModel.player.isPlaying) {
+                                screenModel.player.pause()
+                            } else {
+                                screenModel.player.play()
+                            }
                         },
                     ) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -220,7 +250,12 @@ fun PlayerScreen(
                         }
                     }
                     GlassBtn(size = 64.dp, onClick = { screenModel.player.seekForward() }) {
-                        Icon(Icons.Filled.Forward10, contentDescription = "Вперёд 10 сек", tint = Color.White, modifier = Modifier.size(30.dp))
+                        Icon(
+                            Icons.Filled.Forward10,
+                            contentDescription = "Вперёд 10 сек",
+                            tint = Color.White,
+                            modifier = Modifier.size(30.dp)
+                        )
                     }
                 }
 
@@ -249,7 +284,12 @@ fun PlayerScreen(
                         val duration = screenModel.player.duration.takeIf { it > 0 } ?: 0L
                         val current = (progress * duration).toLong()
                         Text(formatMs(current), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                        Text("-${formatMs(duration - current)}", color = Color.White.copy(0.7f), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "-${formatMs(duration - current)}",
+                            color = Color.White.copy(0.7f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                     Spacer(Modifier.height(16.dp))
                     Row(
@@ -288,13 +328,28 @@ fun PlayerScreen(
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             GlassBtn(size = 44.dp, onClick = {}) {
-                                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Громкость", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.AutoMirrored.Filled.VolumeUp,
+                                    contentDescription = "Громкость",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                             GlassBtn(size = 44.dp, onClick = {}) {
-                                Icon(Icons.Filled.SkipNext, contentDescription = "Далее", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.Filled.SkipNext,
+                                    contentDescription = "Далее",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                             GlassBtn(size = 44.dp, onClick = {}) {
-                                Icon(Icons.Filled.Fullscreen, contentDescription = "На весь экран", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(
+                                    Icons.Filled.Fullscreen,
+                                    contentDescription = "На весь экран",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
                         }
                     }

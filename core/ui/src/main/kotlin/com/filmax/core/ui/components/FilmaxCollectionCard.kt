@@ -101,7 +101,13 @@ fun FilmaxCollectionCard(
                     Text(
                         subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (hasPoster) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (hasPoster) {
+                            Color.White.copy(
+                                alpha = 0.85f
+                            )
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

@@ -2,17 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>ArgumentListWrapping:ContinueCard.kt$("Осталось $remainMin мин", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
-    <ID>ArgumentListWrapping:ContinueCard.kt$(28.dp)</ID>
-    <ID>ArgumentListWrapping:ContinueCard.kt$(Icons.Filled.PlayArrow, contentDescription = "Играть", tint = Color.Black, modifier = Modifier.size(28.dp))</ID>
-    <ID>ArgumentListWrapping:ContinueCard.kt$(item.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
-    <ID>ArgumentListWrapping:FilmaxChip.kt$( if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant, tween(240), label = "chipFg", )</ID>
-    <ID>ArgumentListWrapping:FilmaxChip.kt$( if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent, tween(240), label = "chipBg", )</ID>
-    <ID>ArgumentListWrapping:FilmaxCollectionCard.kt$(alpha = 0.85f)</ID>
-    <ID>ArgumentListWrapping:FilmaxErrorModal.kt$(20.dp)</ID>
-    <ID>ArgumentListWrapping:FilmaxErrorModal.kt$(Icons.Filled.Refresh, contentDescription = null, tint = v.onColor, modifier = Modifier.size(20.dp))</ID>
-    <ID>ArgumentListWrapping:HorizontalRow.kt$(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)</ID>
-    <ID>ArgumentListWrapping:PosterCard.kt$(Modifier .align(Alignment.TopStart) .padding(8.dp))</ID>
     <ID>LongMethod:ContinueCard.kt$@Composable fun ContinueCard( item: Item, progress: Float, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:FilmaxCollectionCard.kt$@Composable fun FilmaxCollectionCard( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
     <ID>LongMethod:FilmaxErrorModal.kt$@Composable fun FilmaxErrorModal( error: AppError, onDismiss: () -&gt; Unit, onPrimary: () -&gt; Unit, onSecondary: (() -&gt; Unit)? = null, )</ID>
@@ -47,27 +36,7 @@
     <ID>MatchingDeclarationName:FilmaxButton.kt$FilmaxButtonVariant</ID>
     <ID>MatchingDeclarationName:FilmaxTabBar.kt$FilmaxTab</ID>
     <ID>MatchingDeclarationName:HeroBackdrop.kt$BackdropGradients</ID>
-    <ID>MaxLineLength:ContinueCard.kt$Icon(Icons.Filled.PlayArrow, contentDescription = "Играть", tint = Color.Black, modifier = Modifier.size(28.dp))</ID>
-    <ID>MaxLineLength:ContinueCard.kt$Text("Осталось $remainMin мин", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)</ID>
-    <ID>MaxLineLength:ContinueCard.kt$Text(item.title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)</ID>
-    <ID>MaxLineLength:FilmaxCollectionCard.kt$color = if (hasPoster) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant</ID>
-    <ID>MaxLineLength:FilmaxErrorModal.kt$Icon(Icons.Filled.Refresh, contentDescription = null, tint = v.onColor, modifier = Modifier.size(20.dp))</ID>
     <ID>MaxLineLength:FilmaxTabBar.kt$fontWeight = if (selected) androidx.compose.ui.text.font.FontWeight.Bold else androidx.compose.ui.text.font.FontWeight.Normal</ID>
-    <ID>MaxLineLength:HorizontalRow.kt$Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)</ID>
-    <ID>MaximumLineLength:ContinueCard.kt$ </ID>
-    <ID>MaximumLineLength:FilmaxCollectionCard.kt$ </ID>
-    <ID>MaximumLineLength:FilmaxErrorModal.kt$ </ID>
     <ID>MaximumLineLength:FilmaxTabBar.kt$ </ID>
-    <ID>MaximumLineLength:HorizontalRow.kt$ </ID>
-    <ID>MultiLineIfElse:FilmaxChip.kt$MaterialTheme.colorScheme.onPrimaryContainer</ID>
-    <ID>MultiLineIfElse:FilmaxChip.kt$MaterialTheme.colorScheme.onSurfaceVariant</ID>
-    <ID>MultiLineIfElse:FilmaxChip.kt$Modifier</ID>
-    <ID>MultiLineIfElse:FilmaxChip.kt$Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)</ID>
-    <ID>MultiLineIfElse:FilmaxTabBar.kt$MaterialTheme.colorScheme.onPrimaryContainer</ID>
-    <ID>MultiLineIfElse:FilmaxTabBar.kt$MaterialTheme.colorScheme.onSurfaceVariant</ID>
-    <ID>NoMultipleSpaces:RatingPill.kt$ </ID>
-    <ID>NoUnusedImports:ContinueCard.kt$com.filmax.core.ui.components.ContinueCard.kt</ID>
-    <ID>NoUnusedImports:PosterCard.kt$com.filmax.core.ui.components.PosterCard.kt</ID>
-    <ID>Wrapping:PosterCard.kt$(</ID>
   </CurrentIssues>
 </SmellBaseline>
