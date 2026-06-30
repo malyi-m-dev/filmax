@@ -28,9 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.ui.components.PosterImage
-import com.filmax.feature.library.LibraryEvent
-import com.filmax.feature.library.LibraryScreenModel
-import com.filmax.feature.library.LibraryTab
+import com.filmax.feature.library.common.LibraryEvent
+import com.filmax.feature.library.common.LibraryScreenModel
+import com.filmax.feature.library.common.LibraryTab
 import org.koin.androidx.compose.koinViewModel
 
 private val Accent = Color(0xFFB4305A)

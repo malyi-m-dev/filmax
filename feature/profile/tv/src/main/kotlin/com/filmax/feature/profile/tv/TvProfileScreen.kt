@@ -33,9 +33,9 @@ import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvFocusCard
-import com.filmax.feature.profile.ProfileEvent
-import com.filmax.feature.profile.ProfileScreenModel
-import com.filmax.feature.profile.ProfileSideEffect
+import com.filmax.feature.profile.common.ProfileEvent
+import com.filmax.feature.profile.common.ProfileScreenModel
+import com.filmax.feature.profile.common.ProfileSideEffect
 import org.koin.androidx.compose.koinViewModel
 
 private val Accent = Color(0xFFB4305A)

@@ -1,8 +1,8 @@
 package com.filmax.feature.details.mobile
 
-import com.filmax.feature.details.DetailsScreenModel
-import com.filmax.feature.details.DetailsState
-import com.filmax.feature.details.DetailsEvent
+import com.filmax.feature.details.common.DetailsScreenModel
+import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.DetailsEvent
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

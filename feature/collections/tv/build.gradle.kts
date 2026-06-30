@@ -6,7 +6,7 @@ plugins {
 android { namespace = "com.filmax.feature.collections.tv" }
 
 dependencies {
-    api(project(":feature:collections"))
+    api(project(":feature:collections:common"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:tv-designsystem"))

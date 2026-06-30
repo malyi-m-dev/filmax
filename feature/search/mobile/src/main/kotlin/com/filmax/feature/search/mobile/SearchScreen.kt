@@ -1,9 +1,9 @@
 package com.filmax.feature.search.mobile
 
-import com.filmax.feature.search.SearchScreenModel
-import com.filmax.feature.search.SearchState
-import com.filmax.feature.search.SearchEvent
-import com.filmax.feature.search.SearchSideEffect
+import com.filmax.feature.search.common.SearchScreenModel
+import com.filmax.feature.search.common.SearchState
+import com.filmax.feature.search.common.SearchEvent
+import com.filmax.feature.search.common.SearchSideEffect
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn

@@ -1,9 +1,9 @@
 package com.filmax.feature.onboarding.mobile
 
-import com.filmax.feature.onboarding.OnboardingScreenModel
-import com.filmax.feature.onboarding.OnboardingState
-import com.filmax.feature.onboarding.OnboardingEvent
-import com.filmax.feature.onboarding.OnboardingSideEffect
+import com.filmax.feature.onboarding.common.OnboardingScreenModel
+import com.filmax.feature.onboarding.common.OnboardingState
+import com.filmax.feature.onboarding.common.OnboardingEvent
+import com.filmax.feature.onboarding.common.OnboardingSideEffect
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility

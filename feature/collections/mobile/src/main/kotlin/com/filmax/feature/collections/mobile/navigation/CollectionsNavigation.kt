@@ -5,8 +5,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.filmax.feature.collections.mobile.CollectionDetailScreen
 import com.filmax.feature.collections.mobile.CollectionsScreen
-import com.filmax.feature.collections.navigation.CollectionDetailRoute
-import com.filmax.feature.collections.navigation.CollectionsRoute
+import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
+import com.filmax.feature.collections.common.navigation.CollectionsRoute
 
 fun NavGraphBuilder.collectionsScreen(onOpenCollection: (Int, String) -> Unit) {
     composable<CollectionsRoute> {

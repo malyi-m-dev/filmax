@@ -7,7 +7,7 @@ android { namespace = "com.filmax.feature.home.tv" }
 
 dependencies {
     // Логика фичи (api — чтобы :app видел HomeScreenModel/HomeModule транзитивно).
-    api(project(":feature:home"))
+    api(project(":feature:home:common"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:tv-designsystem"))

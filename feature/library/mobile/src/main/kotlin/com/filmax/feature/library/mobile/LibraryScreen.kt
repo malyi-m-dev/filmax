@@ -1,10 +1,10 @@
 package com.filmax.feature.library.mobile
 
-import com.filmax.feature.library.LibraryScreenModel
-import com.filmax.feature.library.LibraryState
-import com.filmax.feature.library.LibraryEvent
-import com.filmax.feature.library.LibrarySideEffect
-import com.filmax.feature.library.LibraryTab
+import com.filmax.feature.library.common.LibraryScreenModel
+import com.filmax.feature.library.common.LibraryState
+import com.filmax.feature.library.common.LibraryEvent
+import com.filmax.feature.library.common.LibrarySideEffect
+import com.filmax.feature.library.common.LibraryTab
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

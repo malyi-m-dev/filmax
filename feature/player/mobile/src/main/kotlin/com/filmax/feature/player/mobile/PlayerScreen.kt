@@ -1,8 +1,8 @@
 package com.filmax.feature.player.mobile
 
-import com.filmax.feature.player.PlayerScreenModel
-import com.filmax.feature.player.PlayerState
-import com.filmax.feature.player.PlayerEvent
+import com.filmax.feature.player.common.PlayerScreenModel
+import com.filmax.feature.player.common.PlayerState
+import com.filmax.feature.player.common.PlayerEvent
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn

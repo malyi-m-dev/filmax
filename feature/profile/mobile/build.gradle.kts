@@ -6,7 +6,7 @@ plugins {
 android { namespace = "com.filmax.feature.profile.mobile" }
 
 dependencies {
-    api(project(":feature:profile"))
+    api(project(":feature:profile:common"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:designsystem"))

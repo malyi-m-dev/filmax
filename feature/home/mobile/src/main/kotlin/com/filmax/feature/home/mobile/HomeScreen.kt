@@ -1,7 +1,7 @@
 package com.filmax.feature.home.mobile
 
-import com.filmax.feature.home.HomeScreenModel
-import com.filmax.feature.home.HomeState
+import com.filmax.feature.home.common.HomeScreenModel
+import com.filmax.feature.home.common.HomeState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement

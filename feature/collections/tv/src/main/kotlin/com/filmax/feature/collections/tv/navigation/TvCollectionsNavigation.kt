@@ -3,7 +3,7 @@ package com.filmax.feature.collections.tv.navigation
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.filmax.feature.collections.navigation.CollectionDetailRoute
+import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.TvCollectionDetailScreen
 import com.filmax.feature.collections.tv.TvCollectionsScreen
 import kotlinx.serialization.Serializable

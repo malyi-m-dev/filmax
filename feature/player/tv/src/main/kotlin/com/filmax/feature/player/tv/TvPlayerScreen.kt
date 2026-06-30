@@ -40,8 +40,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import com.filmax.core.tv.designsystem.TvFocusCard
-import com.filmax.feature.player.PlayerEvent
-import com.filmax.feature.player.PlayerScreenModel
+import com.filmax.feature.player.common.PlayerEvent
+import com.filmax.feature.player.common.PlayerScreenModel
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 

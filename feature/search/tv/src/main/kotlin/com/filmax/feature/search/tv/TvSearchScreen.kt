@@ -34,8 +34,8 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
-import com.filmax.feature.search.SearchEvent
-import com.filmax.feature.search.SearchScreenModel
+import com.filmax.feature.search.common.SearchEvent
+import com.filmax.feature.search.common.SearchScreenModel
 import org.koin.androidx.compose.koinViewModel
 
 private val Accent = Color(0xFFB4305A)

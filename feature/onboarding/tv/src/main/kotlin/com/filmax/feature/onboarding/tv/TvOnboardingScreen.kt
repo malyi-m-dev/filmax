@@ -51,10 +51,10 @@ import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
 import com.filmax.core.tv.designsystem.TvButton
-import com.filmax.feature.onboarding.OnboardingEvent
-import com.filmax.feature.onboarding.OnboardingScreenModel
-import com.filmax.feature.onboarding.OnboardingSideEffect
-import com.filmax.feature.onboarding.OnboardingState
+import com.filmax.feature.onboarding.common.OnboardingEvent
+import com.filmax.feature.onboarding.common.OnboardingScreenModel
+import com.filmax.feature.onboarding.common.OnboardingSideEffect
+import com.filmax.feature.onboarding.common.OnboardingState
 import org.koin.androidx.compose.koinViewModel
 
 /**

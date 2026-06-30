@@ -6,7 +6,7 @@ plugins {
 android { namespace = "com.filmax.feature.search.mobile" }
 
 dependencies {
-    api(project(":feature:search"))
+    api(project(":feature:search:common"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:designsystem"))

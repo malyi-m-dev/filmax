@@ -22,9 +22,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.filmax.feature.details.navigation.DetailsRoute
-import com.filmax.feature.player.navigation.PlayerRoute
-import com.filmax.feature.collections.navigation.CollectionDetailRoute
+import com.filmax.feature.details.common.navigation.DetailsRoute
+import com.filmax.feature.player.common.navigation.PlayerRoute
+import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
 import com.filmax.feature.collections.tv.navigation.tvCollectionsScreen
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen

@@ -6,7 +6,7 @@ plugins {
 android { namespace = "com.filmax.feature.onboarding.mobile" }
 
 dependencies {
-    api(project(":feature:onboarding"))
+    api(project(":feature:onboarding:common"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:designsystem"))

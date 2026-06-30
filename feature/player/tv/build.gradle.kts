@@ -6,7 +6,7 @@ plugins {
 android { namespace = "com.filmax.feature.player.tv" }
 
 dependencies {
-    api(project(":feature:player"))
+    api(project(":feature:player:common"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:tv-designsystem"))

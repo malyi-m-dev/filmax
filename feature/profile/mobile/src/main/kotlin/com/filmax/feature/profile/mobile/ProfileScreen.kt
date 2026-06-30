@@ -1,9 +1,9 @@
 package com.filmax.feature.profile.mobile
 
-import com.filmax.feature.profile.ProfileScreenModel
-import com.filmax.feature.profile.ProfileState
-import com.filmax.feature.profile.ProfileEvent
-import com.filmax.feature.profile.ProfileSideEffect
+import com.filmax.feature.profile.common.ProfileScreenModel
+import com.filmax.feature.profile.common.ProfileState
+import com.filmax.feature.profile.common.ProfileEvent
+import com.filmax.feature.profile.common.ProfileSideEffect
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
