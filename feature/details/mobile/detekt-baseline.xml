@@ -1,0 +1,98 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$( item.genres.firstOrNull()?.title ?: "", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onPrimaryContainer, letterSpacing = 1.5.sp, )</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(" ")</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(" ", "")</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$("${item.duration.averageMinutes?.toInt() ?: "?"} мин", fontSize = 13.sp, color = Color.White.copy(0.85f))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$("В ролях", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$("Команда", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$("Смотреть", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$("Трейлер", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 12.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(0.85f)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(0xFF6AC2B0)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(0xFFE86D9E)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(0xFFF4B792)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(10.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(20.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(22.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(28.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(8.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Brush.linearGradient(listOf(colors[i % colors.size], colors[(i + 1) % colors.size])))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр", director.substringBefore(" "), director.substringAfter(" ", ""))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Color(0xFFE86D9E), ShapeLg, "Жанр", item.genres.firstOrNull()?.title ?: "—", item.genres.getOrNull(1)?.title ?: "—")</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Color(0xFFF4B792), ShapeCookie, "Длительность", "${item.duration.averageMinutes?.toInt() ?: "?"}", "мин")</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(22.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(bottom = 12.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(bottom = 14.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(bottom = 16.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(bottom = 20.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(bottom = 24.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(colors[i % colors.size], colors[(i + 1) % colors.size])</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(horizontal = 20.dp)</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(item.plot, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 20.dp))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(listOf(colors[i % colors.size], colors[(i + 1) % colors.size]))</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, modifier = Modifier.fillMaxWidth())</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(onClick = {})</ID>
+    <ID>ArgumentListWrapping:DetailsScreen.kt$(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp))</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable fun DetailsScreen( onBack: () -&gt; Unit, onPlay: (itemId: Int) -&gt; Unit, onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: DetailsScreenModel = koinViewModel(), )</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun AboutTab(item: Item, onPlayTrailer: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun CastTab(item: Item)</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun DetailsContent( item: Item, state: DetailsState, onBack: () -&gt; Unit, onPlay: () -&gt; Unit, onFav: () -&gt; Unit, onDownload: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun Dot()</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun GlassButton(onClick: () -&gt; Unit, content: @Composable () -&gt; Unit)</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun InfoRow(key: String, value: String)</ID>
+    <ID>FunctionNaming:DetailsScreen.kt$@Composable private fun RowScope.ActionSquare( icon: androidx.compose.ui.graphics.vector.ImageVector, desc: String, onClick: () -&gt; Unit, tint: Color = MaterialTheme.colorScheme.onSurface, )</ID>
+    <ID>ImportOrdering:DetailsNavigation.kt$import androidx.navigation.NavGraphBuilder import androidx.navigation.compose.composable import com.filmax.feature.details.mobile.DetailsScreen import com.filmax.feature.details.common.navigation.DetailsRoute</ID>
+    <ID>ImportOrdering:DetailsScreen.kt$import com.filmax.feature.details.common.DetailsScreenModel import com.filmax.feature.details.common.DetailsState import com.filmax.feature.details.common.DetailsEvent import androidx.compose.foundation.background import androidx.compose.foundation.clickable import androidx.compose.foundation.horizontalScroll import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.RowScope import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.fillMaxWidth import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.layout.size import androidx.compose.foundation.layout.statusBarsPadding import androidx.compose.foundation.layout.width import androidx.compose.foundation.rememberScrollState import androidx.compose.foundation.shape.CircleShape import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.foundation.verticalScroll import androidx.compose.material.icons.Icons import androidx.compose.material.icons.automirrored.filled.ArrowBack import androidx.compose.material.icons.filled.Download import androidx.compose.material.icons.filled.DownloadDone import androidx.compose.material.icons.filled.Favorite import androidx.compose.material.icons.filled.MoreVert import androidx.compose.material.icons.filled.PlayArrow import androidx.compose.material.icons.filled.Share import androidx.compose.material.icons.outlined.FavoriteBorder import androidx.compose.material3.CircularProgressIndicator import androidx.compose.material3.Icon import androidx.compose.material3.IconButton import androidx.compose.material3.MaterialTheme import androidx.compose.material3.Surface import androidx.compose.material3.Text import androidx.compose.runtime.Composable import androidx.compose.runtime.getValue import androidx.compose.runtime.mutableStateOf import androidx.compose.runtime.remember import androidx.compose.runtime.setValue import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.draw.shadow import androidx.compose.ui.graphics.Brush import androidx.compose.ui.graphics.Color import androidx.compose.ui.graphics.graphicsLayer import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.platform.LocalDensity import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import org.koin.androidx.compose.koinViewModel import com.filmax.core.designsystem.ShapeAsymA import com.filmax.core.designsystem.ShapeAsymB import com.filmax.core.designsystem.ShapeCookie import com.filmax.core.designsystem.ShapeLg import com.filmax.core.domain.catalog.model.Item import com.filmax.core.ui.components.FilmaxChip import com.filmax.core.ui.components.FilmaxErrorModal import com.filmax.core.ui.components.FilmaxStatCard import com.filmax.core.ui.components.PosterImage import com.filmax.core.ui.components.RatingPill import java.util.Locale</ID>
+    <ID>LongMethod:DetailsScreen.kt$@Composable private fun AboutTab(item: Item, onPlayTrailer: () -&gt; Unit)</ID>
+    <ID>LongMethod:DetailsScreen.kt$@Composable private fun DetailsContent( item: Item, state: DetailsState, onBack: () -&gt; Unit, onPlay: () -&gt; Unit, onFav: () -&gt; Unit, onDownload: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:DetailsScreen.kt$( item: Item, state: DetailsState, onBack: () -&gt; Unit, onPlay: () -&gt; Unit, onFav: () -&gt; Unit, onDownload: () -&gt; Unit, )</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0.06f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0.3f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0.5f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0.7f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0.85f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0x66000000</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0x73000000</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0xFF0A0809</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0xFF141012</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0xFF6AC2B0</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0xFFB4305A</ID>
+    <ID>MagicNumber:DetailsScreen.kt$0xFFFFB1C8</ID>
+    <ID>MagicNumber:DetailsScreen.kt$1.5f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$1.6f</ID>
+    <ID>MagicNumber:DetailsScreen.kt$50</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$.</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$GlassButton(onClick = {}) { Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp)) }</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = Color.White, modifier = Modifier.size(22.dp))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", tint = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.Black, modifier = Modifier.size(28.dp))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Row</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$StatItem(Color(0xFF6AC2B0), ShapeAsymB, "Режиссёр", director.substringBefore(" "), director.substringAfter(" ", ""))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$StatItem(Color(0xFFE86D9E), ShapeLg, "Жанр", item.genres.firstOrNull()?.title ?: "—", item.genres.getOrNull(1)?.title ?: "—")</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$StatItem(Color(0xFFF4B792), ShapeCookie, "Длительность", "${item.duration.averageMinutes?.toInt() ?: "?"}", "мин")</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text("${item.duration.averageMinutes?.toInt() ?: "?"} мин", fontSize = 13.sp, color = Color.White.copy(0.85f))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text("В ролях", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text("Команда", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 14.dp))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text("Смотреть", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onPrimaryContainer)</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text("Трейлер", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 12.dp))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text(item.plot, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(bottom = 20.dp))</ID>
+    <ID>MaxLineLength:DetailsScreen.kt$Text(name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, modifier = Modifier.fillMaxWidth())</ID>
+    <ID>MaximumLineLength:DetailsScreen.kt$ </ID>
+    <ID>NoMultipleSpaces:DetailsScreen.kt$ </ID>
+    <ID>UnusedParameter:DetailsScreen.kt$onOpenItem: (Int) -&gt; Unit</ID>
+    <ID>Wrapping:DetailsScreen.kt$</ID>
+    <ID>Wrapping:DetailsScreen.kt$(</ID>
+    <ID>Wrapping:DetailsScreen.kt$Icon(Icons.Filled.MoreVert, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))</ID>
+  </CurrentIssues>
+</SmellBaseline>

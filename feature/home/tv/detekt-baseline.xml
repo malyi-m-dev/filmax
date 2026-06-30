@@ -1,0 +1,30 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable fun TvHomeScreen( onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: HomeScreenModel = koinViewModel(), )</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun EditorsChoicePill()</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun HeroMeta(item: Item)</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun MetaDot()</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun MetaText(text: String)</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun RowScope.TvAllPosterCell(item: Item, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun TvContinueCard(history: WatchHistory, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun TvHero( item: Item, onPlay: () -&gt; Unit, onDetails: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun TvHomeContent( state: HomeState, onOpenItem: (Int) -&gt; Unit, onLoadMore: () -&gt; Unit, )</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun TvPosterCard(item: Item, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@Composable private fun TvSectionTitle(title: String)</ID>
+    <ID>FunctionNaming:TvHomeScreen.kt$@OptIn(ExperimentalComposeUiApi::class) @Composable private fun TvRail(title: String, content: LazyListScope.() -&gt; Unit)</ID>
+    <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHero( item: Item, onPlay: () -&gt; Unit, onDetails: () -&gt; Unit, )</ID>
+    <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHomeContent( state: HomeState, onOpenItem: (Int) -&gt; Unit, onLoadMore: () -&gt; Unit, )</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$0.45f</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$0.4f</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$0.56f</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$0.6f</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$0.8f</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$3</ID>
+    <ID>MagicNumber:TvHomeScreen.kt$3f</ID>
+    <ID>MatchingDeclarationName:TvHomeNavigation.kt$TvHomeRoute</ID>
+    <ID>TooManyFunctions:TvHomeScreen.kt$com.filmax.feature.home.tv.TvHomeScreen.kt</ID>
+    <ID>Wrapping:TvHomeScreen.kt$;</ID>
+  </CurrentIssues>
+</SmellBaseline>

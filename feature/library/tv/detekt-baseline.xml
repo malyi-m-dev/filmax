@@ -1,0 +1,23 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ArgumentListWrapping:TvLibraryScreen.kt$("Моя библиотека", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>ArgumentListWrapping:TvLibraryScreen.kt$(alpha = 0.8f)</ID>
+    <ID>ArgumentListWrapping:TvLibraryScreen.kt$(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)</ID>
+    <ID>FunctionNaming:TvLibraryScreen.kt$@Composable fun TvLibraryScreen( onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: LibraryScreenModel = koinViewModel(), )</ID>
+    <ID>FunctionNaming:TvLibraryScreen.kt$@Composable private fun FolderTile(title: String, count: Int)</ID>
+    <ID>FunctionNaming:TvLibraryScreen.kt$@Composable private fun PosterTile(tile: Tile, onClick: () -&gt; Unit)</ID>
+    <ID>FunctionNaming:TvLibraryScreen.kt$@Composable private fun TabChip(label: String, count: Int, active: Boolean, onClick: () -&gt; Unit)</ID>
+    <ID>ImportOrdering:TvLibraryScreen.kt$import androidx.compose.foundation.background import androidx.compose.foundation.layout.Arrangement import androidx.compose.foundation.layout.Box import androidx.compose.foundation.layout.Column import androidx.compose.foundation.layout.PaddingValues import androidx.compose.foundation.layout.Row import androidx.compose.foundation.layout.Spacer import androidx.compose.foundation.layout.fillMaxSize import androidx.compose.foundation.layout.height import androidx.compose.foundation.layout.padding import androidx.compose.foundation.lazy.grid.GridCells import androidx.compose.foundation.lazy.grid.LazyVerticalGrid import androidx.compose.foundation.lazy.grid.GridItemSpan import androidx.compose.foundation.lazy.grid.items import androidx.compose.foundation.lazy.grid.rememberLazyGridState import androidx.compose.foundation.shape.RoundedCornerShape import androidx.compose.material3.MaterialTheme import androidx.compose.material3.Text import androidx.compose.runtime.Composable import androidx.compose.runtime.getValue import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.draw.clip import androidx.compose.ui.graphics.Color import androidx.compose.ui.text.font.FontWeight import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus import com.filmax.core.tv.designsystem.TvFocusCard import com.filmax.core.tv.designsystem.TvPosterTitle import com.filmax.core.ui.components.PosterImage import com.filmax.feature.library.common.LibraryEvent import com.filmax.feature.library.common.LibraryScreenModel import com.filmax.feature.library.common.LibraryTab import org.koin.androidx.compose.koinViewModel</ID>
+    <ID>LongMethod:TvLibraryScreen.kt$@Composable fun TvLibraryScreen( onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: LibraryScreenModel = koinViewModel(), )</ID>
+    <ID>MagicNumber:TvLibraryScreen.kt$3</ID>
+    <ID>MagicNumber:TvLibraryScreen.kt$6</ID>
+    <ID>MatchingDeclarationName:TvLibraryNavigation.kt$TvLibraryRoute</ID>
+    <ID>MaxLineLength:TvLibraryScreen.kt$.</ID>
+    <ID>MaxLineLength:TvLibraryScreen.kt$Text("Моя библиотека", style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface)</ID>
+    <ID>MaxLineLength:TvLibraryScreen.kt$color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface</ID>
+    <ID>MaxLineLength:TvLibraryScreen.kt$color = if (active) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant</ID>
+    <ID>MaximumLineLength:TvLibraryScreen.kt$ </ID>
+  </CurrentIssues>
+</SmellBaseline>
