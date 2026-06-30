@@ -136,43 +136,11 @@ jobs:
           echo "Branch: ${BRANCH_NAME} | Commit ${short_sha}: ${commit_subject}"
           echo "Task: ${task_text} -> ${task_url}"
 
-      # Текстовое уведомление с кликабельной ссылкой на задачу (parse_mode=HTML).
-      # Отдельный шаг — приходит независимо от размера/успеха отправки APK ниже.
-      # Ограничено master/ручным запуском, чтобы не спамить на каждый push в TV-ветку
-      # (на прочих ветках ссылка на задачу всё равно уезжает в caption документа).
-      - name: Send build notification to Telegram
-        if: github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          # Значения из step output попадают в окружение — это безопасно
-          # (никакой подстановки untrusted-данных прямо в текст скрипта).
-          BRANCH: ${{ steps.commit.outputs.branch }}
-          SHORT_SHA: ${{ steps.commit.outputs.short_sha }}
-          COMMIT_SUBJECT: ${{ steps.commit.outputs.subject }}
-          TASK_URL: ${{ steps.commit.outputs.task_url }}
-          TASK_TEXT: ${{ steps.commit.outputs.task_text }}
-        run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "::warning::Секреты TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы — пропускаю текстовое уведомление."
-            exit 0
-          fi
-          # Экранируем HTML-спецсимволы в subject (& < >) перед вставкой в parse_mode=HTML.
-          escape_html() {
-            printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
-          }
-          subject_html=$(escape_html "$COMMIT_SUBJECT")
-          message=$(printf '<b>Filmax · debug APK собран</b>\nВетка: <code>%s</code> · Run #%s\nКоммит <code>%s</code>: %s\nЗадача: <a href="%s">%s</a>' \
-            "$BRANCH" "$GITHUB_RUN_NUMBER" "$SHORT_SHA" "$subject_html" "$TASK_URL" "$TASK_TEXT")
-          # --data-urlencode корректно кодирует HTML-теги и кириллицу в теле запроса.
-          curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-            --data-urlencode "text=${message}" \
-            -d parse_mode=HTML \
-            -d disable_web_page_preview=true
-          echo "Текстовое уведомление отправлено в Telegram."
-
+      # Одно уведомление: APK с подписью (ветка, коммит, кликабельная ссылка на задачу —
+      # Telegram сам линкует URL). Только на pull_request и ручной запуск; на push/мерж
+      # в master Telegram не дёргаем, чтобы не дублировать и не спамить.
       - name: Send APK to Telegram
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
