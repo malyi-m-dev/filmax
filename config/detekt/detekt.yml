@@ -54,11 +54,22 @@ complexity:
     active: true
     threshold: 4
 
+naming:
+  active: true
+  # @Composable-функции именуются в PascalCase по официальной конвенции Compose — это норма,
+  # а не дефект. Исключаем их из FunctionNaming, иначе baseline шумит ~169 ложными записями.
+  FunctionNaming:
+    active: true
+    ignoreAnnotated: ['Composable']
+
 style:
   active: true
   MagicNumber:
     active: true
     excludes: ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/*Test.kt', '**/*Spec.kt']
+    # Compose-вёрстка состоит из dp/sp-литералов (`16.dp`, `0.85f`, `tween(240)`) — это не «магические
+    # числа», а параметры раскладки. Исключаем @Composable, оставляя реальные числа в data/domain.
+    ignoreAnnotated: ['Composable']
     ignoreNumbers: ['-1', '0', '1', '2']
     ignoreHashCodeFunction: true
     ignorePropertyDeclaration: true
