@@ -1,6 +1,12 @@
 package com.filmax.feature.details.tv
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -14,9 +20,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -34,21 +42,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
@@ -262,34 +276,125 @@ private fun MovieContent(
     }
 }
 
-/** Правая glass-панель деталей фильма с асимметричным скруглением 48/24/48/24 (как в макете). */
+/**
+ * Правая glass-панель деталей фильма с асимметричным скруглением 48/24/48/24 (как в макете).
+ * «В ролях» ограничено по высоте, чтобы все три секции (роли/режиссёр/качество) помещались и
+ * ничего не срезалось краем карточки. Если состав не влез — панель фокусируема и по нажатию
+ * раскрывает полный список в оверлее [InfoPanelDialog].
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InfoPanel(item: Item, modifier: Modifier = Modifier) {
-    val quality = remember(item) {
-        val qualities = item.tracklist.flatMap { it.files }.map { it.quality }.filter { it.isNotBlank() }.distinct()
-        val langs = item.tracklist.flatMap { it.audios }.mapNotNull { it.lang }.map { audioLabel(it) }.distinct()
-        (qualities + langs).distinct().take(6)
+    // В свёрнутой карточке — только видео-качества (помещаются в ряд); аудио-языки и полный
+    // список уезжают в оверлей, чтобы чипы не переполняли узкую панель по ширине.
+    val videoQualities = remember(item) {
+        item.tracklist.flatMap { it.files }.map { it.quality }.filter { it.isNotBlank() }.distinct().take(5)
     }
+    val fullQuality = remember(item) {
+        val langs = item.tracklist.flatMap { it.audios }.mapNotNull { it.lang }.map { audioLabel(it) }.distinct()
+        (videoQualities + langs).distinct().take(8)
+    }
+    var expanded by remember(item.id) { mutableStateOf(false) }
+    // Состав реально не поместился в отведённые строки — тогда панель кликабельна и раскрывается.
+    var castOverflow by remember(item.id) { mutableStateOf(false) }
+    var focused by remember { mutableStateOf(false) }
+
+    val shape = RoundedCornerShape(topStart = 48.dp, topEnd = 24.dp, bottomEnd = 48.dp, bottomStart = 24.dp)
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(topStart = 48.dp, topEnd = 24.dp, bottomEnd = 48.dp, bottomStart = 24.dp))
+            .clip(shape)
             .background(GlassPanel)
+            // clickable сам по себе фокусируемый и реагирует на DPAD_CENTER — отдельный focusable
+            // не нужен (он перехватил бы фокус, и центр не доходил бы до клика).
+            .then(
+                if (castOverflow) {
+                    Modifier
+                        .onFocusChanged { focused = it.isFocused }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { expanded = true }
+                } else {
+                    Modifier
+                }
+            )
+            .then(if (focused) Modifier.border(3.dp, TvFocus, shape) else Modifier)
             .padding(24.dp),
     ) {
         if (item.cast.isNotBlank()) {
             Label("В ролях")
-            Text(item.cast, fontSize = 16.sp, lineHeight = 26.sp, color = Color.White.copy(alpha = 0.92f))
+            Text(
+                item.cast,
+                fontSize = 16.sp,
+                lineHeight = 26.sp,
+                color = Color.White.copy(alpha = 0.92f),
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { castOverflow = it.hasVisualOverflow },
+            )
         }
         if (item.director.isNotBlank()) {
             Spacer(Modifier.height(18.dp))
             Label("Режиссёр")
             Text(item.director, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
         }
-        if (quality.isNotEmpty()) {
+        if (videoQualities.isNotEmpty()) {
             Spacer(Modifier.height(18.dp))
             Label("Качество")
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                quality.forEach { QualityChip(it) }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                videoQualities.forEach { QualityChip(it) }
+            }
+        }
+        if (castOverflow) {
+            Spacer(Modifier.height(12.dp))
+            Text("Подробнее →", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+
+    if (expanded) {
+        InfoPanelDialog(item = item, quality = fullQuality, onDismiss = { expanded = false })
+    }
+}
+
+/** Оверлей с полным составом/режиссёром/качеством; «Назад» закрывает (onDismissRequest). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InfoPanelDialog(item: Item, quality: List<String>, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.55f)
+                .widthIn(max = 720.dp)
+                .heightIn(max = 640.dp)
+                .clip(RoundedCornerShape(28.dp))
+                .background(Color(0xF21A1518))
+                .verticalScroll(rememberScrollState())
+                .focusable()
+                .padding(36.dp),
+        ) {
+            Text(item.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            if (item.cast.isNotBlank()) {
+                Spacer(Modifier.height(20.dp))
+                Label("В ролях")
+                Text(item.cast, fontSize = 17.sp, lineHeight = 28.sp, color = Color.White.copy(alpha = 0.92f))
+            }
+            if (item.director.isNotBlank()) {
+                Spacer(Modifier.height(20.dp))
+                Label("Режиссёр")
+                Text(item.director, fontSize = 17.sp, color = Color.White.copy(alpha = 0.9f))
+            }
+            if (quality.isNotEmpty()) {
+                Spacer(Modifier.height(20.dp))
+                Label("Качество")
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    quality.forEach { QualityChip(it) }
+                }
             }
         }
     }

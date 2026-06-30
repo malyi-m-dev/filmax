@@ -40,11 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -96,6 +99,9 @@ fun TvPlayerScreen(
 
     val playFocus = remember { FocusRequester() }
     val hiddenFocus = remember { FocusRequester() }
+    // Цель фокуса «вниз» с центральных контролов — первый чип настроек (чтобы «Качество» легко находилось).
+    val firstChipFocus = remember { FocusRequester() }
+    val hasChips = state.qualities.size > 1 || state.audioTracks.size > 1 || state.subtitles.size > 1
 
     // Тик прогресса + сохранение позиции (как на телефоне).
     LaunchedEffect(screenModel.player) {
@@ -149,11 +155,15 @@ fun TvPlayerScreen(
                     .focusRequester(hiddenFocus)
                     .focusable()
                     .onKeyEvent { event ->
-                        if (event.type == KeyEventType.KeyDown) {
-                            controlsVisible = true
-                            true
-                        } else {
-                            false
+                        when {
+                            // «Назад» не перехватываем — пусть уходит в BackHandler и выходит из плеера.
+                            event.key == Key.Back -> false
+                            event.type == KeyEventType.KeyDown -> {
+                                controlsVisible = true
+                                true
+                            }
+
+                            else -> false
                         }
                     },
             )
@@ -177,20 +187,23 @@ fun TvPlayerScreen(
                 }
 
                 // Центр — контролы перемотки/паузы (размеры по дизайну)
+                // «Вниз» с любой центральной кнопки ведёт на первый чип настроек (если чипы есть).
+                val chipDown = if (hasChips) Modifier.focusProperties { down = firstChipFocus } else Modifier
                 Row(
                     modifier = Modifier.align(Alignment.Center),
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ControlButton(size = 52.dp, icon = Icons.Filled.Replay10, onClick = { screenModel.player.seekBack() })
+                    ControlButton(size = 52.dp, icon = Icons.Filled.Replay10, modifier = chipDown, onClick = { screenModel.player.seekBack() })
                     ControlButton(
                         size = 68.dp,
                         icon = if (screenModel.player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         primary = true,
                         focusRequester = playFocus,
+                        modifier = chipDown,
                         onClick = { if (screenModel.player.isPlaying) screenModel.player.pause() else screenModel.player.play() },
                     )
-                    ControlButton(size = 52.dp, icon = Icons.Filled.Forward10, onClick = { screenModel.player.seekForward() })
+                    ControlButton(size = 52.dp, icon = Icons.Filled.Forward10, modifier = chipDown, onClick = { screenModel.player.seekForward() })
                 }
 
                 // Снизу — прогресс-бар + чипы настроек
@@ -219,6 +232,7 @@ fun TvPlayerScreen(
 
                     SettingsChips(
                         state = state,
+                        firstChipFocus = firstChipFocus,
                         modifier = Modifier.padding(top = 24.dp),
                         onOpen = { openCategory = it },
                         onRowPositioned = { chipsRowTop = it },
@@ -245,27 +259,37 @@ fun TvPlayerScreen(
     }
 }
 
-/** Ряд чипов настроек: показываем только те, где реально есть из чего выбрать. */
+/**
+ * Ряд чипов настроек: показываем только те, где реально есть из чего выбрать. Первому
+ * видимому чипу отдаём [firstChipFocus] — это цель навигации «вниз» с центральных контролов,
+ * чтобы «Качество» (обычно первый) сразу попадало под фокус и легко находилось.
+ */
 @Composable
 private fun SettingsChips(
     state: PlayerState,
+    firstChipFocus: FocusRequester,
     onOpen: (SettingsCategory) -> Unit,
     onRowPositioned: (top: Int) -> Unit,
     onChipPositioned: (SettingsCategory, left: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val categories = buildList {
+        if (state.qualities.size > 1) add(SettingsCategory.Quality)
+        if (state.audioTracks.size > 1) add(SettingsCategory.Audio)
+        if (state.subtitles.size > 1) add(SettingsCategory.Subtitle)
+    }
     Row(
         modifier = modifier.onGloballyPositioned { onRowPositioned(it.positionInRoot().y.roundToInt()) },
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        if (state.qualities.size > 1) {
-            SettingChip("Качество", state.currentQuality ?: "Авто", onClick = { onOpen(SettingsCategory.Quality) }, onPositioned = { onChipPositioned(SettingsCategory.Quality, it) })
-        }
-        if (state.audioTracks.size > 1) {
-            SettingChip("Аудио", state.currentAudio, onClick = { onOpen(SettingsCategory.Audio) }, onPositioned = { onChipPositioned(SettingsCategory.Audio, it) })
-        }
-        if (state.subtitles.size > 1) {
-            SettingChip("Субтитры", state.currentSubtitle, onClick = { onOpen(SettingsCategory.Subtitle) }, onPositioned = { onChipPositioned(SettingsCategory.Subtitle, it) })
+        categories.forEachIndexed { index, category ->
+            SettingChip(
+                label = category.chipLabel,
+                value = category.chipValue(state),
+                focusRequester = if (index == 0) firstChipFocus else null,
+                onClick = { onOpen(category) },
+                onPositioned = { onChipPositioned(category, it) },
+            )
         }
     }
 }
@@ -276,10 +300,12 @@ private fun SettingChip(
     value: String,
     onClick: () -> Unit,
     onPositioned: (left: Int) -> Unit,
+    focusRequester: FocusRequester? = null,
 ) {
     TvFocusCard(
         onClick = onClick,
         shape = CircleShape,
+        focusRequester = focusRequester,
         modifier = Modifier.onGloballyPositioned { onPositioned(it.positionInRoot().x.roundToInt()) },
     ) {
         Row(
@@ -411,10 +437,11 @@ private fun ControlButton(
     size: Dp,
     icon: ImageVector,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     primary: Boolean = false,
     focusRequester: FocusRequester? = null,
 ) {
-    TvFocusCard(onClick = onClick, shape = CircleShape, focusRequester = focusRequester, modifier = Modifier.size(size)) {
+    TvFocusCard(onClick = onClick, shape = CircleShape, focusRequester = focusRequester, modifier = modifier.size(size)) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -430,6 +457,20 @@ private fun ControlButton(
             )
         }
     }
+}
+
+/** Короткая подпись чипа (в ряду настроек), в отличие от полного [SettingsCategory.title] в поповере. */
+private val SettingsCategory.chipLabel: String
+    get() = when (this) {
+        SettingsCategory.Quality -> "Качество"
+        SettingsCategory.Audio -> "Аудио"
+        SettingsCategory.Subtitle -> "Субтитры"
+    }
+
+private fun SettingsCategory.chipValue(state: PlayerState): String = when (this) {
+    SettingsCategory.Quality -> state.currentQuality ?: "Авто"
+    SettingsCategory.Audio -> state.currentAudio
+    SettingsCategory.Subtitle -> state.currentSubtitle
 }
 
 private fun SettingsCategory.options(state: PlayerState): List<String> = when (this) {
