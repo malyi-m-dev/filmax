@@ -9,8 +9,8 @@ import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.data.catalog.mapper.toDomain
+import com.filmax.data.user.remote.UpdateDeviceSettingsParams
 import com.filmax.data.user.remote.UserApi
-import com.filmax.data.user.remote.dto.DeviceInfoDto
 
 internal class UserRepositoryImpl(
     private val api: UserApi,
@@ -30,7 +30,7 @@ internal class UserRepositoryImpl(
             subscription = subscriptionDto?.let {
                 Subscription(
                     active = it.active,
-                    endsAt = it.endTime?.times(1000),
+                    endsAt = it.endTime?.times(MILLIS_IN_SECOND),
                     daysLeft = it.days?.toInt(),
                 )
             },
@@ -43,14 +43,16 @@ internal class UserRepositoryImpl(
 
     override suspend fun updateDeviceSettings(settings: DeviceSettings): RequestResult<Unit> = safeRequest {
         api.updateDeviceSettings(
-            id = settings.id,
-            supportSsl = if (settings.supportSsl) 1 else 0,
-            supportHevc = if (settings.supportHevc) 1 else 0,
-            supportHdr = if (settings.supportHdr) 1 else 0,
-            support4k = if (settings.support4k) 1 else 0,
-            mixedPlaylist = 0,
-            streamingType = settings.streamingType,
-            serverLocation = settings.serverLocation,
+            UpdateDeviceSettingsParams(
+                id = settings.id,
+                supportSsl = if (settings.supportSsl) 1 else 0,
+                supportHevc = if (settings.supportHevc) 1 else 0,
+                supportHdr = if (settings.supportHdr) 1 else 0,
+                support4k = if (settings.support4k) 1 else 0,
+                mixedPlaylist = 0,
+                streamingType = settings.streamingType,
+                serverLocation = settings.serverLocation,
+            ),
         )
     }
 
@@ -66,7 +68,7 @@ internal class UserRepositoryImpl(
                 id = it.id,
                 title = it.title,
                 count = it.count,
-                updatedAt = it.updatedAt?.toLong()?.times(1000),
+                updatedAt = it.updatedAt?.toLong()?.times(MILLIS_IN_SECOND),
             )
         }
     }
@@ -93,14 +95,8 @@ internal class UserRepositoryImpl(
     override suspend fun removeFromBookmark(itemId: Int, folderId: Int): RequestResult<Unit> =
         safeRequest { api.removeBookmarkItem(itemId, folderId) }
 
-    private fun DeviceInfoDto.toDomain() = DeviceSettings(
-        id = id,
-        title = title,
-        supportSsl = supportSsl == 1,
-        supportHevc = supportHevc == 1,
-        supportHdr = supportHdr == 1,
-        support4k = support4k == 1,
-        streamingType = streamingType,
-        serverLocation = serverLocation,
-    )
+    private companion object {
+        // kino.pub отдаёт временные метки в секундах — переводим в миллисекунды.
+        const val MILLIS_IN_SECOND = 1000
+    }
 }
