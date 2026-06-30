@@ -232,43 +232,57 @@ private fun MovieContent(
     Box(Modifier.fillMaxSize()) {
         Backdrop(item)
 
-        Row(Modifier.fillMaxSize().padding(72.dp)) {
-            Column(modifier = Modifier.weight(1f)) {
-                TagPill(item.genres.take(2).joinToString(" · ") { it.title })
-                Spacer(Modifier.height(16.dp))
-                Text(item.title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
-                Spacer(Modifier.height(14.dp))
-                MetaRow(item, includeDuration = true)
-                Spacer(Modifier.height(16.dp))
-                Text(item.plot, fontSize = 18.sp, lineHeight = 26.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4, modifier = Modifier.fillMaxWidth(0.9f))
-                Spacer(Modifier.height(28.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow, focusRequester = playFocus)
-                    TvButton(
-                        text = if (isFav) "В избранном" else "В избранное",
-                        onClick = onToggleFav,
-                        primary = false,
-                        leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                    )
+        // Корневой вертикальный скролл: hero-блок и рельса «Похожие» — отдельные элементы потока,
+        // а не наложенные оверлеи. Раньше «Похожие» висели поверх кнопок (align(BottomStart) в
+        // статичном Box без скролла) и перекрывали их без возможности докрутить. LazyColumn при
+        // уходе фокуса вниз сам подтягивает скрытый элемент в видимую область (bring-into-view).
+        // Backdrop остаётся зафиксированным фоном за списком — как sticky-бэкдроп на телефоне.
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 48.dp),
+        ) {
+            item(key = "hero") {
+                Row(Modifier.fillMaxWidth().padding(72.dp)) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        TagPill(item.genres.take(2).joinToString(" · ") { it.title })
+                        Spacer(Modifier.height(16.dp))
+                        Text(item.title, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Spacer(Modifier.height(14.dp))
+                        MetaRow(item, includeDuration = true)
+                        Spacer(Modifier.height(16.dp))
+                        Text(item.plot, fontSize = 18.sp, lineHeight = 26.sp, color = Color.White.copy(alpha = 0.85f), maxLines = 4, modifier = Modifier.fillMaxWidth(0.9f))
+                        Spacer(Modifier.height(28.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow, focusRequester = playFocus)
+                            TvButton(
+                                text = if (isFav) "В избранном" else "В избранное",
+                                onClick = onToggleFav,
+                                primary = false,
+                                leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                            )
+                        }
+                    }
+
+                    // Правая glass-панель — «В ролях» / «Режиссёр» / «Качество» (как в макете TVDetails).
+                    if (item.cast.isNotBlank() || item.director.isNotBlank() || item.tracklist.isNotEmpty()) {
+                        Spacer(Modifier.width(40.dp))
+                        InfoPanel(item = item, modifier = Modifier.width(340.dp).align(Alignment.Top))
+                    }
                 }
             }
 
-            // Правая glass-панель — «В ролях» / «Режиссёр» / «Качество» (как в макете TVDetails).
-            if (item.cast.isNotBlank() || item.director.isNotBlank() || item.tracklist.isNotEmpty()) {
-                Spacer(Modifier.width(40.dp))
-                InfoPanel(item = item, modifier = Modifier.width(340.dp).align(Alignment.Top))
-            }
-        }
-
-        if (similar.isNotEmpty()) {
-            Column(Modifier.align(Alignment.BottomStart).padding(start = 72.dp, bottom = 32.dp)) {
-                Text("Похожие", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(bottom = 14.dp))
-                LazyRow(
-                    contentPadding = PaddingValues(end = 72.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    items(similar, key = { it.id }) { sim ->
-                        SimilarCard(item = sim, onClick = { onOpenItem(sim.id) })
+            if (similar.isNotEmpty()) {
+                item(key = "similar") {
+                    Column(Modifier.padding(start = 72.dp, bottom = 32.dp)) {
+                        Text("Похожие", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White, modifier = Modifier.padding(bottom = 14.dp))
+                        LazyRow(
+                            contentPadding = PaddingValues(end = 72.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        ) {
+                            items(similar, key = { it.id }) { sim ->
+                                SimilarCard(item = sim, onClick = { onOpenItem(sim.id) })
+                            }
+                        }
                     }
                 }
             }
