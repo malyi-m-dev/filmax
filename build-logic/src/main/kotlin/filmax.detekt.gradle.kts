@@ -33,6 +33,11 @@ val versionCatalog = extensions.getByType<VersionCatalogsExtension>().named("lib
 
 dependencies {
     "detektPlugins"(versionCatalog.findLibrary("detekt-formatting").get())
+    // Кастомные правила Filmax (напр. NestedIf). Guard от самоссылки — сам модуль
+    // правил detekt не анализирует и в detektPlugins себя не тянет.
+    if (path != ":detekt-rules") {
+        "detektPlugins"(project(":detekt-rules"))
+    }
 }
 
 tasks.withType<Detekt>().configureEach {
