@@ -2,20 +2,7 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable fun TvOnboardingScreen( onAuthenticated: () -&gt; Unit, modifier: Modifier = Modifier, screenModel: OnboardingScreenModel = koinViewModel(), )</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun AuthCodeCard(userCode: String, verificationUri: String)</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun AuthError(error: String, onRetry: () -&gt; Unit)</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun AuthStep(number: Int, action: String, detail: String)</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun FeatureRow(emoji: String, title: String, description: String)</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun GeneratingCode()</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun TvAuthStep(state: OnboardingState, onRetry: () -&gt; Unit)</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun TvBlobDecorations()</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun TvWelcomeStep(onLogin: () -&gt; Unit)</ID>
-    <ID>FunctionNaming:TvOnboardingScreen.kt$@Composable private fun Wordmark()</ID>
     <ID>LongMethod:TvOnboardingScreen.kt$@Composable private fun AuthCodeCard(userCode: String, verificationUri: String)</ID>
-    <ID>MagicNumber:TvOnboardingScreen.kt$200</ID>
-    <ID>MagicNumber:TvOnboardingScreen.kt$3</ID>
-    <ID>MagicNumber:TvOnboardingScreen.kt$400</ID>
     <ID>MatchingDeclarationName:TvOnboardingNavigation.kt$TvOnboardingRoute</ID>
     <ID>NoUnusedImports:TvOnboardingScreen.kt$com.filmax.feature.onboarding.tv.TvOnboardingScreen.kt</ID>
     <ID>UnusedPrivateMember:TvOnboardingScreen.kt$@Composable private fun FeatureRow(emoji: String, title: String, description: String)</ID>

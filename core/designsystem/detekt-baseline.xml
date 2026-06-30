@@ -2,8 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>FunctionNaming:FilmaxTheme.kt$@Composable fun FilmaxTheme( accentColor: Color = Color(0xFFB4305A), content: @Composable () -&gt; Unit, )</ID>
-    <ID>MagicNumber:FilmaxTheme.kt$0xFFB4305A</ID>
     <ID>NoUnusedImports:FilmaxTheme.kt$com.filmax.core.designsystem.FilmaxTheme.kt</ID>
   </CurrentIssues>
 </SmellBaseline>
