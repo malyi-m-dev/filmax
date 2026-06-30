@@ -111,6 +111,10 @@ private fun TvHomeContent(
     }
     LaunchedEffect(loadMore) { if (loadMore) onLoadMore() }
 
+    // «Все» бьём на ряды по ALL_COLUMNS заранее и кэшируем: иначе chunked() пересоздавал бы
+    // список рядов на каждой рекомпозиции (а он растёт с каждой подгруженной страницей).
+    val allRows = remember(state.all) { state.all.chunked(ALL_COLUMNS) }
+
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
@@ -160,8 +164,7 @@ private fun TvHomeContent(
         // ── Все — постранично подгружаемая сетка (6 в ряд) ──────────────────────
         if (state.all.isNotEmpty()) {
             item(key = "all_title") { TvSectionTitle("Все") }
-            val rows = state.all.chunked(ALL_COLUMNS)
-            itemsIndexed(rows, key = { index, _ -> "all_row_$index" }) { _, rowItems ->
+            itemsIndexed(allRows, key = { index, _ -> "all_row_$index" }) { _, rowItems ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -33,6 +34,7 @@ fun BoxScope.TvPosterTitle(
     subtitle: String? = null,
     modifier: Modifier = Modifier,
 ) {
+    val upperTitle = remember(title) { title.uppercase() }
     Column(
         modifier = modifier
             .align(Alignment.BottomStart)
@@ -47,7 +49,7 @@ fun BoxScope.TvPosterTitle(
             .padding(start = 12.dp, end = 12.dp, top = 40.dp, bottom = 12.dp),
     ) {
         Text(
-            text = title.uppercase(),
+            text = upperTitle,
             color = Color.White,
             fontSize = 14.sp,
             lineHeight = 16.sp,
