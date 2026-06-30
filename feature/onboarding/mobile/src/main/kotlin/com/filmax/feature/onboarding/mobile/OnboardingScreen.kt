@@ -68,6 +68,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
@@ -75,6 +76,10 @@ import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
 import kotlinx.coroutines.delay
+
+private val CardCornerRadius = 24.dp
+private val SmallIconSize = 16.dp
+private const val PulseDurationMillis = 1000
 
 @Composable
 fun OnboardingScreen(
@@ -105,7 +110,7 @@ fun OnboardingScreen(
                 .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(24.dp))
+            VerticalSpacer(24.dp)
 
             Text(
                 "Filmax",
@@ -143,7 +148,7 @@ fun OnboardingScreen(
 
             StepIndicators(current = state.step, total = 3)
 
-            Spacer(Modifier.height(24.dp))
+            VerticalSpacer(24.dp)
 
             when (state.step) {
                 0 -> Button(
@@ -191,7 +196,7 @@ fun OnboardingScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            VerticalSpacer(16.dp)
         }
     }
 }
@@ -220,7 +225,7 @@ private fun StepAuth(state: OnboardingState, onRetry: () -> Unit) {
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp),
                 )
-                Spacer(Modifier.height(16.dp))
+                VerticalSpacer(16.dp)
                 Text(
                     "Генерируем код…",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -233,159 +238,51 @@ private fun StepAuth(state: OnboardingState, onRetry: () -> Unit) {
 
 @Composable
 private fun AuthCodeCard(userCode: String, verificationUri: String) {
-    val clipboard = LocalClipboardManager.current
-    var copied by remember { mutableStateOf(false) }
-
-    LaunchedEffect(copied) {
-        if (copied) {
-            delay(2000)
-            copied = false
-        }
-    }
-
-    // Pulse animation on the code container
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulseAlpha",
-    )
-    val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulseScale",
-    )
-
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Instruction steps
-        AuthSteps()
-
-        Spacer(Modifier.height(28.dp))
-
-        // Code card
-        Box(
-            modifier = Modifier
-                .scale(pulseScale)
-                .clip(RoundedCornerShape(24.dp))
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                            MaterialTheme.colorScheme.surfaceContainerHigh,
-                        ),
-                    )
-                )
-                .border(
-                    width = 1.dp,
-                    brush = Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = pulseAlpha),
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        )
-                    ),
-                    shape = RoundedCornerShape(24.dp),
-                )
-                .padding(horizontal = 32.dp, vertical = 24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    "КОД АКТИВАЦИИ",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 2.sp,
-                )
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    userCode,
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 6.sp,
-                )
-                Spacer(Modifier.height(12.dp))
-                FilledTonalButton(
-                    onClick = {
-                        clipboard.setText(AnnotatedString(userCode))
-                        copied = true
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    ),
-                ) {
-                    Icon(
-                        imageVector = if (copied) Icons.Filled.CheckCircle else Icons.Filled.ContentCopy,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        if (copied) "Скопировано!" else "Скопировать",
-                        fontSize = 13.sp,
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // URL
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Filled.Language,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp),
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                verificationUri,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-            )
-        }
-
-        Spacer(Modifier.height(16.dp))
-
-        // Polling status
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(14.dp),
-                strokeWidth = 2.dp,
-            )
-            Text(
-                "Ожидаем подтверждение…",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 13.sp,
-            )
-        }
+        AuthStepsSection()
+        VerticalSpacer(28.dp)
+        CodeDisplaySection(userCode = userCode)
+        VerticalSpacer(20.dp)
+        UrlAndPollingSection(verificationUri = verificationUri)
     }
 }
 
+private data class Pulse(val alpha: Float, val scale: Float)
+
 @Composable
-private fun AuthSteps() {
+private fun rememberPulse(): Pulse {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(PulseDurationMillis, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulseAlpha",
+    )
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(PulseDurationMillis, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "pulseScale",
+    )
+    return Pulse(alpha = alpha, scale = scale)
+}
+
+@Composable
+private fun VerticalSpacer(height: Dp) {
+    Spacer(Modifier.height(height))
+}
+
+@Composable
+private fun AuthStepsSection() {
     val steps = listOf(
         "Открой" to verificationUri@"kinopub.me/device",
         "Войди" to "в аккаунт KinoPub",
@@ -396,7 +293,7 @@ private fun AuthSteps() {
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        steps.forEachIndexed { i, (action, detail) ->
+        steps.forEachIndexed { index, (action, detail) ->
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(1f),
@@ -409,13 +306,13 @@ private fun AuthSteps() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        "${i + 1}",
+                        "${index + 1}",
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                     )
                 }
-                Spacer(Modifier.height(6.dp))
+                VerticalSpacer(6.dp)
                 Text(
                     action,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -430,7 +327,7 @@ private fun AuthSteps() {
                     textAlign = TextAlign.Center,
                 )
             }
-            if (i < steps.lastIndex) {
+            if (index < steps.lastIndex) {
                 Box(
                     modifier = Modifier
                         .weight(0.3f)
@@ -440,6 +337,130 @@ private fun AuthSteps() {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CodeDisplaySection(userCode: String) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(2000)
+            copied = false
+        }
+    }
+
+    val pulse = rememberPulse()
+
+    Box(
+        modifier = Modifier
+            .scale(pulse.scale)
+            .clip(RoundedCornerShape(CardCornerRadius))
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ),
+                )
+            )
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = pulse.alpha),
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    )
+                ),
+                shape = RoundedCornerShape(CardCornerRadius),
+            )
+            .padding(horizontal = 32.dp, vertical = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "КОД АКТИВАЦИИ",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 2.sp,
+            )
+            VerticalSpacer(12.dp)
+            Text(
+                userCode,
+                fontSize = 40.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurface,
+                letterSpacing = 6.sp,
+            )
+            VerticalSpacer(12.dp)
+            FilledTonalButton(
+                onClick = {
+                    clipboard.setText(AnnotatedString(userCode))
+                    copied = true
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                ),
+            ) {
+                Icon(
+                    imageVector = if (copied) Icons.Filled.CheckCircle else Icons.Filled.ContentCopy,
+                    contentDescription = null,
+                    modifier = Modifier.size(SmallIconSize),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    if (copied) "Скопировано!" else "Скопировать",
+                    fontSize = 13.sp,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UrlAndPollingSection(verificationUri: String) {
+    // URL
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Language,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(SmallIconSize),
+        )
+        Spacer(Modifier.width(6.dp))
+        Text(
+            verificationUri,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 14.sp,
+        )
+    }
+
+    VerticalSpacer(16.dp)
+
+    // Polling status
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(14.dp),
+            strokeWidth = 2.dp,
+        )
+        Text(
+            "Ожидаем подтверждение…",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 13.sp,
+        )
     }
 }
 
@@ -454,14 +475,14 @@ private fun AuthErrorState(error: String, onRetry: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text("⚠️", fontSize = 40.sp)
-        Spacer(Modifier.height(12.dp))
+        VerticalSpacer(12.dp)
         Text(
             error,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             fontSize = 14.sp,
         )
-        Spacer(Modifier.height(20.dp))
+        VerticalSpacer(20.dp)
         Button(
             onClick = onRetry,
             shape = RoundedCornerShape(12.dp),
@@ -513,7 +534,7 @@ private fun StepWelcome() {
         ) {
             Text("🎬", fontSize = 64.sp)
         }
-        Spacer(Modifier.height(32.dp))
+        VerticalSpacer(32.dp)
         Text(
             "Кино и сериалы\nвсегда под рукой",
             style = MaterialTheme.typography.headlineMedium,
@@ -521,7 +542,7 @@ private fun StepWelcome() {
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(12.dp))
+        VerticalSpacer(12.dp)
         Text(
             "Тысячи фильмов, сериалов и аниме\nв одном приложении",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -542,13 +563,13 @@ private fun StepFeatures() {
             title = "Все форматы",
             description = "Фильмы, сериалы, аниме, документалки",
         )
-        Spacer(Modifier.height(20.dp))
+        VerticalSpacer(20.dp)
         FeatureItem(
             emoji = "🎯",
             title = "Умные рекомендации",
             description = "Персональная подборка по вашим вкусам",
         )
-        Spacer(Modifier.height(20.dp))
+        VerticalSpacer(20.dp)
         FeatureItem(
             emoji = "⚡",
             title = "Быстрый стриминг",
