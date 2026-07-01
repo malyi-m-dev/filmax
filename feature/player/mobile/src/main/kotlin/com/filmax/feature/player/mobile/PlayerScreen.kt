@@ -64,6 +64,10 @@ import com.filmax.feature.player.common.PlayerScreenModel
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
+// PlayerScreen — единая композиция экрана плеера: ExoPlayer-поверхность, верифицированный
+// Slider скраббинга и эффекты авто-скрытия/SaveProgress (#22). Декомпозиция раздробила бы
+// проверенную логику воспроизведения/перемотки/сохранения прогресса — поэтому подавляем.
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 fun PlayerScreen(
     onBack: () -> Unit,
@@ -200,11 +204,12 @@ fun PlayerScreen(
                                 onDismissRequest = { subtitleMenu = false },
                             ) {
                                 state.subtitles.forEach { option ->
+                                    val isCurrent = option.label == state.currentSubtitle
                                     DropdownMenuItem(
                                         text = {
                                             Text(
                                                 option.label,
-                                                fontWeight = if (option.label == state.currentSubtitle) FontWeight.Bold else FontWeight.Normal,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                             )
                                         },
                                         onClick = {
@@ -340,11 +345,12 @@ fun PlayerScreen(
                                     onDismissRequest = { qualityMenu = false },
                                 ) {
                                     state.qualities.forEach { q ->
+                                        val isCurrent = q.label == state.currentQuality
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
                                                     q.label,
-                                                    fontWeight = if (q.label == state.currentQuality) FontWeight.Bold else FontWeight.Normal,
+                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                                 )
                                             },
                                             onClick = {

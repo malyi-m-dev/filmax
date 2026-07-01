@@ -88,6 +88,9 @@ private enum class SettingsCategory(val title: String) {
  * Снизу — чипы выбора качества/аудио/субтитров; панель выбора всплывает над нажатым чипом.
  * «Назад» прячет интерфейс (повторное «Назад» — выход). Поверх общего [PlayerScreenModel].
  */
+// Единая композиция TV-плеера: verified onScrubKey/commitScrub, эффекты прогресса/SaveProgress
+// и фокус-навигация пультом (#22). Дробление рискует регрессией перемотки/скраббинга — подавляем.
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 @Composable
 fun TvPlayerScreen(
     onBack: () -> Unit,
@@ -243,20 +246,27 @@ fun TvPlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(40.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ControlButton(size = 52.dp, icon = Icons.Filled.Replay10, modifier = chipDown, onClick = {
-                        screenModel.player.seekBack()
-                    })
+                    ControlButton(
+                        size = 52.dp,
+                        icon = Icons.Filled.Replay10,
+                        focus = ControlButtonFocus(modifier = chipDown),
+                        onClick = { screenModel.player.seekBack() },
+                    )
                     ControlButton(
                         size = 68.dp,
                         icon = if (screenModel.player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         primary = true,
-                        focusRequester = playFocus,
-                        modifier = chipDown,
-                        onClick = { if (screenModel.player.isPlaying) screenModel.player.pause() else screenModel.player.play() },
+                        focus = ControlButtonFocus(modifier = chipDown, requester = playFocus),
+                        onClick = {
+                            if (screenModel.player.isPlaying) screenModel.player.pause() else screenModel.player.play()
+                        },
                     )
-                    ControlButton(size = 52.dp, icon = Icons.Filled.Forward10, modifier = chipDown, onClick = {
-                        screenModel.player.seekForward()
-                    })
+                    ControlButton(
+                        size = 52.dp,
+                        icon = Icons.Filled.Forward10,
+                        focus = ControlButtonFocus(modifier = chipDown),
+                        onClick = { screenModel.player.seekForward() },
+                    )
                 }
 
                 // Снизу — прогресс-бар (фокусируемый, со скраббингом) + чипы настроек
@@ -284,8 +294,7 @@ fun TvPlayerScreen(
                             fraction = displayFraction,
                             isScrubbing = isScrubbing,
                             targetLabel = formatMs(currentMs),
-                            focusRequester = scrubberFocus,
-                            focusProperties = scrubberFocusProps,
+                            focusModifier = Modifier.focusRequester(scrubberFocus).then(scrubberFocusProps),
                             onKeyEvent = onScrubKey@{ event ->
                                 if (event.type != KeyEventType.KeyDown) return@onScrubKey false
                                 val durationForScrub = screenModel.player.duration
@@ -338,9 +347,11 @@ fun TvPlayerScreen(
                         state = state,
                         firstChipFocus = firstChipFocus,
                         modifier = Modifier.padding(top = 24.dp),
-                        onOpen = { openCategory = it },
-                        onRowPositioned = { chipsRowTop = it },
-                        onChipPositioned = { category, left -> chipLefts[category] = left },
+                        callbacks = SettingsChipsCallbacks(
+                            onOpen = { openCategory = it },
+                            onRowPositioned = { chipsRowTop = it },
+                            onChipPositioned = { category, left -> chipLefts[category] = left },
+                        ),
                     )
                 }
 
@@ -349,8 +360,7 @@ fun TvPlayerScreen(
                     SettingsPopover(
                         category = category,
                         state = state,
-                        chipLeft = chipLefts[category] ?: 0,
-                        chipsRowTop = chipsRowTop,
+                        anchor = IntOffset(chipLefts[category] ?: 0, chipsRowTop),
                         modifier = Modifier.align(Alignment.TopStart),
                         onSelect = { label ->
                             screenModel.dispatch(category.toEvent(label))
@@ -368,13 +378,18 @@ fun TvPlayerScreen(
  * видимому чипу отдаём [firstChipFocus] — это цель навигации «вниз» с центральных контролов,
  * чтобы «Качество» (обычно первый) сразу попадало под фокус и легко находилось.
  */
+/** Колбэки ряда чипов настроек: открытие категории и репорт геометрии (для позиционирования поповера). */
+private data class SettingsChipsCallbacks(
+    val onOpen: (SettingsCategory) -> Unit,
+    val onRowPositioned: (top: Int) -> Unit,
+    val onChipPositioned: (SettingsCategory, left: Int) -> Unit,
+)
+
 @Composable
 private fun SettingsChips(
     state: PlayerState,
     firstChipFocus: FocusRequester,
-    onOpen: (SettingsCategory) -> Unit,
-    onRowPositioned: (top: Int) -> Unit,
-    onChipPositioned: (SettingsCategory, left: Int) -> Unit,
+    callbacks: SettingsChipsCallbacks,
     modifier: Modifier = Modifier,
 ) {
     val categories = buildList {
@@ -383,7 +398,7 @@ private fun SettingsChips(
         if (state.subtitles.size > 1) add(SettingsCategory.Subtitle)
     }
     Row(
-        modifier = modifier.onGloballyPositioned { onRowPositioned(it.positionInRoot().y.roundToInt()) },
+        modifier = modifier.onGloballyPositioned { callbacks.onRowPositioned(it.positionInRoot().y.roundToInt()) },
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         categories.forEachIndexed { index, category ->
@@ -391,8 +406,8 @@ private fun SettingsChips(
                 label = category.chipLabel,
                 value = category.chipValue(state),
                 focusRequester = if (index == 0) firstChipFocus else null,
-                onClick = { onOpen(category) },
-                onPositioned = { onChipPositioned(category, it) },
+                onClick = { callbacks.onOpen(category) },
+                onPositioned = { callbacks.onChipPositioned(category, it) },
             )
         }
     }
@@ -427,16 +442,15 @@ private fun SettingChip(
 }
 
 /**
- * Всплывающий список вариантов, спозиционированный над нажатым чипом ([chipLeft]/[chipsRowTop]
- * — в координатах корня). По высоте панель встаёт так, чтобы её низ был чуть выше ряда чипов;
+ * Всплывающий список вариантов, спозиционированный над нажатым чипом ([anchor] — левый край
+ * чипа и верх ряда в координатах корня). По высоте панель встаёт так, чтобы её низ был выше ряда;
  * по горизонтали прижимается к чипу, но не вылезает за край экрана.
  */
 @Composable
 private fun SettingsPopover(
     category: SettingsCategory,
     state: PlayerState,
-    chipLeft: Int,
-    chipsRowTop: Int,
+    anchor: IntOffset,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -456,8 +470,8 @@ private fun SettingsPopover(
             .offset {
                 val maxX = (screenWidthPx - panelWidth - marginPx).coerceAtLeast(marginPx)
                 IntOffset(
-                    x = chipLeft.coerceIn(marginPx, maxX),
-                    y = (chipsRowTop - panelHeight - gapPx).coerceAtLeast(0),
+                    x = anchor.x.coerceIn(marginPx, maxX),
+                    y = (anchor.y - panelHeight - gapPx).coerceAtLeast(0),
                 )
             }
             .onSizeChanged {
@@ -539,20 +553,25 @@ private fun SettingsRow(
     }
 }
 
+/** Модификатор и (опц.) фокус центральной кнопки — сгруппированы, чтобы не раздувать сигнатуру. */
+private data class ControlButtonFocus(
+    val modifier: Modifier = Modifier,
+    val requester: FocusRequester? = null,
+)
+
 @Composable
 private fun ControlButton(
     size: Dp,
     icon: ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
+    focus: ControlButtonFocus = ControlButtonFocus(),
     primary: Boolean = false,
-    focusRequester: FocusRequester? = null,
 ) {
     TvFocusCard(
         onClick = onClick,
         shape = CircleShape,
-        focusRequester = focusRequester,
-        modifier = modifier.size(size)
+        focusRequester = focus.requester,
+        modifier = focus.modifier.size(size)
     ) {
         Box(
             Modifier
@@ -576,15 +595,15 @@ private fun ControlButton(
 /**
  * Фокусируемый прогресс-бар со скраббингом: рисует трек, активную часть, thumb-индикатор и
  * (во время скраббинга) пузырёк с целевым временем над thumb. Обработку DPAD (стрелки/центр)
- * пробрасываем наружу через [onKeyEvent], а up/down оставляем системе фокуса ([focusProperties]).
+ * пробрасываем наружу через [onKeyEvent], а фокус-обвязку (реквестер + up/down) — через [focusModifier].
  */
+@Suppress("LongMethod") // рендер прогресс-бара скраббинга (трек/thumb/пузырёк), верифицирован в #22
 @Composable
 private fun RowScope.TvScrubBar(
     fraction: Float,
     isScrubbing: Boolean,
     targetLabel: String,
-    focusRequester: FocusRequester,
-    focusProperties: Modifier,
+    focusModifier: Modifier,
     onKeyEvent: (KeyEvent) -> Boolean,
 ) {
     var focused by remember { mutableStateOf(false) }
@@ -593,8 +612,7 @@ private fun RowScope.TvScrubBar(
         modifier = Modifier
             .weight(1f)
             .height(ScrubThumbFocusedSize)
-            .focusRequester(focusRequester)
-            .then(focusProperties)
+            .then(focusModifier)
             .onFocusChanged { focused = it.isFocused }
             .onKeyEvent(onKeyEvent)
             .focusable(),
