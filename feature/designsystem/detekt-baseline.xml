@@ -10,6 +10,5 @@
     <ID>MaxLineLength:DesignSystemScreen.kt$desc = "Готовые карточные паттерны каталога: ContinueCard, FilmaxCollectionCard и stat-карточки с выразительными формами."</ID>
     <ID>MaxLineLength:DesignSystemScreen.kt$desc = "Палитра M3 в тёмной кино-теме с тёплым уклоном. Контейнеры — фоны компонентов, «on-»-роли — текст и иконки поверх них."</ID>
     <ID>MaximumLineLength:DesignSystemScreen.kt$ </ID>
-    <ID>TooManyFunctions:DesignSystemScreen.kt$com.filmax.feature.designsystem.DesignSystemScreen.kt</ID>
   </CurrentIssues>
 </SmellBaseline>

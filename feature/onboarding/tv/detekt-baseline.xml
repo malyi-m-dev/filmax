@@ -4,6 +4,5 @@
   <CurrentIssues>
     <ID>LongMethod:TvOnboardingScreen.kt$@Composable private fun AuthCodeCard(userCode: String, verificationUri: String)</ID>
     <ID>MatchingDeclarationName:TvOnboardingNavigation.kt$TvOnboardingRoute</ID>
-    <ID>UnusedPrivateMember:TvOnboardingScreen.kt$@Composable private fun FeatureRow(emoji: String, title: String, description: String)</ID>
   </CurrentIssues>
 </SmellBaseline>
