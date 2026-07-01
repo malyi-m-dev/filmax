@@ -23,7 +23,7 @@ class CollectionDetailScreenModel(
     override fun dispatch(event: CollectionDetailEvent) = Unit
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { _ ->
             updateState { it.copy(loading = true, error = null) }
             when (val result = catalog.getCollectionItems(route.collectionId, page = 1)) {
                 is RequestResult.Success ->
