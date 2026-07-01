@@ -64,7 +64,7 @@ class PlayerScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { _ ->
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
             when (val result = catalog.getItemDetails(route.itemId)) {
@@ -134,13 +134,13 @@ class PlayerScreenModel(
         player.prepare()
         player.seekTo(position)
         player.playWhenReady = wasPlaying
-        screenModelScope { updateState { it.copy(currentQuality = label, streamUrl = quality.url) } }
+        screenModelScope { _ -> updateState { it.copy(currentQuality = label, streamUrl = quality.url) } }
     }
 
     private fun selectSubtitle(label: String) {
         val option = state.subtitles.firstOrNull { it.label == label } ?: return
         applyTrackPreferences(option.lang)
-        screenModelScope { updateState { it.copy(currentSubtitle = label) } }
+        screenModelScope { _ -> updateState { it.copy(currentSubtitle = label) } }
     }
 
     private fun selectAudio(label: String) {
@@ -148,7 +148,7 @@ class PlayerScreenModel(
         val builder = player.trackSelectionParameters.buildUpon()
         option.lang?.let { builder.setPreferredAudioLanguage(it) }
         player.trackSelectionParameters = builder.build()
-        screenModelScope { updateState { it.copy(currentAudio = label) } }
+        screenModelScope { _ -> updateState { it.copy(currentAudio = label) } }
     }
 
     /** Снимает список аудиодорожек с плеера; селектор показываем только при выборе из нескольких. */
@@ -159,7 +159,7 @@ class PlayerScreenModel(
             .distinct()
             .map { code -> AudioOption(audioDisplay(code), code) }
         val selectedLang = audioGroups.firstOrNull { it.isSelected }?.getTrackFormat(0)?.language
-        screenModelScope {
+        screenModelScope { _ ->
             updateState {
                 it.copy(
                     audioTracks = if (options.size > 1) options else emptyList(),
