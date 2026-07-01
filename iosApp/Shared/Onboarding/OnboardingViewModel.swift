@@ -51,7 +51,11 @@ final class OnboardingViewModel: ObservableObject {
             let result = try await requestDeviceCode.invoke()
             switch onEnum(of: result) {
             case .success(let success):
-                let deviceCode = success.data
+                // generic-параметр RequestResult<T> стирается в ObjC-интеропе → data приходит как AnyObject?.
+                guard let deviceCode = success.data as? DeviceCode else {
+                    error = "Некорректный ответ сервера."
+                    return
+                }
                 userCode = deviceCode.userCode
                 verificationUri = deviceCode.verificationUri
                 polling = true

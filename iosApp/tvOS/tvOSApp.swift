@@ -6,7 +6,8 @@ import Shared
 @main
 struct FilmaxTVApp: App {
     init() {
-        KoinKt.doInitKoin()
+        // Дефолтные параметры Kotlin не переносятся в Swift-интероп — передаём пустую декларацию явно.
+        KoinKt.doInitKoin(appDeclaration: { _ in })
     }
 
     var body: some Scene {

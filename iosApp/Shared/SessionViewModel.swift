@@ -11,9 +11,9 @@ final class SessionViewModel: ObservableObject {
     private let observeAuthState = UseCaseProvider.shared.observeAuthStateUseCase()
 
     func observe() async {
-        // SKIE делает Flow<Boolean> AsyncSequence, Kotlin Boolean → Swift Bool.
+        // SKIE отдаёт Flow<Boolean> как AsyncSequence, но элемент приходит как KotlinBoolean → берём .boolValue.
         for await authenticated in observeAuthState.invoke() {
-            isAuthenticated = authenticated
+            isAuthenticated = authenticated.boolValue
         }
     }
 }

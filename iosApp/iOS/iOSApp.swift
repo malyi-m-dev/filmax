@@ -7,7 +7,8 @@ import Shared
 struct iOSApp: App {
     init() {
         // Инициализация Koin из общего кода (те же модули, что и на Android).
-        KoinKt.doInitKoin()
+        // Дефолтные параметры Kotlin не переносятся в Swift-интероп — передаём пустую декларацию явно.
+        KoinKt.doInitKoin(appDeclaration: { _ in })
     }
 
     var body: some Scene {
