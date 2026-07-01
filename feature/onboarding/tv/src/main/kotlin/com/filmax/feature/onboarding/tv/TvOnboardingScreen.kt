@@ -363,35 +363,6 @@ private fun Wordmark() {
 }
 
 @Composable
-private fun FeatureRow(emoji: String, title: String, description: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(emoji, fontSize = 28.sp)
-        }
-        Spacer(Modifier.width(20.dp))
-        Column {
-            Text(
-                title,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                description,
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
 private fun AuthStep(number: Int, action: String, detail: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(

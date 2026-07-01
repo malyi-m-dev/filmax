@@ -2,9 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LongMethod:TvSearchScreen.kt$@Composable fun TvSearchScreen( onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: SearchScreenModel = koinViewModel(), )</ID>
     <ID>MatchingDeclarationName:TvSearchNavigation.kt$TvSearchRoute</ID>
-    <ID>MaxLineLength:TvSearchScreen.kt$color = if (state.query.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface</ID>
-    <ID>MaximumLineLength:TvSearchScreen.kt$ </ID>
   </CurrentIssues>
 </SmellBaseline>

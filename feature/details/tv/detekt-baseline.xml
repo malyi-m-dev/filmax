@@ -2,14 +2,9 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>ImplicitDefaultLocale:TvDetailsScreen.kt$String.format("%.1f", rating)</ID>
     <ID>LongMethod:TvDetailsScreen.kt$@Composable private fun MovieContent( item: Item, similar: List&lt;Item&gt;, isFav: Boolean, onPlay: () -&gt; Unit, onToggleFav: () -&gt; Unit, onOpenItem: (Int) -&gt; Unit, )</ID>
     <ID>LongMethod:TvDetailsScreen.kt$@Composable private fun SeriesContent( item: Item, isFav: Boolean, onPlayEpisode: (videoId: Int) -&gt; Unit, onToggleFav: () -&gt; Unit, )</ID>
     <ID>LongMethod:TvDetailsScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun InfoPanel(item: Item, modifier: Modifier = Modifier)</ID>
     <ID>LongParameterList:TvDetailsScreen.kt$( item: Item, similar: List&lt;Item&gt;, isFav: Boolean, onPlay: () -&gt; Unit, onToggleFav: () -&gt; Unit, onOpenItem: (Int) -&gt; Unit, )</ID>
-    <ID>MagicNumber:TvDetailsScreen.kt$10</ID>
-    <ID>MagicNumber:TvDetailsScreen.kt$100</ID>
-    <ID>TooManyFunctions:TvDetailsScreen.kt$com.filmax.feature.details.tv.TvDetailsScreen.kt</ID>
-    <ID>UnusedPrivateProperty:TvDetailsScreen.kt$private val ChipBorder = Color(0x26FFFFFF)</ID>
   </CurrentIssues>
 </SmellBaseline>

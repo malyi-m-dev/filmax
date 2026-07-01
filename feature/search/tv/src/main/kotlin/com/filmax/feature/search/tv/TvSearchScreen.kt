@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -89,81 +90,118 @@ fun TvSearchScreen(
             .padding(start = 72.dp, end = 72.dp, top = 108.dp, bottom = 36.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(36.dp)) {
-            // ── Клавиатура + голосовой ввод ─────────────────────────────
-            Column(modifier = Modifier.width(500.dp)) {
+            SearchKeyboardPanel(
+                query = state.query,
+                trendingQueries = state.trendingQueries,
+                onType = ::type,
+                onVoice = startVoiceSearch,
+                onSuggestion = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
+            )
+            SearchResults(
+                results = state.results,
+                loading = state.loading,
+                query = state.query,
+                gridState = resultsGridState,
+                onOpenItem = onOpenItem,
+            )
+        }
+    }
+}
+
+// ── Клавиатура + голосовой ввод ─────────────────────────────
+@Composable
+private fun SearchKeyboardPanel(
+    query: String,
+    trendingQueries: List<String>,
+    onType: (String) -> Unit,
+    onVoice: () -> Unit,
+    onSuggestion: (String) -> Unit,
+) {
+    Column(modifier = Modifier.width(500.dp)) {
+        Text(
+            "Поиск",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(18.dp))
+        // Строка ввода + кнопка голосового поиска
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(64.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .padding(horizontal = 22.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
                 Text(
-                    "Поиск",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = query.ifEmpty { "Введите название…" },
+                    color = if (query.isEmpty()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                    fontSize = 20.sp,
+                    maxLines = 1,
                 )
-                Spacer(Modifier.height(18.dp))
-                // Строка ввода + кнопка голосового поиска
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(64.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(MaterialTheme.colorScheme.surfaceContainer)
-                            .padding(horizontal = 22.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Text(
-                            text = state.query.ifEmpty { "Введите название…" },
-                            color = if (state.query.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 20.sp,
-                            maxLines = 1,
-                        )
-                    }
-                    VoiceButton(onClick = startVoiceSearch)
-                }
-                Spacer(Modifier.height(16.dp))
-                KEY_ROWS.forEach { row ->
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.padding(bottom = 6.dp)
-                    ) {
-                        row.forEach { key -> KeyCap(key = key, onClick = { type(key) }) }
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-                KeyCap(key = "␣", onClick = { type(" ") }, wide = true)
-
-                if (state.trendingQueries.isNotEmpty()) {
-                    Spacer(Modifier.height(18.dp))
-                    QuickSuggestions(
-                        items = state.trendingQueries.take(6),
-                        onClick = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
-                    )
-                }
             }
+            VoiceButton(onClick = onVoice)
+        }
+        Spacer(Modifier.height(16.dp))
+        KEY_ROWS.forEach { row ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(bottom = 6.dp)
+            ) {
+                row.forEach { key -> KeyCap(key = key, onClick = { onType(key) }) }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        KeyCap(key = "␣", onClick = { onType(" ") }, wide = true)
 
-            // ── Результаты ──────────────────────────────────────────────
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (state.results.isEmpty() && !state.loading) {
-                    Text(
-                        if (state.query.length >= 2) "Ничего не найдено" else "Начните вводить запрос",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 18.sp,
-                        modifier = Modifier.align(Alignment.Center),
-                    )
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        state = resultsGridState,
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        contentPadding = PaddingValues(bottom = 24.dp),
-                    ) {
-                        items(state.results, key = { it.id }) { item ->
-                            PosterTile(item = item, onClick = { onOpenItem(item.id) })
-                        }
-                    }
+        if (trendingQueries.isNotEmpty()) {
+            Spacer(Modifier.height(18.dp))
+            QuickSuggestions(
+                items = trendingQueries.take(6),
+                onClick = onSuggestion,
+            )
+        }
+    }
+}
+
+// ── Результаты ──────────────────────────────────────────────
+@Composable
+private fun SearchResults(
+    results: List<Item>,
+    loading: Boolean,
+    query: String,
+    gridState: LazyGridState,
+    onOpenItem: (Int) -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (results.isEmpty() && !loading) {
+            Text(
+                if (query.length >= 2) "Ничего не найдено" else "Начните вводить запрос",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 18.sp,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                state = gridState,
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = 24.dp),
+            ) {
+                items(results, key = { it.id }) { item ->
+                    PosterTile(item = item, onClick = { onOpenItem(item.id) })
                 }
             }
         }

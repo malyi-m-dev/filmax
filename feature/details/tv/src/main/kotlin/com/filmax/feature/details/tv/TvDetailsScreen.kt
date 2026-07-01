@@ -69,13 +69,13 @@ import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
 import org.koin.androidx.compose.koinViewModel
+import java.util.Locale
 
 private val Accent = Color(0xFFB4305A)
 private val AccentDark = Color(0xFF5E1133)
 private val GlassPanel = Color(0xB3141012)
 private val GlassStrip = Color(0xA8141012)
 private val ChipFill = Color(0x1AFFFFFF)
-private val ChipBorder = Color(0x26FFFFFF)
 
 /** Тёмный плотный фон неактивных чипов сезонов — чтобы не терялись на светлом бэкдропе. */
 private val SeasonChipInactive = Color(0xD91A1518)
@@ -191,7 +191,7 @@ private fun MetaRow(item: Item, includeDuration: Boolean) {
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        String.format("%.1f", rating),
+                        String.format(Locale.getDefault(), "%.1f", rating),
                         color = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
@@ -745,17 +745,21 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
     }
 }
 
+// Модули русских правил склонения по числу (последние две / одна цифра).
+private const val PLURAL_MOD_HUNDRED = 100
+private const val PLURAL_MOD_TEN = 10
+
 private fun seasonsWord(count: Int): String = when {
-    count % 100 in 11..14 -> "сезонов"
-    count % 10 == 1 -> "сезон"
-    count % 10 in 2..4 -> "сезона"
+    count % PLURAL_MOD_HUNDRED in 11..14 -> "сезонов"
+    count % PLURAL_MOD_TEN == 1 -> "сезон"
+    count % PLURAL_MOD_TEN in 2..4 -> "сезона"
     else -> "сезонов"
 }
 
 private fun episodesWord(count: Int): String = when {
-    count % 100 in 11..14 -> "серий"
-    count % 10 == 1 -> "серия"
-    count % 10 in 2..4 -> "серии"
+    count % PLURAL_MOD_HUNDRED in 11..14 -> "серий"
+    count % PLURAL_MOD_TEN == 1 -> "серия"
+    count % PLURAL_MOD_TEN in 2..4 -> "серии"
     else -> "серий"
 }
 
