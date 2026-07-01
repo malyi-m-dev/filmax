@@ -492,7 +492,7 @@ private fun OptionList(
 }
 
 // ── Вспомогательное ──────────────────────────────────────────────────────────
-private val ProfileState.username: String get() = profile?.username ?: ""
+private val ProfileState.username: String get() = profile?.username.orEmpty()
 
 private fun String.initials(): String = split(' ', '.')
     .filter { it.isNotBlank() }

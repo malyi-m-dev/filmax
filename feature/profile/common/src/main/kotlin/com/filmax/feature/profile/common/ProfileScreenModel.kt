@@ -61,7 +61,7 @@ class ProfileScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { snapshot ->
             // Профиль — основной запрос: от него зависит отрисовка экрана.
             when (val result = user.getProfile()) {
                 is RequestResult.Success ->
