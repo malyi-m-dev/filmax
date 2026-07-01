@@ -20,26 +20,17 @@ internal class UserApi(private val client: HttpClient) {
     suspend fun getDeviceSettings(): DeviceSettingsDto =
         client.get("api/v1/device/info").body()
 
-    suspend fun updateDeviceSettings(
-        id: Int,
-        supportSsl: Int,
-        supportHevc: Int,
-        supportHdr: Int,
-        support4k: Int,
-        mixedPlaylist: Int,
-        streamingType: Int,
-        serverLocation: Int,
-    ): DeviceSettingsDto =
+    suspend fun updateDeviceSettings(params: UpdateDeviceSettingsParams): DeviceSettingsDto =
         client.submitForm(
-            url = "api/v1/device/$id/settings",
+            url = "api/v1/device/${params.id}/settings",
             formParameters = Parameters.build {
-                append("supportSsl", supportSsl.toString())
-                append("supportHevc", supportHevc.toString())
-                append("supportHdr", supportHdr.toString())
-                append("support4k", support4k.toString())
-                append("mixedPlaylist", mixedPlaylist.toString())
-                append("streamingType", streamingType.toString())
-                append("serverLocation", serverLocation.toString())
+                append("supportSsl", params.supportSsl.toString())
+                append("supportHevc", params.supportHevc.toString())
+                append("supportHdr", params.supportHdr.toString())
+                append("support4k", params.support4k.toString())
+                append("mixedPlaylist", params.mixedPlaylist.toString())
+                append("streamingType", params.streamingType.toString())
+                append("serverLocation", params.serverLocation.toString())
             },
         ).body()
 

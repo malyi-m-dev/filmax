@@ -1,6 +1,5 @@
 package com.filmax.data.catalog.mapper
 
-import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
 import com.filmax.core.domain.catalog.model.Duration
@@ -9,29 +8,26 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.Pagination
 import com.filmax.core.domain.catalog.model.Posters
-import com.filmax.core.domain.catalog.model.SubtitleTrack
-import com.filmax.core.domain.catalog.model.Trailer
-import com.filmax.core.domain.catalog.model.VideoFile
-import com.filmax.data.catalog.remote.dto.AudioDto
 import com.filmax.data.catalog.remote.dto.CollectionDto
 import com.filmax.data.catalog.remote.dto.CollectionItemsDto
 import com.filmax.data.catalog.remote.dto.DurationDto
 import com.filmax.data.catalog.remote.dto.GenreDto
 import com.filmax.data.catalog.remote.dto.ItemDto
 import com.filmax.data.catalog.remote.dto.ItemsResponseDto
-import com.filmax.data.catalog.remote.dto.MediaTrackDto
 import com.filmax.data.catalog.remote.dto.PaginationDto
 import com.filmax.data.catalog.remote.dto.PostersDto
-import com.filmax.data.catalog.remote.dto.SubtitleDto
-import com.filmax.data.catalog.remote.dto.TrailerDto
-import com.filmax.data.catalog.remote.dto.VideoFileDto
+
+// Размер страницы по умолчанию для фолбэка пагинации, когда API не вернул блок pagination.
+private const val DEFAULT_PER_PAGE = 20
+
+// API отдаёт длительность в секундах — делим на это число, чтобы получить минуты.
+private const val SECONDS_PER_MINUTE = 60
 
 fun ItemsResponseDto.toDomain(): ItemPage = ItemPage(
     items = items.map { it.toDomain() },
-    pagination = pagination?.toDomain() ?: Pagination(0, 1, 20),
+    pagination = pagination?.toDomain() ?: Pagination(0, 1, DEFAULT_PER_PAGE),
 )
 
 fun ItemDto.toDomain(): Item = Item(
@@ -76,45 +72,9 @@ fun PostersDto?.toDomain() = Posters(
 
 // API отдаёт длительность в секундах — переводим в минуты.
 fun DurationDto.toDomain() = Duration(
-    averageMinutes = average?.let { it / 60 },
-    totalMinutes = total?.let { it / 60 },
+    averageMinutes = average?.let { it / SECONDS_PER_MINUTE },
+    totalMinutes = total?.let { it / SECONDS_PER_MINUTE },
 )
-
-fun MediaTrackDto.toDomain(seasonNumber: Int = snumber) = MediaTrack(
-    id = id,
-    number = number,
-    seasonNumber = seasonNumber,
-    title = title,
-    thumbnail = thumbnail,
-    durationSeconds = duration,
-    files = files.map { it.toDomain() },
-    audios = audios.map { it.toDomain() },
-    subtitles = subtitles.map { it.toDomain() },
-    watchedSeconds = watching?.time?.coerceAtLeast(0) ?: 0,
-    watchStatus = watching?.status ?: -1,
-)
-
-fun VideoFileDto.toDomain() = VideoFile(
-    quality = quality,
-    hls4 = url?.hls4,
-    hls = url?.hls ?: urls?.hls,
-    http = url?.http ?: urls?.http,
-)
-
-fun AudioDto.toDomain() = AudioTrack(
-    id = id,
-    lang = lang,
-    title = title,
-    channels = channels,
-)
-
-fun SubtitleDto.toDomain() = SubtitleTrack(
-    lang = lang,
-    url = url,
-    shiftMs = shift,
-)
-
-fun TrailerDto.toDomain() = Trailer(id = id.toString(), url = url ?: "")
 
 fun PaginationDto.toDomain() = Pagination(
     total = total,
@@ -132,5 +92,5 @@ fun CollectionDto.toDomain() = Collection(
 fun CollectionItemsDto.toDomain() = CollectionPage(
     collection = collection?.toDomain(),
     items = items.map { it.toDomain() },
-    pagination = pagination?.toDomain() ?: Pagination(0, 1, 20),
+    pagination = pagination?.toDomain() ?: Pagination(0, 1, DEFAULT_PER_PAGE),
 )

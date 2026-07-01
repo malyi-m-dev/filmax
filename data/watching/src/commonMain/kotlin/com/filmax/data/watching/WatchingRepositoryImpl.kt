@@ -57,7 +57,7 @@ internal class WatchingRepositoryImpl(
                 id = dto.id,
                 title = dto.title,
                 text = dto.text,
-                createdAt = dto.createdAt?.toLong()?.times(1000),
+                createdAt = dto.createdAt?.toLong()?.times(MILLIS_IN_SECOND),
                 read = dto.read,
                 itemId = dto.itemId,
             )
@@ -69,4 +69,9 @@ internal class WatchingRepositoryImpl(
 
     override suspend fun markAllNotificationsRead(): RequestResult<Unit> =
         safeRequest { api.markAllNotificationsRead() }
+
+    private companion object {
+        // kino.pub отдаёт временные метки в секундах — переводим в миллисекунды.
+        const val MILLIS_IN_SECOND = 1000
+    }
 }
