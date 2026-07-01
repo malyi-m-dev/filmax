@@ -47,17 +47,20 @@ sdk.dir=/Users/<ты>/Library/Android/sdk
 
 ---
 
-## 3. Сборка и запуск iOS (симулятор)
+## 3. Сборка и запуск iOS / tvOS (симулятор)
 
 ```bash
 cd iosApp
-xcodegen generate          # → Filmax.xcodeproj
+xcodegen generate          # → Filmax.xcodeproj (две схемы)
 open Filmax.xcodeproj
 ```
-В Xcode: выбери симулятор iPhone → **Run (⌘R)**.
+В Xcode выбери схему и симулятор → **Run (⌘R)**:
+- **`Filmax`** → симулятор iPhone/iPad;
+- **`Filmax-tvOS`** → симулятор Apple TV.
+
 Перед сборкой app автоматически прогонит preBuildScript
 `./gradlew :shared:embedAndSignAppleFrameworkForXcode` — соберёт `Shared.framework` под нужную
-платформу/архитектуру (см. `iosApp/project.yml`).
+платформу/архитектуру (iphoneos/appletvos/…, см. `iosApp/project.yml`).
 
 **Запуск на устройстве:** проставь свой `DEVELOPMENT_TEAM` в `iosApp/project.yml`, перегенерируй
 (`xcodegen generate`), выбери устройство.

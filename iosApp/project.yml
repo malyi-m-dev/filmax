@@ -1,11 +1,15 @@
-# XcodeGen-спецификация iOS-приложения Filmax.
+# XcodeGen-спецификация приложений Filmax (iOS + tvOS).
 # На Mac: `brew install xcodegen` → в папке iosApp `xcodegen generate` → откроется Filmax.xcodeproj.
-# Проект собирает KMP-фреймворк Shared задачей Gradle перед сборкой (preBuildScript).
+# Два app-таргета в одном проекте, оба линкуют общий KMP-фреймворк Shared:
+#   • Filmax       — iPhone/iPad (sources: Shared + iOS)
+#   • Filmax-tvOS  — Apple TV    (sources: Shared + tvOS)
+# ViewModel'и (Shared/) переиспользуются обоими; различаются только View.
 name: Filmax
 options:
   bundleIdPrefix: com.filmax
   deploymentTarget:
     iOS: "15.0"
+    tvOS: "15.0"
   createIntermediateGroups: true
 
 settings:
@@ -13,22 +17,16 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_TEAM: "" # ← подставь свой Team ID на Mac для запуска на устройстве
 
-targets:
-  Filmax:
+# Общий шаг сборки KMP-фреймворка: embedAndSignAppleFrameworkForXcode собирает Shared
+# под нужную платформу/архитектуру ($PLATFORM_NAME → iphoneos/appletvos/…-simulator).
+targetTemplates:
+  FilmaxApp:
     type: application
-    platform: iOS
-    sources:
-      - path: iosApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.filmax.app
         PRODUCT_NAME: Filmax
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_CFBundleDisplayName: Filmax
-        TARGETED_DEVICE_FAMILY: "1,2" # iPhone + iPad
-        # Путь к собранному KMP-фреймворку (кладётся задачей embedAndSignAppleFrameworkForXcode).
         FRAMEWORK_SEARCH_PATHS:
           - $(inherited)
           - $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
@@ -45,3 +43,28 @@ targets:
             -Pkotlin.native.cocoapods.platform=$PLATFORM_NAME \
             -Pkotlin.native.cocoapods.archs="$ARCHS" \
             -Pkotlin.native.cocoapods.configuration=$CONFIGURATION
+
+targets:
+  Filmax:            # iPhone / iPad
+    templates: [FilmaxApp]
+    platform: iOS
+    sources:
+      - path: Shared
+      - path: iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.filmax.app
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        TARGETED_DEVICE_FAMILY: "1,2" # iPhone + iPad
+
+  Filmax-tvOS:       # Apple TV
+    templates: [FilmaxApp]
+    platform: tvOS
+    sources:
+      - path: Shared
+      - path: tvOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.filmax.app.tv
+        TARGETED_DEVICE_FAMILY: "3" # tvOS

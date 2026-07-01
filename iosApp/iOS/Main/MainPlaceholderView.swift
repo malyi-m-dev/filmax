@@ -1,17 +1,6 @@
 import SwiftUI
-import Shared
 
-@MainActor
-final class MainViewModel: ObservableObject {
-    private let logout = UseCaseProvider.shared.logoutUseCase()
-
-    func signOut() {
-        // Очищает токены общим data-слоем; поток авторизации вернёт RootView на онбординг.
-        Task { _ = try? await logout.invoke() }
-    }
-}
-
-/// Заглушка авторизованного состояния — следующий вертикальный срез (Главная и т.д.).
+/// Заглушка авторизованного состояния (iPhone/iPad). `MainViewModel` — общий (Shared/).
 struct MainPlaceholderView: View {
     @StateObject private var viewModel = MainViewModel()
 

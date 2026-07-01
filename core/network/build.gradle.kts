@@ -26,7 +26,8 @@ kotlin {
             api(koinBom)
             api(libs.koin.android)
         }
-        iosMain.dependencies {
+        // appleMain — общий для iOS и tvOS (Darwin-движок Ktor покрывает обе платформы).
+        appleMain.dependencies {
             api(libs.ktor.client.darwin)
         }
     }

@@ -24,6 +24,7 @@ extensions.configure<DetektExtension> {
         "src/test/kotlin",
         "src/commonMain/kotlin",
         "src/androidMain/kotlin",
+        "src/appleMain/kotlin",
         "src/iosMain/kotlin",
         "src/commonTest/kotlin",
     )
