@@ -44,17 +44,35 @@ struct iOSApp: App {
 
 ---
 
-## 3. Как достать API из Swift — `UseCaseProvider`
+## 3. Доступ к API из Swift — два провайдера
 
-Koin reified `get()` не виден из Swift, поэтому общий код отдаёт use-case'ы через **явные фабрики**
-объекта `UseCaseProvider` (Kotlin `object` → Swift `.shared`):
+Koin reified `get()` не виден из Swift, поэтому общий код отдаёт всё через два Kotlin `object`-а
+(→ Swift `.shared`). **iOS-разработчику этих двух достаточно — Kotlin трогать не нужно:**
+`RepositoryProvider` даёт весь data-слой, `UseCaseProvider` — готовые операции.
 
+### `RepositoryProvider` — полный data-слой (все репозитории)
+Свойство на каждый репозиторий; методы и возвраты — §7, модели — §8.
 ```swift
-let requestCode = UseCaseProvider.shared.requestDeviceCodeUseCase()
-let observeAuth = UseCaseProvider.shared.observeAuthStateUseCase()
+let details = try await RepositoryProvider.shared.catalog.getItemDetails(id: 42)
+let profile = try await RepositoryProvider.shared.user.getProfile()
+for await ids in RepositoryProvider.shared.favorites.favoriteIds { /* Set<Int32> */ }
 ```
 
-Сейчас экспортированы (файл `shared/.../UseCaseProvider.kt`):
+| Свойство | Репозиторий |
+|---|---|
+| `.auth` | `AuthRepository` |
+| `.catalog` | `CatalogRepository` |
+| `.search` | `SearchRepository` |
+| `.user` | `UserRepository` |
+| `.watching` | `WatchingRepository` |
+| `.favorites` | `FavoritesRepository` |
+| `.downloads` | `DownloadsRepository` |
+| `.playbackSettings` | `PlaybackSettingsRepository` |
+
+### `UseCaseProvider` — готовые операции-обёртки
+```swift
+let code = try await UseCaseProvider.shared.requestDeviceCodeUseCase().invoke()
+```
 
 | Метод | Use-case |
 |---|---|
@@ -66,18 +84,9 @@ let observeAuth = UseCaseProvider.shared.observeAuthStateUseCase()
 | `toggleWatchlistUseCase()` | `ToggleWatchlistUseCase` |
 | `toggleWatchedUseCase()` | `ToggleWatchedUseCase` |
 
-**Нужен use-case/репозиторий, которого тут нет?** Добавь метод в `UseCaseProvider` (Kotlin):
-
-```kotlin
-object UseCaseProvider : KoinComponent {
-    // репозиторий напрямую…
-    fun catalogRepository(): CatalogRepository = get()
-    // …или новый тонкий use-case
-    fun getItemDetailsUseCase(): GetItemDetailsUseCase = get()
-}
-```
-
-и, если это новый use-case, зарегистрируй его в `useCaseModule` (`Koin.kt`). Пересобери фреймворк.
+**Нужна операция, которой нет?** Репозитории уже покрывают весь data-слой — обычно этого хватает.
+Если нужен новый доменный use-case (общий для Android/iOS) — добавь класс в `core:domain/usecase`,
+зарегистрируй в `useCaseModule` (`Koin.kt`) и отдай через `UseCaseProvider`. Бизнес-логику на Swift не дублируй.
 
 ---
 
@@ -153,55 +162,211 @@ case .error(let error):     show(error.message)   // error.message : String?
 
 ---
 
-## 7. Репозитории (полный контракт data-слоя)
+## 7. Репозитории — полный контракт (что вызвать и что вернётся)
 
 Если операции нет в use-case'ах — бери репозиторий (экспонируй через `UseCaseProvider`, §3).
-Все `suspend fun ...: RequestResult<...>`, если не указано иное.
+Параметры со значением по умолчанию можно не передавать. Все возвраты — `RequestResult<T>`
+(§5), кроме локальных `FavoritesRepository`/`DownloadsRepository`/`PlaybackSettingsRepository`
+(они отдают `Flow`/значение напрямую). Каждый тип возврата описан в §8.
 
-**`AuthRepository`** — `isAuthenticated: Flow<Boolean>`, `requestDeviceCode()`, `pollForToken(code, username, timestamp)`, `refreshToken(refreshToken)`, `logout()`.
+### `AuthRepository` (`:core:domain/auth`)
+```kotlin
+val isAuthenticated: Flow<Boolean>                       // реактивный флаг сессии
+suspend fun requestDeviceCode(): RequestResult<DeviceCode>
+suspend fun pollForToken(code: String, username: String, timestamp: Long): RequestResult<Token>
+suspend fun refreshToken(refreshToken: String): RequestResult<Token>
+suspend fun logout(): RequestResult<Unit>
+```
 
-**`CatalogRepository`** — `getItems(...)`, `getItemsByGenre(...)`, `getHotItems(type, page)`, `getNewItems(type, page)`, `getItemDetails(id): Item`, `getSimilarItems(id): List<Item>`, `getGenres(): List<Genre>`, `getCollections(page): List<Collection>`, `getCollectionItems(collectionId, page): CollectionPage`.
+### `CatalogRepository` (`:core:domain/catalog`)
+```kotlin
+suspend fun getItems(type: ItemType, sort: CatalogSort = UPDATED, page: Int = 1): RequestResult<ItemPage>
+suspend fun getItemsByGenre(type: ItemType, genreId: Int, sort: CatalogSort = UPDATED, page: Int = 1): RequestResult<ItemPage>
+suspend fun getHotItems(type: ItemType, page: Int = 1): RequestResult<ItemPage>
+suspend fun getNewItems(type: ItemType, page: Int = 1): RequestResult<ItemPage>
+suspend fun getItemDetails(id: Int): RequestResult<Item>
+suspend fun getSimilarItems(id: Int): RequestResult<List<Item>>
+suspend fun getGenres(): RequestResult<List<Genre>>
+suspend fun getCollections(page: Int = 1): RequestResult<List<Collection>>
+suspend fun getCollectionItems(collectionId: Int, page: Int = 1): RequestResult<CollectionPage>
+```
 
-**`SearchRepository`** — `search(...)`, `searchByActor(actor, perPage)`, `searchByDirector(director, perPage)` → `List<Item>`.
+### `SearchRepository` (`:core:domain/search`)
+```kotlin
+suspend fun search(query: String, type: ItemType? = null, perPage: Int = 20): RequestResult<List<Item>>
+suspend fun searchByActor(actor: String, perPage: Int = 20): RequestResult<List<Item>>
+suspend fun searchByDirector(director: String, perPage: Int = 20): RequestResult<List<Item>>
+```
 
-**`UserRepository`** — `getProfile(): UserProfile`, `getDeviceSettings(): DeviceSettings`, `updateDeviceSettings(settings)`, `registerDevice(title, hardware, software)`, папки закладок: `getBookmarkFolders()`, `getBookmarkItems(folderId, page)`, `createBookmarkFolder(title)`, `deleteBookmarkFolder(folderId)`, `addToBookmark(itemId, folderId)`, `removeFromBookmark(itemId, folderId)`.
+### `UserRepository` (`:core:domain/user`)
+```kotlin
+suspend fun getProfile(): RequestResult<UserProfile>
+suspend fun getDeviceSettings(): RequestResult<DeviceSettings>
+suspend fun updateDeviceSettings(settings: DeviceSettings): RequestResult<Unit>
+suspend fun registerDevice(title: String, hardware: String, software: String): RequestResult<Unit>
+suspend fun getBookmarkFolders(): RequestResult<List<BookmarkFolder>>
+suspend fun getBookmarkItems(folderId: Int, page: Int = 1): RequestResult<ItemPage>
+suspend fun createBookmarkFolder(title: String): RequestResult<BookmarkFolder>
+suspend fun deleteBookmarkFolder(folderId: Int): RequestResult<Unit>
+suspend fun addToBookmark(itemId: Int, folderId: Int): RequestResult<Unit>
+suspend fun removeFromBookmark(itemId: Int, folderId: Int): RequestResult<Unit>
+```
 
-**`WatchingRepository`** — `getHistory(type): List<WatchHistory>`, `saveProgress(itemId, videoId, timeSeconds)`, `saveProgressSerial(...)`, `toggleWatched(itemId)`, `toggleWatchlist(itemId): Boolean`, `clearHistory(itemId)`, уведомления: `getNotifications(): List<Notification>`, `markNotificationRead(id)`, `markAllNotificationsRead()`.
+### `WatchingRepository` (`:core:domain/watching`)
+```kotlin
+suspend fun getHistory(type: String = "all"): RequestResult<List<WatchHistory>>
+suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit>
+suspend fun saveProgressSerial(itemId: Int, season: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit>
+suspend fun toggleWatched(itemId: Int): RequestResult<Unit>
+suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean>   // true — теперь в списке
+suspend fun clearHistory(itemId: Int): RequestResult<Unit>
+suspend fun getNotifications(): RequestResult<List<Notification>>
+suspend fun markNotificationRead(id: Int): RequestResult<Unit>
+suspend fun markAllNotificationsRead(): RequestResult<Unit>
+```
 
-**`FavoritesRepository`** (локальный, реактивный, без `RequestResult`) — `favorites: Flow<List<FavoriteItem>>`, `favoriteIds: Flow<Set<Int>>`, `isFavorite(id): Flow<Boolean>`, `suspend toggle(item): Boolean`, `suspend add(item)`, `suspend remove(id)`.
+### `FavoritesRepository` (`:core:domain/favorites`) — локальный, реактивный, БЕЗ `RequestResult`
+```kotlin
+val favorites: Flow<List<FavoriteItem>>
+val favoriteIds: Flow<Set<Int>>
+fun isFavorite(id: Int): Flow<Boolean>
+suspend fun toggle(item: FavoriteItem): Boolean   // true — добавлен, false — убран
+suspend fun add(item: FavoriteItem)
+suspend fun remove(id: Int)
+```
 
-**`DownloadsRepository`** (локальный) — `downloads: Flow<List<DownloadedItem>>`, `isDownloaded(id): Flow<Boolean>`, `suspend add(item)`, `suspend remove(id)`.
+### `DownloadsRepository` (`:core:domain/downloads`) — локальный
+```kotlin
+val downloads: Flow<List<DownloadedItem>>
+fun isDownloaded(id: Int): Flow<Boolean>
+suspend fun add(item: DownloadedItem)
+suspend fun remove(id: Int)
+```
 
-**`PlaybackSettingsRepository`** (локальный, `:core:domain/playback`) — `settings: Flow<PlaybackSettings>`, `setQuality(q)`, `setAudioLanguage(l)`, `setSubtitleLanguage(l)`.
+### `PlaybackSettingsRepository` (`:core:domain/playback`) — локальный
+```kotlin
+val settings: Flow<PlaybackSettings>
+suspend fun setQuality(quality: String)
+suspend fun setAudioLanguage(language: String)
+suspend fun setSubtitleLanguage(language: String)
+```
 
 ---
 
-## 8. Доменные модели (что приходит в Swift)
+## 8. Доменные модели — полный справочник (структура возвращаемых типов)
 
-```
-DeviceCode(code, userCode, verificationUri, expiresIn, interval)
-Token(accessToken, refreshToken, expiresIn)
+Все модели — Kotlin `data class` (в Swift SKIE делает обычный класс с memberwise-инициализатором и `==`).
+Соответствие типов: `Int → Int32`, `Long → Int64`, `Double → Double`, `Boolean → Bool`,
+`String → String`, `T? → T?` (Optional), `List<T> → [T]`, `Set<T> → Set<T>`. `?` = может быть `nil`.
 
-Item(id, title, type: ItemType, year, plot, director, cast, country,
-     genres: [Genre], rating: ItemRating, posters: Posters, duration: Duration,
-     tracklist: [MediaTrack], trailer: Trailer?, inWatchlist, finished)
-Genre(id, title)
-ItemRating(filmax, filmaxPercentage, imdb?, kinopoisk?, external: Double?)   // external — усреднённый 0..10
-Posters(small, medium, big, wide?)                                          // URL'ы обложек
-
-HomeFeed(hero: Item?, continueWatching: [WatchHistory], collections: [Collection],
-         trending: [Item], forYou: [Item], error: String?)
-
-UserProfile(id, username, email?, avatarUrl?, subscription: Subscription?)
-Subscription(active, endsAt: Long?, daysLeft: Int?)
-DeviceSettings(id, title, supportSsl, supportHevc, …)
-
-ItemPage(items: [Item], pagination: Pagination)   // Pagination(total, current, perPage)
+### Auth
+```kotlin
+DeviceCode(
+  code: String,             // device_code — им поллим токен
+  userCode: String,         // короткий код, который пользователь вводит на сайте
+  verificationUri: String,  // URL, куда идти вводить код (kino.pub/device)
+  expiresIn: Int,           // сколько секунд код действителен (общий таймаут поллинга)
+  interval: Int,            // пауза между попытками поллинга, сек
+)
+Token(accessToken: String, refreshToken: String, expiresIn: Int)   // сохраняется data-слоем автоматически
 ```
 
-Прочие: `Collection`/`CollectionPage`, `MediaTrack`, `Trailer`, `WatchHistory`, `Notification`,
-`BookmarkFolder`, `FavoriteItem`, `DownloadedItem`, `PlaybackSettings(quality, audioLanguage, subtitleLanguage)`.
-Все — `data class` (в Swift обычные классы; SKIE добавляет удобные инициализаторы/`==`).
+### Каталог и медиа
+```kotlin
+Item(
+  id: Int, title: String, type: ItemType, year: Int,
+  plot: String, director: String, cast: String, country: String,
+  genres: List<Genre>,
+  rating: ItemRating,
+  posters: Posters,
+  duration: Duration,
+  tracklist: List<MediaTrack>,   // серии/сезоны; у фильма — 1 трек
+  trailer: Trailer?,
+  inWatchlist: Boolean,          // в «Буду смотреть»
+  finished: Boolean,             // досмотрено полностью
+)
+
+enum ItemType { MOVIE, SERIES, ANIME, DOCUMENTARY, TV }   // .apiValue: movie/serial/anime/docuserial/tv
+enum CatalogSort { UPDATED, CREATED, RATING, VIEWS, YEAR } // сортировка каталога
+
+Genre(id: Int, title: String)
+
+ItemRating(
+  filmax: Int,               // внутренний счёт 0..100
+  filmaxPercentage: String,  // тот же счёт строкой с «%»
+  imdb: String?,             // "7.9" или nil
+  kinopoisk: String?,        // "8.1" или nil
+  external: Double?,         // ВЫЧИСЛЯЕМОЕ: среднее из imdb/kinopoisk (0..10) или nil
+)
+
+Posters(small: String, medium: String, big: String, wide: String?)   // URL'ы обложек; wide — широкая
+
+Duration(averageMinutes: Double?, totalMinutes: Int?)   // средняя длина серии / суммарная
+
+MediaTrack(                    // серия (или единственный трек фильма)
+  id: Int, number: Int, seasonNumber: Int, title: String, thumbnail: String,
+  durationSeconds: Int,
+  files: List<VideoFile>,      // потоки по качествам
+  audios: List<AudioTrack>,
+  subtitles: List<SubtitleTrack>,
+  watchedSeconds: Int,         // прогресс, сек (0 — не начат)
+  watchStatus: Int,            // -1 не начат, 0 в процессе, 1 досмотрен
+)
+VideoFile(quality: String, hls4: String?, hls: String?, http: String?)   // URL потоков (quality: "1080p"…)
+AudioTrack(id: Int, lang: String?, title: String?, channels: Int)
+SubtitleTrack(lang: String, url: String, shiftMs: Int)
+Trailer(id: String, url: String)
+
+Collection(id: Int, title: String, description: String?, posters: Posters?)   // подборка
+CollectionPage(collection: Collection?, items: List<Item>, pagination: Pagination)
+ItemPage(items: List<Item>, pagination: Pagination)
+Pagination(total: Int, current: Int, perPage: Int)   // total — ВСЕГО СТРАНИЦ (не элементов); + hasNextPage: Bool
+```
+
+### Пользователь
+```kotlin
+UserProfile(id: Int, username: String, email: String?, avatarUrl: String?, subscription: Subscription?)
+//   + extension UserProfile.initials(): String — инициалы для аватара
+Subscription(active: Boolean, endsAt: Long?, daysLeft: Int?)   // endsAt — unix-время (сек)
+BookmarkFolder(id: Int, title: String, count: Int, updatedAt: Long?)   // папка закладок
+DeviceSettings(
+  id: Int, title: String,
+  supportSsl: Boolean, supportHevc: Boolean, supportHdr: Boolean, support4k: Boolean,
+  streamingType: Int, serverLocation: Int,
+)
+```
+
+### Просмотр
+```kotlin
+WatchHistory(itemId: Int, title: String, posterSmall: String?, progress: WatchProgress?)
+WatchProgress(
+  status: Int,                // -1/0/1 как watchStatus
+  timeSeconds: Int?, durationSeconds: Int?,
+  videoId: Int?, season: Int?,
+  //   + вычисляемое fraction: Float — доля просмотра 0..1 (для прогресс-бара)
+)
+Notification(id: Int, title: String?, text: String?, createdAt: Long?, read: Boolean, itemId: Int?)
+```
+
+### Избранное / загрузки (локальные)
+```kotlin
+FavoriteItem(id: Int, title: String, posterSmall: String, year: Int, durationMinutes: Int)
+DownloadedItem(id: Int, title: String, posterSmall: String, year: Int, durationMinutes: Int)
+//   + extension Item.toFavoriteItem() — собрать FavoriteItem из Item
+```
+
+### Воспроизведение / Главная
+```kotlin
+PlaybackSettings(quality: String = "Авто", audioLanguage: String = "Оригинал", subtitleLanguage: String = "Выкл")
+//   константы/списки опций: PlaybackSettings.Companion — qualityOptions ["Авто","2160p","1080p","720p","480p","360p"],
+//   audioOptions ["Оригинал","Русский","English"], subtitleOptions ["Выкл","Русский","English"]
+
+HomeFeed(hero: Item?, continueWatching: List<WatchHistory>, collections: List<Collection>,
+         trending: List<Item>, forYou: List<Item>, error: String?)   // error — мягкая ошибка агрегации
+```
+
+> **Вычисляемые свойства** (`external`, `hasNextPage`, `fraction`, `initials()`) считаются в общем Kotlin-коде
+> и доступны из Swift как обычные геттеры/функции — не дублируй их логику на Swift.
 
 ---
 
@@ -239,16 +404,28 @@ case .error(let e):   errorText = e.message
 }
 ```
 
-**Реактивный локальный источник (избранное):** экспонируй `favoritesRepository()` в `UseCaseProvider`, затем
-`for await ids in repo.favoriteIds { … }`.
+**Детали фильма через репозиторий:**
+```swift
+let result = try await RepositoryProvider.shared.catalog.getItemDetails(id: 42)   // RequestResult<Item>
+switch onEnum(of: result) {
+case .success(let s): self.item = s.data     // s.data : Item (структура — §8)
+case .error(let e):   self.errorText = e.message
+}
+```
+
+**Реактивный локальный источник (избранное):**
+```swift
+for await ids in RepositoryProvider.shared.favorites.favoriteIds { self.favIds = ids }
+```
 
 ---
 
 ## 11. Как расширять shared под новый экран
 
-1. Убедись, что нужный репозиторий/use-case есть в `core:domain` (обычно да).
-2. Экспонируй его в `UseCaseProvider` (Swift не видит Koin `get()`), при новом use-case — зарегистрируй в `useCaseModule`.
-3. Если возвращается тип из модуля, которого нет в `export(...)` фреймворка — добавь `api(project(...))`
+1. Нужен репозиторий? Он **уже доступен** через `RepositoryProvider` — просто вызывай его метод из Swift.
+2. Нужен новый доменный use-case? Добавь класс в `core:domain/usecase`, зарегистрируй в `useCaseModule`
+   (`Koin.kt`) и отдай методом в `UseCaseProvider`. (Repository для этого экспонировать не нужно — он уже есть.)
+3. Если возвращается тип из нового модуля, которого нет в `export(...)` фреймворка — добавь `api(project(...))`
    и `export(project(...))` в `shared/build.gradle.kts`.
 4. Пересобери фреймворк (Xcode preBuildScript делает это сам), пиши Swift ViewModel + вью.
 

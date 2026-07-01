@@ -73,6 +73,19 @@ open Filmax.xcodeproj
 ```
 Если эти таски зелёные — общий Kotlin-код компилируется под iOS; дальше проблема (если есть) уже в Swift.
 
+### XCFramework (мульти-архитектурный бандл — для дистрибуции/CI)
+Собрать `Shared.xcframework` (все iOS-архитектуры device + simulator в одном бандле):
+```bash
+./gradlew :shared:assembleSharedReleaseXCFramework   # release-бандл → shared/build/XCFrameworks/release/
+./gradlew :shared:assembleSharedXCFramework          # debug + release
+# собрать И положить готовый бандл в iosApp/Frameworks/Shared.xcframework:
+./gradlew :shared:syncSharedXCFramework
+```
+Модель сборки iOS-приложения по умолчанию — per-build `embedAndSignAppleFrameworkForXcode` (Xcode сам
+собирает фреймворк нужной архитектуры при каждой сборке, см. `project.yml`). XCFramework — альтернатива:
+предсобранный бандл, который линкуется напрямую (быстрее сборка app, удобно для CI/раздачи); при изменениях
+Kotlin его нужно пересобрать (`syncSharedXCFramework`).
+
 ### Сборка iOS из CLI (опц., для CI)
 ```bash
 xcodebuild -project iosApp/Filmax.xcodeproj -scheme Filmax \
