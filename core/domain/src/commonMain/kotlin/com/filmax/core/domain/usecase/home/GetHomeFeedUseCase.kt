@@ -32,11 +32,22 @@ class GetHomeFeedUseCase(
 
         HomeFeed(
             hero = hot.getOrNull()?.items?.firstOrNull(),
-            continueWatching = history.getOrNull()?.take(5) ?: emptyList(),
-            collections = collections.getOrNull()?.take(5) ?: emptyList(),
-            trending = trending.getOrNull()?.items?.take(10) ?: emptyList(),
-            forYou = forYou.getOrNull()?.items?.take(10) ?: emptyList(),
+            continueWatching = history.getOrNull()?.take(CONTINUE_WATCHING_LIMIT) ?: emptyList(),
+            collections = collections.getOrNull()?.take(COLLECTIONS_LIMIT) ?: emptyList(),
+            trending = trending.getOrNull()?.items?.take(ROW_LIMIT) ?: emptyList(),
+            forYou = forYou.getOrNull()?.items?.take(ROW_LIMIT) ?: emptyList(),
             error = firstErrorMessage(hot, trending, collections, forYou),
         )
+    }
+
+    private companion object {
+        /** Сколько последних тайтлов показать в блоке «Продолжить просмотр». */
+        const val CONTINUE_WATCHING_LIMIT = 5
+
+        /** Сколько подборок показать в горизонтальном ряду. */
+        const val COLLECTIONS_LIMIT = 5
+
+        /** Сколько тайтлов показать в горизонтальных рядах («В тренде», «Для вас»). */
+        const val ROW_LIMIT = 10
     }
 }

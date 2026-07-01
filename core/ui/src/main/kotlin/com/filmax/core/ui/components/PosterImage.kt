@@ -45,12 +45,19 @@ fun PosterImage(
     }
 }
 
+/** Нижний (тёмный) цвет градиента-заглушки постера. */
+private val PlaceholderBottomColor = Color(0xFF141012)
+
+/** Конечная точка линейного градиента-заглушки (диагональ сверху-слева вниз-вправо). */
+private const val PLACEHOLDER_GRADIENT_END_X = 200f
+private const val PLACEHOLDER_GRADIENT_END_Y = 600f
+
 /** Тёмный градиент-заглушка постера (под обложкой и при ошибке загрузки). */
 private fun posterPlaceholderBrush(accentColor: Color): Brush =
     Brush.linearGradient(
-        colors = listOf(accentColor.copy(alpha = 0.7f), Color(0xFF141012)),
+        colors = listOf(accentColor.copy(alpha = 0.7f), PlaceholderBottomColor),
         start = Offset(0f, 0f),
-        end = Offset(200f, 600f),
+        end = Offset(PLACEHOLDER_GRADIENT_END_X, PLACEHOLDER_GRADIENT_END_Y),
     )
 
 /** Тот же градиент как самостоятельный composable — для превью дизайн-системы. */
