@@ -11,8 +11,13 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 
 /**
- * Фабрики UseCase для Swift: Koin reified-`get()` недоступен из Obj-C/Swift,
- * поэтому iOS-ViewModel получают UseCase через явные методы этого объекта.
+ * Готовые UseCase-обёртки для Swift (частые операции поверх репозиториев).
+ *
+ * Koin reified-`get()` не виден из Obj-C/Swift, поэтому UseCase'ы отдаются явными фабриками.
+ * Полный data-слой (все репозитории) — в [RepositoryProvider]; iOS-разработчику этих двух
+ * объектов достаточно, чтобы работать с общей логикой, не трогая Kotlin.
+ *
+ * Из Swift: `UseCaseProvider.shared.requestDeviceCodeUseCase()`.
  */
 object UseCaseProvider : KoinComponent {
     fun getHomeFeedUseCase(): GetHomeFeedUseCase = get()

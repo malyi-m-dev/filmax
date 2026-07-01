@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.konan.target.HostManager
 
 plugins {
@@ -13,11 +14,16 @@ android {
 }
 
 kotlin {
-    // iOS-фреймворк (линкуется только на macOS; SKIE/CocoaPods подключаются в macOS-фазе).
+    // XCFramework-бандл: объединяет все iOS-архитектуры (device + simulator) в один .xcframework.
+    // Создаёт таски assembleShared{,Debug,Release}XCFramework (реально линкуются только на macOS).
+    val xcframework = XCFramework("Shared")
+
+    // iOS-фреймворк (линкуется только на macOS; SKIE подключается в macOS-фазе).
     targets.withType<KotlinNativeTarget>().configureEach {
         binaries.framework {
             baseName = "Shared"
             isStatic = true
+            xcframework.add(this)
             if (HostManager.hostIsMac) {
                 export(project(":core:domain"))
                 export(project(":core:network"))
@@ -46,4 +52,15 @@ kotlin {
             api(libs.koin.core)
         }
     }
+}
+
+// Собрать release-XCFramework и положить его в iosApp/Frameworks/Shared.xcframework —
+// готовый бандл для линковки в Xcode (альтернатива per-build embedAndSignAppleFrameworkForXcode).
+// Запуск: ./gradlew :shared:syncSharedXCFramework (только на macOS).
+tasks.register<Copy>("syncSharedXCFramework") {
+    group = "filmax"
+    description = "Собрать release Shared.xcframework и скопировать в iosApp/Frameworks"
+    dependsOn("assembleSharedReleaseXCFramework")
+    from(layout.buildDirectory.dir("XCFrameworks/release"))
+    into(rootProject.layout.projectDirectory.dir("iosApp/Frameworks"))
 }
