@@ -1,7 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:TvOnboardingScreen.kt$@Composable private fun AuthCodeCard(userCode: String, verificationUri: String)</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

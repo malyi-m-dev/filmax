@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,9 +124,11 @@ fun TvDetailsScreen(
                         item = item,
                         similar = state.similar,
                         isFav = state.isFav,
-                        onPlay = { onPlay(item.id, -1) },
-                        onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
-                        onOpenItem = onOpenItem,
+                        actions = MovieActions(
+                            onPlay = { onPlay(item.id, -1) },
+                            onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
+                            onOpenItem = onOpenItem,
+                        ),
                     )
                 }
             }
@@ -232,18 +235,20 @@ private fun Label(text: String, color: Color = Accent) {
 
 // ─────────────────────────────── Детали ФИЛЬМА ──────────────────────────────
 
+/** Действия деталей фильма — сгруппированы, чтобы не раздувать список параметров. */
+private data class MovieActions(
+    val onPlay: () -> Unit,
+    val onToggleFav: () -> Unit,
+    val onOpenItem: (Int) -> Unit,
+)
+
 @Composable
 private fun MovieContent(
     item: Item,
     similar: List<Item>,
     isFav: Boolean,
-    onPlay: () -> Unit,
-    onToggleFav: () -> Unit,
-    onOpenItem: (Int) -> Unit,
+    actions: MovieActions,
 ) {
-    val playFocus = remember { FocusRequester() }
-    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
-
     Box(Modifier.fillMaxSize()) {
         Backdrop(item)
 
@@ -257,72 +262,95 @@ private fun MovieContent(
             contentPadding = PaddingValues(bottom = 48.dp),
         ) {
             item(key = "hero") {
-                Row(Modifier.fillMaxWidth().padding(72.dp)) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        TagPill(item.genres.take(2).joinToString(" · ") { it.title })
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            item.title,
-                            style = MaterialTheme.typography.displayMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                        Spacer(Modifier.height(14.dp))
-                        MetaRow(item, includeDuration = true)
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            item.plot,
-                            fontSize = 18.sp,
-                            lineHeight = 26.sp,
-                            color = Color.White.copy(alpha = 0.85f),
-                            maxLines = 4,
-                            modifier = Modifier.fillMaxWidth(0.9f)
-                        )
-                        Spacer(Modifier.height(28.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            TvButton(
-                                "Смотреть",
-                                onClick = onPlay,
-                                leadingIcon = Icons.Filled.PlayArrow,
-                                focusRequester = playFocus
-                            )
-                            TvButton(
-                                text = if (isFav) "В избранном" else "В избранное",
-                                onClick = onToggleFav,
-                                primary = false,
-                                leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                            )
-                        }
-                    }
-
-                    // Правая glass-панель — «В ролях» / «Режиссёр» / «Качество» (как в макете TVDetails).
-                    if (item.cast.isNotBlank() || item.director.isNotBlank() || item.tracklist.isNotEmpty()) {
-                        Spacer(Modifier.width(40.dp))
-                        InfoPanel(item = item, modifier = Modifier.width(340.dp).align(Alignment.Top))
-                    }
-                }
+                MovieHero(
+                    item = item,
+                    isFav = isFav,
+                    onPlay = actions.onPlay,
+                    onToggleFav = actions.onToggleFav,
+                )
             }
 
             if (similar.isNotEmpty()) {
                 item(key = "similar") {
-                    Column(Modifier.padding(start = 72.dp, bottom = 32.dp)) {
-                        Text(
-                            "Похожие",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(bottom = 14.dp)
-                        )
-                        LazyRow(
-                            contentPadding = PaddingValues(end = 72.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        ) {
-                            items(similar, key = { it.id }) { sim ->
-                                SimilarCard(item = sim, onClick = { onOpenItem(sim.id) })
-                            }
-                        }
-                    }
+                    MovieSimilar(similar = similar, onOpenItem = actions.onOpenItem)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MovieHero(
+    item: Item,
+    isFav: Boolean,
+    onPlay: () -> Unit,
+    onToggleFav: () -> Unit,
+) {
+    val playFocus = remember { FocusRequester() }
+    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
+
+    Row(Modifier.fillMaxWidth().padding(72.dp)) {
+        Column(modifier = Modifier.weight(1f)) {
+            TagPill(item.genres.take(2).joinToString(" · ") { it.title })
+            Spacer(Modifier.height(16.dp))
+            Text(
+                item.title,
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
+            Spacer(Modifier.height(14.dp))
+            MetaRow(item, includeDuration = true)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                item.plot,
+                fontSize = 18.sp,
+                lineHeight = 26.sp,
+                color = Color.White.copy(alpha = 0.85f),
+                maxLines = 4,
+                modifier = Modifier.fillMaxWidth(0.9f)
+            )
+            Spacer(Modifier.height(28.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TvButton(
+                    "Смотреть",
+                    onClick = onPlay,
+                    leadingIcon = Icons.Filled.PlayArrow,
+                    focusRequester = playFocus
+                )
+                TvButton(
+                    text = if (isFav) "В избранном" else "В избранное",
+                    onClick = onToggleFav,
+                    primary = false,
+                    leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+                )
+            }
+        }
+
+        // Правая glass-панель — «В ролях» / «Режиссёр» / «Качество» (как в макете TVDetails).
+        if (item.cast.isNotBlank() || item.director.isNotBlank() || item.tracklist.isNotEmpty()) {
+            Spacer(Modifier.width(40.dp))
+            InfoPanel(item = item, modifier = Modifier.width(340.dp).align(Alignment.Top))
+        }
+    }
+}
+
+@Composable
+private fun MovieSimilar(similar: List<Item>, onOpenItem: (Int) -> Unit) {
+    Column(Modifier.padding(start = 72.dp, bottom = 32.dp)) {
+        Text(
+            "Похожие",
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(bottom = 14.dp)
+        )
+        LazyRow(
+            contentPadding = PaddingValues(end = 72.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            items(similar, key = { it.id }) { sim ->
+                SimilarCard(item = sim, onClick = { onOpenItem(sim.id) })
             }
         }
     }
@@ -373,41 +401,58 @@ private fun InfoPanel(item: Item, modifier: Modifier = Modifier) {
             .then(if (focused) Modifier.border(3.dp, TvFocus, shape) else Modifier)
             .padding(24.dp),
     ) {
-        if (item.cast.isNotBlank()) {
-            Label("В ролях")
-            Text(
-                item.cast,
-                fontSize = 16.sp,
-                lineHeight = 26.sp,
-                color = Color.White.copy(alpha = 0.92f),
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-                onTextLayout = { castOverflow = it.hasVisualOverflow },
-            )
-        }
-        if (item.director.isNotBlank()) {
-            Spacer(Modifier.height(18.dp))
-            Label("Режиссёр")
-            Text(item.director, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
-        }
-        if (videoQualities.isNotEmpty()) {
-            Spacer(Modifier.height(18.dp))
-            Label("Качество")
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                videoQualities.forEach { QualityChip(it) }
-            }
-        }
-        if (castOverflow) {
-            Spacer(Modifier.height(12.dp))
-            Text("Подробнее →", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-        }
+        InfoPanelSections(
+            item = item,
+            videoQualities = videoQualities,
+            castOverflow = castOverflow,
+            onCastOverflowChange = { castOverflow = it },
+        )
     }
 
     if (expanded) {
         InfoPanelDialog(item = item, quality = fullQuality, onDismiss = { expanded = false })
+    }
+}
+
+/** Секции свёрнутой glass-панели (роли/режиссёр/качество) — вынесены из InfoPanel без изменений. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InfoPanelSections(
+    item: Item,
+    videoQualities: List<String>,
+    castOverflow: Boolean,
+    onCastOverflowChange: (Boolean) -> Unit,
+) {
+    if (item.cast.isNotBlank()) {
+        Label("В ролях")
+        Text(
+            item.cast,
+            fontSize = 16.sp,
+            lineHeight = 26.sp,
+            color = Color.White.copy(alpha = 0.92f),
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { onCastOverflowChange(it.hasVisualOverflow) },
+        )
+    }
+    if (item.director.isNotBlank()) {
+        Spacer(Modifier.height(18.dp))
+        Label("Режиссёр")
+        Text(item.director, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
+    }
+    if (videoQualities.isNotEmpty()) {
+        Spacer(Modifier.height(18.dp))
+        Label("Качество")
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            videoQualities.forEach { QualityChip(it) }
+        }
+    }
+    if (castOverflow) {
+        Spacer(Modifier.height(12.dp))
+        Text("Подробнее →", color = Accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -485,6 +530,13 @@ private fun SimilarCard(item: Item, onClick: () -> Unit) {
 
 // ─────────────────────────────── Детали СЕРИАЛА ─────────────────────────────
 
+/** Кнопки «Продолжить/Смотреть» + фокус — сгруппированы, чтобы не раздувать список параметров. */
+private data class SeriesPlaybackActions(
+    val playFocus: FocusRequester,
+    val onPlay: () -> Unit,
+    val onToggleFav: () -> Unit,
+)
+
 @Composable
 private fun SeriesContent(
     item: Item,
@@ -513,84 +565,124 @@ private fun SeriesContent(
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
 
+    val first = currentEpisodes.firstOrNull() ?: item.tracklist.firstOrNull()
+    val target = resume ?: first
+
     Box(Modifier.fillMaxSize()) {
         Backdrop(item)
 
         Row(Modifier.fillMaxSize().padding(start = 72.dp, top = 56.dp, end = 72.dp, bottom = 40.dp)) {
             // ── Левая колонка: инфо + продолжить + действия ──
-            Column(modifier = Modifier.weight(1f).padding(end = 20.dp)) {
-                TagPill("Сериал · ${seasons.size} ${seasonsWord(seasons.size)}")
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    item.title,
-                    style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    maxLines = 2
-                )
-                Spacer(Modifier.height(14.dp))
-                MetaRow(item, includeDuration = false)
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    item.plot,
-                    fontSize = 17.sp,
-                    lineHeight = 25.sp,
-                    color = Color.White.copy(alpha = 0.85f),
-                    maxLines = 4
-                )
-
-                if (resume != null && resume.durationSeconds > 0) {
-                    Spacer(Modifier.height(22.dp))
-                    ResumeStrip(episode = resume)
-                }
-
-                Spacer(Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val first = currentEpisodes.firstOrNull() ?: item.tracklist.firstOrNull()
-                    val target = resume ?: first
-                    TvButton(
-                        text = if (resume != null) "Продолжить" else "Смотреть",
-                        onClick = { target?.let { onPlayEpisode(it.id) } },
-                        leadingIcon = Icons.Filled.PlayArrow,
-                        focusRequester = playFocus,
-                    )
-                    TvButton(
-                        text = if (isFav) "В избранном" else "В избранное",
-                        onClick = onToggleFav,
-                        primary = false,
-                        leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
-                    )
-                }
-            }
+            SeriesInfoColumn(
+                item = item,
+                isFav = isFav,
+                seasonsCaption = "Сериал · ${seasons.size} ${seasonsWord(seasons.size)}",
+                resume = resume,
+                actions = SeriesPlaybackActions(
+                    playFocus = playFocus,
+                    onPlay = { target?.let { onPlayEpisode(it.id) } },
+                    onToggleFav = onToggleFav,
+                ),
+            )
 
             // ── Правая колонка: чипы сезонов + список серий ──
-            Column(modifier = Modifier.width(380.dp)) {
-                if (seasons.size > 1) {
-                    SeasonChips(
-                        seasons = seasons,
-                        selectedSeason = selectedSeason,
-                        onSelect = { selectedSeason = it },
-                    )
-                    Spacer(Modifier.height(16.dp))
-                }
-                Label(
-                    "${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}",
-                    color = Color.White.copy(alpha = 0.7f)
+            SeriesEpisodesColumn(
+                seasons = seasons,
+                selectedSeason = selectedSeason,
+                resumeId = resume?.id,
+                onSelectSeason = { selectedSeason = it },
+                onPlayEpisode = onPlayEpisode,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RowScope.SeriesInfoColumn(
+    item: Item,
+    isFav: Boolean,
+    seasonsCaption: String,
+    resume: MediaTrack?,
+    actions: SeriesPlaybackActions,
+) {
+    Column(modifier = Modifier.weight(1f).padding(end = 20.dp)) {
+        TagPill(seasonsCaption)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
+            maxLines = 2
+        )
+        Spacer(Modifier.height(14.dp))
+        MetaRow(item, includeDuration = false)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            item.plot,
+            fontSize = 17.sp,
+            lineHeight = 25.sp,
+            color = Color.White.copy(alpha = 0.85f),
+            maxLines = 4
+        )
+
+        if (resume != null && resume.durationSeconds > 0) {
+            Spacer(Modifier.height(22.dp))
+            ResumeStrip(episode = resume)
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvButton(
+                text = if (resume != null) "Продолжить" else "Смотреть",
+                onClick = actions.onPlay,
+                leadingIcon = Icons.Filled.PlayArrow,
+                focusRequester = actions.playFocus,
+            )
+            TvButton(
+                text = if (isFav) "В избранном" else "В избранное",
+                onClick = actions.onToggleFav,
+                primary = false,
+                leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SeriesEpisodesColumn(
+    seasons: List<Pair<Int, List<MediaTrack>>>,
+    selectedSeason: Int,
+    resumeId: Int?,
+    onSelectSeason: (Int) -> Unit,
+    onPlayEpisode: (videoId: Int) -> Unit,
+) {
+    val currentEpisodes = seasons.getOrNull(selectedSeason)?.second.orEmpty()
+    Column(modifier = Modifier.width(380.dp)) {
+        if (seasons.size > 1) {
+            SeasonChips(
+                seasons = seasons,
+                selectedSeason = selectedSeason,
+                onSelect = onSelectSeason,
+            )
+            Spacer(Modifier.height(16.dp))
+        }
+        Label(
+            "${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}",
+            color = Color.White.copy(alpha = 0.7f)
+        )
+        Spacer(Modifier.height(4.dp))
+        LazyColumn(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(bottom = 24.dp),
+        ) {
+            items(currentEpisodes, key = { it.id }) { episode ->
+                EpisodeRow(
+                    episode = episode,
+                    isResume = episode.id == resumeId,
+                    onClick = { onPlayEpisode(episode.id) },
                 )
-                Spacer(Modifier.height(4.dp))
-                LazyColumn(
-                    modifier = Modifier.fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                ) {
-                    items(currentEpisodes, key = { it.id }) { episode ->
-                        EpisodeRow(
-                            episode = episode,
-                            isResume = episode.id == resume?.id,
-                            onClick = { onPlayEpisode(episode.id) },
-                        )
-                    }
-                }
             }
         }
     }

@@ -262,37 +262,43 @@ private fun AuthCodeCard(userCode: String, verificationUri: String) {
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(28.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Filled.Language,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(22.dp),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                verificationUri,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 22.sp,
-            )
-        }
-        Spacer(Modifier.height(28.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp,
-            )
-            Text(
-                "Ожидаем подтверждение…",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 16.sp,
-            )
-        }
+        AuthCodeCardFooter(verificationUri = verificationUri)
+    }
+}
+
+// Ссылка активации + индикатор ожидания — вынесены из AuthCodeCard без изменения раскладки.
+@Composable
+private fun AuthCodeCardFooter(verificationUri: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            Icons.Filled.Language,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            verificationUri,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 22.sp,
+        )
+    }
+    Spacer(Modifier.height(28.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+            strokeWidth = 2.dp,
+        )
+        Text(
+            "Ожидаем подтверждение…",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 16.sp,
+        )
     }
 }
 
