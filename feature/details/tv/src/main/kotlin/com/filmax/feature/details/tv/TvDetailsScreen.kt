@@ -98,6 +98,7 @@ fun TvDetailsScreen(
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    val item = state.item
 
     Box(
         modifier = modifier
@@ -110,8 +111,7 @@ fun TvDetailsScreen(
                 modifier = Modifier.align(Alignment.Center),
             )
 
-            state.item != null -> {
-                val item = state.item!!
+            item != null -> {
                 if (item.isSeriesLike()) {
                     SeriesContent(
                         item = item,
@@ -560,7 +560,7 @@ private fun SeriesContent(
         resume?.let { r -> seasons.indexOfFirst { it.first == r.seasonNumber }.takeIf { it >= 0 } } ?: 0
     }
     var selectedSeason by remember(item.id) { mutableIntStateOf(resumeSeasonIndex) }
-    val currentEpisodes = seasons.getOrNull(selectedSeason)?.second ?: emptyList()
+    val currentEpisodes = seasons.getOrNull(selectedSeason)?.second.orEmpty()
 
     val playFocus = remember { FocusRequester() }
     LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }

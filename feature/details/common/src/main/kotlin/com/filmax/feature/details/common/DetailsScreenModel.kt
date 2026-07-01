@@ -37,9 +37,9 @@ class DetailsScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { _ ->
             val itemResult = catalog.getItemDetails(route.itemId)
-            val similar = catalog.getSimilarItems(route.itemId).getOrNull() ?: emptyList()
+            val similar = catalog.getSimilarItems(route.itemId).getOrNull().orEmpty()
             when (itemResult) {
                 is RequestResult.Success -> {
                     updateState {

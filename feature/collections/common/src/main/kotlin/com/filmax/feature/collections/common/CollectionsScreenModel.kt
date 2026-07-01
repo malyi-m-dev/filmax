@@ -15,18 +15,18 @@ class CollectionsScreenModel(
 
     override fun dispatch(event: CollectionsEvent) {
         when (event) {
-            is CollectionsEvent.QueryChange -> screenModelScope {
+            is CollectionsEvent.QueryChange -> screenModelScope { _ ->
                 updateState { it.copy(query = event.query) }
             }
             is CollectionsEvent.CollectionClick -> onCollectionClick(event.collection)
-            CollectionsEvent.DismissSheet -> screenModelScope {
+            CollectionsEvent.DismissSheet -> screenModelScope { _ ->
                 updateState { it.copy(selectedCollection = null, collectionItems = emptyList()) }
             }
         }
     }
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { _ ->
             when (val result = catalog.getCollections()) {
                 is RequestResult.Success ->
                     updateState { it.copy(loading = false, collections = result.data) }
@@ -38,7 +38,7 @@ class CollectionsScreenModel(
     }
 
     private fun onCollectionClick(collection: Collection) {
-        screenModelScope {
+        screenModelScope { _ ->
             updateState {
                 it.copy(
                     selectedCollection = collection,

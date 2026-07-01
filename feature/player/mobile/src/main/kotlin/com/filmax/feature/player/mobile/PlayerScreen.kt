@@ -182,7 +182,7 @@ fun PlayerScreen(
                             letterSpacing = 1.sp
                         )
                         Text(
-                            state.item?.title ?: "",
+                            state.item?.title.orEmpty(),
                             fontSize = 15.sp,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,

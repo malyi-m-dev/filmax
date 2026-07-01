@@ -29,7 +29,7 @@ class SearchScreenModel(
                 onQueryChange(event.query)
                 performSearch(event.query)
             }
-            SearchEvent.ClearRecent -> screenModelScope {
+            SearchEvent.ClearRecent -> screenModelScope { snapshot ->
                 updateState { it.copy(recentQueries = emptyList()) }
             }
         }
@@ -37,7 +37,7 @@ class SearchScreenModel(
 
     @OptIn(FlowPreview::class)
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState {
                 it.copy(
                     trendingQueries = listOf(
@@ -63,14 +63,14 @@ class SearchScreenModel(
 
     private fun onQueryChange(q: String) {
         queryFlow.value = q
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState { it.copy(query = q, error = null) }
             if (q.isBlank()) updateState { it.copy(results = emptyList(), loading = false) }
         }
     }
 
     private fun onFilterChange(type: ItemType?) {
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState { it.copy(filter = type) }
             val q = state.query
             if (q.length >= 2) performSearch(q)
@@ -78,7 +78,7 @@ class SearchScreenModel(
     }
 
     private fun performSearch(q: String) {
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState { it.copy(loading = true) }
             when (val result = search.search(q, state.filter, perPage = 20)) {
                 is RequestResult.Success -> updateState { s ->

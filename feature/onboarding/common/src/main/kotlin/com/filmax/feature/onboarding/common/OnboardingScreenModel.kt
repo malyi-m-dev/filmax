@@ -17,7 +17,7 @@ class OnboardingScreenModel(
     override fun dispatch(event: OnboardingEvent) {
         when (event) {
             OnboardingEvent.NextStep -> nextStep()
-            OnboardingEvent.PrevStep -> screenModelScope {
+            OnboardingEvent.PrevStep -> screenModelScope { snapshot ->
                 updateState { it.copy(step = maxOf(0, it.step - 1), error = null) }
             }
             OnboardingEvent.RetryDeviceCode -> retryDeviceCode()
@@ -28,7 +28,7 @@ class OnboardingScreenModel(
     override fun onFetchData() = Unit
 
     private fun nextStep() {
-        screenModelScope {
+        screenModelScope { snapshot ->
             val next = state.step + 1
             updateState { it.copy(step = next) }
             if (next == 2) requestDeviceCode()
@@ -36,7 +36,7 @@ class OnboardingScreenModel(
     }
 
     private fun requestDeviceCode() {
-        screenModelScope {
+        screenModelScope { snapshot ->
             when (val result = auth.requestDeviceCode()) {
                 is RequestResult.Success -> {
                     val dc = result.data
@@ -88,7 +88,7 @@ class OnboardingScreenModel(
     }
 
     private fun retryDeviceCode() {
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState { it.copy(error = null, deviceCode = null, userCode = null) }
             requestDeviceCode()
         }

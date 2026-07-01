@@ -43,6 +43,11 @@ jobs:
       - name: Run detekt + format check
         run: ./gradlew detekt --stacktrace
 
+      # detektMain — анализ с type-resolution (по скомпилированным классам): ловит правила,
+      # недоступные без класспаса — UnsafeCallOnNullableType (`!!`), NoNameShadowing, UseOrEmpty и т.п.
+      - name: Run detekt (type resolution)
+        run: ./gradlew detektMain --stacktrace
+
       - name: Upload detekt reports
         if: always()
         uses: actions/upload-artifact@v4

@@ -37,7 +37,7 @@ class HomeScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState {
                 it.copy(
                     loading = true,
@@ -78,7 +78,7 @@ class HomeScreenModel(
     private fun loadMoreAll() {
         if (state.allLoadingMore || state.allEndReached) return
         val nextPage = state.allPage + 1
-        screenModelScope {
+        screenModelScope { snapshot ->
             updateState { it.copy(allLoadingMore = true) }
             when (val result = catalog.getItems(ItemType.MOVIE, CatalogSort.UPDATED, nextPage)) {
                 is RequestResult.Success -> updateState { s ->
