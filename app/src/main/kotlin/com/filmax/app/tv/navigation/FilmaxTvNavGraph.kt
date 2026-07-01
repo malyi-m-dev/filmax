@@ -22,6 +22,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -108,34 +110,7 @@ fun FilmaxTvNavGraph(
                 popEnterTransition = { fadeIn() },
                 popExitTransition = { fadeOut() },
             ) {
-                composable<TvSplashRoute> { Box(Modifier.fillMaxSize()) }
-
-                tvOnboardingScreen(
-                    onAuthenticated = {
-                        navController.navigate(TvHomeRoute) { popUpTo(TvOnboardingRoute) { inclusive = true } }
-                    },
-                )
-
-                tvHomeScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-                tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-                tvCollectionsScreen(
-                    onOpenCollection = { id, title ->
-                        navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
-                    },
-                )
-                tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-                tvLibraryScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-                tvProfileScreen(
-                    onLogout = {
-                        navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
-                    },
-                )
-
-                tvDetailsScreen(
-                    onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
-                    onOpenItem = { navController.navigate(DetailsRoute(it)) },
-                )
-                tvPlayerScreen(onBack = { navController.popBackStack() })
+                tvDestinations(navController)
             }
         }
 
@@ -143,8 +118,7 @@ fun FilmaxTvNavGraph(
             TvTopNavBar(
                 currentDestination = currentDest,
                 onSelectTab = { navigateTab(it) },
-                navBarFocus = navBarFocus,
-                contentFocus = contentFocus,
+                focus = TvTopNavBarFocus(navBar = navBarFocus, content = contentFocus),
                 initials = rootState.initials,
                 // Любой заход фокуса в шапку (с контента или стартовый) — повод увести контент вверх.
                 modifier = Modifier
@@ -161,4 +135,36 @@ fun FilmaxTvNavGraph(
     LaunchedEffect(showTopBar) {
         if (showTopBar) runCatching { navBarFocus.requestFocus() }
     }
+}
+
+/** Регистрация всех экранов TV-графа: сплэш, онбординг, разделы и детали/плеер. */
+private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
+    composable<TvSplashRoute> { Box(Modifier.fillMaxSize()) }
+
+    tvOnboardingScreen(
+        onAuthenticated = {
+            navController.navigate(TvHomeRoute) { popUpTo(TvOnboardingRoute) { inclusive = true } }
+        },
+    )
+
+    tvHomeScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvCollectionsScreen(
+        onOpenCollection = { id, title ->
+            navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
+        },
+    )
+    tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvLibraryScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvProfileScreen(
+        onLogout = {
+            navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
+        },
+    )
+
+    tvDetailsScreen(
+        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    tvPlayerScreen(onBack = { navController.popBackStack() })
 }

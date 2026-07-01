@@ -120,28 +120,11 @@ fun OnboardingScreen(
 
             Spacer(Modifier.weight(1f))
 
-            AnimatedContent(
-                targetState = state.step,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
-                    } else {
-                        slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
-                    }
-                },
-                label = "onboarding_step",
+            OnboardingStepPager(
+                state = state,
+                onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
                 modifier = Modifier.fillMaxWidth(),
-            ) { step ->
-                when (step) {
-                    0 -> StepWelcome()
-                    1 -> StepFeatures()
-                    2 -> StepAuth(
-                        state = state,
-                        onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
-                    )
-                    else -> StepWelcome()
-                }
-            }
+            )
 
             Spacer(Modifier.weight(1f))
 
@@ -149,53 +132,95 @@ fun OnboardingScreen(
 
             VerticalSpacer(24.dp)
 
-            when (state.step) {
-                0 -> Button(
-                    onClick = { screenModel.dispatch(OnboardingEvent.NextStep) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                ) {
-                    Text("Начать", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                }
-
-                1 -> Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    OutlinedButton(
-                        onClick = { screenModel.dispatch(OnboardingEvent.PrevStep) },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                    ) {
-                        Text("Назад")
-                    }
-                    Button(
-                        onClick = { screenModel.dispatch(OnboardingEvent.NextStep) },
-                        modifier = Modifier
-                            .weight(2f)
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                    ) {
-                        Text("Войти", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                    }
-                }
-
-                2 -> AnimatedVisibility(
-                    visible = !state.polling,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    TextButton(onClick = { screenModel.dispatch(OnboardingEvent.PrevStep) }) {
-                        Text("Вернуться назад", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
+            OnboardingBottomActions(
+                step = state.step,
+                polling = state.polling,
+                onNext = { screenModel.dispatch(OnboardingEvent.NextStep) },
+                onPrev = { screenModel.dispatch(OnboardingEvent.PrevStep) },
+            )
 
             VerticalSpacer(16.dp)
+        }
+    }
+}
+
+@Composable
+private fun OnboardingStepPager(
+    state: OnboardingState,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedContent(
+        targetState = state.step,
+        transitionSpec = {
+            if (targetState > initialState) {
+                slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
+            } else {
+                slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+            }
+        },
+        label = "onboarding_step",
+        modifier = modifier,
+    ) { step ->
+        when (step) {
+            0 -> StepWelcome()
+            1 -> StepFeatures()
+            2 -> StepAuth(state = state, onRetry = onRetry)
+            else -> StepWelcome()
+        }
+    }
+}
+
+@Composable
+private fun OnboardingBottomActions(
+    step: Int,
+    polling: Boolean,
+    onNext: () -> Unit,
+    onPrev: () -> Unit,
+) {
+    when (step) {
+        0 -> Button(
+            onClick = onNext,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Text("Начать", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        }
+
+        1 -> Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            OutlinedButton(
+                onClick = onPrev,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text("Назад")
+            }
+            Button(
+                onClick = onNext,
+                modifier = Modifier
+                    .weight(2f)
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp),
+            ) {
+                Text("Войти", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+        }
+
+        2 -> AnimatedVisibility(
+            visible = !polling,
+            enter = fadeIn(),
+            exit = fadeOut(),
+        ) {
+            TextButton(onClick = onPrev) {
+                Text("Вернуться назад", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -378,45 +403,54 @@ private fun CodeDisplaySection(userCode: String) {
             .padding(horizontal = 32.dp, vertical = 24.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "КОД АКТИВАЦИИ",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 2.sp,
+        ActivationCodeColumn(
+            userCode = userCode,
+            copied = copied,
+            onCopy = {
+                clipboard.setText(AnnotatedString(userCode))
+                copied = true
+            },
+        )
+    }
+}
+
+@Composable
+private fun ActivationCodeColumn(userCode: String, copied: Boolean, onCopy: () -> Unit) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            "КОД АКТИВАЦИИ",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            letterSpacing = 2.sp,
+        )
+        VerticalSpacer(12.dp)
+        Text(
+            userCode,
+            fontSize = 40.sp,
+            fontWeight = FontWeight.ExtraBold,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurface,
+            letterSpacing = 6.sp,
+        )
+        VerticalSpacer(12.dp)
+        FilledTonalButton(
+            onClick = onCopy,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.filledTonalButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            ),
+        ) {
+            Icon(
+                imageVector = if (copied) Icons.Filled.CheckCircle else Icons.Filled.ContentCopy,
+                contentDescription = null,
+                modifier = Modifier.size(SmallIconSize),
             )
-            VerticalSpacer(12.dp)
+            Spacer(Modifier.width(6.dp))
             Text(
-                userCode,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurface,
-                letterSpacing = 6.sp,
+                if (copied) "Скопировано!" else "Скопировать",
+                fontSize = 13.sp,
             )
-            VerticalSpacer(12.dp)
-            FilledTonalButton(
-                onClick = {
-                    clipboard.setText(AnnotatedString(userCode))
-                    copied = true
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                ),
-            ) {
-                Icon(
-                    imageVector = if (copied) Icons.Filled.CheckCircle else Icons.Filled.ContentCopy,
-                    contentDescription = null,
-                    modifier = Modifier.size(SmallIconSize),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(
-                    if (copied) "Скопировано!" else "Скопировать",
-                    fontSize = 13.sp,
-                )
-            }
         }
     }
 }

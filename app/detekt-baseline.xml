@@ -1,12 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:FilmaxNavGraph.kt$@Composable fun FilmaxNavGraph( rootScreenModel: RootScreenModel = koinViewModel(), )</ID>
-    <ID>LongMethod:FilmaxTvNavGraph.kt$@Composable fun FilmaxTvNavGraph( // Переиспользуем общий RootScreenModel (тот же auth.isAuthenticated, что и в телефонном графе). rootScreenModel: RootScreenModel = koinViewModel(), )</ID>
-    <ID>LongMethod:TvTopNavBar.kt$@OptIn(ExperimentalComposeUiApi::class) @Composable fun TvTopNavBar( currentDestination: NavDestination?, onSelectTab: (route: Any) -&gt; Unit, navBarFocus: FocusRequester, contentFocus: FocusRequester, initials: String, modifier: Modifier = Modifier, )</ID>
-    <ID>LongParameterList:TvTopNavBar.kt$( currentDestination: NavDestination?, onSelectTab: (route: Any) -&gt; Unit, navBarFocus: FocusRequester, contentFocus: FocusRequester, initials: String, modifier: Modifier = Modifier, )</ID>
-    <ID>MaxLineLength:TvTopNavBar.kt$color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant</ID>
-    <ID>MaximumLineLength:TvTopNavBar.kt$ </ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

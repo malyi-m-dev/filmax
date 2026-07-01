@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -63,6 +64,7 @@ import com.filmax.core.ui.components.RatingPill
 import com.filmax.core.ui.components.rememberVoiceSearch
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
+import com.filmax.feature.search.common.SearchState
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -101,45 +103,60 @@ fun SearchScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        AnimatedContent(
-            targetState = when {
-                state.loading -> "loading"
-                state.results.isNotEmpty() -> "results"
-                state.query.length >= 2 -> "empty"
-                else -> "discover"
-            },
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "search_content",
-        ) { target ->
-            when (target) {
-                "loading" -> Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
+        SearchBody(
+            state = state,
+            onOpenItem = onOpenItem,
+            onSubmitQuery = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
+            onClearRecent = { screenModel.dispatch(SearchEvent.ClearRecent) },
+        )
+    }
+}
 
-                "results" -> SearchResults(items = state.results, onOpenItem = onOpenItem)
+@Composable
+private fun SearchBody(
+    state: SearchState,
+    onOpenItem: (Int) -> Unit,
+    onSubmitQuery: (String) -> Unit,
+    onClearRecent: () -> Unit,
+) {
+    AnimatedContent(
+        targetState = when {
+            state.loading -> "loading"
+            state.results.isNotEmpty() -> "results"
+            state.query.length >= 2 -> "empty"
+            else -> "discover"
+        },
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "search_content",
+    ) { target ->
+        when (target) {
+            "loading" -> Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
 
-                "empty" -> Box(
-                    modifier = Modifier.fillMaxSize().padding(40.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "Ничего не найдено",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16.sp,
-                    )
-                }
+            "results" -> SearchResults(items = state.results, onOpenItem = onOpenItem)
 
-                else -> DiscoverContent(
-                    recentQueries = state.recentQueries,
-                    trendingQueries = state.trendingQueries,
-                    onQueryClick = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
-                    onRecentClick = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
-                    onClearRecent = { screenModel.dispatch(SearchEvent.ClearRecent) },
+            "empty" -> Box(
+                modifier = Modifier.fillMaxSize().padding(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Ничего не найдено",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 16.sp,
                 )
             }
+
+            else -> DiscoverContent(
+                recentQueries = state.recentQueries,
+                trendingQueries = state.trendingQueries,
+                onQueryClick = onSubmitQuery,
+                onRecentClick = onSubmitQuery,
+                onClearRecent = onClearRecent,
+            )
         }
     }
 }
@@ -152,8 +169,6 @@ private fun SearchBar(
     onVoiceSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val focusRequester = remember { FocusRequester() }
-
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -169,49 +184,60 @@ private fun SearchBar(
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(12.dp))
-        BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(focusRequester),
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = MaterialTheme.colorScheme.onSurface,
-            ),
-            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = {}),
-            decorationBox = { inner ->
-                if (query.isEmpty()) {
-                    Text(
-                        "Фильмы, сериалы, аниме…",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
-                }
-                inner()
-            },
-        )
+        SearchInputField(query = query, onQueryChange = onQueryChange)
         Spacer(Modifier.width(8.dp))
-        if (query.isNotEmpty()) {
-            IconButton(onClick = onClear, modifier = Modifier.size(20.dp)) {
-                Icon(
-                    imageVector = Icons.Filled.Clear,
-                    contentDescription = "Очистить",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp),
+        SearchBarTrailing(query = query, onClear = onClear, onVoiceSearch = onVoiceSearch)
+    }
+}
+
+@Composable
+private fun RowScope.SearchInputField(query: String, onQueryChange: (String) -> Unit) {
+    val focusRequester = remember { FocusRequester() }
+    BasicTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        modifier = Modifier
+            .weight(1f)
+            .focusRequester(focusRequester),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(
+            color = MaterialTheme.colorScheme.onSurface,
+        ),
+        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = {}),
+        decorationBox = { inner ->
+            if (query.isEmpty()) {
+                Text(
+                    "Фильмы, сериалы, аниме…",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
-        } else {
-            IconButton(onClick = onVoiceSearch, modifier = Modifier.size(20.dp)) {
-                Icon(
-                    imageVector = Icons.Filled.Mic,
-                    contentDescription = "Голосовой поиск",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+            inner()
+        },
+    )
+}
+
+@Composable
+private fun SearchBarTrailing(query: String, onClear: () -> Unit, onVoiceSearch: () -> Unit) {
+    if (query.isNotEmpty()) {
+        IconButton(onClick = onClear, modifier = Modifier.size(20.dp)) {
+            Icon(
+                imageVector = Icons.Filled.Clear,
+                contentDescription = "Очистить",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    } else {
+        IconButton(onClick = onVoiceSearch, modifier = Modifier.size(20.dp)) {
+            Icon(
+                imageVector = Icons.Filled.Mic,
+                contentDescription = "Голосовой поиск",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp),
+            )
         }
     }
 }
@@ -326,7 +352,6 @@ private fun SearchResultRow(item: Item, onClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DiscoverContent(
     recentQueries: List<String>,
@@ -338,74 +363,94 @@ private fun DiscoverContent(
     LazyColumn(contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 120.dp)) {
         if (recentQueries.isNotEmpty()) {
             item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        "Недавние",
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    TextButton(onClick = onClearRecent) {
-                        Text("Очистить", fontSize = 12.sp)
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    recentQueries.forEach { q ->
-                        SuggestionChip(
-                            onClick = { onRecentClick(q) },
-                            label = { Text(q) },
-                            icon = {
-                                Icon(
-                                    Icons.Filled.History,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                            },
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                            ),
-                            border = null,
-                        )
-                    }
-                }
-                Spacer(Modifier.height(24.dp))
+                RecentQueriesSection(
+                    recentQueries = recentQueries,
+                    onRecentClick = onRecentClick,
+                    onClearRecent = onClearRecent,
+                )
             }
         }
         item {
-            Text(
-                "В тренде",
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
+            TrendingSection(trendingQueries = trendingQueries, onQueryClick = onQueryClick)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecentQueriesSection(
+    recentQueries: List<String>,
+    onRecentClick: (String) -> Unit,
+    onClearRecent: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "Недавние",
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        TextButton(onClick = onClearRecent) {
+            Text("Очистить", fontSize = 12.sp)
+        }
+    }
+    Spacer(Modifier.height(8.dp))
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        recentQueries.forEach { q ->
+            SuggestionChip(
+                onClick = { onRecentClick(q) },
+                label = { Text(q) },
+                icon = {
+                    Icon(
+                        Icons.Filled.History,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                colors = SuggestionChipDefaults.suggestionChipColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
+                border = null,
             )
-            Spacer(Modifier.height(12.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+        }
+    }
+    Spacer(Modifier.height(24.dp))
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TrendingSection(trendingQueries: List<String>, onQueryClick: (String) -> Unit) {
+    Text(
+        "В тренде",
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+    Spacer(Modifier.height(12.dp))
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        trendingQueries.forEachIndexed { i, q ->
+            val shape = if (i % 2 == 0) ShapeAsymA else ShapeAsymB
+            Box(
+                modifier = Modifier
+                    .clip(shape)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .clickable { onQueryClick(q) }
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
             ) {
-                trendingQueries.forEachIndexed { i, q ->
-                    val shape = if (i % 2 == 0) ShapeAsymA else ShapeAsymB
-                    Box(
-                        modifier = Modifier
-                            .clip(shape)
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                            .clickable { onQueryClick(q) }
-                            .padding(horizontal = 18.dp, vertical = 12.dp),
-                    ) {
-                        Text(
-                            q,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 14.sp,
-                        )
-                    }
-                }
+                Text(
+                    q,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 14.sp,
+                )
             }
         }
     }

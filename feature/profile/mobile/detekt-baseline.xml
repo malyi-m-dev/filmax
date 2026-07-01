@@ -1,8 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:ProfileScreen.kt$@Composable private fun ProfileContent( state: ProfileState, topInset: Dp, onOpenSheet: (ProfileSheet) -&gt; Unit, onOpenDesignSystem: (() -&gt; Unit)?, onLogout: () -&gt; Unit, )</ID>
-    <ID>LongParameterList:ProfileScreen.kt$( activeSheet: ProfileSheet?, playback: PlaybackSettings, onDismiss: () -&gt; Unit, onSelectQuality: (String) -&gt; Unit, onSelectAudio: (String) -&gt; Unit, onSelectSubtitle: (String) -&gt; Unit, )</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

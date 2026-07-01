@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -106,83 +108,91 @@ fun FilmaxNavGraph(
             popEnterTransition = { fadeIn() },
             popExitTransition = { fadeOut() },
         ) {
-            composable<SplashRoute> {
-                Box(Modifier.fillMaxSize())
-            }
-
-            onboardingScreen(
-                onAuthenticated = {
-                    navController.navigate(HomeRoute) {
-                        popUpTo(OnboardingRoute) { inclusive = true }
-                    }
-                },
-            )
-
-            homeScreen(
-                onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            )
-            searchScreen(
-                onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            )
-            collectionsScreen(
-                onOpenCollection = { id, title ->
-                    navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
-                },
-            )
-            collectionDetailScreen(
-                onBack = { navController.popBackStack() },
-                onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            )
-            libraryScreen(
-                onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            )
-            profileScreen(
-                onLogout = {
-                    navController.navigate(OnboardingRoute) {
-                        popUpTo(HomeRoute) { inclusive = true }
-                    }
-                },
-                onOpenDesignSystem = if (BuildConfig.DEBUG) {
-                    { navController.navigate(DesignSystemRoute) }
-                } else {
-                    null
-                },
-            )
-
-            detailsScreen(
-                onBack = { navController.popBackStack() },
-                onPlay = { navController.navigate(PlayerRoute(it)) },
-                onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            )
-            playerScreen(
-                onBack = { navController.popBackStack() },
-            )
-            designSystemScreen(
-                onBack = { navController.popBackStack() },
-            )
+            filmaxDestinations(navController)
         }
 
         if (showBottomBar) {
             FilmaxTabBar(
                 selected = selectedTab,
-                onSelect = { tab ->
-                    val route: Any = when (tab) {
-                        FilmaxTab.HOME -> HomeRoute
-                        FilmaxTab.SEARCH -> SearchRoute
-                        FilmaxTab.COLLECTIONS -> CollectionsRoute
-                        FilmaxTab.LIBRARY -> LibraryRoute
-                        FilmaxTab.PROFILE -> ProfileRoute
-                    }
-                    navController.navigate(route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
+                onSelect = { navController.navigateToTab(it) },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
+    }
+}
+
+/** Регистрация всех экранов телефонного графа: сплэш, онбординг, разделы и детали/плеер. */
+private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController) {
+    composable<SplashRoute> {
+        Box(Modifier.fillMaxSize())
+    }
+
+    onboardingScreen(
+        onAuthenticated = {
+            navController.navigate(HomeRoute) {
+                popUpTo(OnboardingRoute) { inclusive = true }
+            }
+        },
+    )
+
+    homeScreen(
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    searchScreen(
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    collectionsScreen(
+        onOpenCollection = { id, title ->
+            navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
+        },
+    )
+    collectionDetailScreen(
+        onBack = { navController.popBackStack() },
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    libraryScreen(
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    profileScreen(
+        onLogout = {
+            navController.navigate(OnboardingRoute) {
+                popUpTo(HomeRoute) { inclusive = true }
+            }
+        },
+        onOpenDesignSystem = if (BuildConfig.DEBUG) {
+            { navController.navigate(DesignSystemRoute) }
+        } else {
+            null
+        },
+    )
+
+    detailsScreen(
+        onBack = { navController.popBackStack() },
+        onPlay = { navController.navigate(PlayerRoute(it)) },
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    playerScreen(
+        onBack = { navController.popBackStack() },
+    )
+    designSystemScreen(
+        onBack = { navController.popBackStack() },
+    )
+}
+
+/** Переход по нижней вкладке: единственный экземпляр + сохранение/восстановление состояния. */
+private fun NavHostController.navigateToTab(tab: FilmaxTab) {
+    val route: Any = when (tab) {
+        FilmaxTab.HOME -> HomeRoute
+        FilmaxTab.SEARCH -> SearchRoute
+        FilmaxTab.COLLECTIONS -> CollectionsRoute
+        FilmaxTab.LIBRARY -> LibraryRoute
+        FilmaxTab.PROFILE -> ProfileRoute
+    }
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
     }
 }
