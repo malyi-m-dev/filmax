@@ -6,6 +6,5 @@
     <ID>LongMethod:ProfileScreen.kt$@Composable private fun ProfileContent( state: ProfileState, topInset: Dp, onOpenSheet: (ProfileSheet) -&gt; Unit, onOpenDesignSystem: (() -&gt; Unit)?, onLogout: () -&gt; Unit, )</ID>
     <ID>LongParameterList:ProfileScreen.kt$( activeSheet: ProfileSheet?, playback: PlaybackSettings, onDismiss: () -&gt; Unit, onSelectQuality: (String) -&gt; Unit, onSelectAudio: (String) -&gt; Unit, onSelectSubtitle: (String) -&gt; Unit, )</ID>
     <ID>MatchingDeclarationName:ProfileNavigation.kt$ProfileRoute</ID>
-    <ID>TooManyFunctions:ProfileScreen.kt$com.filmax.feature.profile.mobile.ProfileScreen.kt</ID>
   </CurrentIssues>
 </SmellBaseline>

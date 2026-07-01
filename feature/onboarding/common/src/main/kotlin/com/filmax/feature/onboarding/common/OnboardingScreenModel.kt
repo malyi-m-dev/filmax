@@ -7,6 +7,8 @@ import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.delay
 
+private const val MILLIS_PER_SECOND = 1000L
+
 class OnboardingScreenModel(
     private val auth: AuthRepository,
     private val user: UserRepository,
@@ -56,14 +58,14 @@ class OnboardingScreenModel(
 
     private suspend fun pollForToken(code: String, intervalSec: Int, expiresIn: Int) {
         val startMs = System.currentTimeMillis()
-        val timeoutMs = expiresIn * 1000L
+        val timeoutMs = expiresIn * MILLIS_PER_SECOND
         while (System.currentTimeMillis() - startMs < timeoutMs) {
-            delay(intervalSec * 1000L)
+            delay(intervalSec * MILLIS_PER_SECOND)
             // Success — авторизовались; Error — ещё не подтверждено, продолжаем поллинг.
             val result = auth.pollForToken(
                 code = code,
                 username = "",
-                timestamp = System.currentTimeMillis() / 1000L,
+                timestamp = System.currentTimeMillis() / MILLIS_PER_SECOND,
             )
             if (result is RequestResult.Success) {
                 // Сообщаем бэку о клиенте (kino.pub device/notify) сразу после входа —

@@ -53,6 +53,13 @@ complexity:
   NestedBlockDepth:
     active: true
     threshold: 4
+  # @Composable-функции в файле/классе — это UI-вёрстка (декомпозиция экрана на секции),
+  # а не «методы» в смысле связности. Исключаем их из подсчёта, по той же логике, что
+  # FunctionNaming/MagicNumber для Composable (#16) — иначе декомпозиция LongMethod ложно
+  # упирается в TooManyFunctions.
+  TooManyFunctions:
+    active: true
+    ignoreAnnotatedFunctions: ['Composable']
 
 naming:
   active: true

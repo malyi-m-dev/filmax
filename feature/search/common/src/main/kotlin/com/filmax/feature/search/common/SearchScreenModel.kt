@@ -9,6 +9,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 
+private const val SEARCH_DEBOUNCE_MILLIS = 400L
+
 class SearchScreenModel(
     private val search: SearchRepository,
 ) : BaseScreenModel<SearchState, SearchSideEffect, SearchEvent>(SearchState()) {
@@ -53,7 +55,7 @@ class SearchScreenModel(
         }
         screenModelScope {
             queryFlow
-                .debounce(400)
+                .debounce(SEARCH_DEBOUNCE_MILLIS)
                 .distinctUntilChanged()
                 .collect { q -> if (q.length >= 2) performSearch(q) }
         }

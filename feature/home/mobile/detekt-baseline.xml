@@ -2,10 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LongMethod:HomeScreen.kt$@Composable private fun HeroCard( item: Item, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>LongMethod:HomeScreen.kt$@Composable private fun HomeContent( state: HomeState, onOpenItem: (Int) -&gt; Unit, onLoadMore: () -&gt; Unit, )</ID>
-    <ID>MagicNumber:HomeScreen.kt$120.0</ID>
     <ID>MatchingDeclarationName:HomeNavigation.kt$HomeRoute</ID>
-    <ID>NestedIf:HomeScreen.kt$if (state.allLoadingMore) { Box( Modifier .fillMaxWidth() .padding(vertical = 20.dp), contentAlignment = Alignment.Center, ) { CircularProgressIndicator(color = MaterialTheme.colorScheme.primary) } }</ID>
   </CurrentIssues>
 </SmellBaseline>

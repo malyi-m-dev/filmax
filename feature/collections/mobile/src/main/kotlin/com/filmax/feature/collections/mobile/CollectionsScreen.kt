@@ -226,40 +226,52 @@ private fun FeaturedCollectionCard(
                     )
             )
         }
-        Box(
-            modifier = Modifier
-                .padding(20.dp)
-                .align(Alignment.TopStart)
-                .clip(RoundedCornerShape(999.dp))
-                .background(Color(0x40000000))
-                .padding(horizontal = 12.dp, vertical = 5.dp),
-        ) {
+        FeaturedCollectionBadge(modifier = Modifier.align(Alignment.TopStart))
+        FeaturedCollectionInfo(
+            collection = collection,
+            modifier = Modifier.align(Alignment.BottomStart),
+        )
+    }
+}
+
+@Composable
+private fun FeaturedCollectionBadge(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .padding(20.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(Color(0x40000000))
+            .padding(horizontal = 12.dp, vertical = 5.dp),
+    ) {
+        Text(
+            "★ ПОДБОРКА НЕДЕЛИ",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.5.sp,
+            color = Color.White,
+        )
+    }
+}
+
+@Composable
+private fun FeaturedCollectionInfo(collection: Collection, modifier: Modifier = Modifier) {
+    Column(modifier.padding(20.dp)) {
+        Text(
+            collection.title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        collection.description?.takeIf { it.isNotBlank() }?.let {
+            Spacer(Modifier.height(4.dp))
             Text(
-                "★ ПОДБОРКА НЕДЕЛИ",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.5.sp,
-                color = Color.White,
-            )
-        }
-        Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-            Text(
-                collection.title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = Color.White,
+                it,
+                fontSize = 13.sp,
+                color = Color.White.copy(alpha = 0.9f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            collection.description?.takeIf { it.isNotBlank() }?.let {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    it,
-                    fontSize = 13.sp,
-                    color = Color.White.copy(alpha = 0.9f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
         }
     }
 }

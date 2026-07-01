@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
@@ -52,59 +53,14 @@ fun CollectionDetailScreen(
             .statusBarsPadding(),
     ) {
         androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
-            Row(
-                modifier = Modifier.padding(start = 8.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onBack),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+            CollectionDetailHeader(title = title, onBack = onBack)
 
             when {
                 state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
 
-                else -> LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(state.items, key = { it.id }) { item ->
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(2f / 3f)
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onOpenItem(item.id) },
-                        ) {
-                            PosterImage(
-                                url = item.posters.medium,
-                                contentDescription = item.title,
-                                modifier = Modifier.fillMaxSize(),
-                                shape = RoundedCornerShape(14.dp),
-                            )
-                        }
-                    }
-                }
+                else -> CollectionItemsGrid(items = state.items, onOpenItem = onOpenItem)
             }
         }
 
@@ -114,6 +70,61 @@ fun CollectionDetailScreen(
                 onDismiss = screenModel::dismissError,
                 onPrimary = screenModel::retry,
             )
+        }
+    }
+}
+
+@Composable
+private fun CollectionDetailHeader(title: String, onBack: () -> Unit) {
+    Row(
+        modifier = Modifier.padding(start = 8.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .clickable(onClick = onBack),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Назад",
+                tint = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun CollectionItemsGrid(items: List<Item>, onOpenItem: (Int) -> Unit) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(3),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(items, key = { it.id }) { item ->
+            Box(
+                modifier = Modifier
+                    .aspectRatio(2f / 3f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { onOpenItem(item.id) },
+            ) {
+                PosterImage(
+                    url = item.posters.medium,
+                    contentDescription = item.title,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = RoundedCornerShape(14.dp),
+                )
+            }
         }
     }
 }

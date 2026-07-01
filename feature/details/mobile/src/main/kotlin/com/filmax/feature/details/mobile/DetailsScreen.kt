@@ -1,5 +1,6 @@
 package com.filmax.feature.details.mobile
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -76,7 +77,8 @@ private val AccentColor = Color(0xFFB4305A)
 fun DetailsScreen(
     onBack: () -> Unit,
     onPlay: (itemId: Int) -> Unit,
-    onOpenItem: (Int) -> Unit,
+    // Зарезервировано под навигацию к похожим из деталей (как на TV); ядро mobile пока не вызывает.
+    @Suppress("UnusedParameter") onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
@@ -92,10 +94,12 @@ fun DetailsScreen(
             item != null -> DetailsContent(
                 item = item,
                 state = state,
-                onBack = onBack,
-                onPlay = { onPlay(item.id) },
-                onFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
-                onDownload = { screenModel.dispatch(DetailsEvent.ToggleDownload) },
+                actions = DetailsActions(
+                    onBack = onBack,
+                    onPlay = { onPlay(item.id) },
+                    onFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
+                    onDownload = { screenModel.dispatch(DetailsEvent.ToggleDownload) },
+                ),
             )
         }
 
@@ -109,241 +113,290 @@ fun DetailsScreen(
     }
 }
 
+private data class DetailsActions(
+    val onBack: () -> Unit,
+    val onPlay: () -> Unit,
+    val onFav: () -> Unit,
+    val onDownload: () -> Unit,
+)
+
 @Composable
 private fun DetailsContent(
     item: Item,
     state: DetailsState,
-    onBack: () -> Unit,
-    onPlay: () -> Unit,
-    onFav: () -> Unit,
-    onDownload: () -> Unit,
+    actions: DetailsActions,
 ) {
-    var tab by remember { mutableStateOf("about") }
-    val context = LocalContext.current
     val scroll = rememberScrollState()
     val density = LocalDensity.current
 
     // Прогресс «сворачивания» героя 0..1 на первых 360dp скролла.
     val collapseRange = with(density) { 360.dp.toPx() }
-    val p = (scroll.value / collapseRange).coerceIn(0f, 1f)
+    val collapseProgress = (scroll.value / collapseRange).coerceIn(0f, 1f)
 
-    val surface = MaterialTheme.colorScheme.surface
     Box(Modifier.fillMaxSize()) {
         // ── Sticky hero backdrop (за контентом, с параллакс-зумом) ─────────────
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(HeroHeight)
-                .graphicsLayer {
-                    scaleX = 1f + p * 0.06f
-                    scaleY = 1f + p * 0.06f
-                },
-        ) {
-            // Общий постер + базовый вертикальный градиент (см. core:ui HeroBackdrop).
-            HeroBackdrop(
-                item = item,
-                scrims = listOf(BackdropGradients.mobileVertical(surface)),
-                modifier = Modifier.matchParentSize(),
-                accentColor = AccentColor,
-            )
-            // Затемнение нарастает по мере сворачивания.
-            Box(Modifier.matchParentSize().background(BackdropGradients.collapseScrim(p)))
-            // Bottom info — гаснет и слегка уезжает вниз.
-            Column(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .graphicsLayer {
-                        alpha = (1f - p * 1.5f).coerceIn(0f, 1f)
-                        translationY = p * 24.dp.toPx()
-                    }
-                    .padding(20.dp)
-                    .padding(bottom = 24.dp),
-            ) {
-                Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Text(
-                        item.genres.firstOrNull()?.title ?: "",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        letterSpacing = 1.5.sp,
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text(item.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    RatingPill(rating = item.rating.external)
-                    Dot()
-                    Text("${item.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
-                    Dot()
-                    Text(
-                        "${item.duration.averageMinutes?.toInt() ?: "?"} мин",
-                        fontSize = 13.sp,
-                        color = Color.White.copy(0.85f)
-                    )
-                    Dot()
-                    Text(item.country, fontSize = 13.sp, color = Color.White.copy(0.85f))
-                }
-            }
-        }
-
+        DetailsHero(item = item, collapseProgress = collapseProgress)
         // ── Scrolling content — наезжает на sticky hero ────────────────────────
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scroll)
-                .padding(bottom = 120.dp),
+        DetailsScrollContent(item = item, state = state, scroll = scroll, actions = actions)
+        // ── Top glass controls — гаснут при сворачивании ───────────────────────
+        DetailsTopControls(onBack = actions.onBack, collapseProgress = collapseProgress)
+        // ── Collapsed compact app bar — проявляется при p > 0.65 ───────────────
+        DetailsCollapsedBar(item = item, collapseProgress = collapseProgress, onBack = actions.onBack)
+    }
+}
+
+@Composable
+private fun DetailsHero(item: Item, collapseProgress: Float) {
+    val surface = MaterialTheme.colorScheme.surface
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(HeroHeight)
+            .graphicsLayer {
+                scaleX = 1f + collapseProgress * 0.06f
+                scaleY = 1f + collapseProgress * 0.06f
+            },
+    ) {
+        // Общий постер + базовый вертикальный градиент (см. core:ui HeroBackdrop).
+        HeroBackdrop(
+            item = item,
+            scrims = listOf(BackdropGradients.mobileVertical(surface)),
+            modifier = Modifier.matchParentSize(),
+            accentColor = AccentColor,
+        )
+        // Затемнение нарастает по мере сворачивания.
+        Box(Modifier.matchParentSize().background(BackdropGradients.collapseScrim(collapseProgress)))
+        // Bottom info — гаснет и слегка уезжает вниз.
+        DetailsHeroInfo(
+            item = item,
+            collapseProgress = collapseProgress,
+            modifier = Modifier.align(Alignment.BottomStart),
+        )
+    }
+}
+
+@Composable
+private fun DetailsHeroInfo(item: Item, collapseProgress: Float, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .graphicsLayer {
+                alpha = (1f - collapseProgress * 1.5f).coerceIn(0f, 1f)
+                translationY = collapseProgress * 24.dp.toPx()
+            }
+            .padding(20.dp)
+            .padding(bottom = 24.dp),
+    ) {
+        Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
+            Text(
+                item.genres.firstOrNull()?.title ?: "",
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                letterSpacing = 1.5.sp,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+        Text(item.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
+        Spacer(Modifier.height(10.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Прозрачный спейсер высотой героя — сквозь него виден backdrop.
-            Spacer(Modifier.height(HeroHeight))
+            RatingPill(rating = item.rating.external)
+            Dot()
+            Text("${item.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
+            Dot()
+            Text(
+                "${item.duration.averageMinutes?.toInt() ?: "?"} мин",
+                fontSize = 13.sp,
+                color = Color.White.copy(0.85f)
+            )
+            Dot()
+            Text(item.country, fontSize = 13.sp, color = Color.White.copy(0.85f))
+        }
+    }
+}
 
-            Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(top = 16.dp)) {
-                    // ── Action row ──────────────────────────────────────────────
-                    Row(
-                        Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
-                                .shadow(
-                                    elevation = 16.dp,
-                                    shape = RoundedCornerShape(50),
-                                    spotColor = AccentColor,
-                                    ambientColor = AccentColor,
-                                ),
-                            shape = RoundedCornerShape(50),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            onClick = onPlay,
-                        ) {
-                            Row(
-                                Modifier.fillMaxSize(),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Filled.PlayArrow,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "Смотреть",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            }
-                        }
-                        ActionSquare(
-                            icon = if (state.isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            desc = "Избранное",
-                            tint = if (state.isFav) Color(0xFFFFB1C8) else MaterialTheme.colorScheme.onSurface,
-                            onClick = onFav,
-                        )
-                        ActionSquare(
-                            icon = if (state.isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.Download,
-                            desc = "Скачать",
-                            tint = if (state.isDownloaded) Color(0xFF6AC2B0) else MaterialTheme.colorScheme.onSurface,
-                            onClick = onDownload,
-                        )
-                        ActionSquare(
-                            icon = Icons.Filled.Share,
-                            desc = "Поделиться",
-                            onClick = { shareItem(context, item) },
-                        )
-                    }
+@Composable
+private fun DetailsScrollContent(
+    item: Item,
+    state: DetailsState,
+    scroll: ScrollState,
+    actions: DetailsActions,
+) {
+    val context = LocalContext.current
+    var tab by remember { mutableStateOf("about") }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scroll)
+            .padding(bottom = 120.dp),
+    ) {
+        // Прозрачный спейсер высотой героя — сквозь него виден backdrop.
+        Spacer(Modifier.height(HeroHeight))
 
-                    // ── Tabs ────────────────────────────────────────────────────
-                    Row(
-                        Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("about" to "О фильме", "cast" to "Актёры").forEach { (id, label) ->
-                            FilmaxChip(label = label, selected = tab == id, onClick = { tab = id })
-                        }
-                    }
+        Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(top = 16.dp)) {
+                // ── Action row ──────────────────────────────────────────────
+                DetailsActionRow(item = item, state = state, actions = actions, context = context)
 
-                    // ── Tab content ─────────────────────────────────────────────
-                    when (tab) {
-                        "about" -> AboutTab(item = item, onPlayTrailer = {
-                            item.trailer?.url?.let { openExternalUrl(context, it) }
-                        })
-                        "cast" -> CastTab(item)
-                    }
+                // ── Tabs ────────────────────────────────────────────────────
+                DetailsTabRow(selectedTab = tab, onTabChange = { tab = it })
+
+                // ── Tab content ─────────────────────────────────────────────
+                when (tab) {
+                    "about" -> AboutTab(item = item, onPlayTrailer = {
+                        item.trailer?.url?.let { openExternalUrl(context, it) }
+                    })
+                    "cast" -> CastTab(item)
                 }
             }
         }
+    }
+}
 
-        // ── Top glass controls — гаснут при сворачивании ───────────────────────
-        Row(
+@Composable
+private fun DetailsActionRow(
+    item: Item,
+    state: DetailsState,
+    actions: DetailsActions,
+    context: android.content.Context,
+) {
+    Row(
+        Modifier.padding(horizontal = 20.dp).padding(bottom = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(50),
+                    spotColor = AccentColor,
+                    ambientColor = AccentColor,
+                ),
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            onClick = actions.onPlay,
+        ) {
+            Row(
+                Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Filled.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Смотреть",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+        ActionSquare(
+            icon = if (state.isFav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            desc = "Избранное",
+            tint = if (state.isFav) Color(0xFFFFB1C8) else MaterialTheme.colorScheme.onSurface,
+            onClick = actions.onFav,
+        )
+        ActionSquare(
+            icon = if (state.isDownloaded) Icons.Filled.DownloadDone else Icons.Filled.Download,
+            desc = "Скачать",
+            tint = if (state.isDownloaded) Color(0xFF6AC2B0) else MaterialTheme.colorScheme.onSurface,
+            onClick = actions.onDownload,
+        )
+        ActionSquare(
+            icon = Icons.Filled.Share,
+            desc = "Поделиться",
+            onClick = { shareItem(context, item) },
+        )
+    }
+}
+
+@Composable
+private fun DetailsTabRow(selectedTab: String, onTabChange: (String) -> Unit) {
+    Row(
+        Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        listOf("about" to "О фильме", "cast" to "Актёры").forEach { (id, label) ->
+            FilmaxChip(label = label, selected = selectedTab == id, onClick = { onTabChange(id) })
+        }
+    }
+}
+
+@Composable
+private fun DetailsTopControls(onBack: () -> Unit, collapseProgress: Float) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(12.dp)
+            .graphicsLayer { alpha = (1f - collapseProgress * 1.6f).coerceIn(0f, 1f) },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        GlassButton(onClick = onBack) {
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Назад",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        GlassButton(onClick = {
+        }) {
+            Icon(
+                Icons.Filled.MoreVert,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailsCollapsedBar(item: Item, collapseProgress: Float, onBack: () -> Unit) {
+    val barAlpha = ((collapseProgress - 0.65f) / 0.35f).coerceIn(0f, 1f)
+    if (barAlpha > 0f) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(12.dp)
-                .graphicsLayer { alpha = (1f - p * 1.6f).coerceIn(0f, 1f) },
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .graphicsLayer { alpha = barAlpha },
         ) {
-            GlassButton(onClick = onBack) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            GlassButton(onClick = {
-            }) {
-                Icon(
-                    Icons.Filled.MoreVert,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // ── Collapsed compact app bar — проявляется при p > 0.65 ───────────────
-        val barAlpha = ((p - 0.65f) / 0.35f).coerceIn(0f, 1f)
-        if (barAlpha > 0f) {
-            Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
+            Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer { alpha = barAlpha },
+                    .statusBarsPadding()
+                    .height(56.dp)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Row(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .height(56.dp)
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Text(
-                        item.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
+                Text(
+                    item.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
             }
         }
     }

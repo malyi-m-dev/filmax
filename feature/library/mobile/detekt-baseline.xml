@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>LongMethod:LibraryScreen.kt$@Composable private fun DownloadsTab(state: LibraryState, onOpenItem: (Int) -&gt; Unit)</ID>
     <ID>MatchingDeclarationName:LibraryNavigation.kt$LibraryRoute</ID>
   </CurrentIssues>
 </SmellBaseline>
