@@ -15,6 +15,8 @@
 - `iosApp/Main/MainPlaceholderView.swift` — заглушка авторизованного состояния (+ выход через `LogoutUseCase`).
 
 ## Как собрать и запустить (только macOS + Xcode)
+> 🛠 **Полная инструкция по сборке на Mac (предустановки, iOS + Android, траблшутинг)** — [`docs/BUILD_MACOS.md`](../docs/BUILD_MACOS.md). Ниже — краткий путь.
+
 1. Установить генератор проекта: `brew install xcodegen`.
 2. В папке `iosApp/`: `xcodegen generate` → появится `Filmax.xcodeproj`.
 3. Открыть `Filmax.xcodeproj`, выбрать симулятор iPhone/iPad, **Run**.
