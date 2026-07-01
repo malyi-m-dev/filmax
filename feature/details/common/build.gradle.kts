@@ -14,4 +14,11 @@ dependencies {
     implementation(libs.koin.android)
     // toRoute<DetailsRoute>() + SavedStateHandle
     implementation(libs.navigation.compose)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

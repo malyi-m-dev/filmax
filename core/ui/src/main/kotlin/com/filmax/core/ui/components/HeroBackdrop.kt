@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.catalog.model.Item
 
 /**
  * Общий бэкдроп героя деталей: постер на всю область + слои градиентов [scrims] поверх него.
@@ -25,16 +24,16 @@ import com.filmax.core.domain.catalog.model.Item
  */
 @Composable
 fun HeroBackdrop(
-    item: Item,
+    posterUrl: String,
+    contentDescription: String?,
     scrims: List<Brush>,
     modifier: Modifier = Modifier,
-    posterUrl: String = item.posters.big,
     accentColor: Color = BackdropGradients.Accent,
 ) {
     Box(modifier) {
         PosterImage(
             url = posterUrl,
-            contentDescription = item.title,
+            contentDescription = contentDescription,
             modifier = Modifier.matchParentSize(),
             shape = RoundedCornerShape(0.dp),
             accentColor = accentColor,

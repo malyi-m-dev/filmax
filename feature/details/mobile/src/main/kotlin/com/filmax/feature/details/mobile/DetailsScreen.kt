@@ -38,9 +38,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +54,6 @@ import com.filmax.core.designsystem.ShapeAsymA
 import com.filmax.core.designsystem.ShapeAsymB
 import com.filmax.core.designsystem.ShapeCookie
 import com.filmax.core.designsystem.ShapeLg
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.ui.components.BackdropGradients
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxErrorModal
@@ -67,9 +63,10 @@ import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.RatingPill
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
-import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.DetailsTab
+import com.filmax.feature.details.common.DetailsUi
+import com.filmax.feature.details.common.DetailsUiState
 import org.koin.androidx.compose.koinViewModel
-import java.util.Locale
 
 private val AccentColor = Color(0xFFB4305A)
 
@@ -84,21 +81,22 @@ fun DetailsScreen(
 ) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
-    val item = state.item
+    val details = state.details
 
     Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
-            item != null -> DetailsContent(
-                item = item,
+            details != null -> DetailsContent(
+                details = details,
                 state = state,
                 actions = DetailsActions(
                     onBack = onBack,
-                    onPlay = { onPlay(item.id) },
+                    onPlay = { onPlay(details.id) },
                     onFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
                     onDownload = { screenModel.dispatch(DetailsEvent.ToggleDownload) },
+                    onSelectTab = { screenModel.dispatch(DetailsEvent.SelectTab(it)) },
                 ),
             )
         }
@@ -118,12 +116,13 @@ private data class DetailsActions(
     val onPlay: () -> Unit,
     val onFav: () -> Unit,
     val onDownload: () -> Unit,
+    val onSelectTab: (DetailsTab) -> Unit,
 )
 
 @Composable
 private fun DetailsContent(
-    item: Item,
-    state: DetailsState,
+    details: DetailsUi,
+    state: DetailsUiState,
     actions: DetailsActions,
 ) {
     val scroll = rememberScrollState()
@@ -135,18 +134,18 @@ private fun DetailsContent(
 
     Box(Modifier.fillMaxSize()) {
         // ── Sticky hero backdrop (за контентом, с параллакс-зумом) ─────────────
-        DetailsHero(item = item, collapseProgress = collapseProgress)
+        DetailsHero(details = details, collapseProgress = collapseProgress)
         // ── Scrolling content — наезжает на sticky hero ────────────────────────
-        DetailsScrollContent(item = item, state = state, scroll = scroll, actions = actions)
+        DetailsScrollContent(details = details, state = state, scroll = scroll, actions = actions)
         // ── Top glass controls — гаснут при сворачивании ───────────────────────
         DetailsTopControls(onBack = actions.onBack, collapseProgress = collapseProgress)
         // ── Collapsed compact app bar — проявляется при p > 0.65 ───────────────
-        DetailsCollapsedBar(item = item, collapseProgress = collapseProgress, onBack = actions.onBack)
+        DetailsCollapsedBar(title = details.title, collapseProgress = collapseProgress, onBack = actions.onBack)
     }
 }
 
 @Composable
-private fun DetailsHero(item: Item, collapseProgress: Float) {
+private fun DetailsHero(details: DetailsUi, collapseProgress: Float) {
     val surface = MaterialTheme.colorScheme.surface
     Box(
         Modifier
@@ -159,7 +158,8 @@ private fun DetailsHero(item: Item, collapseProgress: Float) {
     ) {
         // Общий постер + базовый вертикальный градиент (см. core:ui HeroBackdrop).
         HeroBackdrop(
-            item = item,
+            posterUrl = details.posterBig,
+            contentDescription = details.title,
             scrims = listOf(BackdropGradients.mobileVertical(surface)),
             modifier = Modifier.matchParentSize(),
             accentColor = AccentColor,
@@ -168,7 +168,7 @@ private fun DetailsHero(item: Item, collapseProgress: Float) {
         Box(Modifier.matchParentSize().background(BackdropGradients.collapseScrim(collapseProgress)))
         // Bottom info — гаснет и слегка уезжает вниз.
         DetailsHeroInfo(
-            item = item,
+            details = details,
             collapseProgress = collapseProgress,
             modifier = Modifier.align(Alignment.BottomStart),
         )
@@ -176,7 +176,7 @@ private fun DetailsHero(item: Item, collapseProgress: Float) {
 }
 
 @Composable
-private fun DetailsHeroInfo(item: Item, collapseProgress: Float, modifier: Modifier = Modifier) {
+private fun DetailsHeroInfo(details: DetailsUi, collapseProgress: Float, modifier: Modifier = Modifier) {
     Column(
         modifier
             .graphicsLayer {
@@ -188,7 +188,7 @@ private fun DetailsHeroInfo(item: Item, collapseProgress: Float, modifier: Modif
     ) {
         Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
             Text(
-                item.genres.firstOrNull()?.title.orEmpty(),
+                details.primaryGenre,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.ExtraBold,
@@ -197,36 +197,35 @@ private fun DetailsHeroInfo(item: Item, collapseProgress: Float, modifier: Modif
             )
         }
         Spacer(Modifier.height(12.dp))
-        Text(item.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
+        Text(details.title, style = MaterialTheme.typography.headlineLarge, color = Color.White)
         Spacer(Modifier.height(10.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            RatingPill(rating = item.rating.external)
+            RatingPill(rating = details.externalRating)
             Dot()
-            Text("${item.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
+            Text("${details.year}", fontSize = 13.sp, color = Color.White.copy(0.85f))
             Dot()
             Text(
-                "${item.duration.averageMinutes?.toInt() ?: "?"} мин",
+                "${details.durationMinutes ?: "?"} мин",
                 fontSize = 13.sp,
                 color = Color.White.copy(0.85f)
             )
             Dot()
-            Text(item.country, fontSize = 13.sp, color = Color.White.copy(0.85f))
+            Text(details.country, fontSize = 13.sp, color = Color.White.copy(0.85f))
         }
     }
 }
 
 @Composable
 private fun DetailsScrollContent(
-    item: Item,
-    state: DetailsState,
+    details: DetailsUi,
+    state: DetailsUiState,
     scroll: ScrollState,
     actions: DetailsActions,
 ) {
     val context = LocalContext.current
-    var tab by remember { mutableStateOf("about") }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -239,17 +238,17 @@ private fun DetailsScrollContent(
         Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(top = 16.dp)) {
                 // ── Action row ──────────────────────────────────────────────
-                DetailsActionRow(item = item, state = state, actions = actions, context = context)
+                DetailsActionRow(details = details, state = state, actions = actions, context = context)
 
                 // ── Tabs ────────────────────────────────────────────────────
-                DetailsTabRow(selectedTab = tab, onTabChange = { tab = it })
+                DetailsTabRow(selectedTab = state.selectedTab, onTabChange = actions.onSelectTab)
 
                 // ── Tab content ─────────────────────────────────────────────
-                when (tab) {
-                    "about" -> AboutTab(item = item, onPlayTrailer = {
-                        item.trailer?.url?.let { openExternalUrl(context, it) }
+                when (state.selectedTab) {
+                    DetailsTab.ABOUT -> AboutTab(details = details, onPlayTrailer = {
+                        details.trailerUrl?.let { openExternalUrl(context, it) }
                     })
-                    "cast" -> CastTab(item)
+                    DetailsTab.CAST -> CastTab(details)
                 }
             }
         }
@@ -258,8 +257,8 @@ private fun DetailsScrollContent(
 
 @Composable
 private fun DetailsActionRow(
-    item: Item,
-    state: DetailsState,
+    details: DetailsUi,
+    state: DetailsUiState,
     actions: DetailsActions,
     context: android.content.Context,
 ) {
@@ -316,19 +315,19 @@ private fun DetailsActionRow(
         ActionSquare(
             icon = Icons.Filled.Share,
             desc = "Поделиться",
-            onClick = { shareItem(context, item) },
+            onClick = { shareItem(context, details) },
         )
     }
 }
 
 @Composable
-private fun DetailsTabRow(selectedTab: String, onTabChange: (String) -> Unit) {
+private fun DetailsTabRow(selectedTab: DetailsTab, onTabChange: (DetailsTab) -> Unit) {
     Row(
         Modifier.padding(horizontal = 20.dp).padding(bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        listOf("about" to "О фильме", "cast" to "Актёры").forEach { (id, label) ->
-            FilmaxChip(label = label, selected = selectedTab == id, onClick = { onTabChange(id) })
+        listOf(DetailsTab.ABOUT to "О фильме", DetailsTab.CAST to "Актёры").forEach { (tab, label) ->
+            FilmaxChip(label = label, selected = selectedTab == tab, onClick = { onTabChange(tab) })
         }
     }
 }
@@ -365,7 +364,7 @@ private fun DetailsTopControls(onBack: () -> Unit, collapseProgress: Float) {
 }
 
 @Composable
-private fun DetailsCollapsedBar(item: Item, collapseProgress: Float, onBack: () -> Unit) {
+private fun DetailsCollapsedBar(title: String, collapseProgress: Float, onBack: () -> Unit) {
     val barAlpha = ((collapseProgress - 0.65f) / 0.35f).coerceIn(0f, 1f)
     if (barAlpha > 0f) {
         Surface(
@@ -390,7 +389,7 @@ private fun DetailsCollapsedBar(item: Item, collapseProgress: Float, onBack: () 
                     )
                 }
                 Text(
-                    item.title,
+                    title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -423,8 +422,8 @@ private fun RowScope.ActionSquare(
     }
 }
 
-private fun shareItem(context: android.content.Context, item: Item) {
-    val text = "${item.title} (${item.year}) — смотри в Filmax"
+private fun shareItem(context: android.content.Context, details: DetailsUi) {
+    val text = "${details.title} (${details.year}) — смотри в Filmax"
     val intent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(android.content.Intent.EXTRA_TEXT, text)
@@ -443,61 +442,42 @@ private fun openExternalUrl(context: android.content.Context, url: String) {
 }
 
 @Composable
-private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
+private fun AboutTab(details: DetailsUi, onPlayTrailer: () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp)) {
         Text(
-            item.plot,
+            details.plot,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 20.dp)
         )
 
-        AboutStatsGrid(item = item)
+        AboutStatsGrid(details = details)
 
         // Trailer preview
-        if (item.trailer != null) {
-            AboutTrailer(item = item, onPlayTrailer = onPlayTrailer)
+        if (details.trailerUrl != null) {
+            AboutTrailer(details = details, onPlayTrailer = onPlayTrailer)
         }
     }
 }
 
+/** Акцент и форма каждой из четырёх stat-карточек; содержимое приходит готовым из стейта. */
+private val StatStyles = listOf(
+    Color(0xFFB4305A) to ShapeAsymA,
+    Color(0xFFF4B792) to ShapeCookie,
+    Color(0xFF6AC2B0) to ShapeAsymB,
+    Color(0xFFE86D9E) to ShapeLg,
+)
+
 @Composable
-private fun AboutStatsGrid(item: Item) {
-    // Stats grid — M3 Expressive colored surfaces
-    val director = item.director.ifBlank { "—" }
-    val ratingValue = item.rating.external?.let { String.format(Locale.US, "%.1f", it) } ?: "N/A"
-    val stats = listOf(
-        StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "IMDb · КП"),
-        StatItem(
-            Color(0xFFF4B792),
-            ShapeCookie,
-            "Длительность",
-            "${item.duration.averageMinutes?.toInt() ?: "?"}",
-            "мин"
-        ),
-        StatItem(
-            Color(0xFF6AC2B0),
-            ShapeAsymB,
-            "Режиссёр",
-            director.substringBefore(" "),
-            director.substringAfter(" ", "")
-        ),
-        StatItem(
-            Color(0xFFE86D9E),
-            ShapeLg,
-            "Жанр",
-            item.genres.firstOrNull()?.title ?: "—",
-            item.genres.getOrNull(1)?.title ?: "—"
-        ),
-    )
+private fun AboutStatsGrid(details: DetailsUi) {
     // Два ряда обычных Row — сетка измеряется по контенту и не накладывается на трейлер.
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        stats.chunked(2).forEach { rowItems ->
+        details.stats.zip(StatStyles).chunked(2).forEach { rowItems ->
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                rowItems.forEach { stat ->
+                rowItems.forEach { (stat, style) ->
                     FilmaxStatCard(
-                        accent = stat.color,
-                        shape = stat.shape,
+                        accent = style.first,
+                        shape = style.second,
                         label = stat.label,
                         value = stat.value,
                         sub = stat.sub,
@@ -510,7 +490,7 @@ private fun AboutStatsGrid(item: Item) {
 }
 
 @Composable
-private fun AboutTrailer(item: Item, onPlayTrailer: () -> Unit) {
+private fun AboutTrailer(details: DetailsUi, onPlayTrailer: () -> Unit) {
     Spacer(Modifier.height(24.dp))
     Text(
         "Трейлер",
@@ -526,7 +506,7 @@ private fun AboutTrailer(item: Item, onPlayTrailer: () -> Unit) {
             .clickable(onClick = onPlayTrailer),
     ) {
         PosterImage(
-            url = item.posters.big,
+            url = details.posterBig,
             contentDescription = null,
             modifier = Modifier.matchParentSize(),
             shape = RoundedCornerShape(0.dp),
@@ -558,16 +538,8 @@ private fun AboutTrailer(item: Item, onPlayTrailer: () -> Unit) {
     }
 }
 
-private data class StatItem(
-    val color: Color,
-    val shape: androidx.compose.ui.graphics.Shape,
-    val label: String,
-    val value: String,
-    val sub: String,
-)
-
 @Composable
-private fun CastTab(item: Item) {
+private fun CastTab(details: DetailsUi) {
     val colors = listOf(Color(0xFFB4305A), Color(0xFFE86D9E), Color(0xFFF4B792), Color(0xFF6AC2B0), Color(0xFF6B4B8F))
     Column(Modifier.padding(horizontal = 20.dp)) {
         Text(
@@ -577,28 +549,15 @@ private fun CastTab(item: Item) {
             modifier = Modifier.padding(bottom = 14.dp)
         )
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            item.cast.split(",").map { it.trim() }.filter { it.isNotEmpty() }.forEachIndexed { i, name ->
-                val initials = name.split(" ").mapNotNull { it.firstOrNull()?.toString() }.take(2).joinToString("")
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(88.dp)) {
-                    Box(
-                        modifier = Modifier.size(88.dp)
-                            .clip(if (i % 2 == 0) ShapeCookie else CircleShape)
-                            .background(
-                                Brush.linearGradient(listOf(colors[i % colors.size], colors[(i + 1) % colors.size]))
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(initials, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        name,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 2,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+            details.castMembers.forEachIndexed { index, member ->
+                CastMemberCell(
+                    name = member.name,
+                    initials = member.initials,
+                    shape = if (index % 2 == 0) ShapeCookie else CircleShape,
+                    gradient = Brush.linearGradient(
+                        listOf(colors[index % colors.size], colors[(index + 1) % colors.size]),
+                    ),
+                )
             }
         }
 
@@ -612,12 +571,36 @@ private fun CastTab(item: Item) {
         )
         Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainer) {
             Column(Modifier.padding(16.dp)) {
-                InfoRow("Режиссёр", item.director.ifBlank { "—" })
-                InfoRow("Страна", item.country.ifBlank { "—" })
-                InfoRow("Жанр", item.genres.joinToString(", ") { it.title }.ifBlank { "—" })
-                InfoRow("Год", item.year.toString())
+                details.crew.forEach { row -> InfoRow(row.label, row.value) }
             }
         }
+    }
+}
+
+@Composable
+private fun CastMemberCell(
+    name: String,
+    initials: String,
+    shape: androidx.compose.ui.graphics.Shape,
+    gradient: Brush,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(88.dp)) {
+        Box(
+            modifier = Modifier.size(88.dp)
+                .clip(shape)
+                .background(gradient),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(initials, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            name,
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

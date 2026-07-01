@@ -41,7 +41,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -58,9 +57,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvFocusCard
@@ -69,8 +65,13 @@ import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
+import com.filmax.feature.details.common.DetailsUi
+import com.filmax.feature.details.common.DetailsUiState
+import com.filmax.feature.details.common.EpisodeUi
+import com.filmax.feature.details.common.ResumeUi
+import com.filmax.feature.details.common.SeasonUi
+import com.filmax.feature.details.common.SimilarUi
 import org.koin.androidx.compose.koinViewModel
-import java.util.Locale
 
 private val Accent = Color(0xFFB4305A)
 private val AccentDark = Color(0xFF5E1133)
@@ -81,14 +82,11 @@ private val ChipFill = Color(0x1AFFFFFF)
 /** Тёмный плотный фон неактивных чипов сезонов — чтобы не терялись на светлом бэкдропе. */
 private val SeasonChipInactive = Color(0xD91A1518)
 
-/** Сериалоподобный контент: список эпизодов (больше одного трека) или тип «сериал»/«докусериал». */
-private fun Item.isSeriesLike(): Boolean =
-    tracklist.size > 1 || type == ItemType.SERIES || type == ItemType.DOCUMENTARY
-
 /**
  * TV-Детали (экран 06 макета). Для фильма — бэкдроп + действия + glass-панель «в ролях/качество»
  * + рельса «похожие». Для сериала — браузер сезонов и серий с продолжением просмотра.
- * Поверх общего [DetailsScreenModel] (itemId берётся из маршрута через SavedStateHandle).
+ * Поверх общего [DetailsScreenModel] (itemId берётся из маршрута через SavedStateHandle);
+ * все данные приходят готовыми в [DetailsUi] — экран только отрисовывает.
  */
 @Composable
 fun TvDetailsScreen(
@@ -98,7 +96,7 @@ fun TvDetailsScreen(
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
-    val item = state.item
+    val details = state.details
 
     Box(
         modifier = modifier
@@ -111,21 +109,23 @@ fun TvDetailsScreen(
                 modifier = Modifier.align(Alignment.Center),
             )
 
-            item != null -> {
-                if (item.isSeriesLike()) {
+            details != null -> {
+                if (details.isSeriesLike) {
                     SeriesContent(
-                        item = item,
-                        isFav = state.isFav,
-                        onPlayEpisode = { videoId -> onPlay(item.id, videoId) },
-                        onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
+                        details = details,
+                        state = state,
+                        actions = SeriesActions(
+                            onPlayEpisode = { videoId -> onPlay(details.id, videoId) },
+                            onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
+                            onSelectSeason = { screenModel.dispatch(DetailsEvent.SelectSeason(it)) },
+                        ),
                     )
                 } else {
                     MovieContent(
-                        item = item,
-                        similar = state.similar,
+                        details = details,
                         isFav = state.isFav,
                         actions = MovieActions(
-                            onPlay = { onPlay(item.id, -1) },
+                            onPlay = { onPlay(details.id, -1) },
                             onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
                             onOpenItem = onOpenItem,
                         ),
@@ -140,16 +140,16 @@ fun TvDetailsScreen(
 
 /** Бэкдроп + горизонтальный и вертикальный градиенты затемнения (как в макете). */
 @Composable
-private fun Backdrop(item: Item) {
+private fun Backdrop(details: DetailsUi) {
     val surface = MaterialTheme.colorScheme.surface
     HeroBackdrop(
-        item = item,
+        posterUrl = details.backdropUrl,
+        contentDescription = details.title,
         scrims = listOf(
             BackdropGradients.tvHorizontal(surface),
             BackdropGradients.tvVerticalBottom(surface),
         ),
         modifier = Modifier.fillMaxSize(),
-        posterUrl = item.posters.wide ?: item.posters.big,
         accentColor = Accent,
     )
 }
@@ -172,52 +172,47 @@ private fun TagPill(text: String) {
     }
 }
 
-/** Строка метаданных: рейтинг-пилюля (если есть) + год · [длительность] · страна · жанры. */
+/** Строка метаданных: рейтинг-пилюля (если есть оценка) + готовая строка меты из стейта. */
 @Composable
-private fun MetaRow(item: Item, includeDuration: Boolean) {
+private fun MetaRow(details: DetailsUi, line: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        item.rating.external?.let { rating ->
-            Box(
-                Modifier
-                    .clip(RoundedCornerShape(percent = 50))
-                    .background(Color(0x8C000000))
-                    .padding(horizontal = 14.dp, vertical = 6.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        Icons.Filled.Star,
-                        contentDescription = null,
-                        tint = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A),
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        String.format(Locale.getDefault(), "%.1f", rating),
-                        color = if (rating >= 8.5) Color(0xFF6AC2B0) else Color(0xFFE8A43A),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+        if (details.externalRating != null) {
+            RatingBadge(text = details.externalRatingText, isHigh = details.isRatingHigh)
         }
         Text(
-            buildString {
-                append(item.year)
-                if (includeDuration) {
-                    item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let {
-                        append(
-                            "  ·  ${it / 60}ч ${it % 60}м"
-                        )
-                    }
-                }
-                if (item.country.isNotBlank()) append("  ·  ${item.country}")
-                if (item.genres.isNotEmpty()) append("  ·  ${item.genres.take(2).joinToString(" · ") { it.title }}")
-            },
+            line,
             fontSize = 16.sp,
             color = Color.White.copy(alpha = 0.9f),
         )
+    }
+}
+
+@Composable
+private fun RatingBadge(text: String, isHigh: Boolean) {
+    val color = if (isHigh) Color(0xFF6AC2B0) else Color(0xFFE8A43A)
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .background(Color(0x8C000000))
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Icon(
+                Icons.Filled.Star,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text,
+                color = color,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }
 
@@ -244,13 +239,12 @@ private data class MovieActions(
 
 @Composable
 private fun MovieContent(
-    item: Item,
-    similar: List<Item>,
+    details: DetailsUi,
     isFav: Boolean,
     actions: MovieActions,
 ) {
     Box(Modifier.fillMaxSize()) {
-        Backdrop(item)
+        Backdrop(details)
 
         // Корневой вертикальный скролл: hero-блок и рельса «Похожие» — отдельные элементы потока,
         // а не наложенные оверлеи. Раньше «Похожие» висели поверх кнопок (align(BottomStart) в
@@ -263,16 +257,16 @@ private fun MovieContent(
         ) {
             item(key = "hero") {
                 MovieHero(
-                    item = item,
+                    details = details,
                     isFav = isFav,
                     onPlay = actions.onPlay,
                     onToggleFav = actions.onToggleFav,
                 )
             }
 
-            if (similar.isNotEmpty()) {
+            if (details.similar.isNotEmpty()) {
                 item(key = "similar") {
-                    MovieSimilar(similar = similar, onOpenItem = actions.onOpenItem)
+                    MovieSimilar(similar = details.similar, onOpenItem = actions.onOpenItem)
                 }
             }
         }
@@ -281,29 +275,29 @@ private fun MovieContent(
 
 @Composable
 private fun MovieHero(
-    item: Item,
+    details: DetailsUi,
     isFav: Boolean,
     onPlay: () -> Unit,
     onToggleFav: () -> Unit,
 ) {
     val playFocus = remember { FocusRequester() }
-    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
+    LaunchedEffect(details.id) { runCatching { playFocus.requestFocus() } }
 
     Row(Modifier.fillMaxWidth().padding(72.dp)) {
         Column(modifier = Modifier.weight(1f)) {
-            TagPill(item.genres.take(2).joinToString(" · ") { it.title })
+            TagPill(details.topGenres)
             Spacer(Modifier.height(16.dp))
             Text(
-                item.title,
+                details.title,
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
             Spacer(Modifier.height(14.dp))
-            MetaRow(item, includeDuration = true)
+            MetaRow(details, line = details.metaLine)
             Spacer(Modifier.height(16.dp))
             Text(
-                item.plot,
+                details.plot,
                 fontSize = 18.sp,
                 lineHeight = 26.sp,
                 color = Color.White.copy(alpha = 0.85f),
@@ -328,15 +322,15 @@ private fun MovieHero(
         }
 
         // Правая glass-панель — «В ролях» / «Режиссёр» / «Качество» (как в макете TVDetails).
-        if (item.cast.isNotBlank() || item.director.isNotBlank() || item.tracklist.isNotEmpty()) {
+        if (details.castLine.isNotBlank() || details.director.isNotBlank() || details.videoQualities.isNotEmpty()) {
             Spacer(Modifier.width(40.dp))
-            InfoPanel(item = item, modifier = Modifier.width(340.dp).align(Alignment.Top))
+            InfoPanel(details = details, modifier = Modifier.width(340.dp).align(Alignment.Top))
         }
     }
 }
 
 @Composable
-private fun MovieSimilar(similar: List<Item>, onOpenItem: (Int) -> Unit) {
+private fun MovieSimilar(similar: List<SimilarUi>, onOpenItem: (Int) -> Unit) {
     Column(Modifier.padding(start = 72.dp, bottom = 32.dp)) {
         Text(
             "Похожие",
@@ -362,21 +356,11 @@ private fun MovieSimilar(similar: List<Item>, onOpenItem: (Int) -> Unit) {
  * ничего не срезалось краем карточки. Если состав не влез — панель фокусируема и по нажатию
  * раскрывает полный список в оверлее [InfoPanelDialog].
  */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InfoPanel(item: Item, modifier: Modifier = Modifier) {
-    // В свёрнутой карточке — только видео-качества (помещаются в ряд); аудио-языки и полный
-    // список уезжают в оверлей, чтобы чипы не переполняли узкую панель по ширине.
-    val videoQualities = remember(item) {
-        item.tracklist.flatMap { it.files }.map { it.quality }.filter { it.isNotBlank() }.distinct().take(5)
-    }
-    val fullQuality = remember(item) {
-        val langs = item.tracklist.flatMap { it.audios }.mapNotNull { it.lang }.map { audioLabel(it) }.distinct()
-        (videoQualities + langs).distinct().take(8)
-    }
-    var expanded by remember(item.id) { mutableStateOf(false) }
+private fun InfoPanel(details: DetailsUi, modifier: Modifier = Modifier) {
+    var expanded by remember(details.id) { mutableStateOf(false) }
     // Состав реально не поместился в отведённые строки — тогда панель кликабельна и раскрывается.
-    var castOverflow by remember(item.id) { mutableStateOf(false) }
+    var castOverflow by remember(details.id) { mutableStateOf(false) }
     var focused by remember { mutableStateOf(false) }
 
     val shape = RoundedCornerShape(topStart = 48.dp, topEnd = 24.dp, bottomEnd = 48.dp, bottomStart = 24.dp)
@@ -402,31 +386,29 @@ private fun InfoPanel(item: Item, modifier: Modifier = Modifier) {
             .padding(24.dp),
     ) {
         InfoPanelSections(
-            item = item,
-            videoQualities = videoQualities,
+            details = details,
             castOverflow = castOverflow,
             onCastOverflowChange = { castOverflow = it },
         )
     }
 
     if (expanded) {
-        InfoPanelDialog(item = item, quality = fullQuality, onDismiss = { expanded = false })
+        InfoPanelDialog(details = details, onDismiss = { expanded = false })
     }
 }
 
-/** Секции свёрнутой glass-панели (роли/режиссёр/качество) — вынесены из InfoPanel без изменений. */
+/** Секции свёрнутой glass-панели (роли/режиссёр/качество). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun InfoPanelSections(
-    item: Item,
-    videoQualities: List<String>,
+    details: DetailsUi,
     castOverflow: Boolean,
     onCastOverflowChange: (Boolean) -> Unit,
 ) {
-    if (item.cast.isNotBlank()) {
+    if (details.castLine.isNotBlank()) {
         Label("В ролях")
         Text(
-            item.cast,
+            details.castLine,
             fontSize = 16.sp,
             lineHeight = 26.sp,
             color = Color.White.copy(alpha = 0.92f),
@@ -435,19 +417,19 @@ private fun InfoPanelSections(
             onTextLayout = { onCastOverflowChange(it.hasVisualOverflow) },
         )
     }
-    if (item.director.isNotBlank()) {
+    if (details.director.isNotBlank()) {
         Spacer(Modifier.height(18.dp))
         Label("Режиссёр")
-        Text(item.director, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
+        Text(details.director, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
     }
-    if (videoQualities.isNotEmpty()) {
+    if (details.videoQualities.isNotEmpty()) {
         Spacer(Modifier.height(18.dp))
         Label("Качество")
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            videoQualities.forEach { QualityChip(it) }
+            details.videoQualities.forEach { QualityChip(it) }
         }
     }
     if (castOverflow) {
@@ -459,7 +441,7 @@ private fun InfoPanelSections(
 /** Оверлей с полным составом/режиссёром/качеством; «Назад» закрывает (onDismissRequest). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InfoPanelDialog(item: Item, quality: List<String>, onDismiss: () -> Unit) {
+private fun InfoPanelDialog(details: DetailsUi, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Column(
             modifier = Modifier
@@ -473,29 +455,29 @@ private fun InfoPanelDialog(item: Item, quality: List<String>, onDismiss: () -> 
                 .padding(36.dp),
         ) {
             Text(
-                item.title,
+                details.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
-            if (item.cast.isNotBlank()) {
+            if (details.castLine.isNotBlank()) {
                 Spacer(Modifier.height(20.dp))
                 Label("В ролях")
-                Text(item.cast, fontSize = 17.sp, lineHeight = 28.sp, color = Color.White.copy(alpha = 0.92f))
+                Text(details.castLine, fontSize = 17.sp, lineHeight = 28.sp, color = Color.White.copy(alpha = 0.92f))
             }
-            if (item.director.isNotBlank()) {
+            if (details.director.isNotBlank()) {
                 Spacer(Modifier.height(20.dp))
                 Label("Режиссёр")
-                Text(item.director, fontSize = 17.sp, color = Color.White.copy(alpha = 0.9f))
+                Text(details.director, fontSize = 17.sp, color = Color.White.copy(alpha = 0.9f))
             }
-            if (quality.isNotEmpty()) {
+            if (details.qualityBadges.isNotEmpty()) {
                 Spacer(Modifier.height(20.dp))
                 Label("Качество")
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    quality.forEach { QualityChip(it) }
+                    details.qualityBadges.forEach { QualityChip(it) }
                 }
             }
         }
@@ -515,11 +497,11 @@ private fun QualityChip(text: String) {
 }
 
 @Composable
-private fun SimilarCard(item: Item, onClick: () -> Unit) {
+private fun SimilarCard(item: SimilarUi, onClick: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
     TvFocusCard(onClick = onClick, shape = shape, modifier = Modifier.size(width = 150.dp, height = 212.dp)) {
         PosterImage(
-            url = item.posters.medium.ifEmpty { item.posters.big },
+            url = item.posterUrl,
             contentDescription = item.title,
             modifier = Modifier.fillMaxSize(),
             shape = shape,
@@ -530,6 +512,13 @@ private fun SimilarCard(item: Item, onClick: () -> Unit) {
 
 // ─────────────────────────────── Детали СЕРИАЛА ─────────────────────────────
 
+/** Действия браузера сериала — сгруппированы, чтобы не раздувать список параметров. */
+private data class SeriesActions(
+    val onPlayEpisode: (videoId: Int) -> Unit,
+    val onToggleFav: () -> Unit,
+    val onSelectSeason: (Int) -> Unit,
+)
+
 /** Кнопки «Продолжить/Смотреть» + фокус — сгруппированы, чтобы не раздувать список параметров. */
 private data class SeriesPlaybackActions(
     val playFocus: FocusRequester,
@@ -539,59 +528,38 @@ private data class SeriesPlaybackActions(
 
 @Composable
 private fun SeriesContent(
-    item: Item,
-    isFav: Boolean,
-    onPlayEpisode: (videoId: Int) -> Unit,
-    onToggleFav: () -> Unit,
+    details: DetailsUi,
+    state: DetailsUiState,
+    actions: SeriesActions,
 ) {
-    // Сезоны: группируем эпизоды по номеру сезона, сохраняя порядок серий.
-    val seasons = remember(item) {
-        item.tracklist
-            .groupBy { it.seasonNumber }
-            .toSortedMap()
-            .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
-    }
-    // Продолжить: эпизод «в процессе», иначе последний досмотренный, иначе первый.
-    val resume = remember(item) {
-        item.tracklist.firstOrNull { it.watchStatus == 0 }
-            ?: item.tracklist.lastOrNull { it.watchStatus == 1 }
-    }
-    val resumeSeasonIndex = remember(item) {
-        resume?.let { r -> seasons.indexOfFirst { it.first == r.seasonNumber }.takeIf { it >= 0 } } ?: 0
-    }
-    var selectedSeason by remember(item.id) { mutableIntStateOf(resumeSeasonIndex) }
-    val currentEpisodes = seasons.getOrNull(selectedSeason)?.second.orEmpty()
-
     val playFocus = remember { FocusRequester() }
-    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
+    LaunchedEffect(details.id) { runCatching { playFocus.requestFocus() } }
 
-    val first = currentEpisodes.firstOrNull() ?: item.tracklist.firstOrNull()
-    val target = resume ?: first
+    // Снимаем значение до лямбды клика: playEpisodeId вычисляется от выбранного сезона.
+    val playEpisodeId = state.playEpisodeId
 
     Box(Modifier.fillMaxSize()) {
-        Backdrop(item)
+        Backdrop(details)
 
         Row(Modifier.fillMaxSize().padding(start = 72.dp, top = 56.dp, end = 72.dp, bottom = 40.dp)) {
             // ── Левая колонка: инфо + продолжить + действия ──
             SeriesInfoColumn(
-                item = item,
-                isFav = isFav,
-                seasonsCaption = "Сериал · ${seasons.size} ${seasonsWord(seasons.size)}",
-                resume = resume,
+                details = details,
+                isFav = state.isFav,
                 actions = SeriesPlaybackActions(
                     playFocus = playFocus,
-                    onPlay = { target?.let { onPlayEpisode(it.id) } },
-                    onToggleFav = onToggleFav,
+                    onPlay = { playEpisodeId?.let(actions.onPlayEpisode) },
+                    onToggleFav = actions.onToggleFav,
                 ),
             )
 
             // ── Правая колонка: чипы сезонов + список серий ──
             SeriesEpisodesColumn(
-                seasons = seasons,
-                selectedSeason = selectedSeason,
-                resumeId = resume?.id,
-                onSelectSeason = { selectedSeason = it },
-                onPlayEpisode = onPlayEpisode,
+                seasons = details.seasons,
+                selectedSeasonIndex = state.selectedSeasonIndex,
+                currentSeason = state.currentSeason,
+                onSelectSeason = actions.onSelectSeason,
+                onPlayEpisode = actions.onPlayEpisode,
             )
         }
     }
@@ -599,36 +567,35 @@ private fun SeriesContent(
 
 @Composable
 private fun RowScope.SeriesInfoColumn(
-    item: Item,
+    details: DetailsUi,
     isFav: Boolean,
-    seasonsCaption: String,
-    resume: MediaTrack?,
     actions: SeriesPlaybackActions,
 ) {
     Column(modifier = Modifier.weight(1f).padding(end = 20.dp)) {
-        TagPill(seasonsCaption)
+        TagPill(details.seasonsCaption)
         Spacer(Modifier.height(16.dp))
         Text(
-            item.title,
+            details.title,
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.ExtraBold,
             color = Color.White,
             maxLines = 2
         )
         Spacer(Modifier.height(14.dp))
-        MetaRow(item, includeDuration = false)
+        MetaRow(details, line = details.metaLineNoDuration)
         Spacer(Modifier.height(16.dp))
         Text(
-            item.plot,
+            details.plot,
             fontSize = 17.sp,
             lineHeight = 25.sp,
             color = Color.White.copy(alpha = 0.85f),
             maxLines = 4
         )
 
-        if (resume != null && resume.durationSeconds > 0) {
+        val resume = details.resume
+        if (resume?.progress != null) {
             Spacer(Modifier.height(22.dp))
-            ResumeStrip(episode = resume)
+            ResumeStrip(resume = resume)
         }
 
         Spacer(Modifier.height(24.dp))
@@ -651,24 +618,23 @@ private fun RowScope.SeriesInfoColumn(
 
 @Composable
 private fun SeriesEpisodesColumn(
-    seasons: List<Pair<Int, List<MediaTrack>>>,
-    selectedSeason: Int,
-    resumeId: Int?,
+    seasons: List<SeasonUi>,
+    selectedSeasonIndex: Int,
+    currentSeason: SeasonUi?,
     onSelectSeason: (Int) -> Unit,
     onPlayEpisode: (videoId: Int) -> Unit,
 ) {
-    val currentEpisodes = seasons.getOrNull(selectedSeason)?.second.orEmpty()
     Column(modifier = Modifier.width(380.dp)) {
         if (seasons.size > 1) {
             SeasonChips(
                 seasons = seasons,
-                selectedSeason = selectedSeason,
+                selectedSeasonIndex = selectedSeasonIndex,
                 onSelect = onSelectSeason,
             )
             Spacer(Modifier.height(16.dp))
         }
         Label(
-            "${currentEpisodes.size} ${episodesWord(currentEpisodes.size)}",
+            currentSeason?.countLabel.orEmpty(),
             color = Color.White.copy(alpha = 0.7f)
         )
         Spacer(Modifier.height(4.dp))
@@ -677,10 +643,9 @@ private fun SeriesEpisodesColumn(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            items(currentEpisodes, key = { it.id }) { episode ->
+            items(currentSeason?.episodes.orEmpty(), key = { it.id }) { episode ->
                 EpisodeRow(
                     episode = episode,
-                    isResume = episode.id == resumeId,
                     onClick = { onPlayEpisode(episode.id) },
                 )
             }
@@ -688,10 +653,9 @@ private fun SeriesEpisodesColumn(
     }
 }
 
-/** Полоска «Вы остановились» с миниатюрой эпизода и прогрессом. */
+/** Полоска «Вы остановились» с номером эпизода и прогрессом. */
 @Composable
-private fun ResumeStrip(episode: MediaTrack) {
-    val progress = (episode.watchedSeconds.toFloat() / episode.durationSeconds).coerceIn(0f, 1f)
+private fun ResumeStrip(resume: ResumeUi) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -708,12 +672,12 @@ private fun ResumeStrip(episode: MediaTrack) {
                 .background(Brush.linearGradient(listOf(Accent, AccentDark))),
             contentAlignment = Alignment.Center,
         ) {
-            Text("${episode.number}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+            Text("${resume.episodeNumber}", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
         }
         Column(modifier = Modifier.weight(1f)) {
             Label("Вы остановились")
             Text(
-                "Сезон ${episode.seasonNumber} · Серия ${episode.number}",
+                resume.positionLabel,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -728,7 +692,7 @@ private fun ResumeStrip(episode: MediaTrack) {
             ) {
                 Box(
                     Modifier
-                        .fillMaxWidth(progress)
+                        .fillMaxWidth(resume.progress ?: 0f)
                         .height(6.dp)
                         .clip(RoundedCornerShape(percent = 50))
                         .background(Accent),
@@ -745,8 +709,8 @@ private fun ResumeStrip(episode: MediaTrack) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SeasonChips(
-    seasons: List<Pair<Int, List<MediaTrack>>>,
-    selectedSeason: Int,
+    seasons: List<SeasonUi>,
+    selectedSeasonIndex: Int,
     onSelect: (Int) -> Unit,
 ) {
     FlowRow(
@@ -754,10 +718,10 @@ private fun SeasonChips(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        seasons.forEachIndexed { index, (number, _) ->
+        seasons.forEachIndexed { index, season ->
             SeasonChip(
-                label = if (number > 0) "Сезон $number" else "Серии",
-                active = index == selectedSeason,
+                label = season.chipLabel,
+                active = index == selectedSeasonIndex,
                 onClick = { onSelect(index) },
             )
         }
@@ -780,7 +744,7 @@ private fun SeasonChip(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Unit) {
+private fun EpisodeRow(episode: EpisodeUi, onClick: () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     TvFocusCard(onClick = onClick, shape = shape, modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -802,7 +766,7 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
                 if (episode.thumbnail.isNotBlank()) {
                     PosterImage(
                         url = episode.thumbnail,
-                        contentDescription = episode.title,
+                        contentDescription = episode.label,
                         modifier = Modifier.fillMaxSize(),
                         shape = RoundedCornerShape(12.dp),
                         accentColor = Accent,
@@ -813,10 +777,7 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    buildString {
-                        append("Серия ${episode.number}")
-                        if (episode.title.isNotBlank()) append(". ${episode.title}")
-                    },
+                    episode.label,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -824,10 +785,7 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    buildString {
-                        episode.durationSeconds.takeIf { it > 0 }?.let { append("${it / 60} мин") }
-                        if (isResume) append(if (length > 0) " · продолжить" else "продолжить")
-                    },
+                    episode.metaLine,
                     fontSize = 14.sp,
                     color = Color.White.copy(alpha = 0.7f),
                 )
@@ -835,29 +793,4 @@ private fun EpisodeRow(episode: MediaTrack, isResume: Boolean, onClick: () -> Un
             Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
         }
     }
-}
-
-// Модули русских правил склонения по числу (последние две / одна цифра).
-private const val PLURAL_MOD_HUNDRED = 100
-private const val PLURAL_MOD_TEN = 10
-
-private fun seasonsWord(count: Int): String = when {
-    count % PLURAL_MOD_HUNDRED in 11..14 -> "сезонов"
-    count % PLURAL_MOD_TEN == 1 -> "сезон"
-    count % PLURAL_MOD_TEN in 2..4 -> "сезона"
-    else -> "сезонов"
-}
-
-private fun episodesWord(count: Int): String = when {
-    count % PLURAL_MOD_HUNDRED in 11..14 -> "серий"
-    count % PLURAL_MOD_TEN == 1 -> "серия"
-    count % PLURAL_MOD_TEN in 2..4 -> "серии"
-    else -> "серий"
-}
-
-private fun audioLabel(code: String): String = when (code.lowercase()) {
-    "rus", "ru" -> "Русский"
-    "eng", "en" -> "Eng"
-    "ukr", "uk" -> "Укр"
-    else -> code
 }

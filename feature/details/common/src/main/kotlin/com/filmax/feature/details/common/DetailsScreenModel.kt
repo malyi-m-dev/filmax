@@ -3,6 +3,7 @@ package com.filmax.feature.details.common
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.downloads.DownloadsRepository
@@ -19,9 +20,12 @@ class DetailsScreenModel(
     private val watching: WatchingRepository,
     private val downloads: DownloadsRepository,
     private val favorites: FavoritesRepository,
-) : BaseScreenModel<DetailsState, DetailsSideEffect, DetailsEvent>(DetailsState()) {
+) : BaseScreenModel<DetailsUiState, DetailsSideEffect, DetailsEvent>(DetailsUiState()) {
 
     private val route = savedStateHandle.toRoute<DetailsRoute>()
+
+    /** Доменная модель нужна только командам (избранное/загрузка) — в UI-стейт не попадает. */
+    private var loadedItem: Item? = null
 
     init {
         onFetchData()
@@ -33,20 +37,28 @@ class DetailsScreenModel(
         when (event) {
             DetailsEvent.ToggleFav -> toggleFav()
             DetailsEvent.ToggleDownload -> toggleDownload()
+            is DetailsEvent.SelectTab -> screenModelScope {
+                updateState { it.copy(selectedTab = event.tab) }
+            }
+            is DetailsEvent.SelectSeason -> screenModelScope {
+                updateState { it.copy(selectedSeasonIndex = event.index) }
+            }
         }
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             val itemResult = catalog.getItemDetails(route.itemId)
             val similar = catalog.getSimilarItems(route.itemId).getOrNull().orEmpty()
             when (itemResult) {
                 is RequestResult.Success -> {
+                    loadedItem = itemResult.data
+                    val details = itemResult.data.toDetailsUi(similar)
                     updateState {
                         it.copy(
                             loading = false,
-                            item = itemResult.data,
-                            similar = similar,
+                            details = details,
+                            selectedSeasonIndex = details.resumeSeasonIndex,
                         )
                     }
                     // Down-sync: если на сервере фильм уже в watchlist — заносим в локальный кэш.
@@ -56,7 +68,7 @@ class DetailsScreenModel(
                 }
 
                 is RequestResult.Error -> {
-                    updateState { it.copy(loading = false, error = itemResult.message) }
+                    updateState { it.copy(loading = false) }
                     showError(itemResult)
                 }
             }
@@ -80,7 +92,7 @@ class DetailsScreenModel(
     }
 
     private fun toggleFav() {
-        val item = state.item ?: return
+        val item = loadedItem ?: return
         screenModelScope {
             // Локальный кэш — источник состояния сердечка; сервер синхронизируем best-effort.
             favorites.toggle(item.toFavoriteItem())
@@ -89,7 +101,7 @@ class DetailsScreenModel(
     }
 
     private fun toggleDownload() {
-        val item = state.item ?: return
+        val item = loadedItem ?: return
         screenModelScope {
             if (state.isDownloaded) {
                 downloads.remove(item.id)
