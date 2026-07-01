@@ -11,6 +11,5 @@
     <ID>LongParameterList:TvPlayerScreen.kt$( state: PlayerState, firstChipFocus: FocusRequester, onOpen: (SettingsCategory) -&gt; Unit, onRowPositioned: (top: Int) -&gt; Unit, onChipPositioned: (SettingsCategory, left: Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>MaxLineLength:TvPlayerScreen.kt$onClick = { if (screenModel.player.isPlaying) screenModel.player.pause() else screenModel.player.play() }</ID>
     <ID>MaximumLineLength:TvPlayerScreen.kt$ </ID>
-    <ID>TooManyFunctions:TvPlayerScreen.kt$com.filmax.feature.player.tv.TvPlayerScreen.kt</ID>
   </CurrentIssues>
 </SmellBaseline>

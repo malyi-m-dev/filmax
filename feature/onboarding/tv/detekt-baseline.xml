@@ -3,6 +3,5 @@
   <ManuallySuppressedIssues/>
   <CurrentIssues>
     <ID>LongMethod:TvOnboardingScreen.kt$@Composable private fun AuthCodeCard(userCode: String, verificationUri: String)</ID>
-    <ID>MatchingDeclarationName:TvOnboardingNavigation.kt$TvOnboardingRoute</ID>
   </CurrentIssues>
 </SmellBaseline>

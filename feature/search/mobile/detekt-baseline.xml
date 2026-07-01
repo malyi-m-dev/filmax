@@ -5,6 +5,5 @@
     <ID>LongMethod:SearchScreen.kt$@Composable fun SearchScreen( onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: SearchScreenModel = koinViewModel(), )</ID>
     <ID>LongMethod:SearchScreen.kt$@Composable private fun SearchBar( query: String, onQueryChange: (String) -&gt; Unit, onClear: () -&gt; Unit, onVoiceSearch: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
     <ID>LongMethod:SearchScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun DiscoverContent( recentQueries: List&lt;String&gt;, trendingQueries: List&lt;String&gt;, onQueryClick: (String) -&gt; Unit, onRecentClick: (String) -&gt; Unit, onClearRecent: () -&gt; Unit, )</ID>
-    <ID>MatchingDeclarationName:SearchNavigation.kt$SearchRoute</ID>
   </CurrentIssues>
 </SmellBaseline>

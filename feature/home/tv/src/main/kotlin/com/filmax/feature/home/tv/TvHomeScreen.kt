@@ -178,16 +178,17 @@ private fun TvHomeContent(
                     repeat(ALL_COLUMNS - rowItems.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            if (state.allLoadingMore) {
-                item(key = "all_loading") {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
+        }
+        // Индикатор догрузки «Все» — отдельным элементом после сетки (без вложенного if).
+        if (state.all.isNotEmpty() && state.allLoadingMore) {
+            item(key = "all_loading") {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

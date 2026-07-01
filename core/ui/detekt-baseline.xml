@@ -10,8 +10,5 @@
     <ID>LongParameterList:FilmaxCollectionCard.kt$( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
     <ID>LongParameterList:FilmaxListGroup.kt$( icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, accent: Color = MaterialTheme.colorScheme.primary, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, showDivider: Boolean = false, )</ID>
     <ID>LongParameterList:FilmaxStatCard.kt$( label: String, value: String, accent: Color, modifier: Modifier = Modifier, sub: String? = null, shape: Shape = RoundedCornerShape(20.dp), )</ID>
-    <ID>MatchingDeclarationName:FilmaxBadge.kt$FilmaxBadgeStyle</ID>
-    <ID>MatchingDeclarationName:FilmaxButton.kt$FilmaxButtonVariant</ID>
-    <ID>MatchingDeclarationName:FilmaxTabBar.kt$FilmaxTab</ID>
   </CurrentIssues>
 </SmellBaseline>

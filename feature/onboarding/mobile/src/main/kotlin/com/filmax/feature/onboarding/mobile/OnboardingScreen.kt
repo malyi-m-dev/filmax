@@ -78,7 +78,7 @@ import org.koin.androidx.compose.koinViewModel
 
 private val CardCornerRadius = 24.dp
 private val SmallIconSize = 16.dp
-private const val PulseDurationMillis = 1000
+private const val PULSE_DURATION_MILLIS = 1000
 
 @Composable
 fun OnboardingScreen(
@@ -258,7 +258,7 @@ private fun rememberPulse(): Pulse {
         initialValue = 0.4f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(PulseDurationMillis, easing = LinearEasing),
+            animation = tween(PULSE_DURATION_MILLIS, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulseAlpha",
@@ -267,7 +267,7 @@ private fun rememberPulse(): Pulse {
         initialValue = 1f,
         targetValue = 1.04f,
         animationSpec = infiniteRepeatable(
-            animation = tween(PulseDurationMillis, easing = LinearEasing),
+            animation = tween(PULSE_DURATION_MILLIS, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "pulseScale",
