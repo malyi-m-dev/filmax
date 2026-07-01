@@ -41,7 +41,7 @@ class LibraryScreenModel(
 
     override fun dispatch(event: LibraryEvent) {
         when (event) {
-            is LibraryEvent.TabChange -> screenModelScope {
+            is LibraryEvent.TabChange -> screenModelScope { _ ->
                 updateState { it.copy(tab = event.tab) }
             }
             is LibraryEvent.RemoveFromHistory -> removeFromHistory(event.itemId)
@@ -59,8 +59,8 @@ class LibraryScreenModel(
                 updateState {
                     it.copy(
                         loading = false,
-                        history = history.getOrNull() ?: emptyList(),
-                        lists = lists.getOrNull() ?: emptyList(),
+                        history = history.getOrNull().orEmpty(),
+                        lists = lists.getOrNull().orEmpty(),
                         error = firstErrorMessage(history, lists),
                     )
                 }
@@ -77,7 +77,7 @@ class LibraryScreenModel(
 
     private fun clearHistory() {
         val ids = state.history.map { it.itemId }
-        screenModelScope {
+        screenModelScope { _ ->
             ids.forEach { id -> watching.clearHistory(id) }
             updateState { it.copy(history = emptyList()) }
         }

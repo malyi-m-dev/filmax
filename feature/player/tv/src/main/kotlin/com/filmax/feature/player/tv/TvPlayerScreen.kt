@@ -231,7 +231,7 @@ fun TvPlayerScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        state.item?.title ?: "",
+                        state.item?.title.orEmpty(),
                         color = Color.White,
                         style = MaterialTheme.typography.displaySmall,
                         fontWeight = FontWeight.ExtraBold
@@ -699,7 +699,7 @@ private fun SettingsCategory.options(state: PlayerState): List<String> = when (t
 }
 
 private fun SettingsCategory.selected(state: PlayerState): String = when (this) {
-    SettingsCategory.Quality -> state.currentQuality ?: ""
+    SettingsCategory.Quality -> state.currentQuality.orEmpty()
     SettingsCategory.Audio -> state.currentAudio
     SettingsCategory.Subtitle -> state.currentSubtitle
 }
