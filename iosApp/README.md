@@ -35,8 +35,8 @@ ViewModel'и (`Shared/`) вызывают общие use-case'ы KMP и один
 - Авторизация: код появляется, ввод на `kino.pub/device` под аккаунтом KinoPub переводит на главный экран.
 - Токен сохраняется (перезапуск приложения → сразу главный экран, минуя онбординг).
 
-## Заметки по интеропу (собиралось только код-ревью, без Mac — возможны мелкие правки)
-- Считается, что SKIE отдаёт `Flow<Boolean>` как `Bool` (в `Shared/SessionViewModel`). Если это `KotlinBoolean` — заменить `authenticated` на `authenticated.boolValue`.
-- `RequestResult` (sealed) разбирается через SKIE `onEnum(of:)` (`.success`/`.error`). Если имена кейсов иные — поправить `switch`.
-- suspend-функции вызываются как `async` (`try await useCase.invoke()`). Если SKIE-конфигурация иная — обернуть в completion-handler.
-- Имя Koin-инициализатора из Swift: `KoinKt.doInitKoin()` (Kotlin top-level `doInitKoin` в файле `Koin.kt`).
+## Заметки по интеропу (проверено на Mac, Xcode + симулятор iPhone)
+- **`Flow<Boolean>` приходит как `KotlinBoolean`, не `Bool`** → в `Shared/SessionViewModel` берём `authenticated.boolValue`.
+- **`RequestResult<T>` (sealed) разбирается через SKIE `onEnum(of:)`** (`.success`/`.error`) — работает. НО generic-параметр `Success<T>.data` стирается в ObjC-мосте до `Any?`, поэтому payload надо кастовать: `guard let deviceCode = success.data as? DeviceCode else { … }` (см. `Shared/Onboarding/OnboardingViewModel`). Это ограничение ObjC-моста, не SKIE; каст нужен на каждый generic-результат, пока не заведём типизированные обёртки/хелпер.
+- **suspend-функции** вызываются как `async` (`try await useCase.invoke()`) — работает без обёрток.
+- **Koin-инициализатор из Swift:** `KoinKt.doInitKoin(appDeclaration: { _ in })`. Дефолтный параметр Kotlin (`appDeclaration = {}`) в Swift-интероп не переносится — передаём пустую декларацию явно (в `iOS/iOSApp` и `tvOS/tvOSApp`).
