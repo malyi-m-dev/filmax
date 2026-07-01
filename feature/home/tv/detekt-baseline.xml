@@ -1,8 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHero( item: Item, onPlay: () -&gt; Unit, onDetails: () -&gt; Unit, )</ID>
-    <ID>LongMethod:TvHomeScreen.kt$@Composable private fun TvHomeContent( state: HomeState, onOpenItem: (Int) -&gt; Unit, onLoadMore: () -&gt; Unit, )</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

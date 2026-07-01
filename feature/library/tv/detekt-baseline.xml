@@ -1,10 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:TvLibraryScreen.kt$@Composable fun TvLibraryScreen( onOpenItem: (Int) -&gt; Unit, modifier: Modifier = Modifier, screenModel: LibraryScreenModel = koinViewModel(), )</ID>
-    <ID>MaxLineLength:TvLibraryScreen.kt$color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface</ID>
-    <ID>MaxLineLength:TvLibraryScreen.kt$if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer</ID>
-    <ID>MaximumLineLength:TvLibraryScreen.kt$ </ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>
