@@ -1,17 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:ContinueCard.kt$@Composable fun ContinueCard( item: Item, progress: Float, onClick: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>LongMethod:FilmaxCollectionCard.kt$@Composable fun FilmaxCollectionCard( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
-    <ID>LongMethod:FilmaxListGroup.kt$@Composable fun FilmaxListRow( icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, accent: Color = MaterialTheme.colorScheme.primary, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, showDivider: Boolean = false, )</ID>
-    <ID>LongMethod:FilmaxSearchField.kt$@Composable fun FilmaxSearchField( query: String, onQueryChange: (String) -&gt; Unit, modifier: Modifier = Modifier, placeholder: String = "Поиск", )</ID>
-    <ID>LongParameterList:FilmaxButton.kt$( text: String, onClick: () -&gt; Unit, modifier: Modifier = Modifier, variant: FilmaxButtonVariant = FilmaxButtonVariant.Filled, icon: ImageVector? = null, enabled: Boolean = true, )</ID>
-    <ID>LongParameterList:FilmaxCollectionCard.kt$( title: String, accent: Color, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, subtitle: String? = null, posterUrl: String? = null, )</ID>
-    <ID>LongParameterList:FilmaxListGroup.kt$( icon: ImageVector, label: String, modifier: Modifier = Modifier, onClick: (() -&gt; Unit)? = null, accent: Color = MaterialTheme.colorScheme.primary, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, showDivider: Boolean = false, )</ID>
-    <ID>LongParameterList:FilmaxStatCard.kt$( label: String, value: String, accent: Color, modifier: Modifier = Modifier, sub: String? = null, shape: Shape = RoundedCornerShape(20.dp), )</ID>
-    <ID>MatchingDeclarationName:FilmaxBadge.kt$FilmaxBadgeStyle</ID>
-    <ID>MatchingDeclarationName:FilmaxButton.kt$FilmaxButtonVariant</ID>
-    <ID>MatchingDeclarationName:FilmaxTabBar.kt$FilmaxTab</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

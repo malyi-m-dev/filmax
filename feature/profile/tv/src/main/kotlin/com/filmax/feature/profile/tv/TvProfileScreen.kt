@@ -109,24 +109,26 @@ fun TvProfileScreen(
         ProfileHero(state = state, modifier = Modifier.width(400.dp))
         ProfileSettings(
             state = state,
-            onCycleQuality = {
-                screenModel.dispatch(
-                    ProfileEvent.SetQuality(next(PlaybackSettings.qualityOptions, state.playback.quality))
-                )
-            },
-            onCycleAudio = {
-                screenModel.dispatch(
-                    ProfileEvent.SetAudioLanguage(next(PlaybackSettings.audioOptions, state.playback.audioLanguage))
-                )
-            },
-            onCycleSubtitle = {
-                screenModel.dispatch(
-                    ProfileEvent.SetSubtitleLanguage(
-                        next(PlaybackSettings.subtitleOptions, state.playback.subtitleLanguage)
+            actions = ProfileActions(
+                onCycleQuality = {
+                    screenModel.dispatch(
+                        ProfileEvent.SetQuality(next(PlaybackSettings.qualityOptions, state.playback.quality))
                     )
-                )
-            },
-            onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
+                },
+                onCycleAudio = {
+                    screenModel.dispatch(
+                        ProfileEvent.SetAudioLanguage(next(PlaybackSettings.audioOptions, state.playback.audioLanguage))
+                    )
+                },
+                onCycleSubtitle = {
+                    screenModel.dispatch(
+                        ProfileEvent.SetSubtitleLanguage(
+                            next(PlaybackSettings.subtitleOptions, state.playback.subtitleLanguage)
+                        )
+                    )
+                },
+                onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
+            ),
             modifier = Modifier.weight(1f),
         )
     }
@@ -199,66 +201,86 @@ private fun HeroStat(value: String, label: String, modifier: Modifier = Modifier
 }
 
 // ── Правая колонка: группы настроек ──────────────────────────────────────────
+private data class ProfileActions(
+    val onCycleQuality: () -> Unit,
+    val onCycleAudio: () -> Unit,
+    val onCycleSubtitle: () -> Unit,
+    val onLogout: () -> Unit,
+)
+
 @Composable
 private fun ProfileSettings(
     state: ProfileState,
-    onCycleQuality: () -> Unit,
-    onCycleAudio: () -> Unit,
-    onCycleSubtitle: () -> Unit,
-    onLogout: () -> Unit,
+    actions: ProfileActions,
     modifier: Modifier = Modifier,
 ) {
-    val active = state.profile?.subscription?.active == true
     val scrollState = rememberScrollState()
     ScrollToTopOnNavFocus(scrollState)
     Column(modifier = modifier.verticalScroll(scrollState)) {
-        SettingsGroup(title = "Просмотр") {
-            SettingRow(
-                icon = Icons.Filled.HighQuality,
-                accent = AccentQuality,
-                label = "Качество видео",
-                value = state.playback.quality,
-                onClick = onCycleQuality,
-                showDivider = true,
-            )
-            SettingRow(
-                icon = Icons.AutoMirrored.Filled.VolumeUp,
-                accent = AccentAudio,
-                label = "Язык аудио",
-                value = state.playback.audioLanguage,
-                onClick = onCycleAudio,
-                showDivider = true,
-            )
-            SettingRow(
-                icon = Icons.Filled.Subtitles,
-                accent = AccentSubtitle,
-                label = "Субтитры",
-                value = state.playback.subtitleLanguage,
-                onClick = onCycleSubtitle,
-                showDivider = false,
-            )
-        }
+        SettingsGroup(title = "Просмотр") { PlaybackSettingsRows(state, actions) }
         Spacer(Modifier.height(24.dp))
-        SettingsGroup(title = "Аккаунт") {
-            SettingRow(
-                icon = Icons.Filled.Star,
-                accent = AccentSubscription,
-                label = "Подписка",
-                value = if (active) "Premium" else "Неактивна",
-                badge = if (active) "PREMIUM" else null,
-                onClick = null,
-                showDivider = true,
-            )
-            SettingRow(
-                icon = Icons.AutoMirrored.Filled.Logout,
-                accent = MaterialTheme.colorScheme.error,
-                label = "Выйти из аккаунта",
-                labelColor = MaterialTheme.colorScheme.error,
-                onClick = onLogout,
-                showDivider = false,
-            )
-        }
+        SettingsGroup(title = "Аккаунт") { AccountSettingsRows(state, actions) }
     }
+}
+
+@Composable
+private fun PlaybackSettingsRows(state: ProfileState, actions: ProfileActions) {
+    SettingRow(
+        spec = SettingRowSpec(
+            icon = Icons.Filled.HighQuality,
+            accent = AccentQuality,
+            label = "Качество видео",
+            value = state.playback.quality,
+        ),
+        onClick = actions.onCycleQuality,
+        showDivider = true,
+    )
+    SettingRow(
+        spec = SettingRowSpec(
+            icon = Icons.AutoMirrored.Filled.VolumeUp,
+            accent = AccentAudio,
+            label = "Язык аудио",
+            value = state.playback.audioLanguage,
+        ),
+        onClick = actions.onCycleAudio,
+        showDivider = true,
+    )
+    SettingRow(
+        spec = SettingRowSpec(
+            icon = Icons.Filled.Subtitles,
+            accent = AccentSubtitle,
+            label = "Субтитры",
+            value = state.playback.subtitleLanguage,
+        ),
+        onClick = actions.onCycleSubtitle,
+        showDivider = false,
+    )
+}
+
+@Composable
+private fun AccountSettingsRows(state: ProfileState, actions: ProfileActions) {
+    val active = state.profile?.subscription?.active == true
+    SettingRow(
+        spec = SettingRowSpec(
+            icon = Icons.Filled.Star,
+            accent = AccentSubscription,
+            label = "Подписка",
+            value = if (active) "Premium" else "Неактивна",
+            badge = if (active) "PREMIUM" else null,
+        ),
+        onClick = null,
+        showDivider = true,
+    )
+    SettingRow(
+        spec = SettingRowSpec(
+            icon = Icons.AutoMirrored.Filled.Logout,
+            accent = MaterialTheme.colorScheme.error,
+            label = "Выйти из аккаунта",
+            labelColor = MaterialTheme.colorScheme.error,
+        ),
+        onClick = actions.onLogout,
+        showDivider = false,
+    )
 }
 
 @Composable
@@ -281,14 +303,18 @@ private fun SettingsGroup(title: String, content: @Composable () -> Unit) {
     }
 }
 
+private data class SettingRowSpec(
+    val icon: ImageVector,
+    val accent: Color,
+    val label: String,
+    val value: String? = null,
+    val badge: String? = null,
+    val labelColor: Color? = null,
+)
+
 @Composable
 private fun SettingRow(
-    icon: ImageVector,
-    accent: Color,
-    label: String,
-    value: String? = null,
-    badge: String? = null,
-    labelColor: Color = MaterialTheme.colorScheme.onSurface,
+    spec: SettingRowSpec,
     onClick: (() -> Unit)?,
     showDivider: Boolean,
 ) {
@@ -315,42 +341,13 @@ private fun SettingRow(
         .padding(horizontal = 22.dp, vertical = 18.dp)
 
     Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(accent.copy(alpha = 0.20f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
-        }
+        SettingRowIcon(icon = spec.icon, accent = spec.accent)
         Spacer(Modifier.width(18.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(label, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = labelColor)
-                if (badge != null) {
-                    Spacer(Modifier.width(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(accent)
-                            .padding(horizontal = 10.dp, vertical = 3.dp),
-                    ) {
-                        Text(
-                            badge,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-            if (!value.isNullOrEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(value, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
+        SettingRowText(
+            spec = spec,
+            labelColor = spec.labelColor ?: MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
         if (onClick != null) {
             Spacer(Modifier.width(12.dp))
             Icon(
@@ -369,6 +366,49 @@ private fun SettingRow(
                 .height(1.dp)
                 .background(MaterialTheme.colorScheme.outlineVariant),
         )
+    }
+}
+
+@Composable
+private fun SettingRowIcon(icon: ImageVector, accent: Color) {
+    Box(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(accent.copy(alpha = 0.20f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
+private fun SettingRowText(spec: SettingRowSpec, labelColor: Color, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(spec.label, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = labelColor)
+            if (spec.badge != null) {
+                Spacer(Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(spec.accent)
+                        .padding(horizontal = 10.dp, vertical = 3.dp),
+                ) {
+                    Text(
+                        spec.badge,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = 1.sp,
+                        color = Color.White
+                    )
+                }
+            }
+        }
+        if (!spec.value.isNullOrEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text(spec.value, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

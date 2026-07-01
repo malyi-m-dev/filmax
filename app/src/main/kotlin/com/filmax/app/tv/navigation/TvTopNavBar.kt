@@ -61,17 +61,22 @@ val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
     TvProfileRoute::class,
 )
 
+/** Фокус-реквестеры шапки: вход в таб-бар ([navBar]) и переход к контенту ([content]). */
+internal data class TvTopNavBarFocus(
+    val navBar: FocusRequester,
+    val content: FocusRequester,
+)
+
 /**
  * Верхний таб-бар Filmax TV (как в макете): бренд «Filmax.», 5 разделов и аватар.
  * Вкладки фокусируемы пультом; выбор переходит на соответствующий маршрут.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun TvTopNavBar(
+internal fun TvTopNavBar(
     currentDestination: NavDestination?,
     onSelectTab: (route: Any) -> Unit,
-    navBarFocus: FocusRequester,
-    contentFocus: FocusRequester,
+    focus: TvTopNavBarFocus,
     initials: String,
     modifier: Modifier = Modifier,
 ) {
@@ -87,7 +92,7 @@ fun TvTopNavBar(
                     listOf(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), Color.Transparent)
                 )
             )
-            .focusRequester(navBarFocus)
+            .focusRequester(focus.navBar)
             // Любой вход фокуса в таб-бар уводим на активную вкладку — фокус всегда
             // совпадает с открытым разделом.
             .focusProperties { enter = { tabFocusRequesters[activeIndex] } }
@@ -95,60 +100,88 @@ fun TvTopNavBar(
             .padding(horizontal = 48.dp, vertical = 22.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                "Filmax",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                softWrap = false
-            )
-            Text(
-                ".",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.primary,
-                maxLines = 1,
-                softWrap = false
-            )
-        }
+        TvBrandLabel()
         Spacer(Modifier.width(32.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            TABS.forEachIndexed { index, tab ->
-                NavTab(
-                    label = tab.label,
-                    active = index == activeIndex,
-                    onClick = { onSelectTab(tab.route) },
-                    modifier = Modifier
-                        .focusRequester(tabFocusRequesters[index])
-                        .focusProperties { down = contentFocus },
-                )
-            }
-        }
+        TvNavTabs(
+            activeIndex = activeIndex,
+            tabFocusRequesters = tabFocusRequesters,
+            contentFocus = focus.content,
+            onSelectTab = onSelectTab,
+        )
         Spacer(Modifier.weight(1f))
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(Color(0xFFB4305A), Color(0xFFF4B792)))),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (initials.isNotBlank()) {
-                Text(
-                    initials,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            } else {
-                Icon(
-                    Icons.Filled.Person,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+        TvAvatar(initials = initials)
+    }
+}
+
+/** Бренд-лейбл «Filmax» + акцентная точка. */
+@Composable
+private fun TvBrandLabel() {
+    Row(verticalAlignment = Alignment.Bottom) {
+        Text(
+            "Filmax",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            softWrap = false
+        )
+        Text(
+            ".",
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            softWrap = false
+        )
+    }
+}
+
+/** Ряд фокусируемых вкладок таб-бара. */
+@Composable
+private fun TvNavTabs(
+    activeIndex: Int,
+    tabFocusRequesters: List<FocusRequester>,
+    contentFocus: FocusRequester,
+    onSelectTab: (route: Any) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        TABS.forEachIndexed { index, tab ->
+            NavTab(
+                label = tab.label,
+                active = index == activeIndex,
+                onClick = { onSelectTab(tab.route) },
+                modifier = Modifier
+                    .focusRequester(tabFocusRequesters[index])
+                    .focusProperties { down = contentFocus },
+            )
+        }
+    }
+}
+
+/** Круглый аватар: инициалы пользователя либо иконка-заглушка. */
+@Composable
+private fun TvAvatar(initials: String) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(Brush.linearGradient(listOf(Color(0xFFB4305A), Color(0xFFF4B792)))),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (initials.isNotBlank()) {
+            Text(
+                initials,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                maxLines = 1,
+                softWrap = false
+            )
+        } else {
+            Icon(
+                Icons.Filled.Person,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -156,6 +189,11 @@ fun TvTopNavBar(
 @Composable
 private fun NavTab(label: String, active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(percent = 50)
+    val labelColor = if (active) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     TvFocusCard(onClick = onClick, shape = shape, modifier = modifier) {
         Box(
             Modifier
@@ -169,7 +207,7 @@ private fun NavTab(label: String, active: Boolean, onClick: () -> Unit, modifier
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 softWrap = false,
-                color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = labelColor,
             )
         }
     }

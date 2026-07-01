@@ -1,7 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>TooManyFunctions:BaseScreenModel.kt$BaseScreenModel&lt;STATE : Any, SIDE_EFFECT : Any, EVENT : Any&gt; : ViewModel</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

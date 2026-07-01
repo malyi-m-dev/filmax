@@ -1,14 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:DesignSystemScreen.kt$@Composable private fun ShapeMotionSection()</ID>
-    <ID>LongMethod:DesignSystemScreen.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun IconsSection()</ID>
-    <ID>LongMethod:DesignSystemScreen.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun DesignSystemScreen( onBack: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>MatchingDeclarationName:DesignSystemNavigation.kt$DesignSystemRoute</ID>
-    <ID>MaxLineLength:DesignSystemScreen.kt$desc = "PosterImage с градиентным плейсхолдером (пока нет реального изображения) и готовая PosterCard с рейтингом и кнопкой избранного."</ID>
-    <ID>MaxLineLength:DesignSystemScreen.kt$desc = "Готовые карточные паттерны каталога: ContinueCard, FilmaxCollectionCard и stat-карточки с выразительными формами."</ID>
-    <ID>MaxLineLength:DesignSystemScreen.kt$desc = "Палитра M3 в тёмной кино-теме с тёплым уклоном. Контейнеры — фоны компонентов, «on-»-роли — текст и иконки поверх них."</ID>
-    <ID>MaximumLineLength:DesignSystemScreen.kt$ </ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

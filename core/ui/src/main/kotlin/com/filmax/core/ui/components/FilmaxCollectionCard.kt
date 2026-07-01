@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +30,9 @@ import androidx.compose.ui.unit.dp
  *
  * Минимальное использование: `FilmaxCollectionCard("Оскар 2024", accent, icon, onClick = {})`.
  */
+// Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier — прямой
+// параметр, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API» и modifier.
+@Suppress("LongParameterList")
 @Composable
 fun FilmaxCollectionCard(
     title: String,
@@ -73,45 +77,63 @@ fun FilmaxCollectionCard(
                     }
                 )
         )
-        Column(
+        FilmaxCollectionCardContent(
+            title = title,
+            accent = accent,
+            icon = icon,
+            subtitle = subtitle,
+            hasPoster = hasPoster,
+        )
+    }
+}
+
+/** Наполнение карточки поверх фона/градиента: иконка-плитка сверху, заголовок и подзаголовок снизу. */
+@Composable
+private fun BoxScope.FilmaxCollectionCardContent(
+    title: String,
+    accent: Color,
+    icon: ImageVector,
+    subtitle: String?,
+    hasPoster: Boolean,
+) {
+    Column(
+        modifier = Modifier
+            .matchParentSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Box(
             modifier = Modifier
-                .matchParentSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(accent),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(accent),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
-            }
-            Column {
+            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        }
+        Column {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleMedium,
+                color = if (hasPoster) Color.White else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(Modifier.height(3.dp))
                 Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = if (hasPoster) Color.White else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (hasPoster) {
+                        Color.White.copy(
+                            alpha = 0.85f
+                        )
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (!subtitle.isNullOrBlank()) {
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (hasPoster) {
-                            Color.White.copy(
-                                alpha = 0.85f
-                            )
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
             }
         }
     }

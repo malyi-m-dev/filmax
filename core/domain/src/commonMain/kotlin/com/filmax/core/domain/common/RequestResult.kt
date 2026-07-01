@@ -13,6 +13,8 @@ sealed interface RequestResult<out T> {
 }
 
 /** Выполняет [block], оборачивая исключения в [RequestResult.Error]. CancellationException пробрасывается. */
+// Намеренная граница ошибок: любой сбой запроса конвертируется в RequestResult.Error (кроме отмены).
+@Suppress("TooGenericExceptionCaught")
 suspend inline fun <T> safeRequest(crossinline block: suspend () -> T): RequestResult<T> =
     try {
         RequestResult.Success(block())

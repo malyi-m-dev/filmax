@@ -1,16 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>CyclomaticComplexMethod:TvPlayerScreen.kt$@Composable fun TvPlayerScreen( onBack: () -&gt; Unit, modifier: Modifier = Modifier, screenModel: PlayerScreenModel = koinViewModel(), )</ID>
-    <ID>LongMethod:TvPlayerScreen.kt$@Composable fun TvPlayerScreen( onBack: () -&gt; Unit, modifier: Modifier = Modifier, screenModel: PlayerScreenModel = koinViewModel(), )</ID>
-    <ID>LongMethod:TvPlayerScreen.kt$@Composable private fun RowScope.TvScrubBar( fraction: Float, isScrubbing: Boolean, targetLabel: String, focusRequester: FocusRequester, focusProperties: Modifier, onKeyEvent: (KeyEvent) -&gt; Boolean, )</ID>
-    <ID>LongParameterList:TvPlayerScreen.kt$( category: SettingsCategory, state: PlayerState, chipLeft: Int, chipsRowTop: Int, onSelect: (String) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>LongParameterList:TvPlayerScreen.kt$( fraction: Float, isScrubbing: Boolean, targetLabel: String, focusRequester: FocusRequester, focusProperties: Modifier, onKeyEvent: (KeyEvent) -&gt; Boolean, )</ID>
-    <ID>LongParameterList:TvPlayerScreen.kt$( size: Dp, icon: ImageVector, onClick: () -&gt; Unit, modifier: Modifier = Modifier, primary: Boolean = false, focusRequester: FocusRequester? = null, )</ID>
-    <ID>LongParameterList:TvPlayerScreen.kt$( state: PlayerState, firstChipFocus: FocusRequester, onOpen: (SettingsCategory) -&gt; Unit, onRowPositioned: (top: Int) -&gt; Unit, onChipPositioned: (SettingsCategory, left: Int) -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-    <ID>MaxLineLength:TvPlayerScreen.kt$onClick = { if (screenModel.player.isPlaying) screenModel.player.pause() else screenModel.player.play() }</ID>
-    <ID>MaximumLineLength:TvPlayerScreen.kt$ </ID>
-    <ID>TooManyFunctions:TvPlayerScreen.kt$com.filmax.feature.player.tv.TvPlayerScreen.kt</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

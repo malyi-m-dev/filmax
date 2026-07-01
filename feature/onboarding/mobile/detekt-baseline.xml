@@ -1,10 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:OnboardingScreen.kt$@Composable fun OnboardingScreen( onAuthenticated: () -&gt; Unit, modifier: Modifier = Modifier, screenModel: OnboardingScreenModel = koinViewModel(), )</ID>
-    <ID>LongMethod:OnboardingScreen.kt$@Composable private fun CodeDisplaySection(userCode: String)</ID>
-    <ID>MatchingDeclarationName:OnboardingNavigation.kt$OnboardingRoute</ID>
-    <ID>TopLevelPropertyNaming:OnboardingScreen.kt$private const val PulseDurationMillis = 1000</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>

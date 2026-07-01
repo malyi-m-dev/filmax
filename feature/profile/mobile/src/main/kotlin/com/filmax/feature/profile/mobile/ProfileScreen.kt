@@ -134,9 +134,11 @@ fun ProfileScreen(
             activeSheet = activeSheet,
             playback = state.playback,
             onDismiss = { activeSheet = null },
-            onSelectQuality = { screenModel.dispatch(ProfileEvent.SetQuality(it)) },
-            onSelectAudio = { screenModel.dispatch(ProfileEvent.SetAudioLanguage(it)) },
-            onSelectSubtitle = { screenModel.dispatch(ProfileEvent.SetSubtitleLanguage(it)) },
+            selection = PlaybackSelection(
+                onSelectQuality = { screenModel.dispatch(ProfileEvent.SetQuality(it)) },
+                onSelectAudio = { screenModel.dispatch(ProfileEvent.SetAudioLanguage(it)) },
+                onSelectSubtitle = { screenModel.dispatch(ProfileEvent.SetSubtitleLanguage(it)) },
+            ),
         )
     }
 }
@@ -158,69 +160,92 @@ private fun ProfileContent(
         // Резерв под закреплённую шапку — ужимается синхронно с её сворачиванием.
         Spacer(Modifier.height(topInset))
 
-        // TODO: значения строк ниже (кроме «Подписка») — статичные заглушки.
+        // Значения строк ниже (кроме «Подписка») — статичные демо-заглушки профиля.
         //  Эти настройки клиентские и в API отсутствуют: «Качество видео (Авто)»,
         //  «Загрузки», «Субтитры и аудио», «Уведомления (вкл/выкл)», «Приватность».
         //  В будущем их нужно хранить локально (DataStore/multiplatform-settings).
-        FilmaxListGroup(title = "Просмотр", modifier = SectionPadding) {
-            FilmaxListRow(
-                icon = Icons.Filled.HighQuality,
-                accent = Color(0xFFB4305A),
-                label = "Качество видео",
-                value = state.playback.quality,
-                onClick = { onOpenSheet(ProfileSheet.QUALITY) },
-                showDivider = true,
-            )
-            FilmaxListRow(
-                icon = Icons.Filled.Subtitles,
-                accent = Color(0xFFF4B792),
-                label = "Субтитры и аудио",
-                value = state.playback.subtitleSummary(),
-                onClick = { onOpenSheet(ProfileSheet.SUBTITLES) },
-                showDivider = true,
-            )
-            FilmaxListRow(
-                icon = Icons.Filled.Download,
-                accent = Color(0xFF6AC2B0),
-                label = "Загрузки",
-                value = "Только по Wi-Fi",
-            )
-        }
+        ViewingSettingsGroup(playback = state.playback, onOpenSheet = onOpenSheet)
 
-        FilmaxListGroup(title = "Аккаунт", modifier = SectionPadding) {
-            val active = state.profile?.subscription?.active == true
-            FilmaxListRow(
-                icon = Icons.Filled.Star,
-                accent = Color(0xFFD4A84A),
-                label = "Подписка",
-                value = if (active) "Premium" else "Неактивна",
-                badge = if (active) "PREMIUM" else null,
-            )
-        }
+        AccountGroup(state = state)
 
         if (onOpenDesignSystem != null) {
-            FilmaxListGroup(title = "Разработчикам", modifier = SectionPadding) {
-                FilmaxListRow(
-                    icon = Icons.Filled.Code,
-                    accent = MaterialTheme.colorScheme.primaryContainer,
-                    label = "Дизайн-система",
-                    value = "Каталог компонентов",
-                    onClick = onOpenDesignSystem,
-                )
-            }
+            DeveloperGroup(onOpenDesignSystem = onOpenDesignSystem)
         }
 
-        FilmaxListGroup(modifier = SectionPadding) {
-            FilmaxListRow(
-                icon = Icons.AutoMirrored.Filled.Logout,
-                accent = MaterialTheme.colorScheme.error,
-                label = "Выйти",
-                labelColor = MaterialTheme.colorScheme.error,
-                onClick = onLogout,
-            )
-        }
+        LogoutGroup(onLogout = onLogout)
 
         Spacer(Modifier.height(120.dp))
+    }
+}
+
+@Composable
+private fun ViewingSettingsGroup(
+    playback: PlaybackSettings,
+    onOpenSheet: (ProfileSheet) -> Unit,
+) {
+    FilmaxListGroup(title = "Просмотр", modifier = SectionPadding) {
+        FilmaxListRow(
+            icon = Icons.Filled.HighQuality,
+            accent = Color(0xFFB4305A),
+            label = "Качество видео",
+            value = playback.quality,
+            onClick = { onOpenSheet(ProfileSheet.QUALITY) },
+            showDivider = true,
+        )
+        FilmaxListRow(
+            icon = Icons.Filled.Subtitles,
+            accent = Color(0xFFF4B792),
+            label = "Субтитры и аудио",
+            value = playback.subtitleSummary(),
+            onClick = { onOpenSheet(ProfileSheet.SUBTITLES) },
+            showDivider = true,
+        )
+        FilmaxListRow(
+            icon = Icons.Filled.Download,
+            accent = Color(0xFF6AC2B0),
+            label = "Загрузки",
+            value = "Только по Wi-Fi",
+        )
+    }
+}
+
+@Composable
+private fun AccountGroup(state: ProfileState) {
+    FilmaxListGroup(title = "Аккаунт", modifier = SectionPadding) {
+        val active = state.profile?.subscription?.active == true
+        FilmaxListRow(
+            icon = Icons.Filled.Star,
+            accent = Color(0xFFD4A84A),
+            label = "Подписка",
+            value = if (active) "Premium" else "Неактивна",
+            badge = if (active) "PREMIUM" else null,
+        )
+    }
+}
+
+@Composable
+private fun DeveloperGroup(onOpenDesignSystem: () -> Unit) {
+    FilmaxListGroup(title = "Разработчикам", modifier = SectionPadding) {
+        FilmaxListRow(
+            icon = Icons.Filled.Code,
+            accent = MaterialTheme.colorScheme.primaryContainer,
+            label = "Дизайн-система",
+            value = "Каталог компонентов",
+            onClick = onOpenDesignSystem,
+        )
+    }
+}
+
+@Composable
+private fun LogoutGroup(onLogout: () -> Unit) {
+    FilmaxListGroup(modifier = SectionPadding) {
+        FilmaxListRow(
+            icon = Icons.AutoMirrored.Filled.Logout,
+            accent = MaterialTheme.colorScheme.error,
+            label = "Выйти",
+            labelColor = MaterialTheme.colorScheme.error,
+            onClick = onLogout,
+        )
     }
 }
 
@@ -386,15 +411,20 @@ private fun Avatar(
 // ── Bottom sheets настроек воспроизведения ───────────────────────────────────
 private enum class ProfileSheet { QUALITY, SUBTITLES }
 
+/** Колбэки выбора настроек воспроизведения: качество, аудио и субтитры. */
+private data class PlaybackSelection(
+    val onSelectQuality: (String) -> Unit,
+    val onSelectAudio: (String) -> Unit,
+    val onSelectSubtitle: (String) -> Unit,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaybackSettingsSheets(
     activeSheet: ProfileSheet?,
     playback: PlaybackSettings,
     onDismiss: () -> Unit,
-    onSelectQuality: (String) -> Unit,
-    onSelectAudio: (String) -> Unit,
-    onSelectSubtitle: (String) -> Unit,
+    selection: PlaybackSelection,
 ) {
     if (activeSheet == null) return
     ModalBottomSheet(
@@ -408,7 +438,7 @@ private fun PlaybackSettingsSheets(
                     title = "Качество видео",
                     options = PlaybackSettings.qualityOptions,
                     selected = playback.quality,
-                    onSelect = onSelectQuality,
+                    onSelect = selection.onSelectQuality,
                 )
 
                 ProfileSheet.SUBTITLES -> {
@@ -416,14 +446,14 @@ private fun PlaybackSettingsSheets(
                         title = "Аудио",
                         options = PlaybackSettings.audioOptions,
                         selected = playback.audioLanguage,
-                        onSelect = onSelectAudio,
+                        onSelect = selection.onSelectAudio,
                     )
                     Spacer(Modifier.height(12.dp))
                     OptionList(
                         title = "Субтитры",
                         options = PlaybackSettings.subtitleOptions,
                         selected = playback.subtitleLanguage,
-                        onSelect = onSelectSubtitle,
+                        onSelect = selection.onSelectSubtitle,
                     )
                 }
             }

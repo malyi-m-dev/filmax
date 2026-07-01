@@ -3,6 +3,7 @@ package com.filmax.feature.home.tv
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -131,66 +132,93 @@ private fun TvHomeContent(
             }
         }
 
-        if (state.continueWatching.isNotEmpty()) {
-            item(key = "continue") {
-                TvRail(title = "Продолжить просмотр") {
-                    items(state.continueWatching, key = { it.itemId }) { history ->
-                        TvContinueCard(history = history, onClick = { onOpenItem(history.itemId) })
-                    }
-                }
-            }
-        }
-
-        if (state.trending.isNotEmpty()) {
-            item(key = "trending") {
-                TvRail(title = "В тренде") {
-                    items(state.trending, key = { it.id }) { itm ->
-                        TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
-                    }
-                }
-            }
-        }
-
-        if (state.forYou.isNotEmpty()) {
-            item(key = "forYou") {
-                TvRail(title = "Для вас") {
-                    items(state.forYou, key = { it.id }) { itm ->
-                        TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
-                    }
-                }
-            }
-        }
+        tvRails(state = state, onOpenItem = onOpenItem)
 
         // ── Все — постранично подгружаемая сетка (6 в ряд) ──────────────────────
         if (state.all.isNotEmpty()) {
-            item(key = "all_title") { TvSectionTitle("Все") }
-            itemsIndexed(allRows, key = { index, _ -> "all_row_$index" }) { _, rowItems ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 72.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                ) {
-                    rowItems.forEach { itm ->
-                        TvAllPosterCell(item = itm, onClick = { onOpenItem(itm.id) })
-                    }
-                    // Добиваем неполную строку, чтобы колонки не растягивались.
-                    repeat(ALL_COLUMNS - rowItems.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-            if (state.allLoadingMore) {
-                item(key = "all_loading") {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
+            tvAllGrid(
+                allRows = allRows,
+                allLoadingMore = state.allLoadingMore,
+                onOpenItem = onOpenItem,
+            )
+        }
+    }
+}
+
+// Рельсы «Продолжить/В тренде/Для вас» — те же item-блоки, вынесены из TvHomeContent.
+private fun LazyListScope.tvRails(state: HomeState, onOpenItem: (Int) -> Unit) {
+    if (state.continueWatching.isNotEmpty()) {
+        item(key = "continue") {
+            TvRail(title = "Продолжить просмотр") {
+                items(state.continueWatching, key = { it.itemId }) { history ->
+                    TvContinueCard(history = history, onClick = { onOpenItem(history.itemId) })
                 }
             }
         }
+    }
+
+    if (state.trending.isNotEmpty()) {
+        item(key = "trending") {
+            TvRail(title = "В тренде") {
+                items(state.trending, key = { it.id }) { itm ->
+                    TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
+                }
+            }
+        }
+    }
+
+    if (state.forYou.isNotEmpty()) {
+        item(key = "forYou") {
+            TvRail(title = "Для вас") {
+                items(state.forYou, key = { it.id }) { itm ->
+                    TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
+                }
+            }
+        }
+    }
+}
+
+// Сетка «Все» + индикатор догрузки — вынесены из TvHomeContent без изменений раскладки.
+private fun LazyListScope.tvAllGrid(
+    allRows: List<List<Item>>,
+    allLoadingMore: Boolean,
+    onOpenItem: (Int) -> Unit,
+) {
+    item(key = "all_title") { TvSectionTitle("Все") }
+    itemsIndexed(allRows, key = { index, _ -> "all_row_$index" }) { _, rowItems ->
+        TvAllRow(rowItems = rowItems, onOpenItem = onOpenItem)
+    }
+    // Индикатор догрузки «Все» — отдельным элементом после сетки (без вложенного if).
+    if (allLoadingMore) {
+        item(key = "all_loading") { TvAllLoadingRow() }
+    }
+}
+
+@Composable
+private fun TvAllRow(rowItems: List<Item>, onOpenItem: (Int) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 72.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        rowItems.forEach { itm ->
+            TvAllPosterCell(item = itm, onClick = { onOpenItem(itm.id) })
+        }
+        // Добиваем неполную строку, чтобы колонки не растягивались.
+        repeat(ALL_COLUMNS - rowItems.size) { Spacer(Modifier.weight(1f)) }
+    }
+}
+
+@Composable
+private fun TvAllLoadingRow() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
     }
 }
 
@@ -283,38 +311,44 @@ private fun TvHero(
                 )
         )
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 72.dp, end = 72.dp, top = 96.dp),
-        ) {
-            EditorsChoicePill()
-            Spacer(Modifier.height(16.dp))
-            Text(
-                item.title,
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                maxLines = 2,
-                modifier = Modifier.fillMaxWidth(0.6f),
-            )
-            Spacer(Modifier.height(14.dp))
-            HeroMeta(item)
-            Spacer(Modifier.height(14.dp))
-            Text(
-                item.plot,
-                fontSize = 18.sp,
-                lineHeight = 26.sp,
-                color = Color.White.copy(alpha = 0.85f),
-                maxLines = 3,
-                modifier = Modifier.fillMaxWidth(0.56f),
-            )
-            Spacer(Modifier.height(28.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow)
-                TvButton("В избранное", onClick = {}, primary = false, leadingIcon = Icons.Filled.FavoriteBorder)
-                TvButton("Подробнее", onClick = onDetails, primary = false, leadingIcon = Icons.Filled.Info)
-            }
+        TvHeroOverlay(item = item, onPlay = onPlay, onDetails = onDetails)
+    }
+}
+
+// Текстовый оверлей hero (название/мета/описание/кнопки) — вынесен из TvHero без изменений.
+@Composable
+private fun BoxScope.TvHeroOverlay(item: Item, onPlay: () -> Unit, onDetails: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .padding(start = 72.dp, end = 72.dp, top = 96.dp),
+    ) {
+        EditorsChoicePill()
+        Spacer(Modifier.height(16.dp))
+        Text(
+            item.title,
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = Color.White,
+            maxLines = 2,
+            modifier = Modifier.fillMaxWidth(0.6f),
+        )
+        Spacer(Modifier.height(14.dp))
+        HeroMeta(item)
+        Spacer(Modifier.height(14.dp))
+        Text(
+            item.plot,
+            fontSize = 18.sp,
+            lineHeight = 26.sp,
+            color = Color.White.copy(alpha = 0.85f),
+            maxLines = 3,
+            modifier = Modifier.fillMaxWidth(0.56f),
+        )
+        Spacer(Modifier.height(28.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow)
+            TvButton("В избранное", onClick = {}, primary = false, leadingIcon = Icons.Filled.FavoriteBorder)
+            TvButton("Подробнее", onClick = onDetails, primary = false, leadingIcon = Icons.Filled.Info)
         }
     }
 }

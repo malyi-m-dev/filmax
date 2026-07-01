@@ -68,6 +68,12 @@ naming:
   FunctionNaming:
     active: true
     ignoreAnnotated: ['Composable']
+  # Отключено осознанно: в проекте принято совместное размещение по конвенции —
+  # `*Navigation.kt` содержит `*Route` + nav-builder extension-функции (идиома Compose
+  # Navigation), а файлы компонентов — компонент + его enum-стиль (FilmaxBadge+FilmaxBadgeStyle).
+  # Правило требует «один top-level класс = имя файла» и конфликтует с этими конвенциями.
+  MatchingDeclarationName:
+    active: false
 
 style:
   active: true

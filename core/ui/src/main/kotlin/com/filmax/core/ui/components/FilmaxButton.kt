@@ -25,6 +25,9 @@ enum class FilmaxButtonVariant { Filled, Tonal, Outlined, Elevated, Text }
  * Минимальное использование: `FilmaxButton("Смотреть", onClick = { … })`.
  * Иконка и вариант — опциональны.
  */
+// Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier — прямой
+// параметр, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API» и modifier.
+@Suppress("LongParameterList")
 @Composable
 fun FilmaxButton(
     text: String,

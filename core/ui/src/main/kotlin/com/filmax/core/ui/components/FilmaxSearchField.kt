@@ -74,31 +74,37 @@ fun FilmaxSearchField(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        if (query.isNotEmpty()) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .clickable { onQueryChange("") },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Filled.Close,
-                    contentDescription = "Очистить",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        } else {
+        FilmaxSearchTrailing(query = query, onQueryChange = onQueryChange)
+    }
+}
+
+/** Хвостовой слот поля: кнопка очистки для непустого запроса, иначе иконка голосового поиска. */
+@Composable
+private fun FilmaxSearchTrailing(query: String, onQueryChange: (String) -> Unit) {
+    if (query.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                .clickable { onQueryChange("") },
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
-                Icons.Filled.Mic,
-                contentDescription = "Голосовой поиск",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .size(22.dp),
+                Icons.Filled.Close,
+                contentDescription = "Очистить",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(16.dp),
             )
         }
+    } else {
+        Icon(
+            Icons.Filled.Mic,
+            contentDescription = "Голосовой поиск",
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(end = 6.dp)
+                .size(22.dp),
+        )
     }
 }

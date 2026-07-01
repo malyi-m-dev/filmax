@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.sp
  *
  * Минимальное использование: `FilmaxStatCard("Рейтинг", "8.6", accent = …)`.
  */
+// Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier — прямой
+// параметр, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API» и modifier.
+@Suppress("LongParameterList")
 @Composable
 fun FilmaxStatCard(
     label: String,

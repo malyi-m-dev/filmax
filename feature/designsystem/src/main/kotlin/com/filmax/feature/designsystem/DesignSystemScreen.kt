@@ -117,6 +117,9 @@ import com.filmax.core.ui.components.PosterCard
 import com.filmax.core.ui.components.RatingPill
 import kotlin.math.roundToInt
 
+// DEV-каталог компонентов: экран — это длинный перечень секций-примеров, дробить его на
+// искусственные под-функции смысла нет (вид/порядок секций важнее «длины метода»).
+@Suppress("LongMethod")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DesignSystemScreen(
@@ -258,7 +261,8 @@ private data class Swatch(val name: String, val token: String, val color: Color,
 private fun ColorsSection() = Section(
     num = "01",
     title = "Цвета",
-    desc = "Палитра M3 в тёмной кино-теме с тёплым уклоном. Контейнеры — фоны компонентов, «on-»-роли — текст и иконки поверх них.",
+    desc = "Палитра M3 в тёмной кино-теме с тёплым уклоном. Контейнеры — фоны компонентов, " +
+        "«on-»-роли — текст и иконки поверх них.",
 ) {
     val core = listOf(
         Swatch("Primary", "--m3-primary", FilmaxPrimary, Color(0xFF5E1133)),
@@ -410,6 +414,8 @@ private fun TypographySection() = Section(
 
 private data class ShapeSpec(val name: String, val shape: Shape, val expressive: Boolean)
 
+// DEV-каталог: секция-пример (шкала форм + список кривых движения) — сплошной перечень образцов.
+@Suppress("LongMethod")
 @Composable
 private fun ShapeMotionSection() = Section(
     num = "03",
@@ -593,7 +599,8 @@ private fun InputsSection() = Section(
 private fun PostersSection() = Section(
     num = "07",
     title = "Постеры",
-    desc = "PosterImage с градиентным плейсхолдером (пока нет реального изображения) и готовая PosterCard с рейтингом и кнопкой избранного.",
+    desc = "PosterImage с градиентным плейсхолдером (пока нет реального изображения) " +
+        "и готовая PosterCard с рейтингом и кнопкой избранного.",
 ) {
     SubLabel("Плейсхолдеры")
     val accents = listOf(
@@ -644,12 +651,15 @@ private data class StatSpec(
     val sub: String,
 )
 
+// DEV-каталог: секция-пример — перечень карточных паттернов (Continue/Collection/Stat).
+@Suppress("LongMethod")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CardsSection() = Section(
     num = "08",
     title = "Карточки",
-    desc = "Готовые карточные паттерны каталога: ContinueCard, FilmaxCollectionCard и stat-карточки с выразительными формами.",
+    desc = "Готовые карточные паттерны каталога: ContinueCard, FilmaxCollectionCard " +
+        "и stat-карточки с выразительными формами.",
 ) {
     SubLabel("Продолжить просмотр")
     ContinueCard(
@@ -758,6 +768,8 @@ private fun ListsSection() = Section(
 
 /* ───────────────────────── 10 · Icons ───────────────────────── */
 
+// DEV-каталог: секция-пример — плоский список из ~30 иконок каталога, дробить нечего.
+@Suppress("LongMethod")
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun IconsSection() = Section(

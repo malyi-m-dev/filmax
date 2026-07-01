@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -33,6 +34,7 @@ import com.filmax.core.tv.designsystem.TvPosterTitle
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.library.common.LibraryEvent
 import com.filmax.feature.library.common.LibraryScreenModel
+import com.filmax.feature.library.common.LibraryState
 import com.filmax.feature.library.common.LibraryTab
 import org.koin.androidx.compose.koinViewModel
 
@@ -79,58 +81,83 @@ fun TvLibraryScreen(
         Spacer(Modifier.height(24.dp))
 
         // ── Табы ────────────────────────────────────────────────────────
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            LibraryTab.entries.forEach { tab ->
-                val count = when (tab) {
-                    LibraryTab.FAVORITES -> state.favorites.size
-                    LibraryTab.HISTORY -> state.history.size
-                    LibraryTab.DOWNLOADS -> state.downloads.size
-                    LibraryTab.LISTS -> state.lists.size
-                }
-                TabChip(
-                    label = tab.label,
-                    count = count,
-                    active = state.tab == tab,
-                    onClick = { screenModel.dispatch(LibraryEvent.TabChange(tab)) },
-                )
-            }
-        }
+        LibraryTabsRow(
+            state = state,
+            onSelect = { tab -> screenModel.dispatch(LibraryEvent.TabChange(tab)) },
+        )
         Spacer(Modifier.height(32.dp))
 
         // ── Контент ─────────────────────────────────────────────────────
-        if (state.tab == LibraryTab.LISTS) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                state = gridState,
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(bottom = 40.dp),
-            ) {
-                items(state.lists, key = { it.id }) { folder ->
-                    FolderTile(title = folder.title, count = folder.count)
-                }
+        LibraryContent(
+            state = state,
+            tiles = tiles,
+            gridState = gridState,
+            onOpenItem = onOpenItem,
+        )
+    }
+}
+
+// Строка чипов-табов — вынесена из TvLibraryScreen без изменений раскладки.
+@Composable
+private fun LibraryTabsRow(state: LibraryState, onSelect: (LibraryTab) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        LibraryTab.entries.forEach { tab ->
+            val count = when (tab) {
+                LibraryTab.FAVORITES -> state.favorites.size
+                LibraryTab.HISTORY -> state.history.size
+                LibraryTab.DOWNLOADS -> state.downloads.size
+                LibraryTab.LISTS -> state.lists.size
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(6),
-                state = gridState,
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(bottom = 40.dp),
-            ) {
-                if (tiles.isEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
-                        Text(
-                            "Здесь пока пусто",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 18.sp,
-                            modifier = Modifier.padding(vertical = 40.dp),
-                        )
-                    }
-                } else {
-                    items(tiles, key = { it.id }) { tile ->
-                        PosterTile(tile = tile, onClick = { onOpenItem(tile.id) })
-                    }
+            TabChip(
+                label = tab.label,
+                count = count,
+                active = state.tab == tab,
+                onClick = { onSelect(tab) },
+            )
+        }
+    }
+}
+
+// Сетка контента (списки либо постеры выбранного таба) — вынесена из TvLibraryScreen.
+@Composable
+private fun LibraryContent(
+    state: LibraryState,
+    tiles: List<Tile>,
+    gridState: LazyGridState,
+    onOpenItem: (Int) -> Unit,
+) {
+    if (state.tab == LibraryTab.LISTS) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(3),
+            state = gridState,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            contentPadding = PaddingValues(bottom = 40.dp),
+        ) {
+            items(state.lists, key = { it.id }) { folder ->
+                FolderTile(title = folder.title, count = folder.count)
+            }
+        }
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(6),
+            state = gridState,
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+            contentPadding = PaddingValues(bottom = 40.dp),
+        ) {
+            if (tiles.isEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        "Здесь пока пусто",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(vertical = 40.dp),
+                    )
+                }
+            } else {
+                items(tiles, key = { it.id }) { tile ->
+                    PosterTile(tile = tile, onClick = { onOpenItem(tile.id) })
                 }
             }
         }
@@ -145,7 +172,11 @@ private fun TabChip(label: String, count: Int, active: Boolean, onClick: () -> U
             modifier = Modifier
                 .clip(shape)
                 .background(
-                    if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer
+                    if (active) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainer
+                    }
                 )
                 .padding(horizontal = 24.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -155,7 +186,11 @@ private fun TabChip(label: String, count: Int, active: Boolean, onClick: () -> U
                 label,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                color = if (active) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
             )
             Text(
                 "$count",
