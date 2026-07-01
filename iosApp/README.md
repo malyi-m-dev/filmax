@@ -2,6 +2,8 @@
 
 Первый вертикальный срез iOS-приложения: **точка входа + онбординг с авторизацией**.
 
+> 📖 **Справочник по общему data/domain-слою для Swift** — [`docs/ios-shared-layer.md`](../docs/ios-shared-layer.md): все use-case'ы, репозитории, модели, интероп SKIE, обработка ошибок и рецепты.
+
 ## Архитектура
 - **Общее (KMP, `:shared`):** data + domain — репозитории, use-case'ы, модели, сеть, хранилище токенов (`multiplatform-settings`). Экспортируется как статический фреймворк `Shared`; **SKIE** даёт дружелюбный Swift-интероп (Flow → AsyncSequence, sealed → enum, suspend → async).
 - **Презентейшен целиком на Swift:** ViewModel'и (`ObservableObject`) + SwiftUI-вью. Логика онбординга (device-flow, поллинг) переписана на Swift поверх общих `RequestDeviceCodeUseCase`/`PollForTokenUseCase`.
