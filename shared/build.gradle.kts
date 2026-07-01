@@ -3,6 +3,9 @@ import org.jetbrains.kotlin.konan.target.HostManager
 
 plugins {
     id("filmax.kmp.library")
+    // SKIE — дружелюбный Swift-интероп: Flow → AsyncSequence, sealed → enum, suspend → async.
+    // Активен только в macOS-фазе линковки фреймворка; на Android-сборку не влияет.
+    alias(libs.plugins.skie)
 }
 
 android {

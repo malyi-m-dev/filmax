@@ -1,0 +1,47 @@
+# XcodeGen-спецификация iOS-приложения Filmax.
+# На Mac: `brew install xcodegen` → в папке iosApp `xcodegen generate` → откроется Filmax.xcodeproj.
+# Проект собирает KMP-фреймворк Shared задачей Gradle перед сборкой (preBuildScript).
+name: Filmax
+options:
+  bundleIdPrefix: com.filmax
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: "" # ← подставь свой Team ID на Mac для запуска на устройстве
+
+targets:
+  Filmax:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.filmax.app
+        PRODUCT_NAME: Filmax
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Filmax
+        TARGETED_DEVICE_FAMILY: "1,2" # iPhone + iPad
+        # Путь к собранному KMP-фреймворку (кладётся задачей embedAndSignAppleFrameworkForXcode).
+        FRAMEWORK_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+        OTHER_LDFLAGS:
+          - $(inherited)
+          - -framework
+          - Shared
+    preBuildScripts:
+      - name: "Build KMP Shared framework"
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode \
+            -Pkotlin.native.cocoapods.platform=$PLATFORM_NAME \
+            -Pkotlin.native.cocoapods.archs="$ARCHS" \
+            -Pkotlin.native.cocoapods.configuration=$CONFIGURATION
