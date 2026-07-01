@@ -93,19 +93,16 @@ feature/
 
 Подробнее про TV — [`docs/TV.md`](docs/TV.md).
 
-### Скриншоты (Android TV)
+### iOS / Apple TV (KMP)
 
-Постеры подписаны названием и `год · жанр` поверх обложки (как в макете) — зритель
-ориентируется не только по картинке. Верхний таб-бар при получении фокуса возвращает
-контент в начало.
+Параллельно с Android развивается Apple-версия: **общий `data`/`domain` из Kotlin Multiplatform**
+(модуль `:shared`, фреймворк `Shared` + SKIE), а **презентейшен целиком на SwiftUI** — отдельные
+таргеты `Filmax` (iPhone/iPad) и `Filmax-tvOS` (Apple TV) в `iosApp/`. ViewModel'и общие для обеих
+платформ, различаются только View. Готово: точка входа + онбординг с авторизацией.
 
-| Главная — рельсы | Главная — сетка «Все» |
-|------------------|-----------------------|
-| ![TV Главная — рельсы](docs/screenshots/tv-home-rails.png) | ![TV Главная — сетка](docs/screenshots/tv-home-grid.png) |
-
-| Поиск | Подборка |
-|-------|----------|
-| ![TV Поиск](docs/screenshots/tv-search.png) | ![TV Подборка](docs/screenshots/tv-collection.png) |
+- Общий data/domain-слой для Swift (API, интероп SKIE, модели) — [`docs/ios-shared-layer.md`](docs/ios-shared-layer.md).
+- Сборка на macOS (iOS + Android) — [`docs/BUILD_MACOS.md`](docs/BUILD_MACOS.md).
+- Приложение и структура — [`iosApp/README.md`](iosApp/README.md).
 
 ---
 
@@ -175,6 +172,6 @@ TV-макет: [`docs/design/filmax-tv-all-screens.html`](docs/design/filmax-tv-
 
 ## Развитие
 
-Текущий техдолг и дорожная карта (в т.ч. планируемая миграция на **Kotlin Multiplatform**:
-общий `data`/`domain` + Compose Multiplatform под iOS и Android) —
+Текущий техдолг и дорожная карта (в т.ч. **Kotlin Multiplatform**: общий `data`/`domain` уже вынесен
+в `commonMain`/`:shared`, а iOS/Apple TV — на нативном **SwiftUI** поверх общего слоя, не Compose MP) —
 в [`docs/REFACTORING_PLAN.md`](docs/REFACTORING_PLAN.md).
