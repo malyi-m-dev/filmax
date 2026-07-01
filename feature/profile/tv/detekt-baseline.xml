@@ -1,9 +1,5 @@
 <?xml version="1.0" ?>
 <SmellBaseline>
   <ManuallySuppressedIssues/>
-  <CurrentIssues>
-    <ID>LongMethod:TvProfileScreen.kt$@Composable private fun SettingRow( icon: ImageVector, accent: Color, label: String, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, onClick: (() -&gt; Unit)?, showDivider: Boolean, )</ID>
-    <ID>LongParameterList:TvProfileScreen.kt$( icon: ImageVector, accent: Color, label: String, value: String? = null, badge: String? = null, labelColor: Color = MaterialTheme.colorScheme.onSurface, onClick: (() -&gt; Unit)?, showDivider: Boolean, )</ID>
-    <ID>LongParameterList:TvProfileScreen.kt$( state: ProfileState, onCycleQuality: () -&gt; Unit, onCycleAudio: () -&gt; Unit, onCycleSubtitle: () -&gt; Unit, onLogout: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
-  </CurrentIssues>
+  <CurrentIssues/>
 </SmellBaseline>
