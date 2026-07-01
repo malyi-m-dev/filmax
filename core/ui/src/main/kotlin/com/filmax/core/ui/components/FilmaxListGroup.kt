@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,6 +63,9 @@ fun FilmaxListGroup(
  *
  * Минимальное использование: `FilmaxListRow(icon, "Загрузки", onClick = {})`.
  */
+// Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier — прямой
+// параметр, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API» и modifier.
+@Suppress("LongParameterList")
 @Composable
 fun FilmaxListRow(
     icon: ImageVector,
@@ -85,38 +89,9 @@ fun FilmaxListRow(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(accent.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-                }
+                FilmaxListRowIcon(icon = icon, accent = accent)
                 Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = labelColor,
-                        )
-                        if (badge != null) {
-                            Spacer(Modifier.width(8.dp))
-                            FilmaxBadge(badge, style = FilmaxBadgeStyle.Primary)
-                        }
-                    }
-                    if (value != null) {
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            value,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+                FilmaxListRowText(label = label, labelColor = labelColor, badge = badge, value = value)
                 if (onClick != null) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowForward,
@@ -135,6 +110,52 @@ fun FilmaxListRow(
                         .background(MaterialTheme.colorScheme.outlineVariant)
                 )
             }
+        }
+    }
+}
+
+/** Цветная иконка-плитка в начале строки списка. */
+@Composable
+private fun FilmaxListRowIcon(icon: ImageVector, accent: Color) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(accent.copy(alpha = 0.2f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Текстовый блок строки: заголовок с опциональным бейджем и вспомогательное значение. */
+@Composable
+private fun RowScope.FilmaxListRowText(
+    label: String,
+    labelColor: Color,
+    badge: String?,
+    value: String?,
+) {
+    Column(Modifier.weight(1f)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                label,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = labelColor,
+            )
+            if (badge != null) {
+                Spacer(Modifier.width(8.dp))
+                FilmaxBadge(badge, style = FilmaxBadgeStyle.Primary)
+            }
+        }
+        if (value != null) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                value,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

@@ -36,6 +36,10 @@ import kotlinx.coroutines.withContext
  * Удержание экземпляра и автоотмена [screenModelScope] обеспечиваются механизмом ViewModel
  * (переживает поворот экрана, привязан к back stack-записи навигации).
  */
+// Базовый MVI-класс: перечисленные функции — это осознанный контракт фреймворка (dispatch,
+// updateState/postSideEffect, семейство showError, retry/dismissError, lifecycle). Дробить их по
+// связности незачем — набор методов и есть API базового ScreenModel.
+@Suppress("TooManyFunctions")
 abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     initialState: STATE,
 ) : ViewModel() {
