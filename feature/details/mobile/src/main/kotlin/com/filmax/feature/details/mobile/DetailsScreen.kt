@@ -188,7 +188,7 @@ private fun DetailsHeroInfo(item: Item, collapseProgress: Float, modifier: Modif
     ) {
         Surface(shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.primaryContainer) {
             Text(
-                item.genres.firstOrNull()?.title ?: "",
+                item.genres.firstOrNull()?.title.orEmpty(),
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.ExtraBold,
