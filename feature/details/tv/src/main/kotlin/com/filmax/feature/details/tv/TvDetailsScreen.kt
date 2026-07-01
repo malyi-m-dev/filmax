@@ -98,6 +98,7 @@ fun TvDetailsScreen(
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    val item = state.item
 
     Box(
         modifier = modifier
@@ -110,8 +111,7 @@ fun TvDetailsScreen(
                 modifier = Modifier.align(Alignment.Center),
             )
 
-            state.item != null -> {
-                val item = state.item!!
+            item != null -> {
                 if (item.isSeriesLike()) {
                     SeriesContent(
                         item = item,
