@@ -452,99 +452,109 @@ private fun AboutTab(item: Item, onPlayTrailer: () -> Unit) {
             modifier = Modifier.padding(bottom = 20.dp)
         )
 
-        // Stats grid — M3 Expressive colored surfaces
-        val director = item.director.ifBlank { "—" }
-        val ratingValue = item.rating.external?.let { String.format(Locale.US, "%.1f", it) } ?: "N/A"
-        val stats = listOf(
-            StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "IMDb · КП"),
-            StatItem(
-                Color(0xFFF4B792),
-                ShapeCookie,
-                "Длительность",
-                "${item.duration.averageMinutes?.toInt() ?: "?"}",
-                "мин"
-            ),
-            StatItem(
-                Color(0xFF6AC2B0),
-                ShapeAsymB,
-                "Режиссёр",
-                director.substringBefore(" "),
-                director.substringAfter(" ", "")
-            ),
-            StatItem(
-                Color(0xFFE86D9E),
-                ShapeLg,
-                "Жанр",
-                item.genres.firstOrNull()?.title ?: "—",
-                item.genres.getOrNull(1)?.title ?: "—"
-            ),
-        )
-        // Два ряда обычных Row — сетка измеряется по контенту и не накладывается на трейлер.
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            stats.chunked(2).forEach { rowItems ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    rowItems.forEach { stat ->
-                        FilmaxStatCard(
-                            accent = stat.color,
-                            shape = stat.shape,
-                            label = stat.label,
-                            value = stat.value,
-                            sub = stat.sub,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-        }
+        AboutStatsGrid(item = item)
 
         // Trailer preview
         if (item.trailer != null) {
-            Spacer(Modifier.height(24.dp))
-            Text(
-                "Трейлер",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .clickable(onClick = onPlayTrailer),
-            ) {
-                PosterImage(
-                    url = item.posters.big,
-                    contentDescription = null,
-                    modifier = Modifier.matchParentSize(),
-                    shape = RoundedCornerShape(0.dp),
-                    accentColor = AccentColor,
-                )
-                Box(Modifier.matchParentSize().background(Color(0x66000000)))
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(Color.White),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Filled.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.Black,
-                        modifier = Modifier.size(28.dp)
+            AboutTrailer(item = item, onPlayTrailer = onPlayTrailer)
+        }
+    }
+}
+
+@Composable
+private fun AboutStatsGrid(item: Item) {
+    // Stats grid — M3 Expressive colored surfaces
+    val director = item.director.ifBlank { "—" }
+    val ratingValue = item.rating.external?.let { String.format(Locale.US, "%.1f", it) } ?: "N/A"
+    val stats = listOf(
+        StatItem(Color(0xFFB4305A), ShapeAsymA, "Рейтинг", ratingValue, "IMDb · КП"),
+        StatItem(
+            Color(0xFFF4B792),
+            ShapeCookie,
+            "Длительность",
+            "${item.duration.averageMinutes?.toInt() ?: "?"}",
+            "мин"
+        ),
+        StatItem(
+            Color(0xFF6AC2B0),
+            ShapeAsymB,
+            "Режиссёр",
+            director.substringBefore(" "),
+            director.substringAfter(" ", "")
+        ),
+        StatItem(
+            Color(0xFFE86D9E),
+            ShapeLg,
+            "Жанр",
+            item.genres.firstOrNull()?.title ?: "—",
+            item.genres.getOrNull(1)?.title ?: "—"
+        ),
+    )
+    // Два ряда обычных Row — сетка измеряется по контенту и не накладывается на трейлер.
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        stats.chunked(2).forEach { rowItems ->
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                rowItems.forEach { stat ->
+                    FilmaxStatCard(
+                        accent = stat.color,
+                        shape = stat.shape,
+                        label = stat.label,
+                        value = stat.value,
+                        sub = stat.sub,
+                        modifier = Modifier.weight(1f),
                     )
                 }
-                Text(
-                    "Официальный трейлер",
-                    modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
             }
         }
+    }
+}
+
+@Composable
+private fun AboutTrailer(item: Item, onPlayTrailer: () -> Unit) {
+    Spacer(Modifier.height(24.dp))
+    Text(
+        "Трейлер",
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(bottom = 12.dp)
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(onClick = onPlayTrailer),
+    ) {
+        PosterImage(
+            url = item.posters.big,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            shape = RoundedCornerShape(0.dp),
+            accentColor = AccentColor,
+        )
+        Box(Modifier.matchParentSize().background(Color(0x66000000)))
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(Color.White),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                contentDescription = null,
+                tint = Color.Black,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+        Text(
+            "Официальный трейлер",
+            modifier = Modifier.align(Alignment.BottomStart).padding(14.dp),
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
