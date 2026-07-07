@@ -10,8 +10,8 @@ on:
   workflow_dispatch:
     inputs:
       module:
-        description: "Gradle-модуль для сборки (например :app-tv или :app)"
-        default: ":app-tv"
+        description: "Gradle-модуль для сборки (в проекте единственный :app)"
+        default: ":app"
         type: string
 
 permissions:
@@ -61,6 +61,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Полная история: versionCode = число коммитов (см. app/build.gradle.kts).
+          fetch-depth: 0
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
