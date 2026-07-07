@@ -1,0 +1,151 @@
+name: Release (tag v*) → GitHub Release + Telegram
+
+# Триггер — пуш git-тега вида v1.2.3. Собирает ПОДПИСАННЫЙ release-APK
+# (R8 + shrinkResources), публикует его в GitHub Release с авто-changelog
+# и дублирует в Telegram (с учётом лимита бота 50 МБ).
+#
+# Требуемые секреты репозитория:
+#   KEYSTORE_BASE64   — release-keystore (.jks), закодированный base64
+#   KEYSTORE_PASSWORD — пароль keystore
+#   KEY_ALIAS         — алиас ключа
+#   KEY_PASSWORD      — пароль ключа
+#   TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID — уже используются debug-workflow
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write   # нужно для создания GitHub Release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (полная история + теги)
+        uses: actions/checkout@v4
+        with:
+          # versionCode = число коммитов, versionName = из тега — нужна вся история.
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      # Декодируем keystore из base64-секрета во временный файл раннера.
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::Секрет KEYSTORE_BASE64 не задан — нечем подписывать release."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/filmax-release.jks"
+          echo "KEYSTORE_FILE=$RUNNER_TEMP/filmax-release.jks" >> "$GITHUB_ENV"
+
+      - name: Assemble signed release APK
+        env:
+          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Locate & rename APK
+        id: apk
+        run: |
+          path=$(find . -path '*/outputs/apk/release/*.apk' | head -n1)
+          if [ -z "$path" ]; then echo "::error::release-APK не найден"; exit 1; fi
+          version="${GITHUB_REF_NAME#v}"
+          dest="filmax-${version}.apk"
+          cp "$path" "$dest"
+          size_mb=$(( $(stat -c%s "$dest") / 1048576 ))
+          {
+            echo "path=$dest"
+            echo "version=$version"
+            echo "size_mb=$size_mb"
+          } >> "$GITHUB_OUTPUT"
+          echo "APK: $dest (${size_mb} МБ)"
+
+      # Авто-changelog из коммитов между предыдущим и текущим тегом.
+      # Коммиты по Conventional Commits (feat/fix/perf/...), группируем по типам.
+      - name: Generate changelog
+        id: changelog
+        run: |
+          prev=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          if [ -n "$prev" ]; then
+            range="${prev}..${GITHUB_REF_NAME}"
+            echo "Изменения с ${prev}:" > "$RUNNER_TEMP/changelog.md"
+          else
+            range="${GITHUB_REF_NAME}"
+            echo "Первый релиз Filmax." > "$RUNNER_TEMP/changelog.md"
+          fi
+          echo >> "$RUNNER_TEMP/changelog.md"
+          emit() {
+            local prefix="$1" title="$2"
+            local lines
+            lines=$(git log --no-merges --pretty='%s' "$range" | grep -E "^${prefix}(\(.+\))?(!)?: " || true)
+            if [ -n "$lines" ]; then
+              echo "### ${title}" >> "$RUNNER_TEMP/changelog.md"
+              printf '%s\n' "$lines" | sed -E "s/^${prefix}(\(.+\))?(!)?: /- /" >> "$RUNNER_TEMP/changelog.md"
+              echo >> "$RUNNER_TEMP/changelog.md"
+            fi
+          }
+          emit "feat" "Новое"
+          emit "fix"  "Исправления"
+          emit "perf" "Производительность"
+          # Фолбэк, если по конвенции ничего не распозналось.
+          if [ "$(wc -l < "$RUNNER_TEMP/changelog.md")" -le 2 ]; then
+            echo "### Коммиты" >> "$RUNNER_TEMP/changelog.md"
+            git log --no-merges --pretty='- %s' "$range" >> "$RUNNER_TEMP/changelog.md"
+          fi
+          echo "---" >> "$RUNNER_TEMP/changelog.md"
+          echo "versionName ${{ steps.apk.outputs.version }} · размер ${{ steps.apk.outputs.size_mb }} МБ" >> "$RUNNER_TEMP/changelog.md"
+          echo "Собрано из тега \`${GITHUB_REF_NAME}\`." >> "$RUNNER_TEMP/changelog.md"
+          cat "$RUNNER_TEMP/changelog.md"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            "${{ steps.apk.outputs.path }}" \
+            --title "Filmax ${{ steps.apk.outputs.version }}" \
+            --notes-file "$RUNNER_TEMP/changelog.md"
+          echo "GitHub Release ${GITHUB_REF_NAME} опубликован."
+
+      # Дублируем APK в Telegram. Лимит бота — 50 МБ; если больше — шлём ссылку на Release.
+      - name: Send APK to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          APK: ${{ steps.apk.outputs.path }}
+          VERSION: ${{ steps.apk.outputs.version }}
+          SIZE_MB: ${{ steps.apk.outputs.size_mb }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::warning::Секреты Telegram не заданы — пропускаю. APK в GitHub Release."
+            exit 0
+          fi
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          caption=$(printf 'Filmax %s · release\nПодписанный APK (%s МБ)\nRelease: %s' "$VERSION" "$SIZE_MB" "$release_url")
+          if [ "$SIZE_MB" -ge 50 ]; then
+            echo "::warning::APK ${SIZE_MB}MB ≥ 50MB — шлю ссылку вместо файла."
+            curl -sS -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d chat_id="${TELEGRAM_CHAT_ID}" \
+              --data-urlencode "text=Filmax ${VERSION} (release, ${SIZE_MB}MB) — превышает лимит Telegram 50MB. Скачай из GitHub Release: ${release_url}"
+            exit 0
+          fi
+          curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+            -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F document=@"${APK}" \
+            -F caption="$caption"
+          echo "Release-APK отправлен в Telegram."
