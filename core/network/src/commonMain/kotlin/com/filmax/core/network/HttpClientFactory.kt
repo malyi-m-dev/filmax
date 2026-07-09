@@ -31,6 +31,9 @@ val networkJson = Json {
  * Общий Ktor [HttpClient]. [engine] предоставляется платформой
  * (OkHttp на Android — с Chucker-перехватчиком, Darwin на iOS).
  */
+// Намеренно ловим Throwable в refreshTokens: любой транзиентный сбой обмена не должен ронять
+// клиент/сессию (как и граница ошибок в safeRequest). CancellationException пробрасывается выше.
+@Suppress("TooGenericExceptionCaught")
 fun buildHttpClient(
     engine: HttpClientEngine,
     tokenStorage: TokenStorage,
