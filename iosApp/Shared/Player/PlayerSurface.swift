@@ -26,6 +26,8 @@ struct PlayerSurface: View {
     @ObservedObject var viewModel: PlayerViewModel
     @State private var player: AVPlayer?
     @State private var timeObserver: Any?
+    /// URL, для которого уже создан текущий плеер — чтобы не пересоздавать его дважды на старте.
+    @State private var currentURL: URL?
 
     var body: some View {
         ZStack {
@@ -47,7 +49,10 @@ struct PlayerSurface: View {
         }
         // Пересоздаём плеер при смене URL (например, переключение качества из оверлея).
         .onChange(of: viewModel.streamURL) { _ in setupPlayer() }
-        .onDisappear { teardown() }
+        .onDisappear {
+            teardownPlayer(saveProgress: true)
+            currentURL = nil
+        }
     }
 
     @ViewBuilder private var qualityMenu: some View {
@@ -83,11 +88,18 @@ struct PlayerSurface: View {
     // MARK: - Жизненный цикл плеера
 
     private func setupPlayer() {
-        guard let url = viewModel.streamURL else { return }
-        teardown()
+        guard let url = viewModel.streamURL, url != currentURL else { return }
+        // Позиция для возобновления: текущая позиция прежнего плеера (смена качества «на лету»)
+        // либо сохранённый прогресс из истории — берём большую, чтобы не откатиться назад.
+        let previous = player?.currentTime().seconds ?? 0
+        let resumeAt = max(viewModel.startSeconds, previous.isFinite ? previous : 0)
+
+        teardownPlayer(saveProgress: false)
+        currentURL = url
+
         let newPlayer = AVPlayer(url: url)
-        if viewModel.startSeconds > 1 {
-            newPlayer.seek(to: CMTime(seconds: viewModel.startSeconds, preferredTimescale: 1))
+        if resumeAt > 1 {
+            newPlayer.seek(to: CMTime(seconds: resumeAt, preferredTimescale: 1))
         }
         addProgressObserver(to: newPlayer)
         newPlayer.play()
@@ -98,23 +110,28 @@ struct PlayerSurface: View {
         // Периодически (раз в 15 сек) пишем прогресс через общий слой.
         let interval = CMTime(seconds: 15, preferredTimescale: 1)
         timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
-            let seconds = Int(time.seconds)
-            guard seconds > 0 else { return }
-            Task { await viewModel.saveProgress(seconds: seconds) }
+            let seconds = time.seconds
+            // CMTime может быть NaN/indefinite (плеер не готов) — Int(nan) роняет приложение.
+            guard seconds.isFinite, seconds > 0 else { return }
+            Task { await viewModel.saveProgress(seconds: Int(seconds)) }
         }
     }
 
     private func reload() async {
+        currentURL = nil
         await viewModel.load()
         setupPlayer()
     }
 
-    private func teardown() {
+    private func teardownPlayer(saveProgress: Bool) {
         if let player, let timeObserver {
             player.removeTimeObserver(timeObserver)
-            // Финальное сохранение позиции при выходе.
-            let seconds = Int(player.currentTime().seconds)
-            if seconds > 0 { Task { await viewModel.saveProgress(seconds: seconds) } }
+            if saveProgress {
+                let seconds = player.currentTime().seconds
+                if seconds.isFinite, seconds > 0 {
+                    Task { await viewModel.saveProgress(seconds: Int(seconds)) }
+                }
+            }
         }
         timeObserver = nil
         player?.pause()

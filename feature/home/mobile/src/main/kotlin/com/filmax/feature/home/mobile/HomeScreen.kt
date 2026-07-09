@@ -68,6 +68,7 @@ fun HomeScreen(
 ) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
+    val offline by screenModel.collectOfflineBannerAsState()
 
     Box(
         modifier = modifier
@@ -81,6 +82,7 @@ fun HomeScreen(
 
             else -> HomeContent(
                 state = state,
+                offline = offline,
                 onOpenItem = onOpenItem,
                 onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
                 onReload = { screenModel.dispatch(HomeEvent.Load) },
@@ -100,6 +102,7 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(
     state: HomeState,
+    offline: Boolean,
     onOpenItem: (Int) -> Unit,
     onLoadMore: () -> Unit,
     onReload: () -> Unit,
@@ -122,7 +125,7 @@ private fun HomeContent(
             // Reserve space for the pinned top bar (status bar inset + bar height)
             Spacer(Modifier.statusBarsPadding().height(60.dp))
             // Офлайн-деградация (issue #42): контент из кэша + ненавязчивый баннер вместо модалки.
-            if (state.fromCache) {
+            if (offline) {
                 OfflineBanner(
                     onReload = onReload,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

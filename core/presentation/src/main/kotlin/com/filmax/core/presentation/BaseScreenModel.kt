@@ -125,20 +125,6 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
         showError(error.toAppError())
     }
 
-    /**
-     * Единый разбор ошибки под graceful degradation (issue #42):
-     *  - есть уже загруженный контент и ошибка сетевая (Offline/Timeout) → баннер «нет сети»
-     *    (контент остаётся на экране, модалка не блокирует);
-     *  - иначе (пусто или несетевая ошибка) → модалка ошибки.
-     */
-    protected suspend fun presentError(error: AppError, hasContent: Boolean) {
-        if (hasContent && (error == AppError.Offline || error == AppError.Timeout)) {
-            showOfflineBanner()
-        } else {
-            showError(error)
-        }
-    }
-
     /** Показать баннер «нет сети» (контент отдан из кэша). */
     protected suspend fun showOfflineBanner() {
         withContext(mainThreadDispatcher) { _offlineBanner.emit(true) }

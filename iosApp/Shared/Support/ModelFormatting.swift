@@ -34,7 +34,9 @@ extension Item {
     /// Широкий бэкдроп, если есть, иначе большой постер.
     var backdropURL: String { posters.wide ?? posters.big }
 
-    var isSeries: Bool { tracklist.count > 1 }
+    /// Сериал: несколько серий ИЛИ хотя бы одна серия с номером сезона (единственная серия сериала
+    /// тоже должна писать прогресс как серийный — `seasonNumber > 0`, у фильма это 0).
+    var isSeries: Bool { tracklist.count > 1 || tracklist.contains { $0.seasonNumber > 0 } }
 }
 
 extension WatchHistory {

@@ -23,6 +23,7 @@ final class SearchViewModel: ObservableObject {
             results = []
             error = nil
             isIdle = true
+            isLoading = false
             return
         }
         task = Task { [weak self] in
@@ -38,6 +39,9 @@ final class SearchViewModel: ObservableObject {
         isIdle = false
         do {
             let result = try await search.search(query: text, type: nil, perPage: 24)
+            // Пока шёл запрос, пользователь мог набрать дальше (новый task отменил этот) —
+            // не затираем свежие результаты устаревшим ответом.
+            if Task.isCancelled { return }
             switch onEnum(of: result) {
             case .success(let success):
                 results = (success.data as? [Item]) ?? []
@@ -46,6 +50,7 @@ final class SearchViewModel: ObservableObject {
                 results = []
             }
         } catch {
+            if Task.isCancelled { return }
             self.error = error.localizedDescription
         }
         isLoading = false

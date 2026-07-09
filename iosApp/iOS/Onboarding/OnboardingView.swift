@@ -67,7 +67,8 @@ private struct FeaturesStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            ForEach(features, id: \.1) { icon, title, subtitle in
+            ForEach(features.indices, id: \.self) { index in
+                let (icon, title, subtitle) = features[index]
                 HStack(spacing: 16) {
                     Image(systemName: icon)
                         .font(.system(size: 24))

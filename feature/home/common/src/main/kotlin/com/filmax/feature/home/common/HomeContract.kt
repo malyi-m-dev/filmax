@@ -22,8 +22,6 @@ data class HomeState(
     /** Достигнут конец списка «Все» — больше не грузим. */
     val allEndReached: Boolean = false,
     val error: String? = null,
-    /** Контент показан из кэша при офлайне (issue #42) — экран рисует баннер «нет сети». */
-    val fromCache: Boolean = false,
 )
 
 sealed interface HomeEvent {

@@ -45,13 +45,16 @@ class GetHomeFeedUseCase(
             error = firstErrorMessage(hot, trending, collections, forYou),
         )
 
-        if (feed.hasContent) {
-            // Успех (хотя бы частичный) — обновляем кэш «чистой» версией без флага/ошибки.
-            cache.put(feed.copy(error = null, fromCache = false))
-            feed
-        } else {
+        when {
+            // Полный успех — кэшируем целиком (fromCache уже false).
+            feed.error == null && feed.hasContent -> {
+                cache.put(feed)
+                feed
+            }
+            // Частичный успех: показываем, что пришло, но НЕ портим более полный прежний кэш.
+            feed.hasContent -> feed
             // Пусто (офлайн/сбой): есть кэш → отдаём его как stale + баннер; нет → ошибка-модалка.
-            cache.get()?.copy(error = feed.error, fromCache = true) ?: feed
+            else -> cache.get()?.copy(error = feed.error, fromCache = true) ?: feed
         }
     }
 

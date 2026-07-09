@@ -3,6 +3,7 @@ package com.filmax.core.network
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.plugins.ClientRequestException
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
@@ -58,6 +59,13 @@ fun buildHttpClient(
             // первый запрос ушёл без заголовка и получил 401; тогда refresh_token в хранилище
             // ещё «старый», обмен даст актуальные токены (или, если его нет, — logout).
             refreshTokens {
+                // Если в хранилище уже более свежий access, чем протухший (свежий device-логин —
+                // кэш loadTokens на старте был пуст; либо параллельный запрос уже обновил токены) —
+                // используем его без сетевого обмена (не тратим refresh_token зря).
+                val storedAccess = tokenStorage.getAccessToken()
+                if (!storedAccess.isNullOrBlank() && storedAccess != oldTokens?.accessToken) {
+                    return@refreshTokens BearerTokens(storedAccess, tokenStorage.getRefreshToken().orEmpty())
+                }
                 val refresh = tokenStorage.getRefreshToken()
                 if (refresh.isNullOrBlank()) {
                     // Нечем обновляться — единый сценарий logout, без цикла 401.
@@ -75,9 +83,13 @@ fun buildHttpClient(
                     BearerTokens(response.accessToken, response.refreshToken)
                 } catch (cancellation: CancellationException) {
                     throw cancellation
-                } catch (throwable: Throwable) {
-                    // refresh_token тоже невалиден → чистим сессию и уводим на онбординг.
+                } catch (rejected: ClientRequestException) {
+                    // 4xx от OAuth (invalid_grant): refresh_token действительно невалиден → logout.
                     tokenStorage.clear()
+                    null
+                } catch (transient: Throwable) {
+                    // Транзиентный сбой (offline/timeout/5xx): НЕ разлогиниваем — обновление не удалось,
+                    // исходный запрос вернёт 401, но сессия сохранится до восстановления сети.
                     null
                 }
             }

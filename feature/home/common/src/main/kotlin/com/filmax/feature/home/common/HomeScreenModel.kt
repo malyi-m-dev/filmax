@@ -59,7 +59,6 @@ class HomeScreenModel(
                     trending = feed.trending,
                     forYou = feed.forYou,
                     error = feed.error,
-                    fromCache = feed.fromCache,
                 )
             }
             when {

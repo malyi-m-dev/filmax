@@ -75,6 +75,7 @@ fun TvHomeScreen(
     screenModel: HomeScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    val offline by screenModel.collectOfflineBannerAsState()
 
     Box(
         modifier = modifier
@@ -88,6 +89,7 @@ fun TvHomeScreen(
 
             else -> TvHomeContent(
                 state = state,
+                offline = offline,
                 onOpenItem = onOpenItem,
                 onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
                 onReload = { screenModel.dispatch(HomeEvent.Load) },
@@ -99,6 +101,7 @@ fun TvHomeScreen(
 @Composable
 private fun TvHomeContent(
     state: HomeState,
+    offline: Boolean,
     onOpenItem: (Int) -> Unit,
     onLoadMore: () -> Unit,
     onReload: () -> Unit,
@@ -126,7 +129,7 @@ private fun TvHomeContent(
         verticalArrangement = Arrangement.spacedBy(36.dp),
     ) {
         // Офлайн-деградация (issue #42): кэшированный контент + баннер «нет сети» вместо ошибки.
-        if (state.fromCache) {
+        if (offline) {
             item(key = "offline") { TvOfflineBanner(onReload = onReload) }
         }
         state.hero?.let { hero ->
