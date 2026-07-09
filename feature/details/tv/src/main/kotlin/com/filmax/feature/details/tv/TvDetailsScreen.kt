@@ -537,6 +537,33 @@ private data class SeriesPlaybackActions(
     val onToggleFav: () -> Unit,
 )
 
+/**
+ * Производные данные сериала для экрана: сезоны (сгруппированы и отсортированы) и точка «продолжить».
+ * Отдельная чистая модель вместо переплетённых remember-блоков в Composable.
+ */
+private data class SeriesData(
+    /** Пары «номер сезона → серии по порядку», отсортированные по номеру сезона. */
+    val seasons: List<Pair<Int, List<MediaTrack>>>,
+    /** Эпизод для «продолжить»: в процессе → последний досмотренный → иначе null. */
+    val resume: MediaTrack?,
+    /** Индекс сезона эпизода «продолжить» в [seasons] (0, если не определён). */
+    val resumeSeasonIndex: Int,
+)
+
+/** Считает [SeriesData] из плейлиста серий — чистая функция, тестируемая отдельно от UI. */
+private fun calculateSeriesData(tracklist: List<MediaTrack>): SeriesData {
+    val seasons = tracklist
+        .groupBy { it.seasonNumber }
+        .toSortedMap()
+        .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
+    val resume = tracklist.firstOrNull { it.watchStatus == 0 }
+        ?: tracklist.lastOrNull { it.watchStatus == 1 }
+    val resumeSeasonIndex = resume
+        ?.let { episode -> seasons.indexOfFirst { it.first == episode.seasonNumber }.takeIf { it >= 0 } }
+        ?: 0
+    return SeriesData(seasons = seasons, resume = resume, resumeSeasonIndex = resumeSeasonIndex)
+}
+
 @Composable
 private fun SeriesContent(
     item: Item,
@@ -544,22 +571,12 @@ private fun SeriesContent(
     onPlayEpisode: (videoId: Int) -> Unit,
     onToggleFav: () -> Unit,
 ) {
-    // Сезоны: группируем эпизоды по номеру сезона, сохраняя порядок серий.
-    val seasons = remember(item) {
-        item.tracklist
-            .groupBy { it.seasonNumber }
-            .toSortedMap()
-            .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
-    }
-    // Продолжить: эпизод «в процессе», иначе последний досмотренный, иначе первый.
-    val resume = remember(item) {
-        item.tracklist.firstOrNull { it.watchStatus == 0 }
-            ?: item.tracklist.lastOrNull { it.watchStatus == 1 }
-    }
-    val resumeSeasonIndex = remember(item) {
-        resume?.let { r -> seasons.indexOfFirst { it.first == r.seasonNumber }.takeIf { it >= 0 } } ?: 0
-    }
-    var selectedSeason by remember(item.id) { mutableIntStateOf(resumeSeasonIndex) }
+    // Производная модель сериала (сезоны + «продолжить») считается одним чистым преобразованием —
+    // так проще читать, чем три переплетённых remember-блока (см. docs/refactoring-guidelines.md).
+    val seriesData = remember(item) { calculateSeriesData(item.tracklist) }
+    val seasons = seriesData.seasons
+    val resume = seriesData.resume
+    var selectedSeason by remember(item.id) { mutableIntStateOf(seriesData.resumeSeasonIndex) }
     val currentEpisodes = seasons.getOrNull(selectedSeason)?.second.orEmpty()
 
     val playFocus = remember { FocusRequester() }
