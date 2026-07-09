@@ -15,10 +15,10 @@ import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.url
 import io.ktor.serialization.kotlinx.json.json
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlin.coroutines.cancellation.CancellationException
 
 const val BASE_URL = "https://smarttvcdn.online/"
 
@@ -31,9 +31,9 @@ val networkJson = Json {
  * Общий Ktor [HttpClient]. [engine] предоставляется платформой
  * (OkHttp на Android — с Chucker-перехватчиком, Darwin на iOS).
  */
-// Намеренно ловим Throwable в refreshTokens: любой транзиентный сбой обмена не должен ронять
-// клиент/сессию (как и граница ошибок в safeRequest). CancellationException пробрасывается выше.
-@Suppress("TooGenericExceptionCaught")
+// Намеренно ловим Throwable в refreshTokens и «глотаем» его: любой транзиентный сбой обмена не
+// должен ронять клиент/сессию (как и граница ошибок в safeRequest). CancellationException — выше.
+@Suppress("TooGenericExceptionCaught", "SwallowedException")
 fun buildHttpClient(
     engine: HttpClientEngine,
     tokenStorage: TokenStorage,

@@ -1,10 +1,10 @@
 package com.filmax.shared
 
+import com.filmax.core.domain.common.LastValueCache
 import com.filmax.core.domain.usecase.auth.LogoutUseCase
 import com.filmax.core.domain.usecase.auth.ObserveAuthStateUseCase
 import com.filmax.core.domain.usecase.auth.PollForTokenUseCase
 import com.filmax.core.domain.usecase.auth.RequestDeviceCodeUseCase
-import com.filmax.core.domain.common.LastValueCache
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchedUseCase
