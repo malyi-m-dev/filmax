@@ -4,7 +4,9 @@ import com.filmax.core.domain.usecase.auth.LogoutUseCase
 import com.filmax.core.domain.usecase.auth.ObserveAuthStateUseCase
 import com.filmax.core.domain.usecase.auth.PollForTokenUseCase
 import com.filmax.core.domain.usecase.auth.RequestDeviceCodeUseCase
+import com.filmax.core.domain.common.LastValueCache
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
+import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
 import com.filmax.core.network.di.networkModule
@@ -21,7 +23,9 @@ import org.koin.dsl.module
 
 /** UseCase-слой как Koin-модуль — общий для Android и iOS. */
 val useCaseModule = module {
-    factory { GetHomeFeedUseCase(catalog = get(), watching = get()) }
+    // Кэш последней ленты — single, чтобы переживать пересоздание use-case (офлайн-устойчивость #42).
+    single { LastValueCache<HomeFeed>() }
+    factory { GetHomeFeedUseCase(catalog = get(), watching = get(), cache = get()) }
     factory { ObserveAuthStateUseCase(get()) }
     factory { RequestDeviceCodeUseCase(get()) }
     factory { PollForTokenUseCase(get()) }

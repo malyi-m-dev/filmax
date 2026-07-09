@@ -16,4 +16,17 @@ data class HomeFeed(
     val trending: List<Item>,
     val forYou: List<Item>,
     val error: String?,
-)
+    /**
+     * true — данные отданы из кэша при недоступной сети (issue #42): показываем ранее
+     * загруженный контент + ненавязчивый баннер «нет сети» вместо блокирующей модалки.
+     */
+    val fromCache: Boolean = false,
+) {
+    /** Есть ли что показать — хотя бы одна секция непуста (иначе экран считается пустым). */
+    val hasContent: Boolean
+        get() = hero != null ||
+            continueWatching.isNotEmpty() ||
+            collections.isNotEmpty() ||
+            trending.isNotEmpty() ||
+            forYou.isNotEmpty()
+}

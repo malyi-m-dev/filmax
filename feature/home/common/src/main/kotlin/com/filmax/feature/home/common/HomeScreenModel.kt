@@ -59,11 +59,16 @@ class HomeScreenModel(
                     trending = feed.trending,
                     forYou = feed.forYou,
                     error = feed.error,
+                    fromCache = feed.fromCache,
                 )
             }
-            // Если контент не загрузился вовсе — показываем модалку ошибки.
-            if (feed.hero == null && feed.trending.isEmpty() && feed.error != null) {
-                showError(feed.error)
+            when {
+                // Контент из кэша при офлайне (issue #42) — показываем баннер, не модалку.
+                feed.fromCache -> showOfflineBanner()
+                // Пусто + ошибка — блокирующая модалка.
+                !feed.hasContent && feed.error != null -> showError(feed.error)
+                // Свежие данные приехали — прячем баннер, если висел.
+                else -> dismissOfflineBanner()
             }
         }
         // Первая страница секции «Все» грузится параллельно ленте.

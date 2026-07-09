@@ -54,6 +54,9 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     /** Текущая ошибка для модального окна (null — модалки нет). */
     private val _error: MutableStateFlow<AppError?> = MutableStateFlow(null)
 
+    /** Показан ли ненавязчивый баннер «нет сети» (issue #42): контент из кэша при офлайне. */
+    private val _offlineBanner: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
     /** Текущий снимок состояния. Доступен подклассам для чтения внутри корутин. */
     protected val state: STATE
         get() = _state.value
@@ -122,14 +125,45 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
         showError(error.toAppError())
     }
 
+    /**
+     * Единый разбор ошибки под graceful degradation (issue #42):
+     *  - есть уже загруженный контент и ошибка сетевая (Offline/Timeout) → баннер «нет сети»
+     *    (контент остаётся на экране, модалка не блокирует);
+     *  - иначе (пусто или несетевая ошибка) → модалка ошибки.
+     */
+    protected suspend fun presentError(error: AppError, hasContent: Boolean) {
+        if (hasContent && (error == AppError.Offline || error == AppError.Timeout)) {
+            showOfflineBanner()
+        } else {
+            showError(error)
+        }
+    }
+
+    /** Показать баннер «нет сети» (контент отдан из кэша). */
+    protected suspend fun showOfflineBanner() {
+        withContext(mainThreadDispatcher) { _offlineBanner.emit(true) }
+    }
+
+    /** Скрыть баннер «нет сети» (например, после успешного обновления). */
+    fun dismissOfflineBanner() {
+        _offlineBanner.value = false
+    }
+
+    /** Подписка экрана на баннер «нет сети». */
+    @Composable
+    fun collectOfflineBannerAsState(): State<Boolean> {
+        return _offlineBanner.collectAsState()
+    }
+
     /** Закрывает модалку ошибки. Вызывается из UI. */
     fun dismissError() {
         _error.value = null
     }
 
-    /** Повторная загрузка данных — для кнопки «Повторить» в модалке ошибки. */
+    /** Повторная загрузка данных — для кнопки «Повторить» в модалке ошибки или баннере «нет сети». */
     fun retry() {
         _error.value = null
+        _offlineBanner.value = false
         onFetchData()
     }
 

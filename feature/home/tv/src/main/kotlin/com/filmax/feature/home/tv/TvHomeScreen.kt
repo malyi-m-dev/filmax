@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
@@ -89,6 +90,7 @@ fun TvHomeScreen(
                 state = state,
                 onOpenItem = onOpenItem,
                 onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
+                onReload = { screenModel.dispatch(HomeEvent.Load) },
             )
         }
     }
@@ -99,6 +101,7 @@ private fun TvHomeContent(
     state: HomeState,
     onOpenItem: (Int) -> Unit,
     onLoadMore: () -> Unit,
+    onReload: () -> Unit,
 ) {
     val listState = rememberLazyListState()
     ScrollToTopOnNavFocus(listState)
@@ -122,6 +125,10 @@ private fun TvHomeContent(
         contentPadding = PaddingValues(top = 0.dp, bottom = 56.dp),
         verticalArrangement = Arrangement.spacedBy(36.dp),
     ) {
+        // Офлайн-деградация (issue #42): кэшированный контент + баннер «нет сети» вместо ошибки.
+        if (state.fromCache) {
+            item(key = "offline") { TvOfflineBanner(onReload = onReload) }
+        }
         state.hero?.let { hero ->
             item(key = "hero") {
                 TvHero(
@@ -495,4 +502,16 @@ private fun formatDuration(totalMinutes: Int): String {
         h > 0 -> "${h}ч"
         else -> "${m}м"
     }
+}
+
+/** Баннер «нет сети» над кэшированным контентом на Apple TV; фокус+OK — повторить (issue #42). */
+@Composable
+private fun TvOfflineBanner(onReload: () -> Unit) {
+    TvButton(
+        text = "Нет сети — показаны сохранённые данные. Нажмите, чтобы повторить",
+        onClick = onReload,
+        primary = false,
+        leadingIcon = Icons.Filled.CloudOff,
+        modifier = Modifier.padding(horizontal = 56.dp),
+    )
 }

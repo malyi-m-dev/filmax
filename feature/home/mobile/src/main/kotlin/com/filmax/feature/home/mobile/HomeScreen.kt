@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -82,6 +83,7 @@ fun HomeScreen(
                 state = state,
                 onOpenItem = onOpenItem,
                 onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
+                onReload = { screenModel.dispatch(HomeEvent.Load) },
             )
         }
 
@@ -100,6 +102,7 @@ private fun HomeContent(
     state: HomeState,
     onOpenItem: (Int) -> Unit,
     onLoadMore: () -> Unit,
+    onReload: () -> Unit,
 ) {
     val scrollState = rememberScrollState()
     // Триггер догрузки секции «Все»: когда скролл подходит к низу (порог ~700px).
@@ -118,6 +121,13 @@ private fun HomeContent(
         ) {
             // Reserve space for the pinned top bar (status bar inset + bar height)
             Spacer(Modifier.statusBarsPadding().height(60.dp))
+            // Офлайн-деградация (issue #42): контент из кэша + ненавязчивый баннер вместо модалки.
+            if (state.fromCache) {
+                OfflineBanner(
+                    onReload = onReload,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             HeroSection(hero = state.hero, onOpenItem = onOpenItem)
             ContinueWatchingSection(state = state, onOpenItem = onOpenItem)
             TrendingSection(state = state, onOpenItem = onOpenItem)
@@ -334,6 +344,35 @@ private fun HomeTopBar(initials: String, modifier: Modifier = Modifier) {
                     )
                 }
             }
+        }
+    }
+}
+
+/** Ненавязчивый баннер «нет сети» над кэшированным контентом; тап — повторить загрузку (issue #42). */
+@Composable
+private fun OfflineBanner(onReload: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF6B4B8F),
+        modifier = modifier.fillMaxWidth().clickable(onClick = onReload),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                Icons.Filled.CloudOff,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                "Нет сети — показаны сохранённые данные. Нажмите, чтобы повторить",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+            )
         }
     }
 }

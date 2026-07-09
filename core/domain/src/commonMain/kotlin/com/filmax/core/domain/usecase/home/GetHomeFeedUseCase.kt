@@ -3,6 +3,7 @@ package com.filmax.core.domain.usecase.home
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.common.LastValueCache
 import com.filmax.core.domain.common.firstErrorMessage
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.watching.WatchingRepository
@@ -12,10 +13,15 @@ import kotlinx.coroutines.coroutineScope
 /**
  * Собирает данные главного экрана из нескольких параллельных запросов.
  * Общая бизнес-логика для Android-ScreenModel и iOS-ViewModel.
+ *
+ * Офлайн-устойчивость (issue #42): последняя успешная лента кэшируется ([cache]); если очередной
+ * запрос ничего не вернул (сеть/сбой) — отдаём кэш с флагом [HomeFeed.fromCache], чтобы UI показал
+ * прежний контент + баннер «нет сети» вместо пустого экрана с ошибкой.
  */
 class GetHomeFeedUseCase(
     private val catalog: CatalogRepository,
     private val watching: WatchingRepository,
+    private val cache: LastValueCache<HomeFeed>,
 ) {
     suspend operator fun invoke(): HomeFeed = coroutineScope {
         val hotDeferred = async { catalog.getHotItems(ItemType.MOVIE) }
@@ -30,7 +36,7 @@ class GetHomeFeedUseCase(
         val forYou = forYouDeferred.await()
         val history = historyDeferred.await()
 
-        HomeFeed(
+        val feed = HomeFeed(
             hero = hot.getOrNull()?.items?.firstOrNull(),
             continueWatching = history.getOrNull()?.take(CONTINUE_WATCHING_LIMIT) ?: emptyList(),
             collections = collections.getOrNull()?.take(COLLECTIONS_LIMIT) ?: emptyList(),
@@ -38,6 +44,15 @@ class GetHomeFeedUseCase(
             forYou = forYou.getOrNull()?.items?.take(ROW_LIMIT) ?: emptyList(),
             error = firstErrorMessage(hot, trending, collections, forYou),
         )
+
+        if (feed.hasContent) {
+            // Успех (хотя бы частичный) — обновляем кэш «чистой» версией без флага/ошибки.
+            cache.put(feed.copy(error = null, fromCache = false))
+            feed
+        } else {
+            // Пусто (офлайн/сбой): есть кэш → отдаём его как stale + баннер; нет → ошибка-модалка.
+            cache.get()?.copy(error = feed.error, fromCache = true) ?: feed
+        }
     }
 
     private companion object {
