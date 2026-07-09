@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -160,10 +159,9 @@ private fun ProfileContent(
         // Резерв под закреплённую шапку — ужимается синхронно с её сворачиванием.
         Spacer(Modifier.height(topInset))
 
-        // Значения строк ниже (кроме «Подписка») — статичные демо-заглушки профиля.
-        //  Эти настройки клиентские и в API отсутствуют: «Качество видео (Авто)»,
-        //  «Загрузки», «Субтитры и аудио», «Уведомления (вкл/выкл)», «Приватность».
-        //  В будущем их нужно хранить локально (DataStore/multiplatform-settings).
+        // Настройки воспроизведения реальны: качество/аудио/субтитры хранятся локально
+        // через PlaybackSettingsRepository (multiplatform-settings) и применяются в плеере.
+        // Состав совпадает с TV-Профилем — заглушек нет.
         ViewingSettingsGroup(playback = state.playback, onOpenSheet = onOpenSheet)
 
         AccountGroup(state = state)
@@ -198,13 +196,6 @@ private fun ViewingSettingsGroup(
             label = "Субтитры и аудио",
             value = playback.subtitleSummary(),
             onClick = { onOpenSheet(ProfileSheet.SUBTITLES) },
-            showDivider = true,
-        )
-        FilmaxListRow(
-            icon = Icons.Filled.Download,
-            accent = Color(0xFF6AC2B0),
-            label = "Загрузки",
-            value = "Только по Wi-Fi",
         )
     }
 }
