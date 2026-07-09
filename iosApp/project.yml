@@ -8,8 +8,8 @@ name: Filmax
 options:
   bundleIdPrefix: com.filmax
   deploymentTarget:
-    iOS: "15.0"
-    tvOS: "15.0"
+    iOS: "16.0"    # NavigationStack/navigationDestination — рутовая навигация (issue #46)
+    tvOS: "16.0"
   createIntermediateGroups: true
 
 settings:

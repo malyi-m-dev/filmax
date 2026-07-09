@@ -12,7 +12,7 @@ struct TvRootView: View {
             case .none:
                 ProgressView().tint(Theme.accent).scaleEffect(2)
             case .some(true):
-                TvMainPlaceholderView()
+                TvMainTabView()
             case .some(false):
                 TvOnboardingView()
             }

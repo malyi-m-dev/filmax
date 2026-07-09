@@ -1,6 +1,9 @@
 # Filmax iOS + tvOS
 
-Первый вертикальный срез Apple-приложений: **точка входа + онбординг с авторизацией** — на iPhone/iPad **и** Apple TV.
+Apple-приложения Filmax на iPhone/iPad **и** Apple TV: онбординг с авторизацией + полный набор экранов
+(Главная, Поиск, Детали, Плеер, Библиотека, Профиль, Подборки) поверх общего KMP-слоя.
+
+> Требуется **iOS/tvOS 16.0+** (рутовая навигация на `NavigationStack`/`navigationDestination`).
 
 > 📖 **Справочник по общему data/domain-слою для Swift** — [`docs/ios-shared-layer.md`](../docs/ios-shared-layer.md): все use-case'ы, репозитории, модели, интероп SKIE, обработка ошибок и рецепты.
 
@@ -11,13 +14,25 @@
 Структура (`iosApp/`):
 ```
 Shared/    ← общий Swift для ОБОИХ таргетов
-  Theme.swift · SessionViewModel · Onboarding/OnboardingViewModel · Main/MainViewModel
+  Theme.swift · SessionViewModel · Onboarding/ · Main/MainViewModel
+  DesignSystem/  (токены DS, PosterImage)         Navigation/ (AppRoute, AppTab)
+  Support/ (ModelFormatting, псевдонимы типов)
+  Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← ViewModel'и (общие)
 iOS/       ← таргет Filmax (iPhone/iPad)
-  iOSApp.swift (@main) · RootView · Onboarding/OnboardingView · Main/MainPlaceholderView
+  iOSApp.swift (@main) · RootView · Navigation/MainTabView (TabView + NavigationStack)
+  DesignSystem/Components (PosterCard, FilmaxButton, SectionHeader, RatingBadge, Loading/Error/Empty)
+  Onboarding/ · Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← SwiftUI-View
 tvOS/      ← таргет Filmax-tvOS (Apple TV)
-  tvOSApp.swift (@main) · TvRootView · Onboarding/TvOnboardingView · Main/TvMainPlaceholderView
+  tvOSApp.swift (@main) · TvRootView · Navigation/TvMainTabView (верхний таб-бар + focus)
+  DesignSystem/Components (TvPosterCard + focus-стиль, Tv-состояния)
+  Onboarding/ · Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← Tv-View
 ```
-ViewModel'и (`Shared/`) вызывают общие use-case'ы KMP и одинаковы на обеих платформах; `Koin` инициализируется в точке входа каждого таргета.
+ViewModel'и (`Shared/`) вызывают общие use-case'ы/репозитории KMP и одинаковы на обеих платформах;
+различаются только SwiftUI-View (тач vs focus). `Koin` инициализируется в точке входа каждого таргета.
+
+**Навигация:** единый контракт `AppRoute` (`Shared/Navigation`) кладётся в `NavigationStack` каждой вкладки;
+платформенные `appDestinations()`/`tvAppDestinations()` разворачивают маршрут в свою View. Стеки push-переходов
+(Детали → Плеер) сохраняются по вкладкам.
 
 ## Как собрать и запустить (только macOS + Xcode)
 > 🛠 **Полная инструкция по сборке на Mac (предустановки, iOS + Android, траблшутинг)** — [`docs/BUILD_MACOS.md`](../docs/BUILD_MACOS.md). Ниже — краткий путь.

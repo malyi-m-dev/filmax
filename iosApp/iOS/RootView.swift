@@ -12,7 +12,7 @@ struct RootView: View {
             case .none:
                 ProgressView().tint(Theme.accent)
             case .some(true):
-                MainPlaceholderView()
+                MainTabView()
             case .some(false):
                 OnboardingView()
             }
