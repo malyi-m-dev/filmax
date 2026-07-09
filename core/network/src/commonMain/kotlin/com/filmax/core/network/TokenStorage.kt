@@ -23,6 +23,8 @@ class TokenStorage(
 
     suspend fun getAccessToken(): String? = accessState.value
 
+    suspend fun getRefreshToken(): String? = refreshState.value
+
     suspend fun save(accessToken: String, refreshToken: String) {
         settings.putString(KEY_ACCESS, accessToken)
         settings.putString(KEY_REFRESH, refreshToken)

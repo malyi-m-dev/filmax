@@ -1,6 +1,7 @@
 package com.filmax.core.network
 
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.auth.Auth
 import io.ktor.client.plugins.auth.providers.BearerTokens
@@ -9,8 +10,13 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.parameter
+import io.ktor.client.request.post
 import io.ktor.client.request.url
 import io.ktor.serialization.kotlinx.json.json
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 const val BASE_URL = "https://smarttvcdn.online/"
@@ -39,14 +45,41 @@ fun buildHttpClient(
     install(Auth) {
         bearer {
             loadTokens {
-                tokenStorage.getAccessToken()?.let { BearerTokens(it, "") }
+                tokenStorage.getAccessToken()?.let { token ->
+                    BearerTokens(token, tokenStorage.getRefreshToken().orEmpty())
+                }
             }
-            // Токен мог быть сохранён уже после создания клиента (свежий вход через
-            // device-flow): кэш loadTokens на старте был пуст, запрос ушёл без заголовка
-            // и получил 401. Тогда Ktor вызывает refreshTokens — перечитываем хранилище
-            // и повторяем запрос с актуальным токеном, без перезапуска приложения.
+            // Access протух → Ktor вызывает refreshTokens. Меняем refresh_token на новую пару
+            // токенов через OAuth-эндпоинт и повторяем исходный запрос с новым access — без
+            // форс-релогина. Запрос обновления идёт через переданный [client] (у него отключён
+            // повторный Auth), поэтому рекурсии на сам refresh-эндпоинт нет.
+            //
+            // Особый случай — свежий вход device-flow: кэш loadTokens на старте был пуст,
+            // первый запрос ушёл без заголовка и получил 401; тогда refresh_token в хранилище
+            // ещё «старый», обмен даст актуальные токены (или, если его нет, — logout).
             refreshTokens {
-                tokenStorage.getAccessToken()?.let { BearerTokens(it, "") }
+                val refresh = tokenStorage.getRefreshToken()
+                if (refresh.isNullOrBlank()) {
+                    // Нечем обновляться — единый сценарий logout, без цикла 401.
+                    tokenStorage.clear()
+                    return@refreshTokens null
+                }
+                try {
+                    val response: OAuthTokenResponse = client.post(OAUTH_DEVICE_PATH) {
+                        parameter("grant_type", "refresh_token")
+                        parameter("client_id", OAUTH_CLIENT_ID)
+                        parameter("client_secret", OAUTH_CLIENT_SECRET)
+                        parameter("refresh_token", refresh)
+                    }.body()
+                    tokenStorage.save(response.accessToken, response.refreshToken)
+                    BearerTokens(response.accessToken, response.refreshToken)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (throwable: Throwable) {
+                    // refresh_token тоже невалиден → чистим сессию и уводим на онбординг.
+                    tokenStorage.clear()
+                    null
+                }
             }
             sendWithoutRequest { true }
         }
@@ -62,3 +95,14 @@ fun buildHttpClient(
         url(baseUrl)
     }
 }
+
+/**
+ * Ответ OAuth-эндпоинта при обмене refresh_token (те же поля, что и `TokenDto` в `:data:auth`;
+ * дублируется локально, чтобы сетевой слой не зависел от `:data:auth`).
+ */
+@Serializable
+private data class OAuthTokenResponse(
+    @SerialName("access_token") val accessToken: String,
+    @SerialName("refresh_token") val refreshToken: String,
+    @SerialName("expires_in") val expiresIn: Int = 0,
+)
