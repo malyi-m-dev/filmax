@@ -14,7 +14,7 @@ Apple-приложения Filmax на iPhone/iPad **и** Apple TV: онборд
 Структура (`iosApp/`):
 ```
 Shared/    ← общий Swift для ОБОИХ таргетов
-  Theme.swift · SessionViewModel · Onboarding/ · Main/MainViewModel
+  Theme.swift · SessionViewModel · Onboarding/
   DesignSystem/  (токены DS, PosterImage)         Navigation/ (AppRoute, AppTab)
   Support/ (ModelFormatting, псевдонимы типов)
   Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← ViewModel'и (общие)
