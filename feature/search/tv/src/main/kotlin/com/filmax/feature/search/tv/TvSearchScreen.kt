@@ -198,7 +198,9 @@ private fun SearchResults(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 24.dp),
+                // Запас со всех сторон: тайл при фокусе (scale 1.1) должен расти внутрь
+                // сетки, иначе её граница срезает рамку фокуса у крайних карточек.
+                contentPadding = PaddingValues(all = 12.dp),
             ) {
                 items(results, key = { it.id }) { item ->
                     PosterTile(item = item, onClick = { onOpenItem(item.id) })

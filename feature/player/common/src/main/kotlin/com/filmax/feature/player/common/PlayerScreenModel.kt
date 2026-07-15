@@ -33,7 +33,12 @@ class PlayerScreenModel(
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()
 
-    val player: ExoPlayer = ExoPlayer.Builder(context).build()
+    // Шаг перемотки задан явно: дефолты Media3 (5 с назад / 15 с вперёд) не совпадают
+    // с иконками Replay10/Forward10 на кнопках плеера.
+    val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+        .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
+        .build()
 
     /** Субтитры текущего трека — нужны, чтобы пересобрать MediaItem при смене качества. */
     private var trackSubtitles: List<SubtitleTrack> = emptyList()
@@ -112,6 +117,11 @@ class PlayerScreenModel(
                         player.setMediaItem(buildMediaItem(initial.url))
                         player.prepare()
                         applyTrackPreferences(selectedSubtitle.lang)
+                        // Продолжаем с сохранённой позиции. Досмотренный до конца трек
+                        // начинаем сначала — иначе пересмотр стартовал бы с титров.
+                        track?.watchedSeconds
+                            ?.takeIf { it > 0 && track.watchStatus != WATCH_STATUS_FINISHED }
+                            ?.let { player.seekTo(it * MILLIS_IN_SECOND) }
                         player.playWhenReady = true
                     }
                 }
@@ -222,6 +232,12 @@ class PlayerScreenModel(
     }
 
     private companion object {
+        const val SEEK_INCREMENT_MS = 10_000L
+        const val MILLIS_IN_SECOND = 1000L
+
+        /** `watchStatus` из API: 1 — трек досмотрен до конца. */
+        const val WATCH_STATUS_FINISHED = 1
+
         fun langCode(display: String): String? = when (display.lowercase()) {
             "русский" -> "rus"
             "english" -> "eng"

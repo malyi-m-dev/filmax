@@ -50,6 +50,7 @@ import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
+import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
@@ -337,7 +338,9 @@ private fun SettingRow(
         )
         .clip(shape)
         .background(if (focused) Color.White.copy(alpha = 0.10f) else Color.Transparent)
-        .then(if (focused) Modifier.border(3.dp, Accent, shape) else Modifier)
+        // Рамка фокуса — общая TvFocus, как у TvFocusCard/TvButton: цвет индикатора фокуса
+        // должен быть один на всё TV-приложение, иначе на этом экране его не найти глазами.
+        .then(if (focused) Modifier.border(3.dp, TvFocus, shape) else Modifier)
         .padding(horizontal = 22.dp, vertical = 18.dp)
 
     Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {

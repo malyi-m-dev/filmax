@@ -1,15 +1,11 @@
 package com.filmax.feature.collections.common
 
 import com.filmax.core.domain.catalog.model.Collection
-import com.filmax.core.domain.catalog.model.Item
 
 data class CollectionsState(
     val collections: List<Collection> = emptyList(),
     val query: String = "",
-    val selectedCollection: Collection? = null,
-    val collectionItems: List<Item> = emptyList(),
     val loading: Boolean = true,
-    val loadingItems: Boolean = false,
     val error: String? = null,
 ) {
     val filtered: List<Collection>
@@ -25,8 +21,6 @@ data class CollectionsState(
 
 sealed interface CollectionsEvent {
     data class QueryChange(val query: String) : CollectionsEvent
-    data class CollectionClick(val collection: Collection) : CollectionsEvent
-    data object DismissSheet : CollectionsEvent
 }
 
 sealed interface CollectionsSideEffect

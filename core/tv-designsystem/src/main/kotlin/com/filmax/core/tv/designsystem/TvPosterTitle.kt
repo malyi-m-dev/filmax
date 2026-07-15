@@ -18,8 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** База градиента-скрима под названием постера (как c2 в дизайне). */
-private val PosterScrim = Color(0xFF141012)
+/** База градиента-скрима под названием постера — фон TV-темы, чтобы скрим сходился с экраном. */
+private val PosterScrim = TvSurface
 
 /**
  * Название фильма, «запечённое» в нижнюю часть постера (как в дизайне Filmax TV): тёмный

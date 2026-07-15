@@ -46,9 +46,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -335,6 +337,7 @@ private fun MovieHero(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun MovieSimilar(similar: List<Item>, onOpenItem: (Int) -> Unit) {
     Column(Modifier.padding(start = 72.dp, bottom = 32.dp)) {
@@ -345,7 +348,10 @@ private fun MovieSimilar(similar: List<Item>, onOpenItem: (Int) -> Unit) {
             color = Color.White,
             modifier = Modifier.padding(bottom = 14.dp)
         )
+        // focusRestorer — как в рельсах Главной: «вниз» ведёт на первый элемент, дальше ряд
+        // помнит позицию. Без него D-pad ищет пространственно-ближайшую карточку и мажет.
         LazyRow(
+            modifier = Modifier.focusRestorer(),
             contentPadding = PaddingValues(end = 72.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -605,7 +611,14 @@ private fun RowScope.SeriesInfoColumn(
     resume: MediaTrack?,
     actions: SeriesPlaybackActions,
 ) {
-    Column(modifier = Modifier.weight(1f).padding(end = 20.dp)) {
+    // Колонка скроллится: при длинном описании кнопки «Смотреть»/«В избранное» уезжали за
+    // нижний край статичного Row без возможности докрутить — фокус упирался в тупик.
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .padding(end = 20.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
         TagPill(seasonsCaption)
         Spacer(Modifier.height(16.dp))
         Text(

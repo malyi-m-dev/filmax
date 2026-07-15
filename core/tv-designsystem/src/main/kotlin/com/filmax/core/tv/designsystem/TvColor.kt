@@ -1,6 +1,5 @@
 package com.filmax.core.tv.designsystem
 
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 // ── TV-палитра ────────────────────────────────────────────────────────────────
@@ -26,7 +25,5 @@ val TvErrorContainer = Color(0xFF93000A)
 
 // ── Focus highlight ─────────────────────────────────────────────────────────
 // Фирменная TV-аффорданс: жёлтая обводка вокруг сфокусированного элемента (D-pad).
+// Один цвет на всё TV-приложение — читают TvFocusCard, TvButton и TvProfileScreen.
 val TvFocus = Color(0xFFFFD466)
-
-/** Цвет focus-обводки текущей темы. */
-val LocalTvFocusColor = staticCompositionLocalOf { TvFocus }

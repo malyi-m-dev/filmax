@@ -25,7 +25,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,6 +69,7 @@ private val Accent = Color(0xFFB4305A)
 @Composable
 fun TvHomeScreen(
     onOpenItem: (Int) -> Unit,
+    onPlay: (itemId: Int, videoId: Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: HomeScreenModel = koinViewModel(),
 ) {
@@ -88,6 +88,7 @@ fun TvHomeScreen(
             else -> TvHomeContent(
                 state = state,
                 onOpenItem = onOpenItem,
+                onPlay = onPlay,
                 onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
             )
         }
@@ -98,6 +99,7 @@ fun TvHomeScreen(
 private fun TvHomeContent(
     state: HomeState,
     onOpenItem: (Int) -> Unit,
+    onPlay: (itemId: Int, videoId: Int) -> Unit,
     onLoadMore: () -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -126,13 +128,14 @@ private fun TvHomeContent(
             item(key = "hero") {
                 TvHero(
                     item = hero,
-                    onPlay = { onOpenItem(hero.id) },
+                    // Фильм — единственный трек, эпизод выбирать не из чего: PlayerRoute.videoId = -1.
+                    onPlay = { onPlay(hero.id, NO_VIDEO_ID) },
                     onDetails = { onOpenItem(hero.id) },
                 )
             }
         }
 
-        tvRails(state = state, onOpenItem = onOpenItem)
+        tvRails(state = state, onOpenItem = onOpenItem, onPlay = onPlay)
 
         // ── Все — постранично подгружаемая сетка (6 в ряд) ──────────────────────
         if (state.all.isNotEmpty()) {
@@ -146,12 +149,21 @@ private fun TvHomeContent(
 }
 
 // Рельсы «Продолжить/В тренде/Для вас» — те же item-блоки, вынесены из TvHomeContent.
-private fun LazyListScope.tvRails(state: HomeState, onOpenItem: (Int) -> Unit) {
+private fun LazyListScope.tvRails(
+    state: HomeState,
+    onOpenItem: (Int) -> Unit,
+    onPlay: (itemId: Int, videoId: Int) -> Unit,
+) {
     if (state.continueWatching.isNotEmpty()) {
         item(key = "continue") {
             TvRail(title = "Продолжить просмотр") {
                 items(state.continueWatching, key = { it.itemId }) { history ->
-                    TvContinueCard(history = history, onClick = { onOpenItem(history.itemId) })
+                    // Рельса продолжения ведёт сразу в плеер — на недосмотренный эпизод
+                    // (videoId из истории), позицию внутри трека восстановит PlayerScreenModel.
+                    TvContinueCard(
+                        history = history,
+                        onClick = { onPlay(history.itemId, history.progress?.videoId ?: NO_VIDEO_ID) },
+                    )
                 }
             }
         }
@@ -223,6 +235,9 @@ private fun TvAllLoadingRow() {
 }
 
 private const val ALL_COLUMNS = 6
+
+/** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
+private const val NO_VIDEO_ID = -1
 
 @Composable
 private fun TvSectionTitle(title: String) {
@@ -347,7 +362,6 @@ private fun BoxScope.TvHeroOverlay(item: Item, onPlay: () -> Unit, onDetails: ()
         Spacer(Modifier.height(28.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow)
-            TvButton("В избранное", onClick = {}, primary = false, leadingIcon = Icons.Filled.FavoriteBorder)
             TvButton("Подробнее", onClick = onDetails, primary = false, leadingIcon = Icons.Filled.Info)
         }
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -40,6 +41,12 @@ import org.koin.androidx.compose.koinViewModel
 
 private val Accent = Color(0xFFB4305A)
 
+/**
+ * Отступы сетки: боковые поля живут здесь, а не на родителе, чтобы карточка при фокусе
+ * (scale 1.1) росла внутрь viewport и её рамка не срезалась границей сетки.
+ */
+private val GridContentPadding = PaddingValues(start = 72.dp, end = 72.dp, top = 16.dp, bottom = 40.dp)
+
 /** Лёгкая карточка для сетки: постер + id + название. */
 private data class Tile(val id: Int, val title: String, val poster: String)
 
@@ -66,17 +73,20 @@ fun TvLibraryScreen(
     val gridState = rememberLazyGridState()
     ScrollToTopOnNavFocus(gridState)
 
+    // Горизонтальные отступы держим на элементах, а не на Column: сетке они нужны в
+    // contentPadding, иначе карточка при фокусе (scale 1.1) срезается границей viewport.
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(start = 72.dp, end = 72.dp, top = 120.dp),
+            .padding(top = 120.dp),
     ) {
         Text(
             "Моя библиотека",
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(horizontal = 72.dp),
         )
         Spacer(Modifier.height(24.dp))
 
@@ -100,7 +110,10 @@ fun TvLibraryScreen(
 // Строка чипов-табов — вынесена из TvLibraryScreen без изменений раскладки.
 @Composable
 private fun LibraryTabsRow(state: LibraryState, onSelect: (LibraryTab) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+        modifier = Modifier.padding(horizontal = 72.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         LibraryTab.entries.forEach { tab ->
             val count = when (tab) {
                 LibraryTab.FAVORITES -> state.favorites.size
@@ -132,7 +145,7 @@ private fun LibraryContent(
             state = gridState,
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(bottom = 40.dp),
+            contentPadding = GridContentPadding,
         ) {
             items(state.lists, key = { it.id }) { folder ->
                 FolderTile(title = folder.title, count = folder.count)
@@ -144,7 +157,7 @@ private fun LibraryContent(
             state = gridState,
             horizontalArrangement = Arrangement.spacedBy(20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(bottom = 40.dp),
+            contentPadding = GridContentPadding,
         ) {
             if (tiles.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -224,20 +237,23 @@ private fun PosterTile(tile: Tile, onClick: () -> Unit) {
     }
 }
 
+/**
+ * Плитка папки-закладки. Не фокусируется: открывать папку пока некуда (экрана её содержимого
+ * нет), а фокусируемая цель без действия на D-pad — тупик. Появится экран папки — станет
+ * [TvFocusCard] с onClick.
+ */
 @Composable
 private fun FolderTile(title: String, count: Int) {
-    val shape = RoundedCornerShape(24.dp)
-    TvFocusCard(onClick = {}, shape = shape, modifier = Modifier.height(140.dp)) {
-        Column(
-            Modifier
-                .fillMaxSize()
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Text("$count элементов", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+    Column(
+        Modifier
+            .height(140.dp)
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+        Text("$count элементов", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
