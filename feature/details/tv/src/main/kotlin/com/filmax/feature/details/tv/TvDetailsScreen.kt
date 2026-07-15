@@ -179,9 +179,11 @@ private fun DetailsContent(
 
     // Единый LazyColumn вместо статичного Row из двух колонок: раньше у сериала нижние кнопки и
     // «Похожее» были недостижимы фокусом — упирались в край экрана без возможности докрутить.
+    // Отступ сверху обязателен: без него hero упирается в край экрана, а верхние строки пикселей
+    // на телевизоре съедает overscan — кадр выглядит обрезанным по живому.
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 70.dp),
+        contentPadding = PaddingValues(top = TvMetrics.SafeVertical, bottom = 70.dp),
     ) {
         item(key = "hero") {
             DetailsHero(

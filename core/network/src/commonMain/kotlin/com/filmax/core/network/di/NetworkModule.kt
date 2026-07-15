@@ -2,6 +2,7 @@ package com.filmax.core.network.di
 
 import com.filmax.core.network.TokenStorage
 import com.filmax.core.network.buildHttpClient
+import com.filmax.core.network.isDebugBuild
 import io.ktor.client.HttpClient
 import org.koin.core.module.Module
 import org.koin.dsl.module
@@ -16,7 +17,8 @@ val networkModule = module {
         buildHttpClient(
             engine = get(),
             tokenStorage = get(),
-            enableLogging = true,
+            // Только в debug: логи печатают URL, параметры и тела ответов.
+            enableLogging = isDebugBuild,
         )
     }
 }

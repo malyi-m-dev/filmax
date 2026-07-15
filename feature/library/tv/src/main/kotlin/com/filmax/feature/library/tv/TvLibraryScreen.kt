@@ -455,7 +455,8 @@ private fun ProgressCard(entry: WatchHistory, onPlay: (itemId: Int, videoId: Int
     TvProgressCard(
         title = entry.title,
         meta = progressMeta(entry.progress),
-        posterUrl = entry.posterSmall.orEmpty(),
+        // Карточка 16:9 — берём кадр, а не вертикальный постер: тот обрезался бы по центру.
+        posterUrl = entry.wideOrPoster,
         progress = entry.progress?.fraction ?: 0f,
         // Карточка с прогрессом ведёт в плеер: «продолжить» — это про воспроизведение, а не про
         // чтение описания. Эпизод берём из истории, позицию внутри трека восстановит плеер.

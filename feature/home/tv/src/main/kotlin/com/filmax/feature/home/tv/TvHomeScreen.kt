@@ -379,7 +379,8 @@ private fun TvContinueCard(history: WatchHistory, onClick: () -> Unit) {
     TvProgressCard(
         title = history.title,
         meta = continueMeta(history.progress),
-        posterUrl = history.posterSmall.orEmpty(),
+        // Карточка 16:9 — берём кадр, а не вертикальный постер: тот обрезался бы по центру.
+        posterUrl = history.wideOrPoster,
         progress = history.progress?.fraction ?: 0f,
         onClick = onClick,
         posterContent = { url, posterModifier ->

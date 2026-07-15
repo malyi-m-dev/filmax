@@ -32,6 +32,9 @@ data class PostersDto(
     val small: String = "",
     val medium: String = "",
     val big: String = "",
+    // Кадр 16:9. Карточки «Продолжить»/«История» — широкие, и вертикальный постер 2:3 в них
+    // обрезается по центру в кашу. Пустая строка — если бэкенд кадра не отдал.
+    val wide: String = "",
 )
 
 @Serializable

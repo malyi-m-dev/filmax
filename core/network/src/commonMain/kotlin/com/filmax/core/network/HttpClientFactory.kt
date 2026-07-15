@@ -10,10 +10,13 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.LogLevel
+import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.logging.SIMPLE
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.url
+import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -102,7 +105,14 @@ fun buildHttpClient(
 
     if (enableLogging) {
         install(Logging) {
+            // Logger.SIMPLE пишет через println — на Android это уходит в logcat (тег System.out).
+            // Дефолтный логгер на JVM идёт в SLF4J, провайдера в приложении нет, и логи молча
+            // терялись: в logcat было только «SLF4J(W): noProviders», а запросов — ни одного.
+            logger = Logger.SIMPLE
             level = LogLevel.BODY
+            // Bearer-токен в логи не пишем: logcat читает кто угодно, а токен — это доступ
+            // к аккаунту целиком. Всё остальное (URL, параметры, тело ответа) видно.
+            sanitizeHeader { header -> header.equals(HttpHeaders.Authorization, ignoreCase = true) }
         }
     }
 

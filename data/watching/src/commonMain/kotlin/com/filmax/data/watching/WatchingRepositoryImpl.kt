@@ -19,6 +19,7 @@ private fun HistoryItemDto.toDomain() = WatchHistory(
     itemId = id,
     title = title,
     posterSmall = posters?.small,
+    posterWide = posters?.wide,
     progress = watching?.let {
         WatchProgress(
             status = it.status,
