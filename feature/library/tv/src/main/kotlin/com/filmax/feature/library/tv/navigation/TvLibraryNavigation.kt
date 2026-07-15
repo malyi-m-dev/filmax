@@ -8,8 +8,15 @@ import kotlinx.serialization.Serializable
 @Serializable
 object TvLibraryRoute
 
-fun NavGraphBuilder.tvLibraryScreen(onOpenItem: (Int) -> Unit) {
+/**
+ * Раздел «Моё». [onPlay] обязателен: «Продолжить» и «История» ведут сразу в плеер (videoId
+ * из истории, -1 — если трек единственный), постеры «Буду смотреть» — в детали.
+ */
+fun NavGraphBuilder.tvLibraryScreen(
+    onOpenItem: (Int) -> Unit,
+    onPlay: (itemId: Int, videoId: Int) -> Unit,
+) {
     composable<TvLibraryRoute> {
-        TvLibraryScreen(onOpenItem = onOpenItem)
+        TvLibraryScreen(onOpenItem = onOpenItem, onPlay = onPlay)
     }
 }

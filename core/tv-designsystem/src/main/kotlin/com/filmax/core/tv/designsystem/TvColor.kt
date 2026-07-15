@@ -2,28 +2,59 @@ package com.filmax.core.tv.designsystem
 
 import androidx.compose.ui.graphics.Color
 
-// ── TV-палитра ────────────────────────────────────────────────────────────────
-// Совпадает с мобильной дизайн-системой (бренд rose `#B4305A`), поверхности чуть
-// темнее под просмотр с дивана (10-foot). Значения — из макета «Filmax TV».
-val TvPrimary = Color(0xFFFFB1C8)
-val TvOnPrimary = Color(0xFF5E1133)
-val TvPrimaryContainer = Color(0xFFB4305A)
-val TvOnPrimaryContainer = Color(0xFFFFD9E2)
+// ── TV-палитра: строгий монохром ──────────────────────────────────────────────
+// Нейтральная ахроматичная лестница (R = G = B во всех ступенях). Цвет на экране
+// только у постеров — интерфейс не соревнуется с контентом за внимание.
+// Значения — из макета «Filmax TV» (Claude Design).
 
-val TvSurface = Color(0xFF0A0809)
-val TvSurfaceContainer = Color(0xFF1A1518)
-val TvSurfaceContainerHigh = Color(0xFF221D20)
-val TvSurfaceContainerHighest = Color(0xFF2E2729)
+/** Подложка экрана. Не чистый чёрный: #000 даёт провал на OLED и «звон» на границах. */
+val TvSurface = Color(0xFF0A0A0A)
 
-val TvOnSurface = Color(0xFFEFDFE3)
-val TvOnSurfaceVariant = Color(0xFFC5B3B9)
-val TvOutline = Color(0xFF9E8B91)
-val TvOutlineVariant = Color(0xFF3A2F33)
+/** Карточки, панели, поля ввода. */
+val TvSurfaceContainer = Color(0xFF141414)
 
-val TvError = Color(0xFFFFB4AB)
-val TvErrorContainer = Color(0xFF93000A)
+/** Чипы, группы настроек, неактивные состояния. */
+val TvSurfaceContainerHigh = Color(0xFF1F1F1F)
 
-// ── Focus highlight ─────────────────────────────────────────────────────────
-// Фирменная TV-аффорданс: жёлтая обводка вокруг сфокусированного элемента (D-pad).
-// Один цвет на всё TV-приложение — читают TvFocusCard, TvButton и TvProfileScreen.
-val TvFocus = Color(0xFFFFD466)
+/** Приподнятые элементы, разделители, аватар-плейсхолдер. */
+val TvSurfaceContainerHighest = Color(0xFF2E2E2E)
+
+/** Основной текст. Не #FFFFFF: чистый белый «вибрирует» и мылится на тёмном фоне. */
+val TvOnSurface = Color(0xFFE8E8E8)
+
+/**
+ * Вторичный текст (мета, подписи, плейсхолдеры). Светлее мобильного варианта:
+ * дистанция 3 метра, блики и заводская «динамическая контрастность» съедают разборчивость.
+ */
+val TvOnSurfaceVariant = Color(0xFFA0A0A0)
+
+/** Третичный текст — надзаголовки секций, служебные подписи. */
+val TvOnSurfaceDim = Color(0xFF8A8A8A)
+
+val TvOutlineVariant = Color(0xFF1F1F1F)
+
+/**
+ * Акцент — чистый белый. Главное действие (кнопка «Смотреть»), активная вкладка,
+ * полоса прогресса, индикатор фокуса. Другого акцента в приложении нет.
+ */
+val TvAccent = Color(0xFFFFFFFF)
+
+/** Контент на акцентной заливке (текст белой кнопки). */
+val TvOnAccent = Color(0xFF0A0A0A)
+
+// ── Ошибки ───────────────────────────────────────────────────────────────────
+// Единственное исключение из монохрома: деструктив и ошибки. Приглушённый красный,
+// и только там — цвет при этом никогда не единственный носитель смысла.
+val TvError = Color(0xFFE0736B)
+val TvErrorContainer = Color(0xFF3A1512)
+
+// ── Focus ────────────────────────────────────────────────────────────────────
+/**
+ * Рамка фокуса — белая. На светлом постере её саму по себе не видно, поэтому
+ * [TvFocusHalo] рисуется снаружи рамки: тёмный контур отделяет её от любой подложки.
+ * Плюс масштаб — геометрия работает независимо от того, что под карточкой.
+ */
+val TvFocus = TvAccent
+
+/** Тёмный ореол снаружи белой рамки — страховка на светлых постерах. */
+val TvFocusHalo = Color(0xD9000000)

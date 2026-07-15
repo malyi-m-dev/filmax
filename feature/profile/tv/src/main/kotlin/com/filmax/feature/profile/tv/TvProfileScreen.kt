@@ -15,18 +15,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,41 +31,50 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.filmax.core.designsystem.ShapeCookie
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
+import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvFocus
+import com.filmax.core.tv.designsystem.TvMetrics
+import com.filmax.core.tv.designsystem.TvOnSurface
+import com.filmax.core.tv.designsystem.TvOnSurfaceDim
+import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
+import com.filmax.core.tv.designsystem.TvOverline
+import com.filmax.core.tv.designsystem.TvSurface
+import com.filmax.core.tv.designsystem.TvSurfaceContainer
+import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
+import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
 import org.koin.androidx.compose.koinViewModel
 
-private val Accent = Color(0xFFB4305A)
-private val HeroGradient = listOf(Color(0xFFB4305A), Color(0xFF6B4B8F))
-private val AvatarGradient = listOf(Color(0xFFFFD89A), Color(0xFFF4B792))
-private val InitialsColor = Color(0xFF5E1133)
+/** Ширина колонки настроек. Читать строку длиной во весь экран с 3 метров невозможно. */
+private val ContentMaxWidth = 640.dp
 
-// Акценты плиток-иконок (как в мобильном профиле — для консистентности).
-private val AccentQuality = Color(0xFFB4305A)
-private val AccentAudio = Color(0xFF6AC2B0)
-private val AccentSubtitle = Color(0xFFF4B792)
-private val AccentSubscription = Color(0xFFD4A84A)
+/** Отступ сверху: шапка профиля не под таб-баром, а заметно ниже — это первый экран раздела. */
+private val ContentTop = 96.dp
+
+private val AvatarSize = 76.dp
+
+/** Высота строки настройки. Фиксированная: разная высота строк ломает ритм списка под пультом. */
+private val RowHeight = 60.dp
+
+private val RowGap = 10.dp
 
 /**
- * TV-Профиль (экран 05 макета). Слева — hero-карточка аккаунта (аватар/имя/подписка +
- * статистика), справа — сгруппированные настройки «Просмотр» и «Аккаунт». Наполнение
- * совпадает с мобильным профилем (реальные данные [ProfileScreenModel]); меняется только
- * раскладка под 10-foot. Клик по настройке циклически меняет значение.
+ * TV-Профиль. Одна колонка: шапка аккаунта, затем группы «Просмотр» и «Аккаунт».
+ * Данные и события — общие с мобильным профилем ([ProfileScreenModel]), меняется только
+ * раскладка под 10-foot. Клик по строке настройки циклически меняет её значение.
+ *
+ * Статистики (просмотрено/в избранном) здесь нет: на пульте она ни на что не влияет и только
+ * оттягивает внимание от единственной задачи экрана — поменять настройку или выйти.
  */
 @Composable
 fun TvProfileScreen(
@@ -92,116 +94,94 @@ fun TvProfileScreen(
         Box(
             modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background),
+                .background(TvSurface),
             contentAlignment = Alignment.Center,
         ) {
-            CircularProgressIndicator(color = Accent)
+            CircularProgressIndicator(color = TvOnSurface)
         }
         return
     }
 
-    Row(
+    ProfileContent(
+        state = state,
+        actions = profileActions(screenModel, state),
+        modifier = modifier,
+    )
+}
+
+// ── Контент ──────────────────────────────────────────────────────────────────
+
+@Composable
+private fun ProfileContent(
+    state: ProfileState,
+    actions: ProfileActions,
+    modifier: Modifier = Modifier,
+) {
+    val scrollState = rememberScrollState()
+    ScrollToTopOnNavFocus(scrollState)
+    Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(start = 56.dp, end = 56.dp, top = 110.dp, bottom = 48.dp),
-        horizontalArrangement = Arrangement.spacedBy(40.dp),
-    ) {
-        ProfileHero(state = state, modifier = Modifier.width(400.dp))
-        ProfileSettings(
-            state = state,
-            actions = ProfileActions(
-                onCycleQuality = {
-                    screenModel.dispatch(
-                        ProfileEvent.SetQuality(next(PlaybackSettings.qualityOptions, state.playback.quality))
-                    )
-                },
-                onCycleAudio = {
-                    screenModel.dispatch(
-                        ProfileEvent.SetAudioLanguage(next(PlaybackSettings.audioOptions, state.playback.audioLanguage))
-                    )
-                },
-                onCycleSubtitle = {
-                    screenModel.dispatch(
-                        ProfileEvent.SetSubtitleLanguage(
-                            next(PlaybackSettings.subtitleOptions, state.playback.subtitleLanguage)
-                        )
-                    )
-                },
-                onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
+            .background(TvSurface)
+            .verticalScroll(scrollState)
+            .padding(
+                start = TvMetrics.SafeHorizontal,
+                end = TvMetrics.SafeHorizontal,
+                top = ContentTop,
+                bottom = TvMetrics.SafeVertical,
             ),
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-// ── Левая колонка: hero-карточка аккаунта ────────────────────────────────────
-@Composable
-private fun ProfileHero(state: ProfileState, modifier: Modifier = Modifier) {
-    val profile = state.profile
-    val username = profile?.username ?: "Гость"
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(36.dp))
-            .background(Brush.linearGradient(HeroGradient))
-            .padding(32.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(ShapeCookie)
-                    .background(Brush.linearGradient(AvatarGradient)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    profile.initialsOrFallback(),
-                    color = InitialsColor,
-                    fontSize = 34.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            }
-            Spacer(Modifier.width(18.dp))
-            Column(Modifier.weight(1f)) {
-                Text(username, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 2)
-                Spacer(Modifier.height(6.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFD89A),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(profile?.subscription.label(), fontSize = 13.sp, color = Color.White.copy(alpha = 0.85f))
-                }
-            }
-        }
-        Spacer(Modifier.height(28.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            HeroStat(value = state.watchedCount.toString(), label = "Просмотрено", modifier = Modifier.weight(1f))
-            HeroStat(value = state.favoritesCount.toString(), label = "В избранном", modifier = Modifier.weight(1f))
-            HeroStat(value = state.quality ?: "—", label = "Качество", modifier = Modifier.weight(1f))
+        Column(Modifier.widthIn(max = ContentMaxWidth)) {
+            ProfileHeader(profile = state.profile)
+            Spacer(Modifier.height(32.dp))
+            TvOverline("Просмотр", color = TvOnSurfaceDim)
+            Spacer(Modifier.height(12.dp))
+            PlaybackRows(state = state, actions = actions)
+            Spacer(Modifier.height(26.dp))
+            TvOverline("Аккаунт", color = TvOnSurfaceDim)
+            Spacer(Modifier.height(12.dp))
+            AccountRows(state = state, actions = actions)
         }
     }
 }
 
 @Composable
-private fun HeroStat(value: String, label: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color.White.copy(alpha = 0.15f))
-            .padding(vertical = 16.dp, horizontal = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(value, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, maxLines = 1)
-        Spacer(Modifier.height(6.dp))
-        Text(label, fontSize = 11.sp, color = Color.White.copy(alpha = 0.78f), maxLines = 1)
+private fun ProfileHeader(profile: UserProfile?) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(AvatarSize)
+                .clip(CircleShape)
+                .background(TvSurfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                profile.initialsOrFallback(),
+                style = MaterialTheme.typography.headlineMedium,
+                color = TvOnSurface,
+            )
+        }
+        Spacer(Modifier.width(20.dp))
+        Column {
+            Text(
+                profile?.username ?: "Гость",
+                style = MaterialTheme.typography.headlineSmall,
+                color = TvOnSurface,
+                maxLines = 2,
+            )
+            Spacer(Modifier.height(3.dp))
+            Text(
+                profile?.subscription.label(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = TvOnSurfaceVariant,
+                maxLines = 1,
+            )
+        }
     }
 }
 
-// ── Правая колонка: группы настроек ──────────────────────────────────────────
+// ── Группы настроек ──────────────────────────────────────────────────────────
+
 private data class ProfileActions(
     val onCycleQuality: () -> Unit,
     val onCycleAudio: () -> Unit,
@@ -209,208 +189,119 @@ private data class ProfileActions(
     val onLogout: () -> Unit,
 )
 
-@Composable
-private fun ProfileSettings(
-    state: ProfileState,
-    actions: ProfileActions,
-    modifier: Modifier = Modifier,
-) {
-    val scrollState = rememberScrollState()
-    ScrollToTopOnNavFocus(scrollState)
-    Column(modifier = modifier.verticalScroll(scrollState)) {
-        SettingsGroup(title = "Просмотр") { PlaybackSettingsRows(state, actions) }
-        Spacer(Modifier.height(24.dp))
-        SettingsGroup(title = "Аккаунт") { AccountSettingsRows(state, actions) }
-    }
-}
-
-@Composable
-private fun PlaybackSettingsRows(state: ProfileState, actions: ProfileActions) {
-    SettingRow(
-        spec = SettingRowSpec(
-            icon = Icons.Filled.HighQuality,
-            accent = AccentQuality,
-            label = "Качество видео",
-            value = state.playback.quality,
-        ),
-        onClick = actions.onCycleQuality,
-        showDivider = true,
-    )
-    SettingRow(
-        spec = SettingRowSpec(
-            icon = Icons.AutoMirrored.Filled.VolumeUp,
-            accent = AccentAudio,
-            label = "Язык аудио",
-            value = state.playback.audioLanguage,
-        ),
-        onClick = actions.onCycleAudio,
-        showDivider = true,
-    )
-    SettingRow(
-        spec = SettingRowSpec(
-            icon = Icons.Filled.Subtitles,
-            accent = AccentSubtitle,
-            label = "Субтитры",
-            value = state.playback.subtitleLanguage,
-        ),
-        onClick = actions.onCycleSubtitle,
-        showDivider = false,
-    )
-}
-
-@Composable
-private fun AccountSettingsRows(state: ProfileState, actions: ProfileActions) {
-    val active = state.profile?.subscription?.active == true
-    SettingRow(
-        spec = SettingRowSpec(
-            icon = Icons.Filled.Star,
-            accent = AccentSubscription,
-            label = "Подписка",
-            value = if (active) "Premium" else "Неактивна",
-            badge = if (active) "PREMIUM" else null,
-        ),
-        onClick = null,
-        showDivider = true,
-    )
-    SettingRow(
-        spec = SettingRowSpec(
-            icon = Icons.AutoMirrored.Filled.Logout,
-            accent = MaterialTheme.colorScheme.error,
-            label = "Выйти из аккаунта",
-            labelColor = MaterialTheme.colorScheme.error,
-        ),
-        onClick = actions.onLogout,
-        showDivider = false,
-    )
-}
-
-@Composable
-private fun SettingsGroup(title: String, content: @Composable () -> Unit) {
-    Text(
-        title.uppercase(),
-        fontSize = 13.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 1.2.sp,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp),
-    )
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        content()
-    }
-}
-
-private data class SettingRowSpec(
-    val icon: ImageVector,
-    val accent: Color,
-    val label: String,
-    val value: String? = null,
-    val badge: String? = null,
-    val labelColor: Color? = null,
+/** Лямбды замыкают текущий [state], поэтому пересобираются вместе с ним — без remember. */
+private fun profileActions(screenModel: ProfileScreenModel, state: ProfileState) = ProfileActions(
+    onCycleQuality = {
+        screenModel.dispatch(
+            ProfileEvent.SetQuality(next(PlaybackSettings.qualityOptions, state.playback.quality))
+        )
+    },
+    onCycleAudio = {
+        screenModel.dispatch(
+            ProfileEvent.SetAudioLanguage(next(PlaybackSettings.audioOptions, state.playback.audioLanguage))
+        )
+    },
+    onCycleSubtitle = {
+        screenModel.dispatch(
+            ProfileEvent.SetSubtitleLanguage(
+                next(PlaybackSettings.subtitleOptions, state.playback.subtitleLanguage)
+            )
+        )
+    },
+    onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
 )
 
 @Composable
-private fun SettingRow(
-    spec: SettingRowSpec,
-    onClick: (() -> Unit)?,
-    showDivider: Boolean,
-) {
+private fun PlaybackRows(state: ProfileState, actions: ProfileActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(RowGap)) {
+        SettingRow(
+            spec = SettingRowSpec(label = "Качество видео", value = state.playback.quality),
+            onClick = actions.onCycleQuality,
+        )
+        SettingRow(
+            spec = SettingRowSpec(label = "Язык аудио", value = state.playback.audioLanguage),
+            onClick = actions.onCycleAudio,
+        )
+        SettingRow(
+            spec = SettingRowSpec(label = "Субтитры", value = state.playback.subtitleLanguage),
+            onClick = actions.onCycleSubtitle,
+        )
+    }
+}
+
+@Composable
+private fun AccountRows(state: ProfileState, actions: ProfileActions) {
+    val active = state.profile?.subscription?.active == true
+    Column(verticalArrangement = Arrangement.spacedBy(RowGap)) {
+        // Подписка — справочная строка: менять её из приложения нельзя, поэтому не фокусируется.
+        SettingRow(
+            spec = SettingRowSpec(label = "Подписка", value = if (active) "Premium" else "Неактивна"),
+            onClick = null,
+        )
+        SettingRow(
+            spec = SettingRowSpec(label = "Выйти из аккаунта", labelColor = TvError),
+            onClick = actions.onLogout,
+        )
+    }
+}
+
+// ── Строка настройки ─────────────────────────────────────────────────────────
+
+private data class SettingRowSpec(
+    val label: String,
+    val value: String? = null,
+    val labelColor: Color = TvOnSurface,
+)
+
+/**
+ * Строка настройки: слева ярлык, справа значение.
+ *
+ * Фокус рисуем вручную, а не через `TvFocusCard`, несмотря на единую схему фокуса в остальном
+ * приложении. Причина геометрическая: `Modifier.verticalScroll` клипает контент по горизонтали
+ * (`clipScrollableContainer` расширяет бокс только сверху и снизу), а `FocusScale` = 1.08 на
+ * строке шириной 640dp — это +25dp с каждой стороны. Рамке столько не дать: карточные ряды
+ * решают это запасом `FocusInset` = 12dp, здесь его не хватит вдвое, а расширить колонку до
+ * 690dp — значит вынести рамку на 32dp от края экрана, внутрь оверскан-зоны, ради защиты
+ * от которой и существует `SafeHorizontal`.
+ *
+ * Поэтому масштаб заменён вторым статичным сигналом — подъёмом фона: рамка [TvFocus] и цвет
+ * фона меняются вместе, так что фокус читается и без геометрии.
+ */
+@Composable
+private fun SettingRow(spec: SettingRowSpec, onClick: (() -> Unit)?) {
     var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(20.dp)
-    val rowModifier = Modifier
-        .fillMaxWidth()
-        .then(
-            if (onClick != null) {
-                Modifier
-                    .onFocusChanged { focused = it.isFocused }
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onClick,
-                    )
-            } else {
-                Modifier
-            },
-        )
-        .clip(shape)
-        .background(if (focused) Color.White.copy(alpha = 0.10f) else Color.Transparent)
-        // Рамка фокуса — общая TvFocus, как у TvFocusCard/TvButton: цвет индикатора фокуса
-        // должен быть один на всё TV-приложение, иначе на этом экране его не найти глазами.
-        .then(if (focused) Modifier.border(3.dp, TvFocus, shape) else Modifier)
-        .padding(horizontal = 22.dp, vertical = 18.dp)
-
-    Row(modifier = rowModifier, verticalAlignment = Alignment.CenterVertically) {
-        SettingRowIcon(icon = spec.icon, accent = spec.accent)
-        Spacer(Modifier.width(18.dp))
-        SettingRowText(
-            spec = spec,
-            labelColor = spec.labelColor ?: MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
-        if (onClick != null) {
-            Spacer(Modifier.width(12.dp))
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-    if (showDivider) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp)
-                .height(1.dp)
-                .background(MaterialTheme.colorScheme.outlineVariant),
-        )
-    }
-}
-
-@Composable
-private fun SettingRowIcon(icon: ImageVector, accent: Color) {
-    Box(
+    val shape = TvMetrics.PanelShape
+    Row(
         modifier = Modifier
-            .size(52.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(accent.copy(alpha = 0.20f)),
-        contentAlignment = Alignment.Center,
+            .fillMaxWidth()
+            .height(RowHeight)
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .onFocusChanged { focused = it.isFocused }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClick,
+                        )
+                } else {
+                    Modifier
+                },
+            )
+            .background(if (focused) TvSurfaceContainerHigh else TvSurfaceContainer, shape)
+            .then(if (focused) Modifier.border(TvMetrics.FocusBorderWidth, TvFocus, shape) else Modifier)
+            .padding(horizontal = 22.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
-    }
-}
-
-@Composable
-private fun SettingRowText(spec: SettingRowSpec, labelColor: Color, modifier: Modifier = Modifier) {
-    Column(modifier) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(spec.label, fontSize = 19.sp, fontWeight = FontWeight.Bold, color = labelColor)
-            if (spec.badge != null) {
-                Spacer(Modifier.width(10.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(spec.accent)
-                        .padding(horizontal = 10.dp, vertical = 3.dp),
-                ) {
-                    Text(
-                        spec.badge,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        letterSpacing = 1.sp,
-                        color = Color.White
-                    )
-                }
-            }
-        }
+        Text(spec.label, style = MaterialTheme.typography.titleMedium, color = spec.labelColor)
         if (!spec.value.isNullOrEmpty()) {
-            Spacer(Modifier.height(4.dp))
-            Text(spec.value, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                spec.value,
+                style = MaterialTheme.typography.bodyLarge,
+                color = TvOnSurfaceVariant,
+                maxLines = 1,
+            )
         }
     }
 }

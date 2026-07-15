@@ -66,6 +66,8 @@ data class DurationDto(
 data class GenreDto(
     val id: Int,
     val title: String,
+    // Есть только в ответе api/v1/genres (жанры всех типов одним списком); внутри тайтла — нет.
+    val type: String? = null,
 )
 
 @Serializable

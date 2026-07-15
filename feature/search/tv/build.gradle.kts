@@ -16,6 +16,8 @@ dependencies {
     val bom = platform(libs.compose.bom)
     implementation(bom)
     implementation(libs.bundles.compose)
+    // BackHandler: «Назад» закрывает оверлей клавиатуры, а не уводит с вкладки.
+    implementation(libs.activity.compose)
     implementation(libs.navigation.compose)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)

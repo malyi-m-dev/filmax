@@ -7,70 +7,68 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
+import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvButton
-import com.filmax.core.tv.designsystem.TvFocusCard
-import com.filmax.core.tv.designsystem.TvPosterTitle
-import com.filmax.core.tv.designsystem.posterSubtitle
+import com.filmax.core.tv.designsystem.TvMetaRow
+import com.filmax.core.tv.designsystem.TvMetrics
+import com.filmax.core.tv.designsystem.TvOnSurface
+import com.filmax.core.tv.designsystem.TvOverline
+import com.filmax.core.tv.designsystem.TvPosterCard
+import com.filmax.core.tv.designsystem.TvProgressCard
+import com.filmax.core.tv.designsystem.TvRail
+import com.filmax.core.tv.designsystem.TvSurface
+import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
+import com.filmax.core.tv.designsystem.posterMeta
+import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.ui.components.PosterImage
-import com.filmax.core.ui.components.RatingPill
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
 import com.filmax.feature.home.common.HomeState
 import org.koin.androidx.compose.koinViewModel
 
-private val Accent = Color(0xFFB4305A)
-
 /**
- * TV-Главная (экран 01 макета): hero-бэкдроп с действиями и горизонтальные рельсы постеров.
- * Поверх общего [HomeScreenModel] — данные те же, что и на телефоне. Верхний таб-бар рисует
- * общий TV-скаффолд в `:app`. Фокус/скролл — нативные (tv-material3 + Lazy bring-into-view).
+ * TV-Главная: hero «выбор редакции» и горизонтальные ряды. Поверх общего [HomeScreenModel] —
+ * данные те же, что и на телефоне. Верхний таб-бар рисует общий TV-скаффолд в `:app`.
+ *
+ * Плоской ленты «Все» здесь намеренно нет: это работа Каталога с его фильтрами и сортировкой.
+ * Бесконечный ряд на пульте — сотни нажатий вправо и ни одного способа найти в нём конкретное.
  */
 @Composable
 fun TvHomeScreen(
     onOpenItem: (Int) -> Unit,
     onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onOpenCollection: (id: Int, title: String) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: HomeScreenModel = koinViewModel(),
 ) {
@@ -80,11 +78,11 @@ fun TvHomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(TvSurface),
     ) {
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                CircularProgressIndicator(color = TvAccent)
             }
 
             else -> TvHomeContent(
@@ -93,7 +91,7 @@ fun TvHomeScreen(
                 actions = TvHomeActions(
                     onOpenItem = onOpenItem,
                     onPlay = onPlay,
-                    onLoadMore = { screenModel.dispatch(HomeEvent.LoadMoreAll) },
+                    onOpenCollection = onOpenCollection,
                     onReload = { screenModel.dispatch(HomeEvent.Load) },
                 ),
             )
@@ -105,7 +103,7 @@ fun TvHomeScreen(
 private data class TvHomeActions(
     val onOpenItem: (Int) -> Unit,
     val onPlay: (itemId: Int, videoId: Int) -> Unit,
-    val onLoadMore: () -> Unit,
+    val onOpenCollection: (id: Int, title: String) -> Unit,
     val onReload: () -> Unit,
 )
 
@@ -117,25 +115,15 @@ private fun TvHomeContent(
 ) {
     val listState = rememberLazyListState()
     ScrollToTopOnNavFocus(listState)
-    // Триггер догрузки «Все»: когда фокус/скролл подводит к последним строкам списка.
-    val loadMore by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - 3
-        }
-    }
-    LaunchedEffect(loadMore) { if (loadMore) actions.onLoadMore() }
-
-    // «Все» бьём на ряды по ALL_COLUMNS заранее и кэшируем: иначе chunked() пересоздавал бы
-    // список рядов на каждой рекомпозиции (а он растёт с каждой подгруженной страницей).
-    val allRows = remember(state.all) { state.all.chunked(ALL_COLUMNS) }
 
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 0.dp, bottom = 56.dp),
-        verticalArrangement = Arrangement.spacedBy(36.dp),
+        contentPadding = PaddingValues(
+            top = TvMetrics.ContentTop,
+            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
+        ),
+        verticalArrangement = Arrangement.spacedBy(TvMetrics.RowGap),
     ) {
         // Офлайн-деградация (issue #42): кэшированный контент + баннер «нет сети» вместо ошибки.
         if (offline) {
@@ -151,151 +139,76 @@ private fun TvHomeContent(
                 )
             }
         }
-
-        tvRails(state = state, onOpenItem = actions.onOpenItem, onPlay = actions.onPlay)
-
-        // ── Все — постранично подгружаемая сетка (6 в ряд) ──────────────────────
-        if (state.all.isNotEmpty()) {
-            tvAllGrid(
-                allRows = allRows,
-                allLoadingMore = state.allLoadingMore,
-                onOpenItem = actions.onOpenItem,
-            )
-        }
+        tvRails(state = state, actions = actions)
     }
 }
 
-// Рельсы «Продолжить/В тренде/Для вас» — те же item-блоки, вынесены из TvHomeContent.
-private fun LazyListScope.tvRails(
-    state: HomeState,
-    onOpenItem: (Int) -> Unit,
+private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions) {
+    tvContinueRail(history = state.continueWatching, onPlay = actions.onPlay)
+    tvPosterRail(
+        key = "trending",
+        title = "В тренде",
+        railItems = state.trending,
+        onOpenItem = actions.onOpenItem,
+    )
+    // Заголовок честный: `forYou` — это топ сериалов по рейтингу, персонализации в фиде нет.
+    tvPosterRail(
+        key = "forYou",
+        title = "Сериалы с высоким рейтингом",
+        railItems = state.forYou,
+        onOpenItem = actions.onOpenItem,
+    )
+    tvCollectionsRail(collections = state.collections, onOpenCollection = actions.onOpenCollection)
+}
+
+private fun LazyListScope.tvContinueRail(
+    history: List<WatchHistory>,
     onPlay: (itemId: Int, videoId: Int) -> Unit,
 ) {
-    if (state.continueWatching.isNotEmpty()) {
-        item(key = "continue") {
-            TvRail(title = "Продолжить просмотр") {
-                items(state.continueWatching, key = { it.itemId }) { history ->
-                    // Рельса продолжения ведёт сразу в плеер — на недосмотренный эпизод
-                    // (videoId из истории), позицию внутри трека восстановит PlayerScreenModel.
-                    TvContinueCard(
-                        history = history,
-                        onClick = { onPlay(history.itemId, history.progress?.videoId ?: NO_VIDEO_ID) },
-                    )
-                }
-            }
-        }
-    }
-
-    if (state.trending.isNotEmpty()) {
-        item(key = "trending") {
-            TvRail(title = "В тренде") {
-                items(state.trending, key = { it.id }) { itm ->
-                    TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
-                }
-            }
-        }
-    }
-
-    if (state.forYou.isNotEmpty()) {
-        item(key = "forYou") {
-            TvRail(title = "Для вас") {
-                items(state.forYou, key = { it.id }) { itm ->
-                    TvPosterCard(item = itm, onClick = { onOpenItem(itm.id) })
-                }
+    if (history.isEmpty()) return
+    item(key = "continue") {
+        TvRail(title = "Продолжить просмотр") {
+            items(history, key = { it.itemId }) { entry ->
+                // Ряд продолжения ведёт сразу в плеер — на недосмотренный эпизод (videoId из
+                // истории), позицию внутри трека восстановит PlayerScreenModel.
+                TvContinueCard(
+                    history = entry,
+                    onClick = { onPlay(entry.itemId, entry.progress?.videoId ?: NO_VIDEO_ID) },
+                )
             }
         }
     }
 }
 
-// Сетка «Все» + индикатор догрузки — вынесены из TvHomeContent без изменений раскладки.
-private fun LazyListScope.tvAllGrid(
-    allRows: List<List<Item>>,
-    allLoadingMore: Boolean,
+private fun LazyListScope.tvPosterRail(
+    key: String,
+    title: String,
+    railItems: List<Item>,
     onOpenItem: (Int) -> Unit,
 ) {
-    item(key = "all_title") { TvSectionTitle("Все") }
-    itemsIndexed(allRows, key = { index, _ -> "all_row_$index" }) { _, rowItems ->
-        TvAllRow(rowItems = rowItems, onOpenItem = onOpenItem)
-    }
-    // Индикатор догрузки «Все» — отдельным элементом после сетки (без вложенного if).
-    if (allLoadingMore) {
-        item(key = "all_loading") { TvAllLoadingRow() }
-    }
-}
-
-@Composable
-private fun TvAllRow(rowItems: List<Item>, onOpenItem: (Int) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 72.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
-        rowItems.forEach { itm ->
-            TvAllPosterCell(item = itm, onClick = { onOpenItem(itm.id) })
+    if (railItems.isEmpty()) return
+    item(key = key) {
+        TvRail(title = title) {
+            items(railItems, key = { it.id }) { catalogItem ->
+                TvHomePosterCard(item = catalogItem, onClick = { onOpenItem(catalogItem.id) })
+            }
         }
-        // Добиваем неполную строку, чтобы колонки не растягивались.
-        repeat(ALL_COLUMNS - rowItems.size) { Spacer(Modifier.weight(1f)) }
     }
 }
 
-@Composable
-private fun TvAllLoadingRow() {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-    }
-}
-
-private const val ALL_COLUMNS = 6
-
-/** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
-private const val NO_VIDEO_ID = -1
-
-@Composable
-private fun TvSectionTitle(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(start = 72.dp),
-    )
-}
-
-@Composable
-private fun RowScope.TvAllPosterCell(item: Item, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
-    Box(Modifier.weight(1f)) {
-        TvFocusCard(
-            onClick = onClick,
-            shape = shape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(2f / 3f),
-        ) {
-            Box(Modifier.fillMaxSize()) {
-                PosterImage(
-                    url = item.posters.medium.ifEmpty { item.posters.big },
-                    contentDescription = item.title,
-                    modifier = Modifier.fillMaxSize(),
-                    shape = shape,
-                    accentColor = Accent,
-                )
-                RatingPill(
-                    rating = item.rating.external,
-                    compact = true,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp),
-                )
-                TvPosterTitle(
-                    title = item.title,
-                    subtitle = posterSubtitle(item.year, item.genres.firstOrNull()?.title),
+private fun LazyListScope.tvCollectionsRail(
+    collections: List<Collection>,
+    onOpenCollection: (id: Int, title: String) -> Unit,
+) {
+    // Подборка без постера — пустая плашка: в монохроме карточку держит только картинка.
+    val withPoster = collections.filter { it.posterUrl() != null }
+    if (withPoster.isEmpty()) return
+    item(key = "collections") {
+        TvRail(title = "Подборки") {
+            items(withPoster, key = { it.id }) { collection ->
+                TvCollectionCard(
+                    collection = collection,
+                    onClick = { onOpenCollection(collection.id, collection.title) },
                 )
             }
         }
@@ -303,6 +216,40 @@ private fun RowScope.TvAllPosterCell(item: Item, onClick: () -> Unit) {
 }
 
 // ── Hero ──────────────────────────────────────────────────────────────────
+
+/** Ширина текстового блока hero: дальше название на 44sp наезжает на светлую часть кадра. */
+private val HeroContentWidth = 520.dp
+private val HeroContentBottom = 26.dp
+
+/**
+ * Скрим hero, горизонтальный. Опорные точки — из макета (.94 → .82 на 34% → .35 на 62% → .05),
+ * между ними добавлены промежуточные: CSS интерполирует градиент сам, а на 8-битной панели
+ * телевизора серый-в-серый идёт видимыми ступенями — лишние стопы разбивают полосы.
+ */
+private val HeroScrimHorizontal = Brush.horizontalGradient(
+    0.00f to TvSurface.copy(alpha = 0.94f),
+    0.17f to TvSurface.copy(alpha = 0.89f),
+    0.34f to TvSurface.copy(alpha = 0.82f),
+    0.48f to TvSurface.copy(alpha = 0.60f),
+    0.62f to TvSurface.copy(alpha = 0.35f),
+    0.80f to TvSurface.copy(alpha = 0.16f),
+    1.00f to TvSurface.copy(alpha = 0.05f),
+)
+
+/**
+ * Скрим hero, вертикальный: сажает кадр на подложку экрана. Прозрачный конец — это TvSurface
+ * с alpha 0, а не [androidx.compose.ui.graphics.Color.Transparent]: у Transparent RGB нулевые,
+ * и интерполяция уводила бы градиент через чёрный.
+ */
+private val HeroScrimVertical = Brush.verticalGradient(
+    0.00f to TvSurface.copy(alpha = 0f),
+    0.60f to TvSurface.copy(alpha = 0f),
+    0.72f to TvSurface.copy(alpha = 0.22f),
+    0.84f to TvSurface.copy(alpha = 0.52f),
+    0.92f to TvSurface.copy(alpha = 0.74f),
+    1.00f to TvSurface.copy(alpha = 0.90f),
+)
+
 @Composable
 private fun TvHero(
     item: Item,
@@ -312,223 +259,142 @@ private fun TvHero(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(540.dp),
+            .height(TvMetrics.HeroHeight),
     ) {
         PosterImage(
             url = item.posters.wide ?: item.posters.big,
             contentDescription = item.title,
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(0.dp),
-            accentColor = Accent,
+            shape = RectangleShape,
+            accentColor = TvSurfaceContainerHigh,
         )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
-                        0.45f to MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
-                        0.8f to Color.Transparent,
-                    )
-                )
-        )
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0.4f to Color.Transparent,
-                        1f to MaterialTheme.colorScheme.surface,
-                    )
-                )
-        )
+        Box(Modifier.fillMaxSize().background(HeroScrimHorizontal))
+        Box(Modifier.fillMaxSize().background(HeroScrimVertical))
 
         TvHeroOverlay(item = item, onPlay = onPlay, onDetails = onDetails)
     }
 }
 
-// Текстовый оверлей hero (название/мета/описание/кнопки) — вынесен из TvHero без изменений.
 @Composable
 private fun BoxScope.TvHeroOverlay(item: Item, onPlay: () -> Unit, onDetails: () -> Unit) {
     Column(
         modifier = Modifier
-            .align(Alignment.TopStart)
-            .padding(start = 72.dp, end = 72.dp, top = 96.dp),
+            .align(Alignment.BottomStart)
+            .padding(start = TvMetrics.SafeHorizontal, bottom = HeroContentBottom)
+            .width(HeroContentWidth),
     ) {
-        EditorsChoicePill()
-        Spacer(Modifier.height(16.dp))
+        TvOverline("Выбор редакции")
+        Spacer(Modifier.height(10.dp))
         Text(
             item.title,
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
+            style = MaterialTheme.typography.displayMedium,
+            color = TvOnSurface,
             maxLines = 2,
-            modifier = Modifier.fillMaxWidth(0.6f),
+            overflow = TextOverflow.Ellipsis,
         )
-        Spacer(Modifier.height(14.dp))
-        HeroMeta(item)
-        Spacer(Modifier.height(14.dp))
-        Text(
-            item.plot,
-            fontSize = 18.sp,
-            lineHeight = 26.sp,
-            color = Color.White.copy(alpha = 0.85f),
-            maxLines = 3,
-            modifier = Modifier.fillMaxWidth(0.56f),
-        )
-        Spacer(Modifier.height(28.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            TvButton("Смотреть", onClick = onPlay, leadingIcon = Icons.Filled.PlayArrow)
-            TvButton("Подробнее", onClick = onDetails, primary = false, leadingIcon = Icons.Filled.Info)
+        Spacer(Modifier.height(12.dp))
+        TvHeroMeta(item)
+        Spacer(Modifier.height(20.dp))
+        // «Буду смотреть» из макета не выводим: события watchlist в HomeEvent нет, а кнопка,
+        // которая ничего не делает, хуже отсутствующей.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvButton("Смотреть", onClick = onPlay)
+            TvButton("Подробнее", onClick = onDetails, primary = false)
         }
     }
 }
 
 @Composable
-private fun HeroMeta(item: Item) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        RatingPill(rating = item.rating.external)
-        MetaText("${item.year}")
-        MetaDot()
-        item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let {
-            MetaText(formatDuration(it))
-            MetaDot()
+private fun TvHeroMeta(item: Item) {
+    val parts = remember(item) {
+        buildList {
+            item.genres.take(MAX_HERO_GENRES).joinToString(" · ") { it.title }
+                .takeIf { it.isNotBlank() }
+                ?.let { add(it) }
+            if (item.year > 0) add(item.year.toString())
+            item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let { add(formatDuration(it)) }
         }
-        MetaText(item.genres.take(3).joinToString(" · ") { it.title })
     }
-}
-
-@Composable
-private fun MetaText(text: String) =
-    Text(text, fontSize = 16.sp, color = Color.White.copy(alpha = 0.9f))
-
-@Composable
-private fun MetaDot() = Box(
-    Modifier
-        .size(4.dp)
-        .clip(CircleShape)
-        .background(Color.White.copy(alpha = 0.5f))
-)
-
-@Composable
-private fun EditorsChoicePill() {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(percent = 50))
-            .background(Accent)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text(
-            "⚡ ВЫБОР РЕДАКЦИИ",
-            color = Color.White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.ExtraBold,
-            letterSpacing = 2.sp,
-        )
-    }
-}
-
-// ── Rails ─────────────────────────────────────────────────────────────────
-@OptIn(ExperimentalComposeUiApi::class)
-@Composable
-private fun TvRail(title: String, content: LazyListScope.() -> Unit) {
-    Column {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(start = 72.dp, bottom = 16.dp),
-        )
-        // focusRestorer: «вниз» в ряд ведёт на первый элемент, дальше запоминает позицию —
-        // иначе D-pad ищет пространственно-ближайшую карточку и после скролла мажет мимо первой.
-        LazyRow(
-            modifier = Modifier.focusRestorer(),
-            contentPadding = PaddingValues(horizontal = 72.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-            content = content,
-        )
-    }
-}
-
-@Composable
-private fun TvPosterCard(item: Item, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    TvFocusCard(onClick = onClick, shape = shape, modifier = Modifier.size(width = 200.dp, height = 300.dp)) {
-        Box(Modifier.fillMaxSize()) {
-            PosterImage(
-                url = item.posters.medium.ifEmpty { item.posters.big },
-                contentDescription = item.title,
-                modifier = Modifier.fillMaxSize(),
-                shape = shape,
-                accentColor = Accent,
-            )
-            RatingPill(
-                rating = item.rating.external,
-                compact = true,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(10.dp),
-            )
-            TvPosterTitle(
-                title = item.title,
-                subtitle = posterSubtitle(item.year, item.genres.firstOrNull()?.title),
+        // Рейтинг — единственная часть меты в полный контраст: в монохроме вес и яркость
+        // делают то, что на цветном макете делала бы акцентная пилюля.
+        ratingLabel(item.rating.kinopoisk)?.let { rating ->
+            Text(
+                "$rating КП",
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = TvOnSurface,
             )
         }
+        if (parts.isNotEmpty()) TvMetaRow(parts)
     }
+}
+
+// ── Карточки рядов ────────────────────────────────────────────────────────
+
+@Composable
+private fun TvHomePosterCard(item: Item, onClick: () -> Unit) {
+    TvPosterCard(
+        title = item.title,
+        meta = posterMeta(type = item.type.label(), year = item.year),
+        posterUrl = item.posters.medium.ifEmpty { item.posters.big },
+        rating = ratingLabel(item.rating.kinopoisk),
+        onClick = onClick,
+        posterContent = { url, posterModifier ->
+            PosterImage(
+                url = url,
+                contentDescription = item.title,
+                modifier = posterModifier,
+                shape = TvMetrics.PosterShape,
+                accentColor = TvSurfaceContainerHigh,
+            )
+        },
+    )
+}
+
+@Composable
+private fun TvCollectionCard(collection: Collection, onClick: () -> Unit) {
+    TvPosterCard(
+        title = collection.title,
+        meta = null,
+        posterUrl = collection.posterUrl().orEmpty(),
+        onClick = onClick,
+        posterContent = { url, posterModifier ->
+            PosterImage(
+                url = url,
+                contentDescription = collection.title,
+                modifier = posterModifier,
+                shape = TvMetrics.PosterShape,
+                accentColor = TvSurfaceContainerHigh,
+            )
+        },
+    )
 }
 
 @Composable
 private fun TvContinueCard(history: WatchHistory, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Column(modifier = Modifier.width(320.dp)) {
-        TvFocusCard(onClick = onClick, shape = shape, modifier = Modifier.fillMaxWidth().height(180.dp)) {
-            Box(Modifier.fillMaxSize()) {
-                PosterImage(
-                    url = history.posterSmall.orEmpty(),
-                    contentDescription = history.title,
-                    modifier = Modifier.fillMaxSize(),
-                    shape = shape,
-                    accentColor = Accent,
-                )
-                Box(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(Color.White.copy(alpha = 0.25f))
-                ) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth(history.progress?.fraction ?: 0f)
-                            .height(4.dp)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            history.title,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-        )
-    }
+    TvProgressCard(
+        title = history.title,
+        meta = continueMeta(history.progress),
+        posterUrl = history.posterSmall.orEmpty(),
+        progress = history.progress?.fraction ?: 0f,
+        onClick = onClick,
+        posterContent = { url, posterModifier ->
+            PosterImage(
+                url = url,
+                contentDescription = history.title,
+                modifier = posterModifier,
+                shape = TvMetrics.CardShape,
+                accentColor = TvSurfaceContainerHigh,
+            )
+        },
+    )
 }
 
-private fun formatDuration(totalMinutes: Int): String {
-    val h = totalMinutes / 60
-    val m = totalMinutes % 60
-    return when {
-        h > 0 && m > 0 -> "${h}ч ${m}м"
-        h > 0 -> "${h}ч"
-        else -> "${m}м"
-    }
-}
-
-/** Баннер «нет сети» над кэшированным контентом на Apple TV; фокус+OK — повторить (issue #42). */
+/** Баннер «нет сети» над кэшированным контентом; фокус+OK — повторить (issue #42). */
 @Composable
 private fun TvOfflineBanner(onReload: () -> Unit) {
     TvButton(
@@ -536,6 +402,62 @@ private fun TvOfflineBanner(onReload: () -> Unit) {
         onClick = onReload,
         primary = false,
         leadingIcon = Icons.Filled.CloudOff,
-        modifier = Modifier.padding(horizontal = 56.dp),
+        modifier = Modifier.padding(horizontal = TvMetrics.SafeHorizontal),
     )
 }
+
+// ── Форматирование ────────────────────────────────────────────────────────
+
+/** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
+private const val NO_VIDEO_ID = -1
+
+/** Больше трёх жанров мета-строка hero не вмещает по ширине [HeroContentWidth]. */
+private const val MAX_HERO_GENRES = 3
+
+private const val MINUTES_IN_HOUR = 60
+private const val SECONDS_IN_MINUTE = 60
+
+/**
+ * Подпись карточки «продолжить»: «S2 · осталось 18 мин». Номер эпизода макета («E5») не
+ * выводим: в [WatchProgress] его нет — `videoId` это идентификатор трека, а не порядковый
+ * номер серии (`PlayerScreenModel` матчит им `MediaTrack.id`).
+ */
+private fun continueMeta(progress: WatchProgress?): String? {
+    if (progress == null) return null
+    val parts = buildList {
+        progress.season?.takeIf { it > 0 }?.let { add("S$it") }
+        remainingMinutes(progress)?.let { add("осталось ${formatDuration(it)}") }
+    }
+    return parts.joinToString(" · ").ifBlank { null }
+}
+
+/** Сколько минут осталось до конца трека; null — прогресса нет или уже досмотрено. */
+private fun remainingMinutes(progress: WatchProgress): Int? {
+    val watched = progress.timeSeconds
+    val total = progress.durationSeconds?.takeIf { it > 0 }
+    if (watched == null || total == null) return null
+    return ((total - watched) / SECONDS_IN_MINUTE).takeIf { it > 0 }
+}
+
+private fun formatDuration(totalMinutes: Int): String {
+    val hours = totalMinutes / MINUTES_IN_HOUR
+    val minutes = totalMinutes % MINUTES_IN_HOUR
+    return when {
+        hours > 0 && minutes > 0 -> "$hours ч $minutes мин"
+        hours > 0 -> "$hours ч"
+        else -> "$minutes мин"
+    }
+}
+
+/** Русское название типа для меты карточки — [ItemType] хранит только API-значения. */
+private fun ItemType.label(): String = when (this) {
+    ItemType.MOVIE -> "Фильм"
+    ItemType.SERIES -> "Сериал"
+    ItemType.ANIME -> "Аниме"
+    ItemType.DOCUMENTARY -> "Документальный"
+    ItemType.TV -> "ТВ"
+}
+
+/** Постер подборки; null — картинки нет, такую подборку не показываем. */
+private fun Collection.posterUrl(): String? =
+    posters?.let { it.medium.ifEmpty { it.big } }?.takeIf { it.isNotBlank() }
