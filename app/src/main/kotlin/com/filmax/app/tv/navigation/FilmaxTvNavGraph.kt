@@ -147,7 +147,10 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
         },
     )
 
-    tvHomeScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvHomeScreen(
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+    )
     tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
     tvCollectionsScreen(
         onOpenCollection = { id, title ->

@@ -3,7 +3,6 @@
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import com.filmax.core.designsystem.FilmaxDarkColorScheme
 import com.filmax.core.designsystem.FilmaxShapes
@@ -51,15 +50,13 @@ fun FilmaxTvTheme(content: @Composable () -> Unit) {
         errorContainer = TvErrorContainer,
     )
 
-    CompositionLocalProvider(LocalTvFocusColor provides TvFocus) {
-        ComposeMaterialTheme(
-            colorScheme = composeScheme,
-            typography = FilmaxTypography,
-            shapes = FilmaxShapes,
-        ) {
-            TvMaterialTheme(colorScheme = tvScheme) {
-                content()
-            }
+    ComposeMaterialTheme(
+        colorScheme = composeScheme,
+        typography = FilmaxTypography,
+        shapes = FilmaxShapes,
+    ) {
+        TvMaterialTheme(colorScheme = tvScheme) {
+            content()
         }
     }
 }
