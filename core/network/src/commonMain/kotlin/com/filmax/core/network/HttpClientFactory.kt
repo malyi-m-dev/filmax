@@ -108,10 +108,10 @@ fun buildHttpClient(
             // Logger.SIMPLE пишет через println — на Android это уходит в logcat (тег System.out).
             // Дефолтный логгер на JVM идёт в SLF4J, провайдера в приложении нет, и логи молча
             // терялись: в logcat было только «SLF4J(W): noProviders», а запросов — ни одного.
-            logger = Logger.SIMPLE
+            logger = SecretMaskingLogger(Logger.SIMPLE)
             level = LogLevel.BODY
-            // Bearer-токен в логи не пишем: logcat читает кто угодно, а токен — это доступ
-            // к аккаунту целиком. Всё остальное (URL, параметры, тело ответа) видно.
+            // Bearer-заголовок в логи не пишем. Токены в URL режет SecretMaskingLogger:
+            // sanitizeHeader на query-параметры не распространяется.
             sanitizeHeader { header -> header.equals(HttpHeaders.Authorization, ignoreCase = true) }
         }
     }
