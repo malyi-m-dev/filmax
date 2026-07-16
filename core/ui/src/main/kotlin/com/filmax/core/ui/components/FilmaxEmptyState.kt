@@ -17,7 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.filmax.core.designsystem.ShapeCookie
+import com.filmax.core.designsystem.ShapeButton
 
 /**
  * Пустое состояние Filmax — выразительный cookie-контейнер с иконкой, заголовок и подпись.
@@ -38,7 +38,7 @@ fun FilmaxEmptyState(
         Box(
             modifier = Modifier
                 .size(88.dp)
-                .clip(ShapeCookie)
+                .clip(ShapeButton)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh),
             contentAlignment = Alignment.Center,
         ) {

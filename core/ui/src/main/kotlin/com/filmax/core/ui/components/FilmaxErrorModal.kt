@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.filmax.core.designsystem.ShapeCookie
+import com.filmax.core.designsystem.ShapeButton
 import com.filmax.core.domain.error.AppError
 
 // Палитра модалок ошибок. Цвета вынесены в именованные константы (detekt MagicNumber);
@@ -205,9 +205,9 @@ private fun ErrorModalContent(
         Box(
             modifier = Modifier
                 .size(92.dp)
-                .clip(ShapeCookie)
+                .clip(ShapeButton)
                 .background(visual.color.copy(alpha = 0.13f))
-                .border(1.dp, visual.color.copy(alpha = 0.2f), ShapeCookie),
+                .border(1.dp, visual.color.copy(alpha = 0.2f), ShapeButton),
             contentAlignment = Alignment.Center,
         ) {
             Icon(visual.icon, contentDescription = null, tint = visual.color, modifier = Modifier.size(44.dp))

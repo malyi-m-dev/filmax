@@ -3,7 +3,7 @@ package com.filmax.core.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -13,8 +13,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.filmax.core.designsystem.ShapePoster
 
 /**
  * Постер с ленивой загрузкой через Coil [AsyncImage]. Под обложкой всегда лежит статичный
@@ -31,8 +31,11 @@ fun PosterImage(
     url: String,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(20.dp),
-    accentColor: Color = Color(0xFFB4305A),
+    shape: Shape = ShapePoster,
+    // Дефолт берём из темы, а не из константы. Раньше здесь был зашит розовый #B4305A: любой
+    // вызов без явного accentColor красил плейсхолдер мимо схемы — цветное пятно там, где во
+    // всём приложении цвет только у постеров.
+    accentColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) {
     val placeholder = remember(accentColor) { posterPlaceholderBrush(accentColor) }
     Box(modifier.clip(shape).background(placeholder)) {
@@ -45,8 +48,8 @@ fun PosterImage(
     }
 }
 
-/** Нижний (тёмный) цвет градиента-заглушки постера. */
-private val PlaceholderBottomColor = Color(0xFF141012)
+/** Нижний (тёмный) цвет градиента-заглушки постера. Нейтральный, как и вся палитра. */
+private val PlaceholderBottomColor = Color(0xFF0F0F0F)
 
 /** Конечная точка линейного градиента-заглушки (диагональ сверху-слева вниз-вправо). */
 private const val PLACEHOLDER_GRADIENT_END_X = 200f

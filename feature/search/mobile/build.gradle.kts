@@ -17,6 +17,8 @@ dependencies {
     implementation(bom)
     implementation(libs.bundles.compose)
     implementation(libs.navigation.compose)
+    // BackHandler: «Назад» закрывает режим поиска, а не уводит с вкладки «Каталог».
+    implementation(libs.activity.compose)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
 }

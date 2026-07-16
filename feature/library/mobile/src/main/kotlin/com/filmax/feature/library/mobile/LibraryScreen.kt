@@ -1,9 +1,8 @@
 package com.filmax.feature.library.mobile
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,441 +15,577 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.filmax.core.domain.downloads.model.DownloadedItem
-import com.filmax.core.domain.favorites.model.FavoriteItem
+import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.designsystem.ShapeButton
+import com.filmax.core.designsystem.ShapeCard
+import com.filmax.core.designsystem.ShapeFull
+import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.core.ui.components.FilmaxEmptyState
-import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.FilmaxPosterCard
+import com.filmax.core.ui.components.FilmaxProgressCard
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.library.common.LibraryEvent
 import com.filmax.feature.library.common.LibraryScreenModel
 import com.filmax.feature.library.common.LibraryState
-import com.filmax.feature.library.common.LibraryTab
+import com.filmax.feature.library.common.OpenBookmarkFolder
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Сегменты раздела «Моё» — четыре непересекающихся ответа на вопрос «что у меня есть».
+ *
+ * Заменяют старые вкладки Библиотеки, которые пересекались: «Избранное» и есть «Буду смотреть»,
+ * а «Загрузки» ничего не качали и убраны. Совпадают с сегментами TV-раздела, но живут отдельно:
+ * общий `LibraryTab` описывал именно старые вкладки и мобильному экрану больше не нужен.
+ */
+private enum class MineSegment(val label: String) {
+    CONTINUE("Продолжить"),
+    WATCHLIST("Буду смотреть"),
+    BOOKMARKS("Закладки"),
+    HISTORY("История"),
+}
+
+/** Действия сетки одним объектом: навигация экрана + события модели, иначе LongParameterList. */
+private data class MineActions(
+    val onOpenItem: (Int) -> Unit,
+    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onOpenCatalog: () -> Unit,
+    val onOpenFolder: (BookmarkFolder) -> Unit,
+    val onLoadMoreFolderItems: () -> Unit,
+)
+
+/**
+ * Раздел «Моё» (экран 08 макета). [onPlay] ведёт в плеер: «Продолжить» и «История» — это про
+ * воспроизведение, а не про чтение описания. Постеры «Буду смотреть» и содержимое папок —
+ * в детали через [onOpenItem].
+ */
 @Composable
 fun LibraryScreen(
     onOpenItem: (Int) -> Unit,
+    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onOpenCatalog: () -> Unit,
     modifier: Modifier = Modifier,
     screenModel: LibraryScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    var segment by rememberSaveable { mutableStateOf(MineSegment.CONTINUE) }
+
+    // Внутри папки системная «назад» возвращает к списку папок, а не выкидывает из раздела.
+    BackHandler(enabled = state.openFolder != null) {
+        screenModel.dispatch(LibraryEvent.CloseFolder)
+    }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(MaterialTheme.colorScheme.surface)
             .statusBarsPadding(),
     ) {
-        Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)) {
-            Text(
-                "Моя библиотека",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                "Избранное, загрузки и история просмотров",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        MineHeader(
+            segment = segment,
+            onSegment = { next ->
+                segment = next
+                // Уход из «Закладок» закрывает открытую папку: иначе возврат в сегмент показал бы
+                // содержимое, которое уже никто не просил.
+                if (state.openFolder != null) screenModel.dispatch(LibraryEvent.CloseFolder)
+            },
+        )
 
-        Row(
-            modifier = Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            LibraryTab.entries.forEach { tab ->
-                LibraryTabPill(
-                    tab = tab,
-                    selected = state.tab == tab,
-                    count = countFor(tab, state),
-                    onClick = { screenModel.dispatch(LibraryEvent.TabChange(tab)) },
-                )
-            }
+        val openFolder = state.openFolder
+        if (segment == MineSegment.BOOKMARKS && openFolder != null) {
+            OpenFolderBar(
+                folder = openFolder.folder,
+                onBack = { screenModel.dispatch(LibraryEvent.CloseFolder) },
+            )
         }
 
         if (state.loading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            }
+            LoadingBox(Modifier.fillMaxSize())
         } else {
-            when (state.tab) {
-                LibraryTab.FAVORITES -> FavoritesTab(
-                    state = state,
+            MineGrid(
+                state = state,
+                segment = segment,
+                actions = MineActions(
                     onOpenItem = onOpenItem,
-                )
-                LibraryTab.HISTORY -> HistoryTab(
-                    state = state,
-                    onOpenItem = onOpenItem,
-                    onRemove = { screenModel.dispatch(LibraryEvent.RemoveFromHistory(it)) },
-                    onClear = { screenModel.dispatch(LibraryEvent.ClearHistory) },
-                )
-                LibraryTab.DOWNLOADS -> DownloadsTab(state = state, onOpenItem = onOpenItem)
-                LibraryTab.LISTS -> ListsTab(state = state)
-            }
+                    onPlay = onPlay,
+                    onOpenCatalog = onOpenCatalog,
+                    onOpenFolder = { folder -> screenModel.dispatch(LibraryEvent.OpenFolder(folder)) },
+                    onLoadMoreFolderItems = { screenModel.dispatch(LibraryEvent.LoadMoreFolderItems) },
+                ),
+            )
         }
     }
 }
 
-@Composable
-private fun FavoritesTab(state: LibraryState, onOpenItem: (Int) -> Unit) {
-    if (state.favorites.isEmpty()) {
-        EmptyState(
-            icon = Icons.Filled.Bookmarks,
-            text = "Добавляйте фильмы в избранное",
-        )
-    } else {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 120.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(state.favorites, key = { it.id }) { favorite ->
-                FavoriteCard(item = favorite, onClick = { onOpenItem(favorite.id) })
-            }
-        }
-    }
-}
+// ── Шапка ─────────────────────────────────────────────────────────────────
 
+/** Заголовок и сегменты. Не скроллятся вместе с сеткой: сегмент всегда должен быть виден. */
 @Composable
-private fun FavoriteCard(item: FavoriteItem, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        PosterImage(
-            url = item.posterSmall,
-            contentDescription = item.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .clip(RoundedCornerShape(18.dp)),
-            shape = RoundedCornerShape(18.dp),
-        )
-        Spacer(Modifier.height(8.dp))
+private fun MineHeader(segment: MineSegment, onSegment: (MineSegment) -> Unit) {
+    Column {
         Text(
-            item.title,
+            "Моё",
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier
+                .padding(horizontal = FilmaxMetrics.ScreenPadding)
+                .padding(top = 6.dp),
+        )
+        LazyRow(
+            modifier = Modifier.padding(top = 16.dp, bottom = 14.dp),
+            contentPadding = PaddingValues(horizontal = FilmaxMetrics.ScreenPadding),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(MineSegment.entries, key = { it.name }) { entry ->
+                MineChip(
+                    label = entry.label,
+                    selected = entry == segment,
+                    onClick = { onSegment(entry) },
+                )
+            }
+        }
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+/** Чип-сегмент: выбранный — единственная белая заливка на экране, остальные без обводки и фона. */
+@Composable
+private fun MineChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .height(FilmaxMetrics.ChipHeight)
+            .clip(ShapeFull)
+            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = if (selected) {
+                MaterialTheme.colorScheme.onPrimary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
+}
+
+/** Строка открытой папки: где мы и чем отсюда выйти — жестом «назад» или тапом по этой строке. */
+@Composable
+private fun OpenFolderBar(folder: BookmarkFolder, onBack: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onBack)
+            .padding(horizontal = FilmaxMetrics.ScreenPadding, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "К списку папок",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            folder.title,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+// ── Сетка ─────────────────────────────────────────────────────────────────
+
+@Composable
+private fun MineGrid(state: LibraryState, segment: MineSegment, actions: MineActions) {
+    val gridState = rememberLazyGridState()
+    val openFolder = state.openFolder
+
+    // Догрузка следующей страницы папки: страниц у kino.pub может быть много, а счётчик на
+    // плитке обещает всё содержимое — значит, до конца должно доскроллиться.
+    val loadMore by remember {
+        derivedStateOf {
+            val info = gridState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
+        }
+    }
+    LaunchedEffect(loadMore, openFolder?.folder?.id) {
+        if (loadMore && openFolder != null) actions.onLoadMoreFolderItems()
+    }
+
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(columnsFor(segment, openFolder != null)),
+        state = gridState,
+        modifier = Modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(FilmaxMetrics.CardGap),
+        verticalArrangement = Arrangement.spacedBy(FilmaxMetrics.CardGap),
+        contentPadding = GridPadding,
+    ) {
+        when (segment) {
+            MineSegment.CONTINUE -> continueSegment(state.history, actions)
+            MineSegment.WATCHLIST -> watchlistSegment(state, actions)
+            MineSegment.BOOKMARKS -> bookmarksSegment(state, actions)
+            MineSegment.HISTORY -> historySegment(state, actions)
+        }
+    }
+}
+
+/** «Продолжить» — начатое, но не досмотренное. Ведёт сразу в плеер, минуя детали. */
+private fun LazyGridScope.continueSegment(history: List<WatchHistory>, actions: MineActions) {
+    val started = history.filter { entry ->
+        val fraction = entry.progress?.fraction ?: 0f
+        fraction > CONTINUE_MIN_FRACTION && fraction < CONTINUE_MAX_FRACTION
+    }
+    if (started.isEmpty()) {
+        emptyItem(
+            MineEmptySpec(
+                icon = Icons.Filled.PlayCircleOutline,
+                title = "Ничего не начато",
+                hint = "Включите тайтл — он появится здесь с того места, где вы остановились",
+                onOpenCatalog = actions.onOpenCatalog,
+            ),
+        )
+        return
+    }
+    items(started, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onPlay = actions.onPlay) }
+}
+
+/**
+ * «Буду смотреть» — отложенное. Один список: локальное избранное и есть кэш серверного
+ * watchlist (сервер отдаёт только тоггл и флаг на самом тайтле, списком — никогда).
+ */
+private fun LazyGridScope.watchlistSegment(state: LibraryState, actions: MineActions) {
+    if (state.favorites.isEmpty()) {
+        emptyItem(
+            MineEmptySpec(
+                icon = Icons.Filled.Add,
+                title = "Список пуст",
+                hint = "Добавляйте тайтлы кнопкой «Буду смотреть»",
+                onOpenCatalog = actions.onOpenCatalog,
+            ),
+        )
+        return
+    }
+    items(state.favorites, key = { it.id }) { favorite ->
+        FilmaxPosterCard(
+            title = favorite.title,
+            posterUrl = favorite.posterSmall,
+            onClick = { actions.onOpenItem(favorite.id) },
+            width = FilmaxMetrics.GridPosterWidth,
+            height = FilmaxMetrics.GridPosterHeight,
+            meta = posterMeta(type = null, year = favorite.year),
+        )
+    }
+}
+
+/** «Закладки» — серверные папки: список папок либо содержимое открытой, в этом же экране. */
+private fun LazyGridScope.bookmarksSegment(state: LibraryState, actions: MineActions) {
+    val openFolder = state.openFolder
+    when {
+        openFolder != null -> folderItems(openFolder, actions.onOpenItem)
+
+        state.lists.isEmpty() -> emptyItem(
+            MineEmptySpec(
+                icon = Icons.Filled.Folder,
+                title = "Папок нет",
+                hint = "Папки закладок вашего аккаунта появятся здесь",
+            ),
+        )
+
+        else -> items(state.lists, key = { it.id }) { folder ->
+            FolderTile(folder = folder, onClick = { actions.onOpenFolder(folder) })
+        }
+    }
+}
+
+private fun LazyGridScope.folderItems(openFolder: OpenBookmarkFolder, onOpenItem: (Int) -> Unit) {
+    when {
+        openFolder.loading -> item(key = "folder_loading", span = { GridItemSpan(maxLineSpan) }) {
+            LoadingBox()
+        }
+
+        // Ошибку от пустой папки отличаем: «пусто» и «не загрузилось» требуют разных действий.
+        openFolder.items.isEmpty() && openFolder.error != null -> emptyItem(
+            MineEmptySpec(
+                icon = Icons.Filled.CloudOff,
+                title = "Папка не открылась",
+                hint = "Вернитесь к списку папок и откройте её ещё раз",
+            ),
+        )
+
+        openFolder.items.isEmpty() -> emptyItem(
+            MineEmptySpec(
+                icon = Icons.Filled.Folder,
+                title = "Папка пуста",
+                hint = "Тайтлы, добавленные в эту папку, появятся здесь",
+            ),
+        )
+
+        else -> {
+            items(openFolder.items, key = { it.id }) { folderItem ->
+                FilmaxPosterCard(
+                    title = folderItem.title,
+                    posterUrl = folderItem.posters.medium.ifBlank { folderItem.posters.small },
+                    onClick = { onOpenItem(folderItem.id) },
+                    width = FilmaxMetrics.GridPosterWidth,
+                    height = FilmaxMetrics.GridPosterHeight,
+                    rating = ratingLabel(folderItem.rating.external),
+                    meta = posterMeta(type = null, year = folderItem.year),
+                )
+            }
+            if (openFolder.loadingMore) {
+                item(key = "folder_loading_more", span = { GridItemSpan(maxLineSpan) }) { LoadingBox() }
+            }
+        }
+    }
+}
+
+/**
+ * «История» — всё просмотренное, целиком. Чипа «Скрыть историю» здесь нет намеренно: он живёт
+ * на TV, потому что телевизор смотрит вся семья и список «что я смотрел» на нём публичен.
+ * Телефон личный и заперт кодом — прятать историю от самого себя не от кого.
+ */
+private fun LazyGridScope.historySegment(state: LibraryState, actions: MineActions) {
+    if (state.history.isEmpty()) {
+        emptyItem(
+            MineEmptySpec(
+                icon = Icons.Filled.History,
+                title = "История пуста",
+                hint = "Здесь появится всё, что вы смотрели",
+                onOpenCatalog = actions.onOpenCatalog,
+            ),
+        )
+        return
+    }
+    items(state.history, key = { it.itemId }) { entry ->
+        ProgressCard(entry = entry, onPlay = actions.onPlay)
+    }
+}
+
+// ── Карточки ──────────────────────────────────────────────────────────────
+
+@Composable
+private fun ProgressCard(entry: WatchHistory, onPlay: (itemId: Int, videoId: Int) -> Unit) {
+    FilmaxProgressCard(
+        title = entry.title,
+        meta = progressMeta(entry.progress),
+        // Карточка 16:9 — берём кадр серии, а не вертикальный постер: тот обрезался бы по центру.
+        posterUrl = entry.wideOrPoster,
+        progress = entry.progress?.fraction ?: 0f,
+        // Эпизод берём из истории, позицию внутри трека восстановит плеер.
+        onClick = { onPlay(entry.itemId, entry.progress?.videoId ?: NO_VIDEO_ID) },
+        width = FilmaxMetrics.MineCardWidth,
+        height = FilmaxMetrics.MineCardHeight,
+    )
+}
+
+/** Плитка папки-закладки: тап открывает содержимое в этом же экране — грузит [LibraryScreenModel]. */
+@Composable
+private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit) {
+    val count = folder.count
+    val word = when {
+        count % 100 in 11..14 -> "тайтлов"
+        count % 10 == 1 -> "тайтл"
+        count % 10 in 2..4 -> "тайтла"
+        else -> "тайтлов"
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(FolderTileHeight)
+            .clip(ShapeCard)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.Bottom,
+    ) {
+        Text(
+            folder.title,
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
             maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(
-            "${item.year} · ${item.durationMinutes} мин",
+            "$count $word",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            modifier = Modifier.padding(top = 3.dp),
         )
     }
 }
 
-@Composable
-private fun HistoryTab(
-    state: LibraryState,
-    onOpenItem: (Int) -> Unit,
-    onRemove: (Int) -> Unit,
-    onClear: () -> Unit,
-) {
-    if (state.history.isEmpty()) {
-        EmptyState(
-            icon = Icons.Filled.PlayCircleOutline,
-            text = "История просмотров пуста",
-        )
-    } else {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.End,
-            ) {
-                TextButton(onClick = onClear) {
-                    Text("Очистить всё", fontSize = 12.sp)
-                }
-            }
-            LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(state.history, key = { it.itemId }) { entry ->
-                    HistoryRow(
-                        entry = entry,
-                        onClick = { onOpenItem(entry.itemId) },
-                        onRemove = { onRemove(entry.itemId) },
-                    )
-                }
-            }
-        }
-    }
+// ── Пустые состояния и загрузка ───────────────────────────────────────────
+
+/** Содержимое пустого сегмента. Кнопка «Открыть каталог» — только там, где каталог и есть ответ. */
+private data class MineEmptySpec(
+    val icon: ImageVector,
+    val title: String,
+    val hint: String,
+    val onOpenCatalog: (() -> Unit)? = null,
+)
+
+/** Пустое состояние занимает всю ширину сетки, а не одну колонку. */
+private fun LazyGridScope.emptyItem(spec: MineEmptySpec) {
+    item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { MineEmpty(spec) }
 }
 
 @Composable
-private fun HistoryRow(entry: WatchHistory, onClick: () -> Unit, onRemove: () -> Unit) {
-    Row(
+private fun MineEmpty(spec: MineEmptySpec) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        PosterImage(
-            url = entry.posterSmall.orEmpty(),
-            contentDescription = entry.title,
-            modifier = Modifier
-                .size(width = 60.dp, height = 88.dp)
-                .clip(RoundedCornerShape(10.dp)),
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                entry.title,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(6.dp))
-            val fraction = entry.progress?.fraction ?: 0f
-            LinearProgressIndicator(
-                progress = { fraction },
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "${(fraction * 100).toInt()}%",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-            )
-        }
-        IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
-            Icon(
-                imageVector = Icons.Filled.Delete,
-                contentDescription = "Удалить",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
+        FilmaxEmptyState(icon = spec.icon, title = spec.title, subtitle = spec.hint)
+        val onOpenCatalog = spec.onOpenCatalog
+        if (onOpenCatalog != null) {
+            Spacer(Modifier.height(18.dp))
+            OpenCatalogButton(onClick = onOpenCatalog)
         }
     }
 }
 
+/** Вторичная кнопка: в монохроме белая заливка зарезервирована за главным действием экрана. */
 @Composable
-private fun ListsTab(state: LibraryState) {
-    if (state.lists.isEmpty()) {
-        EmptyState(
-            icon = Icons.Filled.Folder,
-            text = "Создайте список для организации контента",
-        )
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(state.lists, key = { it.id }) { folder ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer)
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Folder,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            folder.title,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            "${folder.count} элементов",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DownloadsTab(state: LibraryState, onOpenItem: (Int) -> Unit) {
-    if (state.downloads.isEmpty()) {
-        EmptyState(
-            icon = Icons.Filled.Download,
-            text = "Скачанные фильмы появятся здесь",
-        )
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            items(state.downloads, key = { it.id }) { dl ->
-                DownloadRow(item = dl, onClick = { onOpenItem(dl.id) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun DownloadRow(item: DownloadedItem, onClick: () -> Unit) {
-    Row(
+private fun OpenCatalogButton(onClick: () -> Unit) {
+    Box(
         modifier = Modifier
+            .height(FilmaxMetrics.SecondaryButtonHeight)
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            "Открыть каталог",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+@Composable
+private fun LoadingBox(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .clickable(onClick = onClick)
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(vertical = 40.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        PosterImage(
-            url = item.posterSmall,
-            contentDescription = item.title,
-            modifier = Modifier
-                .size(width = 56.dp, height = 80.dp)
-                .clip(RoundedCornerShape(14.dp)),
-            shape = RoundedCornerShape(14.dp),
-        )
-        Column(Modifier.weight(1f)) {
-            Text(
-                item.title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
-            Spacer(Modifier.height(2.dp))
-            Text(
-                "${item.year} · ${item.durationMinutes} мин",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Icon(
-                    Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = Color(0xFF6AC2B0),
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    "В библиотеке",
-                    fontSize = 11.sp,
-                    color = Color(0xFF6AC2B0),
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+    }
+}
+
+// ── Размеры и форматирование ──────────────────────────────────────────────
+
+/** Колонки при ширине кадра 360dp: карточки 16:9 150dp — вдвое, постеры 98dp — втрое. */
+private fun columnsFor(segment: MineSegment, folderOpen: Boolean): Int = when (segment) {
+    MineSegment.CONTINUE, MineSegment.HISTORY -> WIDE_COLUMNS
+    MineSegment.WATCHLIST -> POSTER_COLUMNS
+    MineSegment.BOOKMARKS -> if (folderOpen) POSTER_COLUMNS else FOLDER_COLUMNS
+}
+
+/**
+ * Подпись карточки: «S2 · осталось 18 мин». Номер эпизода макета («E5») не выводим: в
+ * [WatchProgress] его нет — `videoId` это идентификатор трека, а не порядковый номер серии.
+ */
+private fun progressMeta(progress: WatchProgress?): String? {
+    if (progress == null) return null
+    val parts = buildList {
+        progress.season?.takeIf { it > 0 }?.let { season -> add("S$season") }
+        remainingLabel(progress)?.let { remaining -> add("осталось $remaining") }
+    }
+    return parts.joinToString(" · ").ifBlank { null }
+}
+
+/** Остаток трека словами; null — прогресса нет или уже досмотрено. */
+private fun remainingLabel(progress: WatchProgress): String? =
+    remainingMinutes(progress)?.let { minutes ->
+        val hours = minutes / MINUTES_IN_HOUR
+        val rest = minutes % MINUTES_IN_HOUR
+        when {
+            hours > 0 && rest > 0 -> "$hours ч $rest мин"
+            hours > 0 -> "$hours ч"
+            else -> "$rest мин"
         }
     }
+
+/** Сколько минут осталось; null — прогресса нет или трек уже досмотрен. */
+private fun remainingMinutes(progress: WatchProgress): Int? {
+    val watched = progress.timeSeconds
+    val total = progress.durationSeconds?.takeIf { it > 0 }
+    if (watched == null || total == null) return null
+    return ((total - watched) / SECONDS_IN_MINUTE).takeIf { it > 0 }
 }
 
-@Composable
-private fun LibraryTabPill(
-    tab: LibraryTab,
-    selected: Boolean,
-    count: Int,
-    onClick: () -> Unit,
-) {
-    val icon = when (tab) {
-        LibraryTab.FAVORITES -> Icons.Filled.Favorite
-        LibraryTab.HISTORY -> Icons.Filled.History
-        LibraryTab.DOWNLOADS -> Icons.Filled.Download
-        LibraryTab.LISTS -> Icons.AutoMirrored.Filled.List
-    }
-    val shape = RoundedCornerShape(percent = 50)
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-    Row(
-        modifier = Modifier
-            .clip(shape)
-            .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .then(if (!selected) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape) else Modifier)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Icon(icon, contentDescription = null, tint = fg, modifier = Modifier.size(16.dp))
-        Text(tab.label, color = fg, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-        Box(
-            modifier = Modifier
-                .clip(shape)
-                .background(
-                    if (selected) {
-                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.18f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
-                )
-                .padding(horizontal = 7.dp, vertical = 2.dp),
-        ) {
-            Text("$count", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = fg)
-        }
-    }
-}
+private val GridPadding = PaddingValues(
+    start = FilmaxMetrics.ScreenPadding,
+    end = FilmaxMetrics.ScreenPadding,
+    top = 18.dp,
+    bottom = 24.dp,
+)
 
-private fun countFor(tab: LibraryTab, state: LibraryState): Int = when (tab) {
-    LibraryTab.FAVORITES -> state.favorites.size
-    LibraryTab.HISTORY -> state.history.size
-    LibraryTab.DOWNLOADS -> state.downloads.size
-    LibraryTab.LISTS -> state.lists.size
-}
+private val FolderTileHeight = 84.dp
 
-@Composable
-private fun EmptyState(icon: ImageVector, text: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        FilmaxEmptyState(icon = icon, title = text)
-    }
-}
+private const val POSTER_COLUMNS = 3
+private const val WIDE_COLUMNS = 2
+private const val FOLDER_COLUMNS = 2
+
+/** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
+private const val NO_VIDEO_ID = -1
+
+/** Доля просмотра, при которой тайтл считается начатым, но не досмотренным. */
+private const val CONTINUE_MIN_FRACTION = 0.01f
+private const val CONTINUE_MAX_FRACTION = 0.95f
+
+private const val MINUTES_IN_HOUR = 60
+private const val SECONDS_IN_MINUTE = 60
+
+/** За сколько карточек до конца сетки просить следующую страницу папки (примерно ряд). */
+private const val LOAD_MORE_TAIL = 4

@@ -17,6 +17,8 @@ dependencies {
     implementation(bom)
     implementation(libs.bundles.compose)
     implementation(libs.navigation.compose)
+    // BackHandler: «Назад» внутри папки-закладки возвращает к списку папок, а не из раздела.
+    implementation(libs.activity.compose)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
 }

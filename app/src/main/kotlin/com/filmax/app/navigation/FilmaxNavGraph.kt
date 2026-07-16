@@ -2,14 +2,16 @@ package com.filmax.app.navigation
 
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -23,13 +25,12 @@ import com.filmax.app.BuildConfig
 import com.filmax.core.ui.components.FilmaxTab
 import com.filmax.core.ui.components.FilmaxTabBar
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
-import com.filmax.feature.collections.common.navigation.CollectionsRoute
 import com.filmax.feature.collections.mobile.navigation.collectionDetailScreen
-import com.filmax.feature.collections.mobile.navigation.collectionsScreen
 import com.filmax.feature.designsystem.navigation.DesignSystemRoute
 import com.filmax.feature.designsystem.navigation.designSystemScreen
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.details.mobile.navigation.detailsScreen
+import com.filmax.feature.home.mobile.HomeActions
 import com.filmax.feature.home.mobile.navigation.HomeRoute
 import com.filmax.feature.home.mobile.navigation.homeScreen
 import com.filmax.feature.library.mobile.navigation.LibraryRoute
@@ -48,11 +49,11 @@ import org.koin.androidx.compose.koinViewModel
 @Serializable
 private object SplashRoute
 
+/** Маршруты вкладок. `SearchRoute` теперь отдаёт Каталог, `LibraryRoute` — «Моё». */
 private val tabRouteClasses = mapOf(
     FilmaxTab.HOME to HomeRoute::class,
-    FilmaxTab.SEARCH to SearchRoute::class,
-    FilmaxTab.COLLECTIONS to CollectionsRoute::class,
-    FilmaxTab.LIBRARY to LibraryRoute::class,
+    FilmaxTab.CATALOG to SearchRoute::class,
+    FilmaxTab.MINE to LibraryRoute::class,
     FilmaxTab.PROFILE to ProfileRoute::class,
 )
 
@@ -80,10 +81,11 @@ fun FilmaxNavGraph(
     val backStack by navController.currentBackStackEntryAsState()
     val currentDest = backStack?.destination
 
+    // Четыре раздела вместо пяти: «Поиск» уехал внутрь «Каталога» (SearchRoute отдаёт Каталог),
+    // «Подборки» стали его контентом, «Библиотека» переименована в «Моё».
     val bottomBarTabs = listOf(
         HomeRoute::class,
         SearchRoute::class,
-        CollectionsRoute::class,
         LibraryRoute::class,
         ProfileRoute::class,
     )
@@ -94,29 +96,37 @@ fun FilmaxNavGraph(
         ?.key
         ?: FilmaxTab.HOME
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
+    // Таб-бар живёт в Scaffold, а не оверлеем поверх контента: раньше каждый экран сам помнил
+    // про padding(bottom = 120.dp) под плавающий «остров», и любой новый экран об этом забывал.
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0),
+        bottomBar = {
+            if (showBottomBar) {
+                FilmaxTabBar(
+                    selected = selectedTab,
+                    onSelect = { navController.navigateToTab(it) },
+                )
+            }
+        },
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = SplashRoute,
-            modifier = Modifier.fillMaxSize(),
+            // consumeWindowInsets обязателен: без него отступ таб-бара учитывается дважды —
+            // сначала здесь, потом ещё раз в imePadding() внутри экранов, и при открытой
+            // клавиатуре под контентом висит пустая полоса высотой с таб-бар.
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
             popEnterTransition = { fadeIn() },
             popExitTransition = { fadeOut() },
         ) {
             filmaxDestinations(navController)
-        }
-
-        if (showBottomBar) {
-            FilmaxTabBar(
-                selected = selectedTab,
-                onSelect = { navController.navigateToTab(it) },
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
         }
     }
 }
@@ -136,22 +146,30 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
     )
 
     homeScreen(
-        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+        HomeActions(
+            onOpenItem = { navController.navigate(DetailsRoute(it)) },
+            onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+            onOpenCollection = { id, title ->
+                navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
+            },
+            onOpenSearch = { navController.navigateToTab(FilmaxTab.CATALOG) },
+            onOpenProfile = { navController.navigateToTab(FilmaxTab.PROFILE) },
+        ),
     )
     searchScreen(
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
     )
-    collectionsScreen(
-        onOpenCollection = { id, title ->
-            navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
-        },
-    )
+    // «Подборки» больше не вкладка — это контент Каталога и ряд на Главной. Экран содержимого
+    // подборки остаётся push-экраном: в него ведут они.
     collectionDetailScreen(
         onBack = { navController.popBackStack() },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
     )
     libraryScreen(
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
+        // «Продолжить» и «История» ведут сразу в плеер, а не в карточку.
+        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+        onOpenCatalog = { navController.navigateToTab(FilmaxTab.CATALOG) },
     )
     profileScreen(
         onLogout = {
@@ -168,7 +186,8 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
 
     detailsScreen(
         onBack = { navController.popBackStack() },
-        onPlay = { navController.navigate(PlayerRoute(it)) },
+        // videoId — НОМЕР видео (у фильма -1): им же kino.pub принимает и отдаёт прогресс.
+        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
     )
     playerScreen(
@@ -183,9 +202,8 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
 private fun NavHostController.navigateToTab(tab: FilmaxTab) {
     val route: Any = when (tab) {
         FilmaxTab.HOME -> HomeRoute
-        FilmaxTab.SEARCH -> SearchRoute
-        FilmaxTab.COLLECTIONS -> CollectionsRoute
-        FilmaxTab.LIBRARY -> LibraryRoute
+        FilmaxTab.CATALOG -> SearchRoute
+        FilmaxTab.MINE -> LibraryRoute
         FilmaxTab.PROFILE -> ProfileRoute
     }
     navigate(route) {

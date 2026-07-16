@@ -1,23 +1,12 @@
 package com.filmax.feature.onboarding.mobile
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,21 +20,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,21 +35,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.filmax.core.designsystem.ShapeAsymA
-import com.filmax.core.designsystem.ShapeAsymB
-import com.filmax.core.designsystem.ShapeCookie
+import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.designsystem.ShapeButton
 import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
@@ -76,10 +55,14 @@ import com.filmax.feature.onboarding.common.OnboardingState
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
-private val CardCornerRadius = 24.dp
-private val SmallIconSize = 16.dp
-private const val PULSE_DURATION_MILLIS = 1000
-
+/**
+ * Вход (экран 01 макета): приветствие с единственным действием «Войти», затем активация
+ * устройства по device-flow. Регистрация устройства и поллинг живут в [OnboardingScreenModel] —
+ * здесь только вёрстка.
+ *
+ * Шага «фичи» и индикаторов шагов больше нет: три экрана до входа рассказывали то, что видно
+ * на главной за секунду. Промежуточный шаг модели проматываем, чтобы не трогать общий контракт.
+ */
 @Composable
 fun OnboardingScreen(
     onAuthenticated: () -> Unit,
@@ -94,395 +77,220 @@ fun OnboardingScreen(
         }
     }
 
+    LaunchedEffect(state.step) {
+        if (state.step == STEP_FEATURES) screenModel.dispatch(OnboardingEvent.NextStep)
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(MaterialTheme.colorScheme.surface),
     ) {
-        BlobDecorations()
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 28.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            VerticalSpacer(24.dp)
-
-            Text(
-                "Filmax",
-                style = MaterialTheme.typography.displaySmall,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            OnboardingStepPager(
-                state = state,
-                onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(Modifier.weight(1f))
-
-            StepIndicators(current = state.step, total = 3)
-
-            VerticalSpacer(24.dp)
-
-            OnboardingBottomActions(
-                step = state.step,
-                polling = state.polling,
-                onNext = { screenModel.dispatch(OnboardingEvent.NextStep) },
-                onPrev = { screenModel.dispatch(OnboardingEvent.PrevStep) },
-            )
-
-            VerticalSpacer(16.dp)
-        }
-    }
-}
-
-@Composable
-private fun OnboardingStepPager(
-    state: OnboardingState,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    AnimatedContent(
-        targetState = state.step,
-        transitionSpec = {
-            if (targetState > initialState) {
-                slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
+        AnimatedContent(
+            targetState = state.step >= STEP_AUTH,
+            transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(200)) },
+            label = "onboarding_step",
+            modifier = Modifier.fillMaxSize(),
+        ) { onAuthStep ->
+            if (onAuthStep) {
+                AuthStep(
+                    state = state,
+                    onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
+                )
             } else {
-                slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
-            }
-        },
-        label = "onboarding_step",
-        modifier = modifier,
-    ) { step ->
-        when (step) {
-            0 -> StepWelcome()
-            1 -> StepFeatures()
-            2 -> StepAuth(state = state, onRetry = onRetry)
-            else -> StepWelcome()
-        }
-    }
-}
-
-@Composable
-private fun OnboardingBottomActions(
-    step: Int,
-    polling: Boolean,
-    onNext: () -> Unit,
-    onPrev: () -> Unit,
-) {
-    when (step) {
-        0 -> Button(
-            onClick = onNext,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            Text("Начать", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-        }
-
-        1 -> Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OutlinedButton(
-                onClick = onPrev,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Text("Назад")
-            }
-            Button(
-                onClick = onNext,
-                modifier = Modifier
-                    .weight(2f)
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-            ) {
-                Text("Войти", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            }
-        }
-
-        2 -> AnimatedVisibility(
-            visible = !polling,
-            enter = fadeIn(),
-            exit = fadeOut(),
-        ) {
-            TextButton(onClick = onPrev) {
-                Text("Вернуться назад", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                WelcomeStep(onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) })
             }
         }
     }
 }
 
+// ── Шаг 0: приветствие ────────────────────────────────────────────────────
+
+/**
+ * Текст прижат к низу — там, где в макете лежит постер под скримом. Самой картинки нет:
+ * онбординг не ходит в каталог (у [OnboardingScreenModel] только auth/user), а показывать
+ * случайный тайтл до входа — обещание контента, которого может не оказаться в подписке.
+ */
 @Composable
-private fun StepAuth(state: OnboardingState, onRetry: () -> Unit) {
-    // Локальные копии: smart-cast по полям из другого модуля (feature:onboarding) невозможен.
-    val userCode = state.userCode
-    val error = state.error
-    when {
-        state.polling && userCode != null -> AuthCodeCard(
-            userCode = userCode,
-            verificationUri = state.verificationUri ?: "kinopub.me/device",
-        )
-
-        error != null -> AuthErrorState(error = error, onRetry = onRetry)
-
-        else -> Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(280.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp),
-                )
-                VerticalSpacer(16.dp)
-                Text(
-                    "Генерируем код…",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun AuthCodeCard(userCode: String, verificationUri: String) {
+private fun WelcomeStep(onLogin: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = SidePadding),
+        verticalArrangement = Arrangement.Bottom,
     ) {
-        AuthStepsSection()
-        VerticalSpacer(28.dp)
-        CodeDisplaySection(userCode = userCode)
-        VerticalSpacer(20.dp)
-        UrlAndPollingSection(verificationUri = verificationUri)
+        Wordmark()
+        Text(
+            "Кино и сериалы\nбез лишнего шума",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(top = 22.dp),
+        )
+        Text(
+            "Тысячи тайтлов в оригинале и дубляже. Смотрите на телефоне и на ТВ.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        LoginButton(onClick = onLogin)
+        Spacer(Modifier.height(BottomPadding))
     }
 }
 
-private data class Pulse(val alpha: Float, val scale: Float)
-
+/** Главное и единственное действие экрана — единственная белая заливка в монохроме. */
 @Composable
-private fun rememberPulse(): Pulse {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(PULSE_DURATION_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulseAlpha",
-    )
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.04f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(PULSE_DURATION_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulseScale",
-    )
-    return Pulse(alpha = alpha, scale = scale)
-}
-
-@Composable
-private fun VerticalSpacer(height: Dp) {
-    Spacer(Modifier.height(height))
-}
-
-@Composable
-private fun AuthStepsSection() {
-    val steps = listOf(
-        "Открой" to verificationUri@"kinopub.me/device",
-        "Войди" to "в аккаунт KinoPub",
-        "Введи" to "код активации выше",
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        steps.forEachIndexed { index, (action, detail) ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.weight(1f),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        "${index + 1}",
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                    )
-                }
-                VerticalSpacer(6.dp)
-                Text(
-                    action,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                )
-                Text(
-                    detail,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 11.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            if (index < steps.lastIndex) {
-                Box(
-                    modifier = Modifier
-                        .weight(0.3f)
-                        .height(1.dp)
-                        .alpha(0.3f)
-                        .background(MaterialTheme.colorScheme.outlineVariant),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CodeDisplaySection(userCode: String) {
-    val clipboard = LocalClipboardManager.current
-    var copied by remember { mutableStateOf(false) }
-
-    LaunchedEffect(copied) {
-        if (copied) {
-            delay(2000)
-            copied = false
-        }
-    }
-
-    val pulse = rememberPulse()
-
+private fun LoginButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .scale(pulse.scale)
-            .clip(RoundedCornerShape(CardCornerRadius))
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                )
-            )
-            .border(
-                width = 1.dp,
-                brush = Brush.linearGradient(
-                    listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = pulse.alpha),
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                    )
-                ),
-                shape = RoundedCornerShape(CardCornerRadius),
-            )
-            .padding(horizontal = 32.dp, vertical = 24.dp),
+            .padding(top = 28.dp)
+            .fillMaxWidth()
+            .height(LoginButtonHeight)
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.primary)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        ActivationCodeColumn(
-            userCode = userCode,
-            copied = copied,
-            onCopy = {
-                clipboard.setText(AnnotatedString(userCode))
-                copied = true
-            },
+        Text(
+            "Войти",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onPrimary,
         )
     }
 }
 
+// ── Шаг 2: активация устройства ───────────────────────────────────────────
+
 @Composable
-private fun ActivationCodeColumn(userCode: String, copied: Boolean, onCopy: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            "КОД АКТИВАЦИИ",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 2.sp,
-        )
-        VerticalSpacer(12.dp)
+private fun AuthStep(state: OnboardingState, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = SidePadding),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Wordmark()
+        Spacer(Modifier.height(30.dp))
+        // Локальные копии: smart-cast по полям из другого модуля невозможен.
+        val error = state.error
+        val userCode = state.userCode
+        when {
+            error != null -> AuthError(error = error, onRetry = onRetry)
+            userCode != null -> AuthCode(
+                userCode = userCode,
+                verificationUri = state.verificationUri ?: DEFAULT_VERIFICATION_URI,
+            )
+
+            else -> GeneratingCode()
+        }
+    }
+}
+
+@Composable
+private fun AuthCode(userCode: String, verificationUri: String) {
+    ActivationHint(verificationUri = verificationUri)
+    Spacer(Modifier.height(26.dp))
+    CodeBox(userCode = userCode)
+    Spacer(Modifier.height(16.dp))
+    CopyCodeButton(userCode = userCode)
+    Spacer(Modifier.height(22.dp))
+    PollingStatus()
+}
+
+/** Подсказка со ссылкой. Адрес поднят до onSurface — в монохроме вес и яркость вместо цвета. */
+@Composable
+private fun ActivationHint(verificationUri: String) {
+    val hint = buildAnnotatedString {
+        append("Откройте ")
+        withStyle(
+            SpanStyle(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+            ),
+        ) {
+            append(verificationUri)
+        }
+        append("\nи введите код активации")
+    }
+    Text(
+        hint,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+}
+
+/**
+ * Код активации. Кегль и моноширинный шрифт — не украшение: код переписывают в браузер
+ * руками, и важнее всего различить 0/O и 1/I.
+ */
+@Composable
+private fun CodeBox(userCode: String) {
+    Box(
+        modifier = Modifier
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(horizontal = 28.dp, vertical = 20.dp),
+    ) {
         Text(
             userCode,
             fontSize = 40.sp,
             fontWeight = FontWeight.ExtraBold,
             fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurface,
             letterSpacing = 6.sp,
+            color = MaterialTheme.colorScheme.onSurface,
         )
-        VerticalSpacer(12.dp)
-        FilledTonalButton(
-            onClick = onCopy,
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            ),
-        ) {
-            Icon(
-                imageVector = if (copied) Icons.Filled.CheckCircle else Icons.Filled.ContentCopy,
-                contentDescription = null,
-                modifier = Modifier.size(SmallIconSize),
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                if (copied) "Скопировано!" else "Скопировать",
-                fontSize = 13.sp,
-            )
-        }
     }
 }
 
 @Composable
-private fun UrlAndPollingSection(verificationUri: String) {
-    // URL
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Language,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(SmallIconSize),
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            verificationUri,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-        )
+private fun CopyCodeButton(userCode: String) {
+    val clipboard = LocalClipboardManager.current
+    var copied by remember { mutableStateOf(false) }
+
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(COPY_RESET_DELAY_MILLIS)
+            copied = false
+        }
     }
 
-    VerticalSpacer(16.dp)
+    Row(
+        modifier = Modifier
+            .height(FilmaxMetrics.SecondaryButtonHeight)
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable {
+                clipboard.setText(AnnotatedString(userCode))
+                copied = true
+            }
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            if (copied) "Скопировано" else "Скопировать код",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
 
-    // Polling status
+@Composable
+private fun PollingStatus() {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         CircularProgressIndicator(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -491,180 +299,79 @@ private fun UrlAndPollingSection(verificationUri: String) {
         )
         Text(
             "Ожидаем подтверждение…",
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 13.sp,
         )
     }
 }
 
 @Composable
-private fun AuthErrorState(error: String, onRetry: () -> Unit) {
-    Column(
+private fun GeneratingCode() {
+    CircularProgressIndicator(
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.size(36.dp),
+    )
+    Spacer(Modifier.height(18.dp))
+    Text(
+        "Генерируем код…",
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun AuthError(error: String, onRetry: () -> Unit) {
+    Text(
+        error,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.error,
+        textAlign = TextAlign.Center,
+    )
+    Spacer(Modifier.height(24.dp))
+    Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f))
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .height(FilmaxMetrics.PrimaryButtonHeight)
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.primary)
+            .clickable(onClick = onRetry)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Text("⚠️", fontSize = 40.sp)
-        VerticalSpacer(12.dp)
         Text(
-            error,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-            fontSize = 14.sp,
-        )
-        VerticalSpacer(20.dp)
-        Button(
-            onClick = onRetry,
-            shape = RoundedCornerShape(12.dp),
-        ) {
-            Text("Попробовать снова")
-        }
-    }
-}
-
-@Composable
-private fun BlobDecorations() {
-    Box(Modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .size(220.dp)
-                .clip(ShapeCookie)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f))
-                .align(Alignment.TopEnd),
-        )
-        Box(
-            modifier = Modifier
-                .size(180.dp)
-                .clip(ShapeAsymA)
-                .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f))
-                .align(Alignment.BottomStart),
+            "Попробовать снова",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onPrimary,
         )
     }
 }
 
-@Composable
-private fun StepWelcome() {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(160.dp)
-                .clip(ShapeAsymB)
-                .background(
-                    Brush.radialGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primaryContainer,
-                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                        )
-                    )
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("🎬", fontSize = 64.sp)
-        }
-        VerticalSpacer(32.dp)
-        Text(
-            "Кино и сериалы\nвсегда под рукой",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
-        VerticalSpacer(12.dp)
-        Text(
-            "Тысячи фильмов, сериалов и аниме\nв одном приложении",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            lineHeight = 22.sp,
-        )
-    }
-}
+// ── Общее ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun StepFeatures() {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        FeatureItem(
-            emoji = "📺",
-            title = "Все форматы",
-            description = "Фильмы, сериалы, аниме, документалки",
-        )
-        VerticalSpacer(20.dp)
-        FeatureItem(
-            emoji = "🎯",
-            title = "Умные рекомендации",
-            description = "Персональная подборка по вашим вкусам",
-        )
-        VerticalSpacer(20.dp)
-        FeatureItem(
-            emoji = "⚡",
-            title = "Быстрый стриминг",
-            description = "HLS адаптивный поток до 4K качества",
-        )
-    }
+private fun Wordmark() {
+    Text(
+        "FILMAX",
+        fontSize = 26.sp,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 5.sp,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
-@Composable
-private fun FeatureItem(emoji: String, title: String, description: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(emoji, fontSize = 24.sp)
-        }
-        Spacer(Modifier.width(16.dp))
-        Column {
-            Text(
-                title,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                description,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
+// ── Размеры и константы ───────────────────────────────────────────────────
 
-@Composable
-private fun StepIndicators(current: Int, total: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        repeat(total) { i ->
-            val isActive = i == current
-            val width by animateDpAsState(
-                targetValue = if (isActive) 28.dp else 8.dp,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                label = "indicator_$i",
-            )
-            Box(
-                modifier = Modifier
-                    .height(8.dp)
-                    .width(width)
-                    .clip(CircleShape)
-                    .background(
-                        if (isActive) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHigh
-                        }
-                    ),
-            )
-        }
-    }
-}
+/** Поля экрана входа шире общих 20dp: на нём один блок текста и ему нужен воздух (макет). */
+private val SidePadding = 30.dp
+
+private val BottomPadding = 44.dp
+
+/** Кнопка входа выше общей [FilmaxMetrics.PrimaryButtonHeight] на 2dp — из макета. */
+private val LoginButtonHeight = 52.dp
+
+private const val DEFAULT_VERIFICATION_URI = "kinopub.me/device"
+
+/** Шаги [OnboardingState]: 1 — «фичи» (проматываем), 2 — активация устройства. */
+private const val STEP_FEATURES = 1
+private const val STEP_AUTH = 2
+
+private const val COPY_RESET_DELAY_MILLIS = 2000L

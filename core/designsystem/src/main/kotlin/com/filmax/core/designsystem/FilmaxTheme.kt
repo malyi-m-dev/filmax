@@ -2,22 +2,17 @@ package com.filmax.core.designsystem
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 
+/**
+ * Тема мобильного Filmax. Строгий монохром: единственный цвет на экране — постер.
+ *
+ * Параметра акцента больше нет. Шесть цветных пресетов убраны вместе с редизайном: акцент
+ * теперь белый и один на всё приложение, подменять в схеме нечего.
+ */
 @Composable
-fun FilmaxTheme(
-    accentColor: Color = Color(0xFFB4305A),
-    content: @Composable () -> Unit,
-) {
-    val preset = AccentPresets[accentColor] ?: AccentPresets.values.first()
-    val colorScheme = FilmaxDarkColorScheme.copy(
-        primary = preset.primary,
-        onPrimary = preset.onPrimary,
-        primaryContainer = preset.primaryContainer,
-        onPrimaryContainer = preset.onPrimaryContainer,
-    )
+fun FilmaxTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = FilmaxDarkColorScheme,
         typography = FilmaxTypography,
         shapes = FilmaxShapes,
         content = content,
