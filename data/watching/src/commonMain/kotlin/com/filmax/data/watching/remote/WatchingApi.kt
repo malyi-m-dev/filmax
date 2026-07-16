@@ -1,5 +1,6 @@
 package com.filmax.data.watching.remote
 
+import com.filmax.data.watching.remote.dto.HistoryListResponseDto
 import com.filmax.data.watching.remote.dto.HistoryResponseDto
 import com.filmax.data.watching.remote.dto.NotificationsDto
 import io.ktor.client.HttpClient
@@ -15,10 +16,21 @@ internal class WatchingApi(private val client: HttpClient) {
     /**
      * Список начатого. [type] — только `movies` или `serials`: других значений у kino.pub нет,
      * и на «all» эндпоинт молча отдавал пустоту (отсюда вечно пустая история).
+     *
+     * Прогресса тут НЕТ — только id/title/posters. За прогрессом — [getHistoryList].
      */
     suspend fun getHistory(type: String, subscribed: Int = 1): HistoryResponseDto =
         client.get("api/v1/watching/$type") {
             parameter("subscribed", subscribed)
+        }.body()
+
+    /**
+     * История с прогрессом: `time` по каждому просмотренному видео + сам тайтл и `media`
+     * (серия, её кадр и длительность). Отсортирована сервером по свежести.
+     */
+    suspend fun getHistoryList(page: Int = 1): HistoryListResponseDto =
+        client.get("api/v1/history") {
+            parameter("page", page)
         }.body()
 
     suspend fun saveProgress(id: Int, video: Int, time: Int) {

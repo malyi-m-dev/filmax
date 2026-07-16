@@ -7,49 +7,58 @@ import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.data.watching.remote.WatchingApi
-import com.filmax.data.watching.remote.dto.HistoryItemDto
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import com.filmax.data.watching.remote.dto.HistoryEntryDto
 
-/** Единственные типы, которые принимает `watching/{type}`. «all» и прочее дают пустой список. */
-private val HISTORY_TYPES = listOf("movies", "serials")
+/** `watching/{type}`: единственный трек «досмотрено» — статус 1, как и в `items/{id}`. */
+private const val WATCH_STATUS_IN_PROGRESS = 0
 
-private fun HistoryItemDto.toDomain() = WatchHistory(
-    itemId = id,
-    title = title,
-    posterSmall = posters?.small,
-    posterWide = posters?.wide,
-    progress = watching?.let {
-        WatchProgress(
-            status = it.status,
-            timeSeconds = it.time,
-            durationSeconds = it.duration,
-            videoId = it.video,
-            season = it.season,
-        )
-    },
-)
+private fun HistoryEntryDto.toDomain(): WatchHistory {
+    // Длительность берём у самой серии; у фильма media.duration тоже заполнен, а item.duration —
+    // это средняя длительность по тайтлу, годная только как запасной вариант.
+    val duration = media?.duration?.takeIf { it > 0 }
+        ?: item.duration?.average?.takeIf { it > 0 }?.toInt()
+    return WatchHistory(
+        itemId = item.id,
+        title = item.title,
+        posterSmall = item.posters?.small,
+        posterWide = item.posters?.wide,
+        episodeThumbnail = media?.thumbnail,
+        progress = WatchProgress(
+            status = WATCH_STATUS_IN_PROGRESS,
+            timeSeconds = time,
+            durationSeconds = duration,
+            // `number`, а не id: тем же числом kino.pub принимает прогресс в marktime и
+            // им же плеер выбирает дорожку.
+            videoId = media?.number,
+            season = media?.snumber?.takeIf { it > 0 },
+        ),
+    )
+}
 
 internal class WatchingRepositoryImpl(
     private val api: WatchingApi,
 ) : WatchingRepository {
 
     /**
-     * Начатое = фильмы + сериалы двумя запросами. Одного «все» у kino.pub не существует: тип в
-     * `watching/{type}` — это ровно `movies` либо `serials`, и на любом другом значении список
-     * приходит пустым (так и жила вечно пустая история).
+     * История с прогрессом — из `api/v1/history`, а не из `watching/{type}`.
      *
-     * Запросы параллельны: ждать их последовательно — удваивать задержку раздела на ровном месте.
+     * `watching/{type}` возвращает только id/title/posters, без объекта `watching`: доля просмотра
+     * там всегда выходила нулевой, и «Продолжить» физически не мог наполниться. `api/v1/history`
+     * отдаёт `time` по каждому видео, саму серию (`media`) с её кадром и длительностью — и уже
+     * отсортирован сервером по свежести.
+     *
+     * Одна страница: на экран «Продолжить» и так попадает верхушка списка, а `perpage` = 20.
+     *
+     * `distinctBy(itemId)` обязателен. История ведётся ПО СЕРИЯМ: один сериал приходит несколькими
+     * записями (s1e1, s1e2, …), а зрителю нужен один тайтл — тот, на котором он остановился.
+     * Сервер отдаёт список от свежего к старому, поэтому первая запись тайтла и есть последняя
+     * серия. Без дедупликации ряд получал дублирующиеся ключи и Compose падал с
+     * «Key … was already used».
      */
     override suspend fun getHistory(type: String): RequestResult<List<WatchHistory>> = safeRequest {
-        coroutineScope {
-            HISTORY_TYPES
-                .map { historyType -> async { api.getHistory(historyType).items } }
-                .awaitAll()
-                .flatten()
-                .map { dto -> dto.toDomain() }
-        }
+        api.getHistoryList().history
+            .map { entry -> entry.toDomain() }
+            .distinctBy { it.itemId }
     }
 
     override suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit> =
