@@ -2,13 +2,14 @@
 
 package com.filmax.core.tv.designsystem
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -23,11 +24,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
@@ -38,9 +39,8 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 
 /**
- * Крупная pill-кнопка для пульта на базе tv-material3 [Button] — фокус/масштаб/обводка
- * берутся из коробки. [primary] — брендовая заливка, иначе «вторичная» поверхность.
- * На фокусе помимо смены цвета добавляется фирменная [TvFocus]-обводка для явной аффорданс.
+ * Кнопка для пульта. [primary] — главное действие: белая заливка, тёмный текст. Вторичная —
+ * тёмная поверхность со светлым текстом. Цветной заливки в приложении нет: акцент = белый.
  */
 // Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier — прямой
 // параметр, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API» и modifier.
@@ -56,28 +56,29 @@ fun TvButton(
 ) {
     val colors = if (primary) {
         ButtonDefaults.colors(
-            containerColor = TvPrimaryContainer,
-            contentColor = TvOnPrimaryContainer,
-            focusedContainerColor = TvPrimary,
-            focusedContentColor = TvOnPrimary,
+            containerColor = TvAccent,
+            contentColor = TvOnAccent,
+            focusedContainerColor = TvAccent,
+            focusedContentColor = TvOnAccent,
         )
     } else {
         ButtonDefaults.colors(
             containerColor = TvSurfaceContainerHigh,
             contentColor = TvOnSurface,
-            focusedContainerColor = TvOnSurface,
-            focusedContentColor = TvSurface,
+            focusedContainerColor = TvSurfaceContainerHigh,
+            focusedContentColor = TvOnSurface,
         )
     }
 
-    val shape = RoundedCornerShape(percent = 50)
+    val shape = TvMetrics.ButtonShape
     Button(
         onClick = onClick,
         colors = colors,
         shape = ButtonDefaults.shape(shape),
-        scale = ButtonDefaults.scale(focusedScale = 1.1f),
+        scale = ButtonDefaults.scale(focusedScale = TvMetrics.FocusScale),
+        // Рамка + тёмный ореол снаружи: белая обводка на белой кнопке иначе неразличима.
         border = ButtonDefaults.border(
-            focusedBorder = Border(BorderStroke(3.dp, TvFocus), shape = shape),
+            focusedBorder = Border(BorderStroke(TvMetrics.FocusBorderWidth, TvFocus), shape = shape),
         ),
         modifier = modifier.then(
             if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
@@ -85,27 +86,38 @@ fun TvButton(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             if (leadingIcon != null) {
-                Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(24.dp))
+                Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(20.dp))
             }
-            Text(text, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
+            Text(
+                text,
+                style = FilmaxTvTypography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+            )
         }
     }
 }
 
 /**
- * Фокусируемая карточка-контейнер на базе tv-material3 clickable [Surface]. Содержимое
- * (постер, плитка и т.п.) передаётся слотом. На фокусе срабатывают нативный масштаб и
- * фирменная [TvFocus]-обводка, которая рисуется ПОВЕРХ контента (иначе постер на
- * `fillMaxSize` перекрыл бы рамку самого Surface и фокус был бы не виден).
+ * Фокусируемая карточка-контейнер. Содержимое (постер, плитка) передаётся слотом.
+ *
+ * Индикация фокуса — три сигнала сразу, и это не избыточность:
+ * 1. масштаб — геометрия, работает поверх любой подложки;
+ * 2. белая рамка — читается на тёмном;
+ * 3. тёмный ореол СНАРУЖИ рамки — единственное, что спасает её на светлом постере.
+ *
+ * Рамка рисуется поверх контента (постер на `fillMaxSize` перекрыл бы обводку самого Surface)
+ * и внутри Surface — чтобы масштаб фокуса применился и к ней.
  */
 @Composable
 fun TvFocusCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(16.dp),
+    shape: Shape = TvMetrics.CardShape,
     focusRequester: FocusRequester? = null,
     content: @Composable () -> Unit,
 ) {
@@ -117,7 +129,7 @@ fun TvFocusCard(
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = TvMetrics.FocusScale),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent,
@@ -129,31 +141,55 @@ fun TvFocusCard(
             .onFocusChanged { focused.value = it.isFocused }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
     ) {
-        // Одна обводка вместо двух: рисуем её поверх контента прямо в draw-фазе (внутри Surface,
-        // чтобы фокус-масштаб 1.1 применился и к рамке). Никакого второго Box со своим border.
         Box(
             Modifier.drawWithContent {
                 drawContent()
-                if (focused.value) {
-                    val stroke = Stroke(width = 3.dp.toPx())
-                    when (val outline = shape.createOutline(size, layoutDirection, this)) {
-                        is Outline.Rectangle -> drawRect(color = TvFocus, style = stroke)
-                        is Outline.Rounded -> {
-                            val rr = outline.roundRect
-                            drawRoundRect(
-                                color = TvFocus,
-                                topLeft = Offset(rr.left, rr.top),
-                                size = Size(rr.width, rr.height),
-                                cornerRadius = CornerRadius(rr.topLeftCornerRadius.x, rr.topLeftCornerRadius.y),
-                                style = stroke,
-                            )
-                        }
-                        is Outline.Generic -> drawPath(path = outline.path, color = TvFocus, style = stroke)
-                    }
-                }
+                if (focused.value) drawFocusRing(shape)
             }
         ) {
             content()
         }
     }
+}
+
+/**
+ * Рисует ореол и рамку фокуса по контуру [shape]. Ореол идёт первым и шире — он ложится
+ * под белую рамку тёмной подложкой, поэтому рамку видно и на светлом постере.
+ */
+private fun DrawScope.drawFocusRing(shape: Shape) {
+    val halo = Stroke(width = TvMetrics.FocusHaloWidth.toPx())
+    val border = Stroke(width = TvMetrics.FocusBorderWidth.toPx())
+    when (val outline = shape.createOutline(size, layoutDirection, this)) {
+        is Outline.Rectangle -> {
+            drawRect(color = TvFocusHalo, style = halo)
+            drawRect(color = TvFocus, style = border)
+        }
+
+        is Outline.Rounded -> {
+            val rr = outline.roundRect
+            val topLeft = Offset(rr.left, rr.top)
+            val rectSize = Size(rr.width, rr.height)
+            val radius = CornerRadius(rr.topLeftCornerRadius.x, rr.topLeftCornerRadius.y)
+            drawRoundRect(color = TvFocusHalo, topLeft = topLeft, size = rectSize, cornerRadius = radius, style = halo)
+            drawRoundRect(color = TvFocus, topLeft = topLeft, size = rectSize, cornerRadius = radius, style = border)
+        }
+
+        is Outline.Generic -> {
+            drawPath(path = outline.path, color = TvFocusHalo, style = halo)
+            drawPath(path = outline.path, color = TvFocus, style = border)
+        }
+    }
+}
+
+/**
+ * Приглушает несфокусированные карточки ряда — монохромный аналог подсветки: сфокусированная
+ * карточка светится в полную яркость, соседи отступают. Возвращает анимированную альфу.
+ */
+@Composable
+fun rememberDimAlpha(focused: Boolean): Float {
+    val alpha by animateFloatAsState(
+        targetValue = if (focused) 1f else TvMetrics.DimmedAlpha,
+        label = "cardDim",
+    )
+    return alpha
 }

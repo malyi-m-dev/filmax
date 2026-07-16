@@ -12,7 +12,11 @@ import io.ktor.http.Parameters
 
 internal class WatchingApi(private val client: HttpClient) {
 
-    suspend fun getHistory(type: String = "all", subscribed: Int = 0): HistoryResponseDto =
+    /**
+     * Список начатого. [type] — только `movies` или `serials`: других значений у kino.pub нет,
+     * и на «all» эндпоинт молча отдавал пустоту (отсюда вечно пустая история).
+     */
+    suspend fun getHistory(type: String, subscribed: Int = 1): HistoryResponseDto =
         client.get("api/v1/watching/$type") {
             parameter("subscribed", subscribed)
         }.body()

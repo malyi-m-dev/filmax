@@ -4,21 +4,27 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -26,37 +32,55 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
+import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvFocusCard
-import com.filmax.feature.collections.tv.navigation.TvCollectionsRoute
+import com.filmax.core.tv.designsystem.TvMetrics
+import com.filmax.core.tv.designsystem.TvOnSurface
+import com.filmax.core.tv.designsystem.TvOnSurfaceDim
+import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
 import com.filmax.feature.profile.tv.navigation.TvProfileRoute
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
+import kotlinx.coroutines.delay
 import kotlin.reflect.KClass
 
 /** Вкладка верхнего таб-бара: ярлык + маршрут + проверка активности. */
 private data class TvTab(val label: String, val route: Any, val match: (NavDestination?) -> Boolean)
 
+/** «Фокуса на вкладках нет» — контент держит фокус, переключать нечего. */
+private const val NO_TAB = -1
+
+/**
+ * Пауза между наведением на вкладку и открытием раздела. Достаточно мала, чтобы переход
+ * ощущался мгновенным, и достаточно велика, чтобы проезд мимо вкладки её не открывал.
+ */
+private const val TAB_SWITCH_DELAY_MS = 300L
+
+/**
+ * Четыре раздела. «Поиск» уехал внутрь «Каталога» (печатать пультом дорого — каталог даёт
+ * способ найти фильм вообще без набора текста), «Подборки» стали контентом каталога,
+ * «Библиотека» переименована в «Моё» — так этот раздел называет весь российский рынок.
+ *
+ * Маршруты пока прежние: TvSearchRoute отдаёт Каталог, TvLibraryRoute — «Моё».
+ */
 private val TABS = listOf(
     TvTab("Главная", TvHomeRoute) { it?.hasRoute(TvHomeRoute::class) == true },
-    TvTab("Поиск", TvSearchRoute) { it?.hasRoute(TvSearchRoute::class) == true },
-    TvTab("Подборки", TvCollectionsRoute) { it?.hasRoute(TvCollectionsRoute::class) == true },
-    TvTab("Библиотека", TvLibraryRoute) { it?.hasRoute(TvLibraryRoute::class) == true },
+    TvTab("Каталог", TvSearchRoute) { it?.hasRoute(TvSearchRoute::class) == true },
+    TvTab("Моё", TvLibraryRoute) { it?.hasRoute(TvLibraryRoute::class) == true },
     TvTab("Профиль", TvProfileRoute) { it?.hasRoute(TvProfileRoute::class) == true },
 )
 
-/** Маршруты, на которых показывается таб-бар (5 основных разделов). */
+/** Маршруты, на которых показывается таб-бар. Выводится из [TABS] — один источник правды. */
 val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
     TvHomeRoute::class,
     TvSearchRoute::class,
-    TvCollectionsRoute::class,
     TvLibraryRoute::class,
     TvProfileRoute::class,
 )
@@ -68,8 +92,11 @@ internal data class TvTopNavBarFocus(
 )
 
 /**
- * Верхний таб-бар Filmax TV (как в макете): бренд «Filmax.», 5 разделов и аватар.
- * Вкладки фокусируемы пультом; выбор переходит на соответствующий маршрут.
+ * Верхний таб-бар. Не боковое меню: и Netflix, и Google TV в 2025 независимо ушли наверх, а
+ * при горизонтальных рядах карточек боковое меню перехватывало бы фокус на «влево» из первой
+ * карточки — верхний бар лежит на естественной оси «вверх».
+ *
+ * Фон сплошной, без градиента: серый градиент в монохроме — первый кандидат на бандинг.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -83,55 +110,60 @@ internal fun TvTopNavBar(
     val activeIndex = TABS.indexOfFirst { it.match(currentDestination) }.coerceAtLeast(0)
     // Стабильный requester на каждую вкладку (не «переезжает» между нодами).
     val tabFocusRequesters = remember { TABS.map { FocusRequester() } }
+    var focusedTab by remember { mutableIntStateOf(NO_TAB) }
+
+    // Раздел открывается по наведению, без OK: на пульте лишнее нажатие на каждый переход —
+    // это половина всей навигации по приложению.
+    //
+    // Задержка обязательна. Без неё проезд «Главная → Профиль» открывал бы по дороге Каталог и
+    // Моё — три лишних экрана с сетевыми запросами ради одного перехода. Пока фокус едет мимо,
+    // LaunchedEffect перезапускается и отменяет предыдущий переход; открывается только та
+    // вкладка, на которой фокус реально задержался.
+    LaunchedEffect(focusedTab) {
+        val target = focusedTab
+        if (target == NO_TAB || target == activeIndex) return@LaunchedEffect
+        delay(TAB_SWITCH_DELAY_MS)
+        onSelectTab(TABS[target].route)
+    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    listOf(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), Color.Transparent)
-                )
-            )
+            .height(TvMetrics.TopBarHeight)
             .focusRequester(focus.navBar)
             // Любой вход фокуса в таб-бар уводим на активную вкладку — фокус всегда
             // совпадает с открытым разделом.
             .focusProperties { enter = { tabFocusRequesters[activeIndex] } }
             .focusGroup()
-            .padding(horizontal = 48.dp, vertical = 22.dp),
+            .padding(horizontal = TvMetrics.SafeHorizontal),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TvBrandLabel()
-        Spacer(Modifier.width(32.dp))
+        Spacer(Modifier.weight(1f))
         TvNavTabs(
             activeIndex = activeIndex,
             tabFocusRequesters = tabFocusRequesters,
             contentFocus = focus.content,
             onSelectTab = onSelectTab,
+            onTabFocused = { index -> focusedTab = index },
         )
         Spacer(Modifier.weight(1f))
         TvAvatar(initials = initials)
     }
 }
 
-/** Бренд-лейбл «Filmax» + акцентная точка. */
+/** Бренд-лейбл. В монохроме — разрядка вместо акцентной точки. */
 @Composable
 private fun TvBrandLabel() {
-    Row(verticalAlignment = Alignment.Bottom) {
-        Text(
-            "Filmax",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            softWrap = false
-        )
-        Text(
-            ".",
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.primary,
-            maxLines = 1,
-            softWrap = false
-        )
-    }
+    Text(
+        "FILMAX",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.ExtraBold,
+        letterSpacing = 2.5.sp,
+        color = TvOnSurface,
+        maxLines = 1,
+        softWrap = false,
+    )
 }
 
 /** Ряд фокусируемых вкладок таб-бара. */
@@ -141,74 +173,85 @@ private fun TvNavTabs(
     tabFocusRequesters: List<FocusRequester>,
     contentFocus: FocusRequester,
     onSelectTab: (route: Any) -> Unit,
+    onTabFocused: (index: Int) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         TABS.forEachIndexed { index, tab ->
             NavTab(
                 label = tab.label,
                 active = index == activeIndex,
+                // OK оставляем рабочим: он открывает раздел сразу, не дожидаясь задержки.
                 onClick = { onSelectTab(tab.route) },
                 modifier = Modifier
                     .focusRequester(tabFocusRequesters[index])
+                    .onFocusChanged { if (it.isFocused) onTabFocused(index) }
                     .focusProperties { down = contentFocus },
             )
         }
     }
 }
 
-/** Круглый аватар: инициалы пользователя либо иконка-заглушка. */
+/** Круглый аватар: инициалы либо иконка-заглушка. Ровная серая заливка вместо градиента. */
 @Composable
 private fun TvAvatar(initials: String) {
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(36.dp)
             .clip(CircleShape)
-            .background(Brush.linearGradient(listOf(Color(0xFFB4305A), Color(0xFFF4B792)))),
+            .background(TvSurfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
         if (initials.isNotBlank()) {
             Text(
                 initials,
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
+                style = MaterialTheme.typography.labelLarge,
+                color = TvOnSurface,
                 maxLines = 1,
-                softWrap = false
+                softWrap = false,
             )
         } else {
             Icon(
                 Icons.Filled.Person,
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
+                tint = TvOnSurface,
+                modifier = Modifier.size(20.dp),
             )
         }
     }
 }
 
+/**
+ * Вкладка: активная — белым текстом с подчёркиванием, неактивная — приглушённая. Заливки нет:
+ * заливкой в монохроме отмечается выбор в чипах, а вкладку достаточно подчеркнуть.
+ */
 @Composable
 private fun NavTab(label: String, active: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val shape = RoundedCornerShape(percent = 50)
-    val labelColor = if (active) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    TvFocusCard(onClick = onClick, shape = shape, modifier = modifier) {
-        Box(
-            Modifier
-                .clip(shape)
-                .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+    TvFocusCard(onClick = onClick, shape = TvMetrics.ButtonShape, modifier = modifier) {
+        // width(IntrinsicSize.Max) обязателен: без него fillMaxWidth() у подчёркивания раздувает
+        // вкладку на всю свободную ширину строки и выталкивает соседние вкладки за экран.
+        Column(
+            modifier = Modifier
+                .width(IntrinsicSize.Max)
+                .padding(horizontal = 18.dp, vertical = 9.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 label,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false,
-                color = labelColor,
+                color = if (active) TvOnSurface else TvOnSurfaceDim,
             )
+            if (active) {
+                Box(
+                    Modifier
+                        .padding(top = 5.dp)
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(TvAccent),
+                )
+            }
         }
     }
 }

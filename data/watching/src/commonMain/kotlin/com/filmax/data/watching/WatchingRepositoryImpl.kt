@@ -7,27 +7,48 @@ import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.data.watching.remote.WatchingApi
+import com.filmax.data.watching.remote.dto.HistoryItemDto
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+
+/** Единственные типы, которые принимает `watching/{type}`. «all» и прочее дают пустой список. */
+private val HISTORY_TYPES = listOf("movies", "serials")
+
+private fun HistoryItemDto.toDomain() = WatchHistory(
+    itemId = id,
+    title = title,
+    posterSmall = posters?.small,
+    posterWide = posters?.wide,
+    progress = watching?.let {
+        WatchProgress(
+            status = it.status,
+            timeSeconds = it.time,
+            durationSeconds = it.duration,
+            videoId = it.video,
+            season = it.season,
+        )
+    },
+)
 
 internal class WatchingRepositoryImpl(
     private val api: WatchingApi,
 ) : WatchingRepository {
 
+    /**
+     * Начатое = фильмы + сериалы двумя запросами. Одного «все» у kino.pub не существует: тип в
+     * `watching/{type}` — это ровно `movies` либо `serials`, и на любом другом значении список
+     * приходит пустым (так и жила вечно пустая история).
+     *
+     * Запросы параллельны: ждать их последовательно — удваивать задержку раздела на ровном месте.
+     */
     override suspend fun getHistory(type: String): RequestResult<List<WatchHistory>> = safeRequest {
-        api.getHistory(type).items.map { dto ->
-            WatchHistory(
-                itemId = dto.id,
-                title = dto.title,
-                posterSmall = dto.posters?.small,
-                progress = dto.watching?.let {
-                    WatchProgress(
-                        status = it.status,
-                        timeSeconds = it.time,
-                        durationSeconds = it.duration,
-                        videoId = it.video,
-                        season = it.season,
-                    )
-                },
-            )
+        coroutineScope {
+            HISTORY_TYPES
+                .map { historyType -> async { api.getHistory(historyType).items } }
+                .awaitAll()
+                .flatten()
+                .map { dto -> dto.toDomain() }
         }
     }
 

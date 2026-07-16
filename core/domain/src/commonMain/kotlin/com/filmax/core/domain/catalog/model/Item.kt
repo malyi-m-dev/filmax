@@ -31,7 +31,13 @@ enum class ItemType(val apiValue: String) {
     }
 }
 
-data class Genre(val id: Int, val title: String)
+/**
+ * Жанр каталога. [type] — тип контента, к которому жанр относится (`movie`, `serial`, `music`…):
+ * `api/v1/genres` отдаёт одним списком жанры ВСЕХ типов, включая музыкальные, поэтому без
+ * фильтра по типу в киношный каталог попадают «Blues» и «Chillout». Внутри тайтла поля нет —
+ * там жанр приходит без типа, отсюда null по умолчанию.
+ */
+data class Genre(val id: Int, val title: String, val type: String? = null)
 
 data class ItemRating(
     val filmax: Int,

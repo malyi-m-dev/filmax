@@ -5,7 +5,16 @@ data class WatchHistory(
     val title: String,
     val posterSmall: String?,
     val progress: WatchProgress?,
-)
+    /** Кадр 16:9 для широких карточек. Пусто — бэкенд его не отдал, тогда падаем на [posterSmall]. */
+    val posterWide: String? = null,
+) {
+    /**
+     * Картинка для карточки 16:9. Вертикальный постер 2:3 в такой рамке обрезается по центру
+     * (от кадра остаётся случайная полоса), поэтому кадр предпочтительнее — но лучше кривой
+     * кроп, чем пустой прямоугольник.
+     */
+    val wideOrPoster: String get() = posterWide?.takeIf { it.isNotBlank() } ?: posterSmall.orEmpty()
+}
 
 data class WatchProgress(
     val status: Int,

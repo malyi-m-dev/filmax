@@ -32,7 +32,6 @@ import com.filmax.app.navigation.RootScreenModel
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
-import com.filmax.feature.collections.tv.navigation.tvCollectionsScreen
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
@@ -128,12 +127,15 @@ fun FilmaxTvNavGraph(
         }
     }
 
-    // При первом входе в top-level отдаём фокус таб-бару (его активной вкладке). Не
-    // перезапрашиваем фокус при каждой смене вкладки: иначе переброс на ещё не готовый
-    // контент срывается, и фокус откатывается на первую вкладку («Главная»). Вниз к
-    // контенту пользователь уходит «вниз» (down=contentFocus на вкладках).
+    // Стартовый фокус — на контенте, а не на шапке: иначе каждый вход в раздел стоит
+    // пользователю лишнего «вниз». Контент композится не мгновенно, поэтому пробуем его
+    // первым и откатываемся на таб-бар, если он ещё не готов принять фокус (гарантия
+    // «фокус есть всегда» из гайдлайна Google).
     LaunchedEffect(showTopBar) {
-        if (showTopBar) runCatching { navBarFocus.requestFocus() }
+        if (showTopBar) {
+            runCatching { contentFocus.requestFocus() }
+                .onFailure { runCatching { navBarFocus.requestFocus() } }
+        }
     }
 }
 
@@ -150,15 +152,19 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
     tvHomeScreen(
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
         onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
-    )
-    tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-    tvCollectionsScreen(
         onOpenCollection = { id, title ->
             navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
         },
     )
+    tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    // «Подборки» больше не вкладка — это контент внутри Каталога. Экран содержимого
+    // подборки остаётся push-экраном: в него ведёт Каталог.
     tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
-    tvLibraryScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvLibraryScreen(
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+        // «Продолжить» и «История» ведут сразу в плеер, а не в карточку.
+        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+    )
     tvProfileScreen(
         onLogout = {
             navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
@@ -169,5 +175,15 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
         onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
     )
-    tvPlayerScreen(onBack = { navController.popBackStack() })
+    tvPlayerScreen(
+        onBack = { navController.popBackStack() },
+        // «Следующая серия» — навигация, а не подмена MediaItem: прогресс пишется в трек,
+        // выбранный при старте плеера, и подмена на месте писала бы позицию новой серии
+        // в запись предыдущей. popUpTo не копит стек при перещёлкивании серий подряд.
+        onPlayEpisode = { itemId, videoId ->
+            navController.navigate(PlayerRoute(itemId, videoId)) {
+                popUpTo<PlayerRoute> { inclusive = true }
+            }
+        },
+    )
 }

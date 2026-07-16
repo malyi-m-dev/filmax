@@ -22,6 +22,7 @@ import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import kotlinx.coroutines.flow.first
+import kotlin.math.abs
 
 class PlayerScreenModel(
     savedStateHandle: SavedStateHandle,
@@ -46,6 +47,9 @@ class PlayerScreenModel(
 
     /** Выбранный трек/эпизод — нужен для сохранения прогресса (сериалы пишутся по сезону). */
     private var selectedTrack: MediaTrack? = null
+
+    /** Позиция последней отправки прогресса — база для троттлинга в [saveProgress]. */
+    private var lastSentSeconds: Int? = null
 
     init {
         player.addListener(object : Player.Listener {
@@ -75,8 +79,10 @@ class PlayerScreenModel(
             when (val result = catalog.getItemDetails(route.itemId)) {
                 is RequestResult.Success -> {
                     val item = result.data
-                    // Сериал: играем выбранный эпизод (videoId из маршрута). Фильм/нет совпадения — первый трек.
-                    val track = item.tracklist.firstOrNull { it.id == route.videoId }
+                    // Сериал: играем выбранный эпизод. `videoId` — это НОМЕР видео (`number` из
+                    // API), а не id трека: тем же числом kino.pub принимает и отдаёт прогресс
+                    // в watching/marktime. Фильм/нет совпадения — первый трек.
+                    val track = item.tracklist.firstOrNull { it.number == route.videoId }
                         ?: item.tracklist.firstOrNull()
                     selectedTrack = track
                     trackSubtitles = track?.subtitles.orEmpty()
@@ -212,16 +218,28 @@ class PlayerScreenModel(
         player.trackSelectionParameters = builder.build()
     }
 
+    /**
+     * Пишет прогресс на сервер. `video` — это НОМЕР видео (`MediaTrack.number`), а не id трека:
+     * kino.pub в `watching/marktime` ждёт именно номер, и тем же числом отдаёт прогресс обратно
+     * в `items/{id}`. С id прогресс уходил «в никуда» — история оставалась пустой.
+     *
+     * Троттлинг по позиции: пока не отъехали от последней отправки дальше [PROGRESS_STEP_SECONDS],
+     * не дёргаем сервер — тик плеера идёт раз в секунду, а это на порядок чаще, чем нужно.
+     */
     private fun saveProgress(positionMs: Long) {
-        val item = state.item ?: return
-        val track = selectedTrack ?: return
-        val seconds = (positionMs / 1000).toInt()
+        val item = state.item
+        val track = selectedTrack
+        if (item == null || track == null) return
+        val seconds = (positionMs / MILLIS_IN_SECOND).toInt()
+        val sent = lastSentSeconds
+        if (sent != null && abs(seconds - sent) < PROGRESS_STEP_SECONDS) return
+        lastSentSeconds = seconds
         screenModelScope {
             // Сериалы прогресс пишут по сезону+эпизоду, фильмы — по одному видео.
             if (track.seasonNumber > 0) {
-                watching.saveProgressSerial(item.id, track.seasonNumber, track.id, seconds)
+                watching.saveProgressSerial(item.id, track.seasonNumber, track.number, seconds)
             } else {
-                watching.saveProgress(item.id, track.id, seconds)
+                watching.saveProgress(item.id, track.number, seconds)
             }
         }
     }
@@ -237,6 +255,9 @@ class PlayerScreenModel(
 
         /** `watchStatus` из API: 1 — трек досмотрен до конца. */
         const val WATCH_STATUS_FINISHED = 1
+
+        /** Порог отправки прогресса: реже, чем тик плеера (1 с), но чаще, чем теряется место. */
+        const val PROGRESS_STEP_SECONDS = 5
 
         fun langCode(display: String): String? = when (display.lowercase()) {
             "русский" -> "rus"

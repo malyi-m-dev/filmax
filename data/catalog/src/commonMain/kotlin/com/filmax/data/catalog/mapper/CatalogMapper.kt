@@ -61,7 +61,7 @@ fun ItemDto.toDomain(): Item = Item(
     finished = finished,
 )
 
-fun GenreDto.toDomain() = Genre(id = id, title = title)
+fun GenreDto.toDomain() = Genre(id = id, title = title, type = type)
 
 fun PostersDto?.toDomain() = Posters(
     small = this?.small ?: "",

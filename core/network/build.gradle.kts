@@ -5,6 +5,8 @@ plugins {
 
 android {
     namespace = "com.filmax.core.network"
+    // BuildConfig.DEBUG нужен isDebugBuild: HTTP-логи включаются только в отладочной сборке.
+    buildFeatures { buildConfig = true }
 }
 
 kotlin {
