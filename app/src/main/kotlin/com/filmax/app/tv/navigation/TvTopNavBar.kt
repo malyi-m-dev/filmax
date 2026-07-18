@@ -144,7 +144,6 @@ internal fun TvTopNavBar(
             activeIndex = activeIndex,
             tabFocusRequesters = tabFocusRequesters,
             contentFocus = focus.content,
-            onSelectTab = onSelectTab,
             onTabFocused = { index -> focusedTab = index },
         )
         Spacer(Modifier.weight(1f))
@@ -172,7 +171,6 @@ private fun TvNavTabs(
     activeIndex: Int,
     tabFocusRequesters: List<FocusRequester>,
     contentFocus: FocusRequester,
-    onSelectTab: (route: Any) -> Unit,
     onTabFocused: (index: Int) -> Unit,
 ) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -180,8 +178,10 @@ private fun TvNavTabs(
             NavTab(
                 label = tab.label,
                 active = index == activeIndex,
-                // OK оставляем рабочим: он открывает раздел сразу, не дожидаясь задержки.
-                onClick = { onSelectTab(tab.route) },
+                // Переключение разделов — ТОЛЬКО по наведению (фокусу). OK на вкладке не переключает
+                // повторно (раздел к этому моменту уже открыт наведением), а уводит фокус в контент
+                // раздела — как «войти внутрь». Так таб-бар остаётся чистым фокус-переключателем.
+                onClick = { runCatching { contentFocus.requestFocus() } },
                 modifier = Modifier
                     .focusRequester(tabFocusRequesters[index])
                     .onFocusChanged { if (it.isFocused) onTabFocused(index) }
