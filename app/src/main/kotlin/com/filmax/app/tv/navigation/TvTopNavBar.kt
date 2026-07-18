@@ -178,10 +178,9 @@ private fun TvNavTabs(
             NavTab(
                 label = tab.label,
                 active = index == activeIndex,
-                // Переключение разделов — ТОЛЬКО по наведению (фокусу). OK на вкладке не переключает
-                // повторно (раздел к этому моменту уже открыт наведением), а уводит фокус в контент
-                // раздела — как «войти внутрь». Так таб-бар остаётся чистым фокус-переключателем.
-                onClick = { runCatching { contentFocus.requestFocus() } },
+                // Переключение разделов — ТОЛЬКО по наведению (фокусу). OK на вкладке не делает
+                // ничего: клик здесь лишний. Зайти в контент раздела — «вниз» (focusProperties.down).
+                onClick = {},
                 modifier = Modifier
                     .focusRequester(tabFocusRequesters[index])
                     .onFocusChanged { if (it.isFocused) onTabFocused(index) }

@@ -26,6 +26,12 @@ val localProps = Properties().apply {
 }
 val tmdbApiKey: String = (System.getenv("TMDB_API_KEY") ?: localProps.getProperty("tmdb.apiKey") ?: "").trim()
 
+// Токены для demo-сборки (ТОЛЬКО build type `demo`): из local.properties (в .gitignore). Зашиваются
+// в APK, чтобы demo-билд открывался авторизованным на любом устройстве без входа. В release/debug —
+// пусто, поэтому обычные сборки токен не несут.
+val demoAccessToken: String = (localProps.getProperty("demo.accessToken") ?: "").trim()
+val demoRefreshToken: String = (localProps.getProperty("demo.refreshToken") ?: "").trim()
+
 // versionName ← последний git-тег vX.Y.Z (без «v»); нет тегов → 1.0.0.
 fun gitVersionName(): String =
     providers.exec {
@@ -52,6 +58,9 @@ android {
         versionCode   = gitCommitCount()
         versionName   = gitVersionName()
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+        // По умолчанию токена нет — его несёт только build type `demo`.
+        buildConfigField("String", "DEMO_ACCESS_TOKEN", "\"\"")
+        buildConfigField("String", "DEMO_REFRESH_TOKEN", "\"\"")
     }
 
     buildFeatures {
@@ -90,6 +99,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+        }
+        // Demo-сборка: как release (R8 + подпись), но с зашитым токеном (стартует авторизованной
+        // на любом устройстве) и отдельным пакетом/меткой «Filmax Demo» — не путать с боевой.
+        create("demo") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".demo"
+            versionNameSuffix = "-demo"
+            // Библиотечные модули не знают build type `demo` — берём их release-вариант.
+            matchingFallbacks += "release"
+            signingConfigs.getByName("release").takeIf { it.storeFile?.exists() == true }
+                ?.let { signingConfig = it }
+            buildConfigField("String", "DEMO_ACCESS_TOKEN", "\"$demoAccessToken\"")
+            buildConfigField("String", "DEMO_REFRESH_TOKEN", "\"$demoRefreshToken\"")
         }
     }
 

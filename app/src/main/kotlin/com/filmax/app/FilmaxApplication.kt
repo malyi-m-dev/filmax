@@ -27,6 +27,7 @@ import org.koin.core.logger.Level
 class FilmaxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        seedDemoTokenIfNeeded()
         startKoin {
             androidLogger(Level.ERROR)
             androidContext(this@FilmaxApplication)
@@ -56,5 +57,23 @@ class FilmaxApplication : Application() {
                 appModule,
             )
         }
+    }
+
+    /**
+     * Demo-сборка стартует авторизованной: если в BuildConfig зашит токен (только build type `demo`)
+     * и хранилище ещё пустое — засеваем те же SharedPreferences `filmax_tokens`, что читает
+     * TokenStorage при создании. Так demo-билд открывается без входа на любом устройстве. В
+     * release/debug оба токена пустые — метод сразу выходит и ничего не трогает.
+     */
+    private fun seedDemoTokenIfNeeded() {
+        val access = BuildConfig.DEMO_ACCESS_TOKEN
+        val refresh = BuildConfig.DEMO_REFRESH_TOKEN
+        if (access.isBlank() || refresh.isBlank()) return
+        val prefs = getSharedPreferences("filmax_tokens", MODE_PRIVATE)
+        if (prefs.getString("access_token", null) != null) return
+        prefs.edit()
+            .putString("access_token", access)
+            .putString("refresh_token", refresh)
+            .apply()
     }
 }

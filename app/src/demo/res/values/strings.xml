@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Метка приложения для demo-сборки: перекрывает app_name из main. Отличает demo от боевой. -->
+<resources>
+    <string name="app_name">Filmax Demo</string>
+</resources>
