@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -175,29 +174,39 @@ private fun CatalogContent(
     ScrollToTopOnNavFocus(gridState)
     val gridItems = state.visibleItems
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(GRID_COLUMNS),
-        state = gridState,
-        modifier = Modifier.fillMaxSize(),
-        // Сетка клипует контент по вертикали: без запаса сверху/снизу рамка фокуса крайних
-        // карточек срезается. Сверху запас берёт на себя ContentTop (он заведомо больше).
-        contentPadding = PaddingValues(
-            start = TvMetrics.SafeHorizontal,
-            end = TvMetrics.SafeHorizontal,
-            top = TvMetrics.ContentTop,
-            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
-        ),
-        horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
-        verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
-    ) {
-        item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
-            CatalogHeader(state = state, searchBarFocus = searchBarFocus, actions = actions)
-        }
-        if (gridItems.isEmpty() && !state.loading) {
-            item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { CatalogEmpty() }
-        }
-        items(gridItems, key = { it.id }) { item ->
-            CatalogPoster(item = item, onClick = { actions.onOpenItem(item.id) })
+    Column(Modifier.fillMaxSize()) {
+        // Шапка ФИКСИРОВАННАЯ, вне прокрутки сетки. Держали её элементом грида — и «вверх» с
+        // верхнего ряда постеров тратился на докрутку шапки, а не на выход фокуса вверх: фокус
+        // будто застревал и не доходил до таб-бара. Теперь шапка — сосед сетки, «вверх» уходит чисто.
+        CatalogHeader(
+            state = state,
+            searchBarFocus = searchBarFocus,
+            actions = actions,
+            // Шапка на всю ширину: чип-ряды под ней идут от края до края, safe-инсет им даёт
+            // contentPadding, а строке поиска и подписи — собственный горизонтальный отступ.
+            modifier = Modifier.fillMaxWidth().padding(top = TvMetrics.ContentTop),
+        )
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(GRID_COLUMNS),
+            state = gridState,
+            // weight(1f): сетка занимает всё под фиксированной шапкой (в Column fillMaxSize раздул бы её).
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            // Запас под рамку фокуса крайних карточек: сетка клипует контент по краям.
+            contentPadding = PaddingValues(
+                start = TvMetrics.SafeHorizontal,
+                end = TvMetrics.SafeHorizontal,
+                top = TvMetrics.FocusInset,
+                bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
+            ),
+            horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
+            verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
+        ) {
+            if (gridItems.isEmpty() && !state.loading) {
+                item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { CatalogEmpty() }
+            }
+            items(gridItems, key = { it.id }) { item ->
+                CatalogPoster(item = item, onClick = { actions.onOpenItem(item.id) })
+            }
         }
     }
 }
@@ -207,8 +216,9 @@ private fun CatalogHeader(
     state: SearchState,
     searchBarFocus: FocusRequester,
     actions: CatalogActions,
+    modifier: Modifier = Modifier,
 ) {
-    Column {
+    Column(modifier) {
         CatalogSearchBar(
             query = state.query,
             focusRequester = searchBarFocus,
@@ -229,6 +239,7 @@ private fun CatalogHeader(
             text = catalogSummary(state),
             style = MaterialTheme.typography.bodySmall,
             color = TvOnSurfaceDim,
+            modifier = Modifier.padding(horizontal = TvMetrics.SafeHorizontal),
         )
     }
 }
@@ -244,7 +255,11 @@ private fun CatalogSearchBar(
         onClick = onClick,
         shape = TvMetrics.PanelShape,
         focusRequester = focusRequester,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
+        // Строка поиска — не чип-ряд: остаётся в safe-области собственным отступом.
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = TvMetrics.SafeHorizontal)
+            .height(56.dp),
     ) {
         Row(
             modifier = Modifier
@@ -272,60 +287,58 @@ private fun CatalogSearchBar(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun CatalogTypeRow(state: SearchState, actions: CatalogActions) {
     val sort = state.sort
     val filters = state.filters
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    var filtersOpen by remember { mutableStateOf(false) }
+    // Горизонтальный скролл, а не Row: тип + сортировка + «Фильтры» не влезали в safe area, и
+    // последний чип клипился. Разделители-палочки убраны — от них между группами зиял большой
+    // отступ; теперь шаг между всеми чипами одинаковый. offset/contentPadding — как у ряда жанров.
+    LazyRow(
+        modifier = Modifier.fillMaxWidth().focusRestorer(),
+        contentPadding = PaddingValues(horizontal = TvMetrics.SafeHorizontal),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        TypeOptions.forEach { (type, label) ->
+        items(TypeOptions) { (type, label) ->
             TvChip(label = label, selected = state.filter == type, onClick = { actions.onFilter(type) })
         }
-        RowDivider()
-        // Чип-перебор поля, а не выпадающее меню: ради значений городить на пульте ещё один уровень
-        // навигации незачем — OK листает по кругу. Стрелка ↕ (U+2195), а не ⇅ из макета: у второй
+        // Поле сортировки: OK листает по кругу. Стрелка ↕ (U+2195), а не ⇅ из макета: у второй
         // покрытие во встроенных шрифтах Android TV не гарантировано.
-        TvChip(
-            label = "↕ ${sortLabel(sort.field)}",
-            selected = false,
-            onClick = { actions.onSort(SortOption(nextSort(sort.field), sort.ascending)) },
-        )
-        // Направление отдельным чипом: ↑ по возрастанию (kino.pub `-field`), ↓ по убыванию.
-        TvChip(
-            label = if (sort.ascending) "↑ Возр." else "↓ Убыв.",
-            selected = false,
-            onClick = { actions.onSort(sort.copy(ascending = !sort.ascending)) },
-        )
-        RowDivider()
-        // Минимальный набор фильтров на пульте: 4K и завершённость чипами-тумблерами. Полный лист
-        // (год, рейтинги, страна) на TV пока не заведён — см. отчёт (TODO).
-        TvChip(
-            label = "4K",
-            selected = filters.only4k,
-            onClick = { actions.onApplyFilters(filters.copy(only4k = !filters.only4k)) },
-        )
-        TvChip(
-            label = "Завершённые",
-            selected = filters.onlyFinished == true,
-            onClick = {
-                val next = if (filters.onlyFinished == true) null else true
-                actions.onApplyFilters(filters.copy(onlyFinished = next))
-            },
+        item {
+            TvChip(
+                label = "↕ ${sortLabel(sort.field)}",
+                selected = false,
+                onClick = { actions.onSort(SortOption(nextSort(sort.field), sort.ascending)) },
+            )
+        }
+        // Направление: ↑ по возрастанию (kino.pub `-field`), ↓ по убыванию.
+        item {
+            TvChip(
+                label = if (sort.ascending) "↑ Возр." else "↓ Убыв.",
+                selected = false,
+                onClick = { actions.onSort(sort.copy(ascending = !sort.ascending)) },
+            )
+        }
+        // Полный набор фильтров (год, рейтинги, страна, 4K, завершённость) — в оверлей-панели.
+        item {
+            TvChip(
+                label = if (filters.activeCount > 0) "Фильтры · ${filters.activeCount}" else "Фильтры",
+                selected = filters.activeCount > 0,
+                onClick = { filtersOpen = true },
+            )
+        }
+    }
+    if (filtersOpen) {
+        TvCatalogFilterDialog(
+            current = filters,
+            countries = state.countries,
+            onApply = { actions.onApplyFilters(it) },
+            onDismiss = { filtersOpen = false },
         )
     }
-}
-
-/** Вертикальный разделитель между группами чипов (тип · сортировка · фильтры). */
-@Composable
-private fun RowDivider() {
-    Box(
-        Modifier
-            .padding(horizontal = 4.dp)
-            .size(width = 1.dp, height = 22.dp)
-            .background(TvSurfaceContainerHighest)
-    )
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -336,10 +349,10 @@ private fun CatalogGenreRow(
     onGenre: (Int?) -> Unit,
 ) {
     LazyRow(
-        // Ряд клипует контент по горизонтали, поэтому первому чипу нужен запас под рамку
-        // фокуса; сдвиг ровно на этот запас возвращает чип на линию safe area.
-        modifier = Modifier.focusRestorer().offset(x = -TvMetrics.FocusInset),
-        contentPadding = PaddingValues(horizontal = TvMetrics.FocusInset),
+        // От края до края: viewport на всю ширину, а первый/последний чип держит на линии safe area
+        // contentPadding. Так чипы скроллятся к самым краям экрана, а не обрываются на safe-границе.
+        modifier = Modifier.fillMaxWidth().focusRestorer(),
+        contentPadding = PaddingValues(horizontal = TvMetrics.SafeHorizontal),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(genres, key = { it.id }) { genre ->
