@@ -3,6 +3,7 @@ package com.filmax.feature.player.tv
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -579,6 +580,7 @@ private fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: 
         Scrubber(
             positionMs = if (ui.isScrubbing) ui.scrubTargetMs else ui.positionMs,
             durationMs = ui.durationMs,
+            active = ui.isScrubbing,
             modifier = Modifier.fillMaxWidth(),
         )
         TransportHints(isPlaying = ui.isPlaying, modifier = Modifier.padding(top = 16.dp))
@@ -604,7 +606,7 @@ private fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: 
 
 /** Полоса с временем: слева — текущее, справа — длительность; обе цифры табличные, чтобы не дёргались. */
 @Composable
-private fun Scrubber(positionMs: Long, durationMs: Long, modifier: Modifier = Modifier) {
+private fun Scrubber(positionMs: Long, durationMs: Long, active: Boolean, modifier: Modifier = Modifier) {
     val timeStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
     Row(
         modifier,
@@ -617,7 +619,10 @@ private fun Scrubber(positionMs: Long, durationMs: Long, modifier: Modifier = Mo
             color = TvOnSurface,
             modifier = Modifier.widthIn(min = 56.dp),
         )
-        ScrubTrack(fraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f)
+        ScrubTrack(
+            fraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f,
+            active = active,
+        )
         Text(
             formatMs(durationMs),
             style = timeStyle,
@@ -628,23 +633,29 @@ private fun Scrubber(positionMs: Long, durationMs: Long, modifier: Modifier = Mo
     }
 }
 
-/** Трек, заливка и thumb. Ширина известна только на месте — от неё считается позиция thumb. */
+/**
+ * Трек, заливка и thumb. Ширина известна только на месте — от неё считается позиция thumb.
+ * При скраббинге ([active]) полоса и thumb заметно вырастают: видно, что перемотка «взята в руки».
+ */
 @Composable
-private fun RowScope.ScrubTrack(fraction: Float) {
+private fun RowScope.ScrubTrack(fraction: Float, active: Boolean) {
+    val trackHeight by animateDpAsState(if (active) ScrubTrackHeightActive else ScrubTrackHeight, label = "scrubTrack")
+    val thumbSize by animateDpAsState(if (active) ScrubThumbActive else ScrubThumb, label = "scrubThumb")
+    val haloSize by animateDpAsState(if (active) ScrubThumbHaloActive else ScrubThumbHalo, label = "scrubHalo")
     BoxWithConstraints(
         Modifier
             .weight(1f)
-            .height(ScrubThumbHalo),
+            .height(ScrubThumbHaloActive),
     ) {
         val density = LocalDensity.current
         val trackPx = with(density) { maxWidth.toPx() }
-        val haloPx = with(density) { ScrubThumbHalo.toPx() }
+        val haloPx = with(density) { haloSize.toPx() }
 
         Box(
             Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxWidth()
-                .height(ScrubTrackHeight)
+                .height(trackHeight)
                 .clip(CircleShape)
                 .background(TvAccent.copy(alpha = 0.2f)),
         )
@@ -652,7 +663,7 @@ private fun RowScope.ScrubTrack(fraction: Float) {
             Modifier
                 .align(Alignment.CenterStart)
                 .fillMaxWidth(fraction)
-                .height(ScrubTrackHeight)
+                .height(trackHeight)
                 .clip(CircleShape)
                 .background(TvAccent),
         )
@@ -661,14 +672,14 @@ private fun RowScope.ScrubTrack(fraction: Float) {
             Modifier
                 .align(Alignment.CenterStart)
                 .offset { IntOffset((fraction * trackPx - haloPx / 2f).roundToInt(), 0) }
-                .size(ScrubThumbHalo)
+                .size(haloSize)
                 .clip(CircleShape)
                 .background(TvFocusHalo),
             contentAlignment = Alignment.Center,
         ) {
             Box(
                 Modifier
-                    .size(ScrubThumb)
+                    .size(thumbSize)
                     .clip(CircleShape)
                     .background(TvAccent),
             )
@@ -746,9 +757,12 @@ private fun SeekHint(label: String) {
  */
 @Composable
 private fun SettingsBar(ui: TvPlayerUiState, menu: PlayerActions, modifier: Modifier = Modifier) {
+    // fillMaxWidth + центрирующая раскладка: иначе ряд центрируется лишь по обёртке AnimatedVisibility
+    // и съезжает вбок. Так баблы всегда по центру снизу, сколько бы их ни было.
     Row(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         menu.items.forEachIndexed { index, action ->
             val isCursor = index == ui.settingsCursor
@@ -894,12 +908,15 @@ private const val SEEK_STREAK_WINDOW_MS = 450L
 private const val MILLIS_IN_SECOND = 1000L
 
 /** Увеличение чипа-курсора в ряду настроек — белой заливки на ярком кадре мало для читаемости выбора. */
-private const val CURSOR_CHIP_SCALE = 1.12f
+private const val CURSOR_CHIP_SCALE = 1.3f
 
 /** Лестница разгона перемотки (секунды): шаг растёт, пока пользователь давит стрелку. */
 private val SEEK_STEPS_SEC = listOf(10, 10, 20, 30, 60, 90, 120)
 
-private val ScrubTrackHeight = 5.dp
-private val ScrubThumb = 13.dp
-private val ScrubThumbHalo = 21.dp
+private val ScrubTrackHeight = 6.dp
+private val ScrubTrackHeightActive = 9.dp
+private val ScrubThumb = 15.dp
+private val ScrubThumbActive = 24.dp
+private val ScrubThumbHalo = 24.dp
+private val ScrubThumbHaloActive = 38.dp
 private val PopoverBottom = 120.dp

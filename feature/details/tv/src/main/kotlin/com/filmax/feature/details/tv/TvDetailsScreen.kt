@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -39,6 +41,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -170,6 +173,23 @@ private data class DetailsActions(
     val onPlayTrailer: (url: String, title: String) -> Unit,
 )
 
+/**
+ * Стартовый фокус на «Смотреть» + возврат списка к началу. Пульту нужен фокус на входе, но
+ * bringIntoView под него тянет список к кнопке и срезает верх постера-бэкдропа («постер не виден»).
+ * Кнопка и так видна снизу hero, поэтому сразу возвращаем список к началу — пара кадров перебивает
+ * отложенный bringIntoView. Ключ [itemId]: на соседнем тайтле фокус снова встаёт на «Смотреть».
+ */
+@Composable
+private fun StartFocusPinnedToTop(itemId: Int, playFocus: FocusRequester, listState: LazyListState) {
+    LaunchedEffect(itemId) {
+        runCatching { playFocus.requestFocus() }
+        repeat(2) {
+            withFrameNanos { }
+            listState.scrollToItem(0)
+        }
+    }
+}
+
 @Composable
 private fun DetailsContent(
     item: Item,
@@ -185,10 +205,8 @@ private fun DetailsContent(
     val episodes = series?.seasons?.getOrNull(selectedSeason)?.second.orEmpty()
 
     val playFocus = remember { FocusRequester() }
-    // Пульту нужен стартовый фокус, иначе первое нажатие уходит в никуда. Ключ item.id —
-    // при переходе на соседний тайтл фокус возвращается на «Смотреть». runCatching: на первом
-    // кадре FocusRequester ещё может быть не привязан к узлу.
-    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
+    val listState = rememberLazyListState()
+    StartFocusPinnedToTop(itemId = item.id, playFocus = playFocus, listState = listState)
 
     // Кнопка играет недосмотренную серию, иначе первую серию ВЫБРАННОГО сезона (у фильма дорожка
     // не выбирается вовсе).
@@ -203,6 +221,7 @@ private fun DetailsContent(
     // Отступ сверху обязателен: без него hero упирается в край экрана, а верхние строки пикселей
     // на телевизоре съедает overscan — кадр выглядит обрезанным по живому.
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = TvMetrics.SafeVertical, bottom = 70.dp),
     ) {
