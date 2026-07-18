@@ -12,14 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
@@ -106,7 +104,7 @@ fun TvCatalogScreen(
     var keyboardOpen by remember { mutableStateOf(false) }
     var restoreFocus by remember { mutableStateOf(false) }
     val searchBarFocus = remember { FocusRequester() }
-    val gridState = rememberLazyGridState()
+    val listState = rememberLazyListState()
 
     // Витрину и жанры тянем только здесь: телефонный поиск с тем же ScreenModel показывает
     // подсказки, и выдача каталога ему не нужна.
@@ -139,7 +137,7 @@ fun TvCatalogScreen(
         } else {
             CatalogContent(
                 state = state,
-                gridState = gridState,
+                listState = listState,
                 searchBarFocus = searchBarFocus,
                 actions = CatalogActions(
                     onOpenItem = onOpenItem,
@@ -167,46 +165,56 @@ private data class CatalogActions(
 @Composable
 private fun CatalogContent(
     state: SearchState,
-    gridState: LazyGridState,
+    listState: LazyListState,
     searchBarFocus: FocusRequester,
     actions: CatalogActions,
 ) {
-    ScrollToTopOnNavFocus(gridState)
+    ScrollToTopOnNavFocus(listState)
     val gridItems = state.visibleItems
+    // Постеры бьём на ряды по GRID_COLUMNS и кладём в ОБЩИЙ LazyColumn вместе с шапкой — так
+    // скроллится ВЕСЬ экран (шапка уезжает вверх), а не только сетка под фиксированной шапкой,
+    // которая занимала пол-экрана. Фокус ходит одним списком: «вниз» из чипов идёт в постеры,
+    // «вверх» с первого ряда прокручивает шапку обратно и уходит на таб-бар (как на Главной).
+    val rows = remember(gridItems) { gridItems.chunked(GRID_COLUMNS) }
 
-    Column(Modifier.fillMaxSize()) {
-        // Шапка ФИКСИРОВАННАЯ, вне прокрутки сетки. Держали её элементом грида — и «вверх» с
-        // верхнего ряда постеров тратился на докрутку шапки, а не на выход фокуса вверх: фокус
-        // будто застревал и не доходил до таб-бара. Теперь шапка — сосед сетки, «вверх» уходит чисто.
-        CatalogHeader(
-            state = state,
-            searchBarFocus = searchBarFocus,
-            actions = actions,
-            // Шапка на всю ширину: чип-ряды под ней идут от края до края, safe-инсет им даёт
-            // contentPadding, а строке поиска и подписи — собственный горизонтальный отступ.
-            modifier = Modifier.fillMaxWidth().padding(top = TvMetrics.ContentTop),
-        )
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(GRID_COLUMNS),
-            state = gridState,
-            // weight(1f): сетка занимает всё под фиксированной шапкой (в Column fillMaxSize раздул бы её).
-            modifier = Modifier.fillMaxWidth().weight(1f),
-            // Запас под рамку фокуса крайних карточек: сетка клипует контент по краям.
-            contentPadding = PaddingValues(
-                start = TvMetrics.SafeHorizontal,
-                end = TvMetrics.SafeHorizontal,
-                top = TvMetrics.FocusInset,
-                bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
-            ),
-            horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
-            verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
-        ) {
-            if (gridItems.isEmpty() && !state.loading) {
-                item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { CatalogEmpty() }
-            }
-            items(gridItems, key = { it.id }) { item ->
-                CatalogPoster(item = item, onClick = { actions.onOpenItem(item.id) })
-            }
+    LazyColumn(
+        state = listState,
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            top = TvMetrics.ContentTop,
+            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
+        ),
+        verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
+    ) {
+        item(key = "header") {
+            CatalogHeader(
+                state = state,
+                searchBarFocus = searchBarFocus,
+                actions = actions,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        if (gridItems.isEmpty() && !state.loading) {
+            item(key = "empty") { CatalogEmpty() }
+        }
+        itemsIndexed(rows, key = { index, _ -> "row-$index" }) { _, row ->
+            CatalogPosterRow(row = row, onOpenItem = actions.onOpenItem)
+        }
+    }
+}
+
+/**
+ * Ряд сетки: до [GRID_COLUMNS] постеров фиксированной ширины с шагом CardGap, по левому краю
+ * safe area. Хвостовые пустые ячейки не добираем — последний ряд просто короче.
+ */
+@Composable
+private fun CatalogPosterRow(row: List<Item>, onOpenItem: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = TvMetrics.SafeHorizontal),
+        horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
+    ) {
+        row.forEach { item ->
+            CatalogPoster(item = item, onClick = { onOpenItem(item.id) })
         }
     }
 }
