@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -29,6 +30,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
@@ -36,6 +39,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -67,6 +71,7 @@ import com.filmax.core.designsystem.FilmaxOnSurfaceDim
 import com.filmax.core.designsystem.ShapeButton
 import com.filmax.core.designsystem.ShapeFull
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
@@ -95,11 +100,15 @@ private val TypeOptions = listOf(
     ItemType.DOCUMENTARY to "Документальные",
 )
 
+/** Поля сортировки в порядке меню. Русские подписи — из макета «Filmax Mobile». */
 private val SortOptions = listOf(
-    CatalogSort.VIEWS to "Популярное",
-    CatalogSort.RATING to "Рейтинг",
+    CatalogSort.UPDATED to "Обновлённые",
+    CatalogSort.CREATED to "Добавленные",
+    CatalogSort.RATING to "Рейтинг Filmax",
+    CatalogSort.VIEWS to "Просмотры",
     CatalogSort.YEAR to "Год",
-    CatalogSort.CREATED to "Новизна",
+    CatalogSort.KINOPOISK_RATING to "Рейтинг КП",
+    CatalogSort.IMDB_RATING to "Рейтинг IMDb",
 )
 
 /** Действия каталога одним объектом: у detekt порог LongParameterList — 6. */
@@ -107,8 +116,9 @@ private data class CatalogActions(
     val onOpenItem: (Int) -> Unit,
     val onOpenSearch: () -> Unit,
     val onFilter: (ItemType?) -> Unit,
-    val onSort: (CatalogSort) -> Unit,
+    val onSort: (SortOption) -> Unit,
     val onGenre: (Int?) -> Unit,
+    val onOpenFilters: () -> Unit,
 )
 
 private data class SearchActions(
@@ -134,6 +144,7 @@ fun CatalogScreen(
 ) {
     val state by screenModel.collectAsState()
     var searchMode by remember { mutableStateOf(false) }
+    var filtersOpen by remember { mutableStateOf(false) }
 
     // Витрину и жанры общий ScreenModel тянет только по заявке экрана — без этого сетка пуста.
     LaunchedEffect(Unit) { screenModel.dispatch(SearchEvent.LoadCatalog) }
@@ -158,9 +169,26 @@ fun CatalogScreen(
                     onFilter = { screenModel.dispatch(SearchEvent.FilterChange(it)) },
                     onSort = { screenModel.dispatch(SearchEvent.SortChange(it)) },
                     onGenre = { screenModel.dispatch(SearchEvent.GenreChange(it)) },
+                    onOpenFilters = { filtersOpen = true },
                 ),
             )
         }
+    }
+
+    if (filtersOpen) {
+        CatalogFilterSheet(
+            filters = state.filters,
+            countries = state.countries,
+            onApply = {
+                screenModel.dispatch(SearchEvent.ApplyFilters(it))
+                filtersOpen = false
+            },
+            onReset = {
+                screenModel.dispatch(SearchEvent.ResetFilters)
+                filtersOpen = false
+            },
+            onDismiss = { filtersOpen = false },
+        )
     }
 }
 
@@ -192,7 +220,12 @@ private fun CatalogContent(state: SearchState, actions: CatalogActions) {
 @Composable
 private fun CatalogHeader(state: SearchState, actions: CatalogActions) {
     Column {
-        CatalogTitleRow(sort = state.sort, onSort = actions.onSort)
+        CatalogTitleRow(
+            sort = state.sort,
+            filterCount = state.filters.activeCount,
+            onSort = actions.onSort,
+            onOpenFilters = actions.onOpenFilters,
+        )
         Spacer(Modifier.height(16.dp))
         CatalogSearchButton(query = state.query, onClick = actions.onOpenSearch)
         Spacer(Modifier.height(16.dp))
@@ -209,9 +242,14 @@ private fun CatalogHeader(state: SearchState, actions: CatalogActions) {
     }
 }
 
-/** Сортировка живёт в строке заголовка: в макете её нет, а место рядом с «Каталогом» — пустое. */
+/** Сортировка и фильтры живут в строке заголовка: место рядом с «Каталогом» в макете пустует. */
 @Composable
-private fun CatalogTitleRow(sort: CatalogSort, onSort: (CatalogSort) -> Unit) {
+private fun CatalogTitleRow(
+    sort: SortOption,
+    filterCount: Int,
+    onSort: (SortOption) -> Unit,
+    onOpenFilters: () -> Unit,
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -222,16 +260,80 @@ private fun CatalogTitleRow(sort: CatalogSort, onSort: (CatalogSort) -> Unit) {
             style = MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        SortChip(sort = sort, onSort = onSort)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            FilterButton(count = filterCount, onClick = onOpenFilters)
+            SortControl(sort = sort, onSort = onSort)
+        }
+    }
+}
+
+/** Кнопка листа фильтров с бейджем: число активных фильтров прямо на иконке. */
+@Composable
+private fun FilterButton(count: Int, onClick: () -> Unit) {
+    Box(contentAlignment = Alignment.TopEnd) {
+        Row(
+            modifier = Modifier
+                .height(FilmaxMetrics.GenreChipHeight)
+                .clip(ShapeFull)
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                Icons.Filled.Tune,
+                contentDescription = "Фильтры",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(15.dp),
+            )
+            Text(
+                "Фильтры",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (count > 0) {
+            Box(
+                modifier = Modifier
+                    .offset(x = 4.dp, y = (-4).dp)
+                    .size(16.dp)
+                    .clip(ShapeFull)
+                    .background(MaterialTheme.colorScheme.primary),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    count.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Выбор поля сортировки (меню) плюс стрелка направления рядом. */
+@Composable
+private fun SortControl(sort: SortOption, onSort: (SortOption) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        SortFieldChip(field = sort.field) { field -> onSort(SortOption(field, sort.ascending)) }
+        DirectionToggle(ascending = sort.ascending) { onSort(sort.copy(ascending = !sort.ascending)) }
     }
 }
 
 /**
- * Выпадающее меню, а не перебор по кругу (как на пульте): пальцем вариант выбирают из списка,
- * и текущая сортировка должна быть видна вместе с остальными.
+ * Выпадающее меню полей, а не перебор по кругу (как на пульте): пальцем вариант выбирают из
+ * списка, и текущее поле должно быть видно вместе с остальными.
  */
 @Composable
-private fun SortChip(sort: CatalogSort, onSort: (CatalogSort) -> Unit) {
+private fun SortFieldChip(field: CatalogSort, onPick: (CatalogSort) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         Row(
@@ -245,7 +347,7 @@ private fun SortChip(sort: CatalogSort, onSort: (CatalogSort) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                sortLabel(sort),
+                sortLabel(field),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -260,14 +362,34 @@ private fun SortChip(sort: CatalogSort, onSort: (CatalogSort) -> Unit) {
             SortOptions.forEach { (option, label) ->
                 SortMenuItem(
                     label = label,
-                    selected = option == sort,
+                    selected = option == field,
                     onClick = {
                         expanded = false
-                        onSort(option)
+                        onPick(option)
                     },
                 )
             }
         }
+    }
+}
+
+/** Стрелка направления: вверх — по возрастанию, вниз — по убыванию (kino.pub `-field`). */
+@Composable
+private fun DirectionToggle(ascending: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(FilmaxMetrics.GenreChipHeight)
+            .clip(ShapeFull)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (ascending) Icons.Filled.ArrowUpward else Icons.Filled.ArrowDownward,
+            contentDescription = if (ascending) "По возрастанию" else "По убыванию",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(15.dp),
+        )
     }
 }
 

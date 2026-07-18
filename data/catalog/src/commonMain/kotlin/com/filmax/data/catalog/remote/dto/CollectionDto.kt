@@ -27,3 +27,8 @@ data class CollectionItemsDto(
 data class GenresResponseDto(
     val items: List<GenreDto>,
 )
+
+@Serializable
+data class CountriesResponseDto(
+    val items: List<CountryDto>,
+)

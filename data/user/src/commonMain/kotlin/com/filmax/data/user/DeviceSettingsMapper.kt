@@ -10,6 +10,7 @@ internal fun DeviceInfoDto.toDomain() = DeviceSettings(
     supportHevc = supportHevc == 1,
     supportHdr = supportHdr == 1,
     support4k = support4k == 1,
+    mixedPlaylist = mixedPlaylist == 1,
     streamingType = streamingType,
     serverLocation = serverLocation,
 )

@@ -7,6 +7,8 @@ import com.filmax.core.network.di.platformNetworkModule
 import com.filmax.data.auth.di.authModule
 import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.search.di.searchModule
+import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
+import com.filmax.data.tmdb.di.tmdbModule
 import com.filmax.data.user.di.userModule
 import com.filmax.data.watching.di.watchingModule
 import com.filmax.feature.collections.common.di.collectionsModule
@@ -28,6 +30,9 @@ class FilmaxApplication : Application() {
         startKoin {
             androidLogger(Level.ERROR)
             androidContext(this@FilmaxApplication)
+            // Ключ TMDB отдаём модулю свойством, а не в коде: секрет живёт в BuildConfig (из
+            // local.properties), а data:tmdb читает его через getProperty.
+            properties(mapOf(TMDB_API_KEY_PROPERTY to BuildConfig.TMDB_API_KEY))
             modules(
                 // core / data
                 networkModule,
@@ -37,6 +42,7 @@ class FilmaxApplication : Application() {
                 searchModule,
                 userModule,
                 watchingModule,
+                tmdbModule,
                 // features
                 onboardingModule,
                 homeModule,

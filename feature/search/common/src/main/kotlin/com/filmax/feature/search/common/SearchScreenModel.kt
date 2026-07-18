@@ -1,9 +1,10 @@
 package com.filmax.feature.search.common
 
+import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
@@ -64,6 +65,8 @@ class SearchScreenModel(
             is SearchEvent.FilterChange -> updateAndReload { it.copy(filter = event.filter) }
             is SearchEvent.SortChange -> updateAndReload { it.copy(sort = event.sort) }
             is SearchEvent.GenreChange -> updateAndReload { it.copy(selectedGenreId = event.genreId) }
+            is SearchEvent.ApplyFilters -> updateAndReload { it.copy(filters = event.filters) }
+            SearchEvent.ResetFilters -> updateAndReload { it.copy(filters = CatalogFilters()) }
             is SearchEvent.SubmitQuery -> {
                 onQueryChange(event.query)
                 screenModelScope { _ -> performSearch(event.query) }
@@ -123,6 +126,11 @@ class SearchScreenModel(
                 ?.filter { it.type in VIDEO_GENRE_TYPES }
                 ?.let { genres -> updateState { it.copy(genres = genres) } }
         }
+        // Страны — тоже отдельно: список нужен только листу фильтров, сетку он не держит.
+        screenModelScope { _ ->
+            catalog.getCountries().getOrNull()
+                ?.let { countries -> updateState { it.copy(countries = countries) } }
+        }
     }
 
     /** Единственная развилка экрана: есть запрос — ищем, нет — показываем витрину по фильтрам. */
@@ -138,7 +146,7 @@ class SearchScreenModel(
                 val recent = (listOf(query) + current.recentQueries).distinct().take(RECENT_LIMIT)
                 current.copy(
                     loading = false,
-                    results = arrange(result.data, current.selectedGenreId, current.sort),
+                    results = arrange(result.data, current),
                     recentQueries = recent,
                 )
             }
@@ -154,9 +162,10 @@ class SearchScreenModel(
         updateState { it.copy(loading = true) }
         val genreId = state.selectedGenreId
         val sort = state.sort
+        val filters = state.filters
         val types = state.filter?.let { listOf(it) } ?: BrowseTypes
         val pages = coroutineScope {
-            types.map { type -> async { requestPage(type, genreId, sort) } }.awaitAll()
+            types.map { type -> async { catalog.getItems(type, genreId, filters, sort) } }.awaitAll()
         }
         val lists = pages.mapNotNull { it.getOrNull()?.items }
         if (lists.isEmpty()) {
@@ -167,35 +176,57 @@ class SearchScreenModel(
         val merged = sortLocally(interleave(lists), sort)
         updateState { it.copy(loading = false, catalogItems = merged, error = null) }
     }
-
-    private suspend fun requestPage(type: ItemType, genreId: Int?, sort: CatalogSort): RequestResult<ItemPage> =
-        if (genreId == null) {
-            catalog.getItems(type, sort)
-        } else {
-            catalog.getItemsByGenre(type, genreId, sort)
-        }
 }
 
-/** Жанр + сортировка поверх выдачи поиска: сам `search` ни того, ни другого не принимает. */
-private fun arrange(items: List<Item>, genreId: Int?, sort: CatalogSort): List<Item> {
-    val byGenre = if (genreId == null) {
-        items
-    } else {
-        items.filter { item -> item.genres.any { it.id == genreId } }
-    }
-    return sortLocally(byGenre, sort)
+/**
+ * Жанр, диапазонные фильтры и сортировка поверх выдачи поиска: сам `search` ничего из этого не
+ * принимает. Страну (по id) и 4K локально не проверить — в [Item] их нет, они остаются серверными
+ * и на результаты поиска не влияют.
+ */
+private fun arrange(items: List<Item>, state: SearchState): List<Item> {
+    val genreId = state.selectedGenreId
+    val filtered = items.asSequence()
+        .filter { item -> genreId == null || item.genres.any { it.id == genreId } }
+        .filter { item -> item.matches(state.filters) }
+        .toList()
+    return sortLocally(filtered, state.sort)
+}
+
+/** Локальная проверка фильтров по полям, которые есть в [Item] (год, рейтинги, завершённость). */
+private fun Item.matches(filters: CatalogFilters): Boolean {
+    // Локальные копии: nullable-поля CatalogFilters лежат в другом модуле, и смарт-каст через
+    // границу модуля невозможен — сравнивать надо через захваченное значение.
+    val yearFrom = filters.yearFrom
+    val yearTo = filters.yearTo
+    val kpFrom = filters.kpRatingFrom
+    val imdbFrom = filters.imdbRatingFrom
+    val finishedFilter = filters.onlyFinished
+    return (yearFrom == null || year >= yearFrom) &&
+        (yearTo == null || year <= yearTo) &&
+        (kpFrom == null || ratingAtLeast(rating.kinopoisk, kpFrom)) &&
+        (imdbFrom == null || ratingAtLeast(rating.imdb, imdbFrom)) &&
+        (finishedFilter == null || finished == finishedFilter)
+}
+
+private fun ratingAtLeast(raw: String?, threshold: Int): Boolean {
+    val value = raw?.toDoubleOrNull() ?: return false
+    return value >= threshold
 }
 
 /**
  * Досортировка на клиенте. Набор карточек выбирает сервер, но по «Рейтингу» и «Году» он
  * сортирует по своим полям, а карточка показывает НАШ усреднённый рейтинг (IMDb+КП) и год —
  * без локального прохода первой в сетке стояла бы не та карточка, которую зритель видит лучшей.
- * У «Популярного» и «Новизны» локального ключа в [Item] нет: там порядок сервера как есть.
+ * У остальных ключей (просмотры, новизна, рейтинги КП/IMDb по отдельности) локального поля в
+ * [Item] нет: там доверяем порядку сервера как есть, направление он тоже уже применил.
  */
-private fun sortLocally(items: List<Item>, sort: CatalogSort): List<Item> = when (sort) {
-    CatalogSort.RATING -> items.sortedByDescending { it.rating.external ?: 0.0 }
-    CatalogSort.YEAR -> items.sortedByDescending { it.year }
-    CatalogSort.UPDATED, CatalogSort.CREATED, CatalogSort.VIEWS -> items
+private fun sortLocally(items: List<Item>, sort: SortOption): List<Item> {
+    val comparator = when (sort.field) {
+        CatalogSort.RATING -> compareBy<Item> { it.rating.external }
+        CatalogSort.YEAR -> compareBy<Item> { it.year }
+        else -> return items
+    }
+    return if (sort.ascending) items.sortedWith(comparator) else items.sortedWith(comparator.reversed())
 }
 
 /**

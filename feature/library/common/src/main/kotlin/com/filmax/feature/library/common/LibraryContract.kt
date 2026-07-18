@@ -60,6 +60,15 @@ sealed interface LibraryEvent {
     data object CloseFolder : LibraryEvent
     data object LoadMoreFolderItems : LibraryEvent
     data object ToggleHistoryHidden : LibraryEvent
+
+    /** Создать новую папку-закладку с этим названием. */
+    data class CreateFolder(val title: String) : LibraryEvent
+
+    /** Удалить папку целиком. Если она открыта — экран возвращается к списку папок. */
+    data class DeleteFolder(val folderId: Int) : LibraryEvent
+
+    /** Убрать один тайтл из папки. [folderId] — папка, из которой убираем. */
+    data class RemoveItemFromFolder(val itemId: Int, val folderId: Int) : LibraryEvent
 }
 
 sealed interface LibrarySideEffect

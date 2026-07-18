@@ -17,6 +17,8 @@ data class Item(
     val trailer: Trailer?,
     val inWatchlist: Boolean,
     val finished: Boolean,
+    /** Числовой IMDb-id тайтла — по нему TMDB отдаёт фото актёров. null, если API его не прислал. */
+    val imdbId: String? = null,
 )
 
 enum class ItemType(val apiValue: String) {

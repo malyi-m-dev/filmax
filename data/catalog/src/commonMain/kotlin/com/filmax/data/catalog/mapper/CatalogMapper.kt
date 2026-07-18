@@ -2,6 +2,7 @@ package com.filmax.data.catalog.mapper
 
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
+import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.domain.catalog.model.Duration
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
@@ -12,6 +13,7 @@ import com.filmax.core.domain.catalog.model.Pagination
 import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.data.catalog.remote.dto.CollectionDto
 import com.filmax.data.catalog.remote.dto.CollectionItemsDto
+import com.filmax.data.catalog.remote.dto.CountryDto
 import com.filmax.data.catalog.remote.dto.DurationDto
 import com.filmax.data.catalog.remote.dto.GenreDto
 import com.filmax.data.catalog.remote.dto.ItemDto
@@ -59,9 +61,12 @@ fun ItemDto.toDomain(): Item = Item(
     trailer = trailer?.toDomain(),
     inWatchlist = inWatchlist,
     finished = finished,
+    imdbId = imdb?.toString(),
 )
 
 fun GenreDto.toDomain() = Genre(id = id, title = title, type = type)
+
+fun CountryDto.toDomain() = Country(id = id, title = title)
 
 fun PostersDto?.toDomain() = Posters(
     small = this?.small ?: "",

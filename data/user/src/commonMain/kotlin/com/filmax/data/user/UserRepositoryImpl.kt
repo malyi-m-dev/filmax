@@ -49,7 +49,7 @@ internal class UserRepositoryImpl(
                 supportHevc = if (settings.supportHevc) 1 else 0,
                 supportHdr = if (settings.supportHdr) 1 else 0,
                 support4k = if (settings.support4k) 1 else 0,
-                mixedPlaylist = 0,
+                mixedPlaylist = if (settings.mixedPlaylist) 1 else 0,
                 streamingType = settings.streamingType,
                 serverLocation = settings.serverLocation,
             ),

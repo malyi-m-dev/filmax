@@ -11,6 +11,10 @@ import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
+// Модель раздела «Моё» держит по одному короткому обработчику на каждое MVI-событие (dispatch
+// разветвляется в них). Дробить её на несколько классов ради лимита нельзя: логика закладок,
+// истории и загрузок связана общим состоянием и читается только вместе — отсюда осознанный Suppress.
+@Suppress("TooManyFunctions")
 class LibraryScreenModel(
     private val watching: WatchingRepository,
     private val user: UserRepository,
@@ -51,6 +55,10 @@ class LibraryScreenModel(
             LibraryEvent.CloseFolder -> closeFolder()
             LibraryEvent.LoadMoreFolderItems -> loadMoreFolderItems()
             LibraryEvent.ToggleHistoryHidden -> toggleHistoryHidden()
+            is LibraryEvent.CreateFolder -> createFolder(event.title)
+            is LibraryEvent.DeleteFolder -> deleteFolder(event.folderId)
+            is LibraryEvent.RemoveItemFromFolder ->
+                removeItemFromFolder(event.itemId, event.folderId)
         }
     }
 
@@ -140,6 +148,58 @@ class LibraryScreenModel(
                 )
             }
         }
+    }
+
+    /**
+     * Создаёт папку и перечитывает список. Оптимистично добавить нельзя: id и порядок задаёт
+     * сервер, а угаданный локально id сломал бы последующее открытие/удаление папки.
+     */
+    private fun createFolder(title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        screenModelScope { _ ->
+            user.createBookmarkFolder(trimmed)
+            reloadFolders()
+        }
+    }
+
+    /** Удаляет папку. Открытую — закрывает: содержимого у неё больше нет. */
+    private fun deleteFolder(folderId: Int) {
+        screenModelScope { _ ->
+            // Оптимистично убираем плитку и выходим из папки, если удаляли именно открытую;
+            // reloadFolders ниже сверит результат с сервером.
+            updateState { current ->
+                current.copy(
+                    lists = current.lists.filter { it.id != folderId },
+                    openFolder = current.openFolder?.takeIf { it.folder.id != folderId },
+                )
+            }
+            user.deleteBookmarkFolder(folderId)
+            reloadFolders()
+        }
+    }
+
+    /**
+     * Убирает тайтл из папки. Из открытой папки удаляем сразу (отклик мгновенный), затем
+     * перечитываем список папок ради актуального счётчика на плитке. Заново тянуть содержимое
+     * папки не станем: оно постраничное, и повторная загрузка первой страницы сбросила бы скролл.
+     */
+    private fun removeItemFromFolder(itemId: Int, folderId: Int) {
+        screenModelScope { _ ->
+            updateState { current ->
+                val open = current.openFolder ?: return@updateState current
+                if (open.folder.id != folderId) return@updateState current
+                current.copy(openFolder = open.copy(items = open.items.filter { it.id != itemId }))
+            }
+            user.removeFromBookmark(itemId, folderId)
+            reloadFolders()
+        }
+    }
+
+    /** Перечитывает список папок с сервера: id, счётчики и порядок — его зона ответственности. */
+    private suspend fun reloadFolders() {
+        val folders = user.getBookmarkFolders().getOrNull() ?: return
+        updateState { it.copy(lists = folders) }
     }
 
     private fun toggleHistoryHidden() {

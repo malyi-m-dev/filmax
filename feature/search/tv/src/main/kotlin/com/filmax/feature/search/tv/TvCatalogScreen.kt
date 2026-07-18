@@ -42,7 +42,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
@@ -77,12 +79,15 @@ private val TypeOptions = listOf(
     ItemType.DOCUMENTARY to "Документальные",
 )
 
-/** Порядок перебора чипа сортировки. */
+/** Порядок перебора чипа сортировки (OK листает поле по кругу). Подписи — из макета. */
 private val SortOptions = listOf(
-    CatalogSort.VIEWS to "Популярное",
-    CatalogSort.RATING to "Рейтинг",
+    CatalogSort.UPDATED to "Обновлённые",
+    CatalogSort.CREATED to "Добавленные",
+    CatalogSort.RATING to "Рейтинг Filmax",
+    CatalogSort.VIEWS to "Просмотры",
     CatalogSort.YEAR to "Год",
-    CatalogSort.CREATED to "Новизна",
+    CatalogSort.KINOPOISK_RATING to "Рейтинг КП",
+    CatalogSort.IMDB_RATING to "Рейтинг IMDb",
 )
 
 /**
@@ -143,6 +148,7 @@ fun TvCatalogScreen(
                     onFilter = { screenModel.dispatch(SearchEvent.FilterChange(it)) },
                     onSort = { screenModel.dispatch(SearchEvent.SortChange(it)) },
                     onGenre = { screenModel.dispatch(SearchEvent.GenreChange(it)) },
+                    onApplyFilters = { screenModel.dispatch(SearchEvent.ApplyFilters(it)) },
                 ),
             )
         }
@@ -154,8 +160,9 @@ private data class CatalogActions(
     val onOpenItem: (Int) -> Unit,
     val onOpenKeyboard: () -> Unit,
     val onFilter: (ItemType?) -> Unit,
-    val onSort: (CatalogSort) -> Unit,
+    val onSort: (SortOption) -> Unit,
     val onGenre: (Int?) -> Unit,
+    val onApplyFilters: (CatalogFilters) -> Unit,
 )
 
 @Composable
@@ -208,12 +215,7 @@ private fun CatalogHeader(
             onClick = actions.onOpenKeyboard,
         )
         Spacer(Modifier.height(16.dp))
-        CatalogTypeRow(
-            filter = state.filter,
-            sort = state.sort,
-            onFilter = actions.onFilter,
-            onSort = actions.onSort,
-        )
+        CatalogTypeRow(state = state, actions = actions)
         if (state.genres.isNotEmpty()) {
             Spacer(Modifier.height(12.dp))
             CatalogGenreRow(
@@ -271,34 +273,59 @@ private fun CatalogSearchBar(
 }
 
 @Composable
-private fun CatalogTypeRow(
-    filter: ItemType?,
-    sort: CatalogSort,
-    onFilter: (ItemType?) -> Unit,
-    onSort: (CatalogSort) -> Unit,
-) {
+private fun CatalogTypeRow(state: SearchState, actions: CatalogActions) {
+    val sort = state.sort
+    val filters = state.filters
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         TypeOptions.forEach { (type, label) ->
-            TvChip(label = label, selected = filter == type, onClick = { onFilter(type) })
+            TvChip(label = label, selected = state.filter == type, onClick = { actions.onFilter(type) })
         }
-        Box(
-            Modifier
-                .padding(horizontal = 4.dp)
-                .size(width = 1.dp, height = 22.dp)
-                .background(TvSurfaceContainerHighest)
-        )
-        // Чип-перебор, а не выпадающее меню: ради четырёх значений городить на пульте ещё один
-        // уровень навигации незачем — OK листает варианты по кругу. Стрелка ↕ (U+2195), а не
-        // ⇅ из макета: у второй покрытие во встроенных шрифтах Android TV не гарантировано.
+        RowDivider()
+        // Чип-перебор поля, а не выпадающее меню: ради значений городить на пульте ещё один уровень
+        // навигации незачем — OK листает по кругу. Стрелка ↕ (U+2195), а не ⇅ из макета: у второй
+        // покрытие во встроенных шрифтах Android TV не гарантировано.
         TvChip(
-            label = "↕ ${sortLabel(sort)}",
+            label = "↕ ${sortLabel(sort.field)}",
             selected = false,
-            onClick = { onSort(nextSort(sort)) },
+            onClick = { actions.onSort(SortOption(nextSort(sort.field), sort.ascending)) },
+        )
+        // Направление отдельным чипом: ↑ по возрастанию (kino.pub `-field`), ↓ по убыванию.
+        TvChip(
+            label = if (sort.ascending) "↑ Возр." else "↓ Убыв.",
+            selected = false,
+            onClick = { actions.onSort(sort.copy(ascending = !sort.ascending)) },
+        )
+        RowDivider()
+        // Минимальный набор фильтров на пульте: 4K и завершённость чипами-тумблерами. Полный лист
+        // (год, рейтинги, страна) на TV пока не заведён — см. отчёт (TODO).
+        TvChip(
+            label = "4K",
+            selected = filters.only4k,
+            onClick = { actions.onApplyFilters(filters.copy(only4k = !filters.only4k)) },
+        )
+        TvChip(
+            label = "Завершённые",
+            selected = filters.onlyFinished == true,
+            onClick = {
+                val next = if (filters.onlyFinished == true) null else true
+                actions.onApplyFilters(filters.copy(onlyFinished = next))
+            },
         )
     }
+}
+
+/** Вертикальный разделитель между группами чипов (тип · сортировка · фильтры). */
+@Composable
+private fun RowDivider() {
+    Box(
+        Modifier
+            .padding(horizontal = 4.dp)
+            .size(width = 1.dp, height = 22.dp)
+            .background(TvSurfaceContainerHighest)
+    )
 }
 
 @OptIn(ExperimentalComposeUiApi::class)

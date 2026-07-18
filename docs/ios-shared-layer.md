@@ -332,7 +332,7 @@ BookmarkFolder(id: Int, title: String, count: Int, updatedAt: Long?)   // пап
 DeviceSettings(
   id: Int, title: String,
   supportSsl: Boolean, supportHevc: Boolean, supportHdr: Boolean, support4k: Boolean,
-  streamingType: Int, serverLocation: Int,
+  mixedPlaylist: Boolean, streamingType: Int, serverLocation: Int,
 )
 ```
 

@@ -34,6 +34,7 @@ include(":data:catalog")
 include(":data:search")
 include(":data:user")
 include(":data:watching")
+include(":data:tmdb")
 
 include(":feature:onboarding:common")
 include(":feature:onboarding:mobile")

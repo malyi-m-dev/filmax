@@ -39,7 +39,9 @@ import com.filmax.feature.onboarding.mobile.navigation.OnboardingRoute
 import com.filmax.feature.onboarding.mobile.navigation.onboardingScreen
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.mobile.navigation.playerScreen
+import com.filmax.feature.profile.mobile.navigation.DeviceSettingsRoute
 import com.filmax.feature.profile.mobile.navigation.ProfileRoute
+import com.filmax.feature.profile.mobile.navigation.deviceSettingsScreen
 import com.filmax.feature.profile.mobile.navigation.profileScreen
 import com.filmax.feature.search.mobile.navigation.SearchRoute
 import com.filmax.feature.search.mobile.navigation.searchScreen
@@ -132,6 +134,9 @@ fun FilmaxNavGraph(
 }
 
 /** Регистрация всех экранов телефонного графа: сплэш, онбординг, разделы и детали/плеер. */
+// Линейный список регистраций destination — каждая пара «экран → колбэки навигации». Дробить
+// на подфункции здесь только запутает: это оглавление графа, а не логика.
+@Suppress("LongMethod")
 private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController) {
     composable<SplashRoute> {
         Box(Modifier.fillMaxSize())
@@ -177,12 +182,14 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
                 popUpTo(HomeRoute) { inclusive = true }
             }
         },
+        onOpenDeviceSettings = { navController.navigate(DeviceSettingsRoute) },
         onOpenDesignSystem = if (BuildConfig.DEBUG) {
             { navController.navigate(DesignSystemRoute) }
         } else {
             null
         },
     )
+    deviceSettingsScreen(onBack = { navController.popBackStack() })
 
     detailsScreen(
         onBack = { navController.popBackStack() },

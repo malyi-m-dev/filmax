@@ -69,6 +69,12 @@ class PlayerScreenModel(
             is PlayerEvent.SelectQuality -> selectQuality(event.label)
             is PlayerEvent.SelectAudio -> selectAudio(event.label)
             is PlayerEvent.SelectSubtitle -> selectSubtitle(event.label)
+            // Скорость сессионная и простая: меняем на плеере и в state прямо тут. Отдельный
+            // метод перевёл бы класс за порог TooManyFunctions detekt — незачем.
+            is PlayerEvent.SetSpeed -> {
+                player.setPlaybackSpeed(event.speed)
+                screenModelScope { _ -> updateState { it.copy(currentSpeed = event.speed) } }
+            }
         }
     }
 

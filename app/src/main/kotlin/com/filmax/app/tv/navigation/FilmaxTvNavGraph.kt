@@ -41,6 +41,8 @@ import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
+import com.filmax.feature.profile.tv.navigation.TvDeviceSettingsRoute
+import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
 import kotlinx.serialization.Serializable
@@ -169,7 +171,9 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
         onLogout = {
             navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
         },
+        onOpenDeviceSettings = { navController.navigate(TvDeviceSettingsRoute) },
     )
+    tvDeviceSettingsScreen(onBack = { navController.popBackStack() })
 
     tvDetailsScreen(
         onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },

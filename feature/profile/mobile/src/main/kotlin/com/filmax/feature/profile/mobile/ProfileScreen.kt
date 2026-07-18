@@ -63,6 +63,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onOpenDeviceSettings: () -> Unit,
     onOpenDesignSystem: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     screenModel: ProfileScreenModel = koinViewModel(),
@@ -91,9 +92,12 @@ fun ProfileScreen(
 
     ProfileContent(
         state = state,
-        onOpenSheet = { sheet -> activeSheet = sheet },
-        onOpenDesignSystem = onOpenDesignSystem,
-        onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
+        actions = ProfileActions(
+            onOpenSheet = { sheet -> activeSheet = sheet },
+            onOpenDeviceSettings = onOpenDeviceSettings,
+            onOpenDesignSystem = onOpenDesignSystem,
+            onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
+        ),
         modifier = modifier,
     )
 
@@ -109,12 +113,18 @@ fun ProfileScreen(
     )
 }
 
+/** Колбэки профиля одним объектом — иначе список параметров ProfileContent за порогом detekt. */
+private data class ProfileActions(
+    val onOpenSheet: (ProfileSheet) -> Unit,
+    val onOpenDeviceSettings: () -> Unit,
+    val onOpenDesignSystem: (() -> Unit)?,
+    val onLogout: () -> Unit,
+)
+
 @Composable
 private fun ProfileContent(
     state: ProfileState,
-    onOpenSheet: (ProfileSheet) -> Unit,
-    onOpenDesignSystem: (() -> Unit)?,
-    onLogout: () -> Unit,
+    actions: ProfileActions,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -131,11 +141,19 @@ private fun ProfileContent(
         SectionOverline("ПРОСМОТР")
         // Настройки воспроизведения реальны: качество/аудио/субтитры хранятся локально
         // (PlaybackSettingsRepository) и применяются в плеере. Заглушек на экране нет.
-        PlaybackRows(playback = state.playback, onOpenSheet = onOpenSheet)
+        PlaybackRows(playback = state.playback, onOpenSheet = actions.onOpenSheet)
+
+        SectionOverline("УСТРОЙСТВО")
+        // Значение строки — максимальное качество устройства (4K HDR/HEVC/HD) из device/info.
+        SettingRow(
+            spec = SettingRowSpec(label = "Настройки устройства", value = state.quality),
+            onClick = actions.onOpenDeviceSettings,
+        )
 
         SectionOverline("АККАУНТ")
-        AccountRows(state = state, onLogout = onLogout)
+        AccountRows(state = state, onLogout = actions.onLogout)
 
+        val onOpenDesignSystem = actions.onOpenDesignSystem
         if (onOpenDesignSystem != null) {
             SectionOverline("РАЗРАБОТЧИКАМ")
             SettingRow(

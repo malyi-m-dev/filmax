@@ -14,14 +14,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
@@ -34,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,25 +52,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvAccent
+import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceDim
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvOutlineVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
+import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.posterMeta
 import com.filmax.core.tv.designsystem.ratingLabel
@@ -99,6 +108,21 @@ private data class TvLibraryActions(
 )
 
 /**
+ * UI-состояние закладок на TV: активный диалог и «режим удаления» открытой папки. Пульт не знает
+ * ни долгих нажатий, ни свайпов, поэтому и создание, и удаление вынесены в явные фокусируемые
+ * элементы; это состояние их связывает. Живёт в [TvLibraryScreen], меняется плитками и диалогами.
+ */
+@Stable
+private class TvBookmarkUi {
+    var creating by mutableStateOf(false)
+    var folderToDelete by mutableStateOf<BookmarkFolder?>(null)
+    var itemToRemove by mutableStateOf<Item?>(null)
+
+    /** В режиме удаления клик по карточке убирает тайтл из папки, а не открывает его. */
+    var removeMode by mutableStateOf(false)
+}
+
+/**
  * Раздел «Моё» (экран 04 макета) поверх общего [LibraryScreenModel] — данные те же, что и на
  * телефоне. Верхний таб-бар рисует TV-скаффолд в `:app`, фокус и скролл — нативные.
  */
@@ -111,11 +135,21 @@ fun TvLibraryScreen(
 ) {
     val state by screenModel.collectAsState()
     var segment by rememberSaveable { mutableStateOf(MineSegment.CONTINUE) }
+    val ui = remember { TvBookmarkUi() }
+
+    // Смена или закрытие папки сбрасывает режим удаления: он относится к конкретной открытой папке.
+    LaunchedEffect(state.openFolder?.folder?.id) { ui.removeMode = false }
 
     // Внутри папки «Назад» возвращает к списку папок, а не выкидывает из раздела.
     BackHandler(enabled = state.openFolder != null) {
         screenModel.dispatch(LibraryEvent.CloseFolder)
     }
+
+    TvBookmarkDialogHost(
+        ui = ui,
+        openFolderId = state.openFolder?.folder?.id,
+        dispatch = screenModel::dispatch,
+    )
 
     Column(
         modifier = modifier
@@ -125,6 +159,7 @@ fun TvLibraryScreen(
         MineHeader(
             state = state,
             segment = segment,
+            ui = ui,
             onSegment = { next ->
                 segment = next
                 // Уход из «Закладок» (как и повторное нажатие на них) закрывает открытую папку:
@@ -140,6 +175,7 @@ fun TvLibraryScreen(
             MineGrid(
                 state = state,
                 segment = segment,
+                ui = ui,
                 actions = TvLibraryActions(
                     onOpenItem = onOpenItem,
                     onPlay = onPlay,
@@ -159,6 +195,7 @@ fun TvLibraryScreen(
 private fun MineHeader(
     state: LibraryState,
     segment: MineSegment,
+    ui: TvBookmarkUi,
     onSegment: (MineSegment) -> Unit,
     onToggleHistoryHidden: () -> Unit,
 ) {
@@ -187,7 +224,8 @@ private fun MineHeader(
 
         val openFolder = state.openFolder
         when {
-            segment == MineSegment.BOOKMARKS && openFolder != null -> OpenFolderCaption(openFolder.folder)
+            segment == MineSegment.BOOKMARKS && openFolder != null ->
+                OpenFolderBar(folder = openFolder.folder, ui = ui)
             segment == MineSegment.HISTORY -> HistoryPrivacyChip(
                 hidden = state.historyHidden,
                 onToggle = onToggleHistoryHidden,
@@ -213,9 +251,13 @@ private fun HistoryPrivacyChip(hidden: Boolean, onToggle: () -> Unit) {
     }
 }
 
-/** Подпись открытой папки: где мы и чем отсюда выйти (у пульта нет видимой кнопки «назад»). */
+/**
+ * Панель открытой папки: заголовок и действия над папкой. Оба действия — фокусируемые кнопки, а
+ * не жесты: пультом до них доезжают вверх от сетки. «Убрать тайтлы» переводит папку в режим
+ * удаления (клик по карточке убирает её), «Удалить папку» просит подтверждение. «Назад» — к списку.
+ */
 @Composable
-private fun OpenFolderCaption(folder: BookmarkFolder) {
+private fun OpenFolderBar(folder: BookmarkFolder, ui: TvBookmarkUi) {
     Row(
         modifier = Modifier.padding(top = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -227,17 +269,28 @@ private fun OpenFolderCaption(folder: BookmarkFolder) {
             color = TvOnSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
         )
-        Text(
-            "«Назад» — к списку папок",
-            style = MaterialTheme.typography.bodySmall,
-            color = TvOnSurfaceDim,
+        TvChip(
+            label = if (ui.removeMode) "Готово" else "Убрать тайтлы",
+            selected = ui.removeMode,
+            onClick = { ui.removeMode = !ui.removeMode },
+        )
+        TvButton(
+            text = "Удалить папку",
+            onClick = { ui.folderToDelete = folder },
+            primary = false,
         )
     }
 }
 
 @Composable
-private fun MineGrid(state: LibraryState, segment: MineSegment, actions: TvLibraryActions) {
+private fun MineGrid(
+    state: LibraryState,
+    segment: MineSegment,
+    ui: TvBookmarkUi,
+    actions: TvLibraryActions,
+) {
     val gridState = rememberLazyGridState()
     ScrollToTopOnNavFocus(gridState)
     val openFolder = state.openFolder
@@ -281,7 +334,7 @@ private fun MineGrid(state: LibraryState, segment: MineSegment, actions: TvLibra
         when (segment) {
             MineSegment.CONTINUE -> continueSegment(state.history, actions.onPlay)
             MineSegment.WATCHLIST -> watchlistSegment(state, actions.onOpenItem)
-            MineSegment.BOOKMARKS -> bookmarksSegment(state, actions)
+            MineSegment.BOOKMARKS -> bookmarksSegment(state, ui, actions)
             MineSegment.HISTORY -> historySegment(state, actions.onPlay)
         }
     }
@@ -334,33 +387,40 @@ private fun LazyGridScope.watchlistSegment(state: LibraryState, onOpenItem: (Int
 }
 
 /** «Закладки» — серверные папки: список папок либо содержимое открытой. */
-private fun LazyGridScope.bookmarksSegment(state: LibraryState, actions: TvLibraryActions) {
+private fun LazyGridScope.bookmarksSegment(
+    state: LibraryState,
+    ui: TvBookmarkUi,
+    actions: TvLibraryActions,
+) {
     val openFolder = state.openFolder
     if (openFolder == null) {
-        folderTiles(state.lists, actions.onOpenFolder)
+        folderTiles(state.lists, actions.onOpenFolder, onNewFolder = { ui.creating = true })
     } else {
-        folderItems(openFolder, actions.onOpenItem)
+        folderItems(openFolder, ui, actions.onOpenItem)
     }
 }
 
 private fun LazyGridScope.folderTiles(
     folders: List<BookmarkFolder>,
     onOpenFolder: (BookmarkFolder) -> Unit,
+    onNewFolder: () -> Unit,
 ) {
     if (folders.isEmpty()) {
-        emptyItem(
-            icon = Icons.Filled.Folder,
-            title = "Папок нет",
-            hint = "Папки закладок вашего аккаунта появятся здесь",
-        )
+        // Пусто — сразу зовём создать: единственное осмысленное действие, и кнопка сама берёт фокус.
+        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { BookmarksEmpty(onNewFolder) }
         return
     }
+    item(key = "new_folder") { NewFolderTile(onClick = onNewFolder) }
     items(folders, key = { it.id }) { folder ->
         FolderTile(folder = folder, onClick = { onOpenFolder(folder) })
     }
 }
 
-private fun LazyGridScope.folderItems(openFolder: OpenBookmarkFolder, onOpenItem: (Int) -> Unit) {
+private fun LazyGridScope.folderItems(
+    openFolder: OpenBookmarkFolder,
+    ui: TvBookmarkUi,
+    onOpenItem: (Int) -> Unit,
+) {
     when {
         openFolder.loading ->
             item(key = "folder_loading", span = { GridItemSpan(maxLineSpan) }) { LoadingBox() }
@@ -378,20 +438,25 @@ private fun LazyGridScope.folderItems(openFolder: OpenBookmarkFolder, onOpenItem
             hint = "Тайтлы, добавленные в эту папку, появятся здесь",
         )
 
-        else -> folderPosters(openFolder = openFolder, onOpenItem = onOpenItem)
+        else -> folderPosters(openFolder = openFolder, ui = ui, onOpenItem = onOpenItem)
     }
 }
 
-private fun LazyGridScope.folderPosters(openFolder: OpenBookmarkFolder, onOpenItem: (Int) -> Unit) {
+private fun LazyGridScope.folderPosters(
+    openFolder: OpenBookmarkFolder,
+    ui: TvBookmarkUi,
+    onOpenItem: (Int) -> Unit,
+) {
     items(openFolder.items, key = { it.id }) { item ->
         TvPosterCard(
             title = item.title,
             meta = posterMeta(type = item.genres.firstOrNull()?.title, year = item.year),
             posterUrl = item.posters.medium.ifBlank { item.posters.small },
-            onClick = { onOpenItem(item.id) },
+            // В режиме удаления карточка убирает тайтл (по подтверждению), иначе открывает детали.
+            onClick = { if (ui.removeMode) ui.itemToRemove = item else onOpenItem(item.id) },
             rating = ratingLabel(item.rating.external),
             posterContent = { url, posterModifier ->
-                TvPoster(url, item.title, posterModifier, TvMetrics.PosterShape)
+                FolderPoster(url, item.title, posterModifier, removeMode = ui.removeMode)
             },
         )
     }
@@ -507,6 +572,98 @@ private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit) {
     }
 }
 
+/** Плитка «＋ Новая папка» — первая ячейка сетки папок, вход в диалог создания. */
+@Composable
+private fun NewFolderTile(onClick: () -> Unit) {
+    TvFocusCard(
+        onClick = onClick,
+        shape = TvMetrics.PanelShape,
+        modifier = Modifier.height(FolderTileHeight),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(TvMetrics.PanelShape)
+                .background(TvSurfaceContainerHigh)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                Icons.Filled.Add,
+                contentDescription = null,
+                tint = TvOnSurface,
+                modifier = Modifier.size(28.dp),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("Новая папка", style = MaterialTheme.typography.titleMedium, color = TvOnSurface)
+        }
+    }
+}
+
+/** Пустое состояние закладок: подсказка и фокусируемая кнопка создания папки. */
+@Composable
+private fun BookmarksEmpty(onNewFolder: () -> Unit) {
+    val createFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { createFocus.requestFocus() }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Folder,
+            contentDescription = null,
+            tint = TvSurfaceContainerHighest,
+            modifier = Modifier.size(36.dp),
+        )
+        Text("Папок нет", style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
+        Text(
+            "Создайте папку и собирайте в неё тайтлы",
+            style = MaterialTheme.typography.bodyLarge,
+            color = TvOnSurfaceVariant,
+        )
+        TvButton(
+            text = "Новая папка",
+            onClick = onNewFolder,
+            leadingIcon = Icons.Filled.Add,
+            focusRequester = createFocus,
+        )
+    }
+}
+
+/** Постер тайтла в папке. В режиме удаления поверх — крестик: маркер, что клик уберёт тайтл. */
+@Composable
+private fun FolderPoster(url: String, title: String, modifier: Modifier, removeMode: Boolean) {
+    Box(modifier) {
+        TvPoster(url, title, Modifier.fillMaxSize(), TvMetrics.PosterShape)
+        if (removeMode) {
+            RemoveBadgeTv(Modifier.align(Alignment.TopStart).padding(6.dp))
+        }
+    }
+}
+
+/** Круглый крестик поверх постера — маркер режима удаления (слева, чтобы не спорить с рейтингом). */
+@Composable
+private fun RemoveBadgeTv(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(26.dp)
+            .clip(CircleShape)
+            .background(TvSurface.copy(alpha = 0.75f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Filled.Close,
+            contentDescription = null,
+            tint = TvOnSurface,
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
 /** Постер для слота карточек дизайн-системы: монохромный плейсхолдер вместо розового по умолчанию. */
 @Composable
 private fun TvPoster(url: String, title: String, modifier: Modifier, shape: Shape) {
@@ -517,6 +674,153 @@ private fun TvPoster(url: String, title: String, modifier: Modifier, shape: Shap
         shape = shape,
         accentColor = TvSurfaceContainerHighest,
     )
+}
+
+// ── Диалоги закладок ──────────────────────────────────────────────────────
+
+/** Рисует активный диалог закладок и переводит подтверждение в события [LibraryScreenModel]. */
+@Composable
+private fun TvBookmarkDialogHost(
+    ui: TvBookmarkUi,
+    openFolderId: Int?,
+    dispatch: (LibraryEvent) -> Unit,
+) {
+    if (ui.creating) {
+        TvCreateFolderDialog(
+            onConfirm = { name ->
+                dispatch(LibraryEvent.CreateFolder(name))
+                ui.creating = false
+            },
+            onDismiss = { ui.creating = false },
+        )
+    }
+    ui.folderToDelete?.let { folder ->
+        TvConfirmDialog(
+            title = "Удалить папку?",
+            message = "«${folder.title}» и её список исчезнут. Тайтлы останутся в каталоге.",
+            confirmLabel = "Удалить",
+            onConfirm = {
+                dispatch(LibraryEvent.DeleteFolder(folder.id))
+                ui.folderToDelete = null
+            },
+            onDismiss = { ui.folderToDelete = null },
+        )
+    }
+    ui.itemToRemove?.let { item ->
+        TvConfirmDialog(
+            title = "Убрать из папки?",
+            message = "«${item.title}» исчезнет из папки, но останется в каталоге.",
+            confirmLabel = "Убрать",
+            onConfirm = {
+                // openFolderId непустой, пока папка открыта; без него событие не шлём.
+                openFolderId?.let { folderId ->
+                    dispatch(LibraryEvent.RemoveItemFromFolder(item.id, folderId))
+                }
+                ui.itemToRemove = null
+            },
+            onDismiss = { ui.itemToRemove = null },
+        )
+    }
+}
+
+/**
+ * Диалог создания папки. Поле берёт фокус сразу — по нажатию OK открывается системная экранная
+ * клавиатура телевизора (ввод пультом). Пустое имя модель игнорирует, поэтому кнопку не блокируем.
+ */
+@Composable
+private fun TvCreateFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf("") }
+    val fieldFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { fieldFocus.requestFocus() }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = DialogMaxWidth)
+                .clip(TvMetrics.PanelShape)
+                .background(TvSurfaceContainer)
+                .padding(28.dp),
+        ) {
+            Text("Новая папка", style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "Введите название пультом",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TvOnSurfaceVariant,
+            )
+            Spacer(Modifier.height(18.dp))
+            TvFolderNameField(value = name, onValueChange = { name = it }, focusRequester = fieldFocus)
+            Spacer(Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvButton(text = "Создать", onClick = { onConfirm(name) })
+                TvButton(text = "Отмена", onClick = onDismiss, primary = false)
+            }
+        }
+    }
+}
+
+/** Поле имени папки: тёмная плашка с [BasicTextField] и плейсхолдером; системный IME вводит текст. */
+@Composable
+private fun TvFolderNameField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(TvMetrics.ButtonShape)
+            .background(TvSurfaceContainerHigh)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+    ) {
+        if (value.isEmpty()) {
+            Text(
+                "Название папки",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TvOnSurfaceVariant,
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TvOnSurface),
+            cursorBrush = SolidColor(TvAccent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester),
+        )
+    }
+}
+
+/** Диалог подтверждения деструктива (удалить папку / убрать тайтл). Фокус — на действии. */
+@Composable
+private fun TvConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val confirmFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { confirmFocus.requestFocus() }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .widthIn(max = DialogMaxWidth)
+                .clip(TvMetrics.PanelShape)
+                .background(TvSurfaceContainer)
+                .padding(28.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
+            Spacer(Modifier.height(10.dp))
+            Text(message, style = MaterialTheme.typography.bodyLarge, color = TvOnSurfaceVariant)
+            Spacer(Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                TvButton(text = confirmLabel, onClick = onConfirm, focusRequester = confirmFocus)
+                TvButton(text = "Отмена", onClick = onDismiss, primary = false)
+            }
+        }
+    }
 }
 
 @Composable
@@ -565,6 +869,9 @@ private val GridPadding = PaddingValues(
 )
 
 private val FolderTileHeight = 130.dp
+
+/** Ширина диалогов закладок: у́же экрана, чтобы читаться с дивана и не растягивать кнопки. */
+private val DialogMaxWidth = 420.dp
 
 private const val POSTER_COLUMNS = 4
 private const val WIDE_COLUMNS = 3

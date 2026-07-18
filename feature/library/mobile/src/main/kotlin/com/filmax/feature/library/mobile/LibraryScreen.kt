@@ -1,8 +1,10 @@
 package com.filmax.feature.library.mobile
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,20 +25,26 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayCircleOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +54,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +65,7 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.ShapeButton
 import com.filmax.core.designsystem.ShapeCard
 import com.filmax.core.designsystem.ShapeFull
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
@@ -89,7 +101,25 @@ private data class MineActions(
     val onOpenCatalog: () -> Unit,
     val onOpenFolder: (BookmarkFolder) -> Unit,
     val onLoadMoreFolderItems: () -> Unit,
+    /** Открыть диалог создания папки. */
+    val onNewFolder: () -> Unit,
+    /** Попросить подтверждение удаления папки (жест — долгое нажатие на плитку). */
+    val onDeleteFolder: (BookmarkFolder) -> Unit,
+    /** Попросить подтверждение, что тайтл убирают из открытой папки. */
+    val onRemoveItem: (Item) -> Unit,
 )
+
+/**
+ * Состояние диалогов закладок. Живёт в [LibraryScreen], читается [BookmarkDialogHost]. Отдельный
+ * держатель, а не три `mutableStateOf` в сигнатуре: так плитки шлют «намерение» одним вызовом,
+ * а сам диалог и его подтверждение собраны в одном месте.
+ */
+@Stable
+private class BookmarkDialogs {
+    var creating by mutableStateOf(false)
+    var folderToDelete by mutableStateOf<BookmarkFolder?>(null)
+    var itemToRemove by mutableStateOf<Item?>(null)
+}
 
 /**
  * Раздел «Моё» (экран 08 макета). [onPlay] ведёт в плеер: «Продолжить» и «История» — это про
@@ -106,11 +136,18 @@ fun LibraryScreen(
 ) {
     val state by screenModel.collectAsState()
     var segment by rememberSaveable { mutableStateOf(MineSegment.CONTINUE) }
+    val dialogs = remember { BookmarkDialogs() }
 
     // Внутри папки системная «назад» возвращает к списку папок, а не выкидывает из раздела.
     BackHandler(enabled = state.openFolder != null) {
         screenModel.dispatch(LibraryEvent.CloseFolder)
     }
+
+    BookmarkDialogHost(
+        dialogs = dialogs,
+        openFolderId = state.openFolder?.folder?.id,
+        dispatch = screenModel::dispatch,
+    )
 
     Column(
         modifier = modifier
@@ -148,6 +185,9 @@ fun LibraryScreen(
                     onOpenCatalog = onOpenCatalog,
                     onOpenFolder = { folder -> screenModel.dispatch(LibraryEvent.OpenFolder(folder)) },
                     onLoadMoreFolderItems = { screenModel.dispatch(LibraryEvent.LoadMoreFolderItems) },
+                    onNewFolder = { dialogs.creating = true },
+                    onDeleteFolder = { folder -> dialogs.folderToDelete = folder },
+                    onRemoveItem = { item -> dialogs.itemToRemove = item },
                 ),
             )
         }
@@ -325,23 +365,33 @@ private fun LazyGridScope.watchlistSegment(state: LibraryState, actions: MineAct
 private fun LazyGridScope.bookmarksSegment(state: LibraryState, actions: MineActions) {
     val openFolder = state.openFolder
     when {
-        openFolder != null -> folderItems(openFolder, actions.onOpenItem)
+        openFolder != null -> folderItems(openFolder, actions)
 
+        // Папок нет — сразу зовём создать: это единственное осмысленное действие на пустом экране.
         state.lists.isEmpty() -> emptyItem(
             MineEmptySpec(
                 icon = Icons.Filled.Folder,
                 title = "Папок нет",
-                hint = "Папки закладок вашего аккаунта появятся здесь",
+                hint = "Создайте папку и собирайте в неё то, к чему вернётесь",
+                actionLabel = "Новая папка",
+                onAction = actions.onNewFolder,
             ),
         )
 
-        else -> items(state.lists, key = { it.id }) { folder ->
-            FolderTile(folder = folder, onClick = { actions.onOpenFolder(folder) })
+        else -> {
+            item(key = "new_folder") { NewFolderTile(onClick = actions.onNewFolder) }
+            items(state.lists, key = { it.id }) { folder ->
+                FolderTile(
+                    folder = folder,
+                    onClick = { actions.onOpenFolder(folder) },
+                    onLongClick = { actions.onDeleteFolder(folder) },
+                )
+            }
         }
     }
 }
 
-private fun LazyGridScope.folderItems(openFolder: OpenBookmarkFolder, onOpenItem: (Int) -> Unit) {
+private fun LazyGridScope.folderItems(openFolder: OpenBookmarkFolder, actions: MineActions) {
     when {
         openFolder.loading -> item(key = "folder_loading", span = { GridItemSpan(maxLineSpan) }) {
             LoadingBox()
@@ -366,14 +416,10 @@ private fun LazyGridScope.folderItems(openFolder: OpenBookmarkFolder, onOpenItem
 
         else -> {
             items(openFolder.items, key = { it.id }) { folderItem ->
-                FilmaxPosterCard(
-                    title = folderItem.title,
-                    posterUrl = folderItem.posters.medium.ifBlank { folderItem.posters.small },
-                    onClick = { onOpenItem(folderItem.id) },
-                    width = FilmaxMetrics.GridPosterWidth,
-                    height = FilmaxMetrics.GridPosterHeight,
-                    rating = ratingLabel(folderItem.rating.external),
-                    meta = posterMeta(type = null, year = folderItem.year),
+                FolderItemCard(
+                    item = folderItem,
+                    onOpen = { actions.onOpenItem(folderItem.id) },
+                    onRemove = { actions.onRemoveItem(folderItem) },
                 )
             }
             if (openFolder.loadingMore) {
@@ -422,9 +468,13 @@ private fun ProgressCard(entry: WatchHistory, onPlay: (itemId: Int, videoId: Int
     )
 }
 
-/** Плитка папки-закладки: тап открывает содержимое в этом же экране — грузит [LibraryScreenModel]. */
+/**
+ * Плитка папки-закладки. Тап открывает содержимое (грузит [LibraryScreenModel]), долгое нажатие —
+ * запрос на удаление: отдельной кнопки на плитке нет, чтобы не зашумлять сетку.
+ */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit) {
+private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit, onLongClick: () -> Unit) {
     val count = folder.count
     val word = when {
         count % 100 in 11..14 -> "тайтлов"
@@ -438,7 +488,7 @@ private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit) {
             .height(FolderTileHeight)
             .clip(ShapeCard)
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(14.dp),
         verticalArrangement = Arrangement.Bottom,
     ) {
@@ -458,14 +508,94 @@ private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit) {
     }
 }
 
+/** Плитка «＋ Новая папка» — первая ячейка сетки папок и вход в диалог создания. */
+@Composable
+private fun NewFolderTile(onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(FolderTileHeight)
+            .clip(ShapeCard)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            Icons.Filled.Add,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Новая папка",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/**
+ * Карточка тайтла внутри папки. Поверх постера — маленький крестик «убрать»: у [FilmaxPosterCard]
+ * нет долгого нажатия, а явная иконка заметнее жеста. Крестик слева, чтобы не спорить с пилюлей
+ * рейтинга справа.
+ */
+@Composable
+private fun FolderItemCard(item: Item, onOpen: () -> Unit, onRemove: () -> Unit) {
+    Box {
+        FilmaxPosterCard(
+            title = item.title,
+            posterUrl = item.posters.medium.ifBlank { item.posters.small },
+            onClick = onOpen,
+            width = FilmaxMetrics.GridPosterWidth,
+            height = FilmaxMetrics.GridPosterHeight,
+            rating = ratingLabel(item.rating.external),
+            meta = posterMeta(type = null, year = item.year),
+        )
+        RemoveBadge(
+            onClick = onRemove,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(5.dp),
+        )
+    }
+}
+
+/** Круглый крестик поверх постера: убирает тайтл из папки (по подтверждению). */
+@Composable
+private fun RemoveBadge(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Filled.Close,
+            contentDescription = "Убрать из папки",
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(14.dp),
+        )
+    }
+}
+
 // ── Пустые состояния и загрузка ───────────────────────────────────────────
 
-/** Содержимое пустого сегмента. Кнопка «Открыть каталог» — только там, где каталог и есть ответ. */
+/**
+ * Содержимое пустого сегмента. «Открыть каталог» — там, где каталог и есть ответ; [onAction] с
+ * [actionLabel] — главное действие сегмента (для «Закладок» это «Новая папка»).
+ */
 private data class MineEmptySpec(
     val icon: ImageVector,
     val title: String,
     val hint: String,
     val onOpenCatalog: (() -> Unit)? = null,
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null,
 )
 
 /** Пустое состояние занимает всю ширину сетки, а не одну колонку. */
@@ -482,11 +612,37 @@ private fun MineEmpty(spec: MineEmptySpec) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         FilmaxEmptyState(icon = spec.icon, title = spec.title, subtitle = spec.hint)
+        val onAction = spec.onAction
+        val actionLabel = spec.actionLabel
+        if (onAction != null && actionLabel != null) {
+            Spacer(Modifier.height(18.dp))
+            PrimaryActionButton(label = actionLabel, onClick = onAction)
+        }
         val onOpenCatalog = spec.onOpenCatalog
         if (onOpenCatalog != null) {
             Spacer(Modifier.height(18.dp))
             OpenCatalogButton(onClick = onOpenCatalog)
         }
+    }
+}
+
+/** Главная кнопка сегмента: единственная белая заливка на пустом экране (создать папку). */
+@Composable
+private fun PrimaryActionButton(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(FilmaxMetrics.PrimaryButtonHeight)
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.primary)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimary,
+        )
     }
 }
 
@@ -508,6 +664,142 @@ private fun OpenCatalogButton(onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.onSurface,
         )
     }
+}
+
+// ── Диалоги закладок ──────────────────────────────────────────────────────
+
+/** Рисует активный диалог закладок и переводит подтверждение в события [LibraryScreenModel]. */
+@Composable
+private fun BookmarkDialogHost(
+    dialogs: BookmarkDialogs,
+    openFolderId: Int?,
+    dispatch: (LibraryEvent) -> Unit,
+) {
+    if (dialogs.creating) {
+        CreateFolderDialog(
+            onDismiss = { dialogs.creating = false },
+            onConfirm = { name ->
+                dispatch(LibraryEvent.CreateFolder(name))
+                dialogs.creating = false
+            },
+        )
+    }
+    dialogs.folderToDelete?.let { folder ->
+        ConfirmActionDialog(
+            title = "Удалить папку?",
+            message = "«${folder.title}» и её список исчезнут. Сами тайтлы останутся в каталоге.",
+            confirmLabel = "Удалить",
+            onConfirm = {
+                dispatch(LibraryEvent.DeleteFolder(folder.id))
+                dialogs.folderToDelete = null
+            },
+            onDismiss = { dialogs.folderToDelete = null },
+        )
+    }
+    dialogs.itemToRemove?.let { item ->
+        ConfirmActionDialog(
+            title = "Убрать из папки?",
+            message = "«${item.title}» исчезнет из этой папки, но останется в каталоге.",
+            confirmLabel = "Убрать",
+            onConfirm = {
+                // openFolderId непустой, пока папка открыта; на всякий случай не шлём событие без него.
+                openFolderId?.let { folderId ->
+                    dispatch(LibraryEvent.RemoveItemFromFolder(item.id, folderId))
+                }
+                dialogs.itemToRemove = null
+            },
+            onDismiss = { dialogs.itemToRemove = null },
+        )
+    }
+}
+
+/** Диалог ввода имени новой папки. Поле получает фокус сразу — клавиатура открывается без лишнего тапа. */
+@Composable
+private fun CreateFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by rememberSaveable { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) {
+                Text("Создать")
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+        title = { Text("Новая папка", style = MaterialTheme.typography.titleLarge) },
+        text = {
+            FolderNameField(value = name, onValueChange = { name = it }, focusRequester = focusRequester)
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+/** Поле имени папки в стиле поиска: pill-контейнер с [BasicTextField] и плейсхолдером. */
+@Composable
+private fun FolderNameField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(FilmaxMetrics.SearchFieldHeight)
+            .clip(ShapeButton)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.weight(1f)) {
+            if (value.isEmpty()) {
+                Text(
+                    "Название папки",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+            )
+        }
+    }
+}
+
+/** Диалог подтверждения деструктивного действия (удалить папку / убрать тайтл). */
+@Composable
+private fun ConfirmActionDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+        title = { Text(title, style = MaterialTheme.typography.titleLarge) },
+        text = {
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 @Composable

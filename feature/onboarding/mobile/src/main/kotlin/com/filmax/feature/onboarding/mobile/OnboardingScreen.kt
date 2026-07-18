@@ -12,10 +12,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -36,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -44,10 +48,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.ShapeButton
+import com.filmax.core.designsystem.ShapePoster
 import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
@@ -113,6 +119,76 @@ fun OnboardingScreen(
  */
 @Composable
 private fun WelcomeStep(onLogin: () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        PosterWallBackdrop(Modifier.fillMaxSize())
+        WelcomeContent(onLogin = onLogin)
+    }
+}
+
+/**
+ * Фон приветствия — приглушённая «стена постеров». До входа каталог недоступен (нет токена),
+ * поэтому это единственный способ дать экрану картинку. Плейсхолдеры абстрактные и монохромные:
+ * тянуть в ассеты чужие постеры конкретных фильмов нельзя, а приём из макета (кадр за скримом)
+ * сохранён.
+ */
+@Composable
+private fun PosterWallBackdrop(modifier: Modifier = Modifier) {
+    val surface = MaterialTheme.colorScheme.surface
+    Box(modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(BACKDROP_HEIGHT_FRACTION)
+                .padding(horizontal = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            // Колонки сдвинуты по вертикали — стена смотрится живой, а не таблицей.
+            PosterWallColumn(topOffset = 0.dp, seed = 0, modifier = Modifier.weight(1f))
+            PosterWallColumn(topOffset = 44.dp, seed = 1, modifier = Modifier.weight(1f))
+            PosterWallColumn(topOffset = 18.dp, seed = 2, modifier = Modifier.weight(1f))
+        }
+        // Скрим: сверху лёгкий (стена видна), снизу глухой surface — на нём лежат текст и кнопка.
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to surface.copy(alpha = 0.4f),
+                        0.42f to surface.copy(alpha = 0.72f),
+                        0.72f to surface,
+                        1f to surface,
+                    ),
+                ),
+        )
+    }
+}
+
+/** Одна вертикальная лента постеров-плейсхолдеров. */
+@Composable
+private fun PosterWallColumn(topOffset: Dp, seed: Int, modifier: Modifier = Modifier) {
+    val tones = listOf(
+        MaterialTheme.colorScheme.surfaceContainer,
+        MaterialTheme.colorScheme.surfaceContainerHigh,
+        MaterialTheme.colorScheme.surfaceContainerHighest,
+    )
+    Column(
+        modifier = modifier.offset(y = topOffset),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        repeat(POSTERS_PER_COLUMN) { index ->
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(POSTER_ASPECT)
+                    .clip(ShapePoster)
+                    .background(tones[(index + seed) % tones.size].copy(alpha = 0.6f)),
+            )
+        }
+    }
+}
+
+@Composable
+private fun WelcomeContent(onLogin: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -367,6 +443,11 @@ private val BottomPadding = 44.dp
 
 /** Кнопка входа выше общей [FilmaxMetrics.PrimaryButtonHeight] на 2dp — из макета. */
 private val LoginButtonHeight = 52.dp
+
+/** Стена постеров занимает верхнюю часть экрана; ниже её съедает скрим под текст. */
+private const val BACKDROP_HEIGHT_FRACTION = 0.72f
+private const val POSTERS_PER_COLUMN = 4
+private const val POSTER_ASPECT = 2f / 3f
 
 private const val DEFAULT_VERIFICATION_URI = "kinopub.me/device"
 

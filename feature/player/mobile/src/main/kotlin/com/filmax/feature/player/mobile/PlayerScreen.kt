@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Fullscreen
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -59,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import com.filmax.core.ui.components.FilmaxErrorModal
+import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
 import kotlinx.coroutines.delay
@@ -82,6 +86,8 @@ fun PlayerScreen(
     var isScrubbing by remember { mutableStateOf(false) }
     var qualityMenu by remember { mutableStateOf(false) }
     var subtitleMenu by remember { mutableStateOf(false) }
+    var audioMenu by remember { mutableStateOf(false) }
+    var speedMenu by remember { mutableStateOf(false) }
 
     // Auto-hide controls (но не во время скраббинга — таймер стартует заново после жеста).
     LaunchedEffect(controlsVisible, isScrubbing) {
@@ -188,6 +194,39 @@ fun PlayerScreen(
                             fontWeight = FontWeight.Bold,
                             maxLines = 1
                         )
+                    }
+                    // Озвучка: показываем только когда есть из чего выбрать (>1 дорожки), как на TV.
+                    if (state.audioTracks.size > 1) {
+                        Box {
+                            GlassBtn(size = 44.dp, onClick = { audioMenu = true }) {
+                                Icon(
+                                    Icons.Filled.Audiotrack,
+                                    contentDescription = "Озвучка",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = audioMenu,
+                                onDismissRequest = { audioMenu = false },
+                            ) {
+                                state.audioTracks.forEach { option ->
+                                    val isCurrent = option.label == state.currentAudio
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                option.label,
+                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                            )
+                                        },
+                                        onClick = {
+                                            screenModel.dispatch(PlayerEvent.SelectAudio(option.label))
+                                            audioMenu = false
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                     if (state.subtitles.size > 1) {
                         Box {
@@ -365,6 +404,48 @@ fun PlayerScreen(
                             Spacer(Modifier.size(0.dp))
                         }
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            // Скорость воспроизведения: галочка отмечает текущую (сессионная, дефолт 1.0).
+                            Box {
+                                GlassBtn(size = 44.dp, onClick = { speedMenu = true }) {
+                                    Icon(
+                                        Icons.Filled.Speed,
+                                        contentDescription = "Скорость",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = speedMenu,
+                                    onDismissRequest = { speedMenu = false },
+                                ) {
+                                    PlaybackSpeeds.options.forEach { option ->
+                                        val isCurrent = option.value == state.currentSpeed
+                                        DropdownMenuItem(
+                                            text = {
+                                                Text(
+                                                    option.label,
+                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                                )
+                                            },
+                                            trailingIcon = if (isCurrent) {
+                                                {
+                                                    Icon(
+                                                        Icons.Filled.Check,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
+                                            } else {
+                                                null
+                                            },
+                                            onClick = {
+                                                screenModel.dispatch(PlayerEvent.SetSpeed(option.value))
+                                                speedMenu = false
+                                            },
+                                        )
+                                    }
+                                }
+                            }
                             GlassBtn(size = 44.dp, onClick = {}) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.VolumeUp,

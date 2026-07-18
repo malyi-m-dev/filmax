@@ -18,6 +18,14 @@ val keystoreProps = Properties().apply {
 fun signingSecret(envName: String, propName: String): String? =
     System.getenv(envName) ?: keystoreProps.getProperty(propName)
 
+// Ключ TMDB (фото актёров): из local.properties (в .gitignore) либо env в CI. Пусто — фото
+// просто не загрузятся, приложение работает как обычно.
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+val tmdbApiKey: String = (System.getenv("TMDB_API_KEY") ?: localProps.getProperty("tmdb.apiKey") ?: "").trim()
+
 // versionName ← последний git-тег vX.Y.Z (без «v»); нет тегов → 1.0.0.
 fun gitVersionName(): String =
     providers.exec {
@@ -43,6 +51,11 @@ android {
         targetSdk     = 35
         versionCode   = gitCommitCount()
         versionName   = gitVersionName()
+        buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     signingConfigs {
@@ -114,6 +127,7 @@ dependencies {
     implementation(project(":data:search"))
     implementation(project(":data:user"))
     implementation(project(":data:watching"))
+    implementation(project(":data:tmdb"))
 
     // Features
     implementation(project(":feature:onboarding:mobile"))

@@ -15,6 +15,8 @@ val watchingModule = module {
     single { WatchingApi(get()) }
     single<WatchingRepository> { WatchingRepositoryImpl(api = get()) }
     single<DownloadsRepository> { DownloadsRepositoryImpl(settings = get()) }
-    single<FavoritesRepository> { FavoritesRepositoryImpl(settings = get()) }
+    // UserRepository (из user-модуля) даёт доступ к папкам-закладкам — «Буду смотреть» теперь
+    // серверная папка, а не локальный список. Koin резолвит зависимость на уровне приложения.
+    single<FavoritesRepository> { FavoritesRepositoryImpl(userRepository = get(), settings = get()) }
     single<PlaybackSettingsRepository> { PlaybackSettingsRepositoryImpl(storage = get()) }
 }

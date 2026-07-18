@@ -76,6 +76,7 @@ import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
 import com.filmax.feature.player.common.PlayerState
@@ -86,11 +87,12 @@ import kotlin.math.roundToInt
 /** Что сейчас ведёт D-pad: транспорт (пауза/перемотка) или ряд настроек под скраббером. */
 private enum class PlayerMode { Transport, Settings }
 
-/** Пункт ряда настроек. Первые три открывают поповер выбора, [NextEpisode] — действие сразу. */
+/** Пункт ряда настроек. Первые четыре открывают поповер выбора, [NextEpisode] — действие сразу. */
 private enum class SettingsAction(val label: String) {
     Quality("Качество"),
     Audio("Аудио"),
     Subtitle("Субтитры"),
+    Speed("Скорость"),
     NextEpisode("Следующая серия"),
 }
 
@@ -338,6 +340,8 @@ fun TvPlayerScreen(
             if (state.qualities.size > 1) add(SettingsAction.Quality)
             if (state.audioTracks.size > 1) add(SettingsAction.Audio)
             if (state.subtitles.size > 1) add(SettingsAction.Subtitle)
+            // Скорость доступна всегда — набор фиксированный, выбирать есть из чего.
+            add(SettingsAction.Speed)
             if (nextTrack != null && onPlayEpisode != null) add(SettingsAction.NextEpisode)
         },
         options = { action -> action.options(state) },
@@ -812,6 +816,7 @@ private val SettingsAction.menuTitle: String
         SettingsAction.Quality -> "Качество"
         SettingsAction.Audio -> "Аудиодорожка"
         SettingsAction.Subtitle -> "Субтитры"
+        SettingsAction.Speed -> "Скорость"
         SettingsAction.NextEpisode -> ""
     }
 
@@ -819,6 +824,7 @@ private fun SettingsAction.options(state: PlayerState): List<String> = when (thi
     SettingsAction.Quality -> state.qualities.map { it.label }
     SettingsAction.Audio -> state.audioTracks.map { it.label }
     SettingsAction.Subtitle -> state.subtitles.map { it.label }
+    SettingsAction.Speed -> PlaybackSpeeds.labels
     SettingsAction.NextEpisode -> emptyList()
 }
 
@@ -826,6 +832,7 @@ private fun SettingsAction.selected(state: PlayerState): String = when (this) {
     SettingsAction.Quality -> state.currentQuality.orEmpty()
     SettingsAction.Audio -> state.currentAudio
     SettingsAction.Subtitle -> state.currentSubtitle
+    SettingsAction.Speed -> PlaybackSpeeds.labelFor(state.currentSpeed)
     SettingsAction.NextEpisode -> ""
 }
 
@@ -833,6 +840,7 @@ private fun SettingsAction.toEvent(label: String): PlayerEvent? = when (this) {
     SettingsAction.Quality -> PlayerEvent.SelectQuality(label)
     SettingsAction.Audio -> PlayerEvent.SelectAudio(label)
     SettingsAction.Subtitle -> PlayerEvent.SelectSubtitle(label)
+    SettingsAction.Speed -> PlaybackSpeeds.valueFor(label)?.let { PlayerEvent.SetSpeed(it) }
     SettingsAction.NextEpisode -> null
 }
 

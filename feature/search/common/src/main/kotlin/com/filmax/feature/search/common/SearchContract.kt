@@ -1,6 +1,9 @@
 package com.filmax.feature.search.common
 
+import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.SortOption
+import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
@@ -11,11 +14,15 @@ const val MIN_QUERY_LENGTH = 2
 data class SearchState(
     val query: String = "",
     val filter: ItemType? = null,
-    /** Сортировка выдачи каталога. VIEWS = «Популярное» — дефолт витрины. */
-    val sort: CatalogSort = CatalogSort.VIEWS,
+    /** Сортировка выдачи каталога: поле + направление. VIEWS = «Просмотры» — дефолт витрины. */
+    val sort: SortOption = SortOption(CatalogSort.VIEWS),
+    /** Диапазонные фильтры каталога (год, рейтинги, страна, 4K, завершённость). */
+    val filters: CatalogFilters = CatalogFilters(),
     /** Реальные жанры из API. Пусты, пока экран не запросил [SearchEvent.LoadCatalog]. */
     val genres: List<Genre> = emptyList(),
     val selectedGenreId: Int? = null,
+    /** Страны для фильтра. Пусты, пока экран не запросил [SearchEvent.LoadCatalog]. */
+    val countries: List<Country> = emptyList(),
     /** Результаты поиска по [query]. Пусты, пока запрос короче [MIN_QUERY_LENGTH]. */
     val results: List<Item> = emptyList(),
     /**
@@ -41,16 +48,24 @@ data class SearchState(
 sealed interface SearchEvent {
     data class QueryChange(val query: String) : SearchEvent
     data class FilterChange(val filter: ItemType?) : SearchEvent
-    data class SortChange(val sort: CatalogSort) : SearchEvent
+
+    /** Смена сортировки целиком (поле и/или направление) — UI собирает [SortOption] сам. */
+    data class SortChange(val sort: SortOption) : SearchEvent
 
     /** null — снять фильтр по жанру. */
     data class GenreChange(val genreId: Int?) : SearchEvent
+
+    /** Применить диапазонные фильтры (лист «Фильтры» на телефоне, чипы на TV). */
+    data class ApplyFilters(val filters: CatalogFilters) : SearchEvent
+
+    /** Сбросить диапазонные фильтры в дефолт (кнопка «Сбросить»). Сортировку не трогает. */
+    data object ResetFilters : SearchEvent
 
     /** Тап по подсказке (тренды/недавние): подставить запрос и сразу искать. */
     data class SubmitQuery(val query: String) : SearchEvent
     data object ClearRecent : SearchEvent
 
-    /** Экран-витрина заявляет о себе: подтянуть жанры и выдачу по текущим фильтрам. */
+    /** Экран-витрина заявляет о себе: подтянуть жанры, страны и выдачу по текущим фильтрам. */
     data object LoadCatalog : SearchEvent
 }
 

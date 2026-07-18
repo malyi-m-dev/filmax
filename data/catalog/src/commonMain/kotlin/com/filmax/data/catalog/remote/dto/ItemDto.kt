@@ -29,6 +29,8 @@ data class ItemDto(
     @SerialName("rating_percentage") val ratingPercentage: Double = 0.0,
     @SerialName("imdb_rating") val imdbRating: Double? = null,
     @SerialName("kinopoisk_rating") val kinopoiskRating: Double? = null,
+    // Числовой IMDb-id (не рейтинг!) — для сопоставления с TMDB ради фото актёров.
+    @SerialName("imdb") val imdb: Int? = null,
     val finished: Boolean = false,
     @SerialName("in_watchlist") val inWatchlist: Boolean = false,
     @SerialName("posters") val posters: PostersDto? = null,
