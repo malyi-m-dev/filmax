@@ -38,12 +38,16 @@ import com.filmax.feature.library.mobile.navigation.libraryScreen
 import com.filmax.feature.onboarding.mobile.navigation.OnboardingRoute
 import com.filmax.feature.onboarding.mobile.navigation.onboardingScreen
 import com.filmax.feature.player.common.navigation.PlayerRoute
+import com.filmax.feature.player.common.navigation.TrailerRoute
 import com.filmax.feature.player.mobile.navigation.playerScreen
+import com.filmax.feature.player.mobile.navigation.trailerScreen
 import com.filmax.feature.profile.mobile.navigation.DeviceSettingsRoute
 import com.filmax.feature.profile.mobile.navigation.ProfileRoute
 import com.filmax.feature.profile.mobile.navigation.deviceSettingsScreen
 import com.filmax.feature.profile.mobile.navigation.profileScreen
+import com.filmax.feature.search.common.navigation.FilmographyRoute
 import com.filmax.feature.search.mobile.navigation.SearchRoute
+import com.filmax.feature.search.mobile.navigation.filmographyScreen
 import com.filmax.feature.search.mobile.navigation.searchScreen
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
@@ -196,8 +200,20 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
         // videoId — НОМЕР видео (у фильма -1): им же kino.pub принимает и отдаёт прогресс.
         onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
+        onOpenPerson = { name, isDirector ->
+            navController.navigate(FilmographyRoute(name = name, isDirector = isDirector))
+        },
+        onPlayTrailer = { url, title -> navController.navigate(TrailerRoute(url = url, title = title)) },
+    )
+    // Фильмография человека — push-экран из деталей (тап по актёру/режиссёру).
+    filmographyScreen(
+        onBack = { navController.popBackStack() },
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
     )
     playerScreen(
+        onBack = { navController.popBackStack() },
+    )
+    trailerScreen(
         onBack = { navController.popBackStack() },
     )
     designSystemScreen(

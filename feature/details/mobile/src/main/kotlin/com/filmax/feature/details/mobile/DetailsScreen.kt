@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,8 +58,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -70,6 +74,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.person.CastMember
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxProgressBar
@@ -101,6 +106,10 @@ private const val PLURAL_MOD_TEN = 10
  */
 private val BackButtonInset = 8.dp
 
+/** Ширина карточки актёра и диаметр круглого аватара в секции «Актёры». */
+private val ActorCardWidth = 88.dp
+private val ActorAvatarSize = 72.dp
+
 private const val EPISODES_TITLE = "Эпизоды"
 
 /**
@@ -118,11 +127,23 @@ private fun Item.isSeries(): Boolean =
  * принимает, и отдаёт прогресс (`watching/marktime?video=`). Фильм играется целиком —
  * [MOVIE_VIDEO_ID].
  */
+/**
+ * Навигация экрана деталей — группой (detekt LongParameterList): входной composable иначе набирает
+ * больше шести параметров. Так же сгруппированы колбэки у других экранов-входов (напр. HomeActions).
+ */
+data class DetailsNav(
+    val onBack: () -> Unit,
+    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onOpenItem: (Int) -> Unit,
+    /** Тап по актёру/режиссёру -> его фильмография (isDirector различает запрос к API). */
+    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
+    /** Играть трейлер: прямой HLS-url и заголовок. */
+    val onPlayTrailer: (url: String, title: String) -> Unit,
+)
+
 @Composable
 fun DetailsScreen(
-    onBack: () -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
-    onOpenItem: (Int) -> Unit,
+    nav: DetailsNav,
     modifier: Modifier = Modifier,
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
@@ -140,14 +161,16 @@ fun DetailsScreen(
 
             item != null -> DetailsContent(
                 item = item,
-                similar = state.similar,
+                extras = DetailsExtras(similar = state.similar, cast = state.cast),
                 isFav = state.isFav,
                 actions = DetailsActions(
-                    onBack = onBack,
-                    onPlay = { videoId -> onPlay(item.id, videoId) },
+                    onBack = nav.onBack,
+                    onPlay = { videoId -> nav.onPlay(item.id, videoId) },
                     onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
                     onShare = { shareItem(context, item) },
-                    onOpenItem = onOpenItem,
+                    onOpenItem = nav.onOpenItem,
+                    onOpenPerson = nav.onOpenPerson,
+                    onPlayTrailer = nav.onPlayTrailer,
                 ),
             )
         }
@@ -169,6 +192,16 @@ private data class DetailsActions(
     val onToggleFav: () -> Unit,
     val onShare: () -> Unit,
     val onOpenItem: (Int) -> Unit,
+    /** Тап по актёру/режиссёру — открыть его фильмографию (isDirector различает запрос к API). */
+    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
+    /** Играть трейлер: прямой HLS-url и заголовок «Трейлер · Название». */
+    val onPlayTrailer: (url: String, title: String) -> Unit,
+)
+
+/** Дополнительные коллекции экрана — похожее и каст (группой, detekt LongParameterList). */
+private data class DetailsExtras(
+    val similar: List<Item>,
+    val cast: List<CastMember>,
 )
 
 /** Сериальная часть состояния экрана — группой (detekt LongParameterList). */
@@ -182,7 +215,12 @@ private data class SeriesUiState(
 )
 
 @Composable
-private fun DetailsContent(item: Item, similar: List<Item>, isFav: Boolean, actions: DetailsActions) {
+private fun DetailsContent(
+    item: Item,
+    extras: DetailsExtras,
+    isFav: Boolean,
+    actions: DetailsActions,
+) {
     val series = remember(item) { if (item.isSeries()) calculateSeriesData(item.tracklist) else null }
     // Селектор стартует на сезоне недосмотренной серии, а не на первом: продолжают чаще, чем
     // начинают заново.
@@ -209,7 +247,13 @@ private fun DetailsContent(item: Item, similar: List<Item>, isFav: Boolean, acti
         // Заголовок заезжает на низ кадра (в макете `margin-top:-52px`). Сдвиг забирает столько же
         // на хвосте скролла — там это просто нижнее поле, поэтому отдельно не компенсируем.
         Column(Modifier.offset(y = -overlap)) {
-            DetailsBody(item = item, similar = similar, isFav = isFav, series = seriesUi, actions = actions)
+            DetailsBody(
+                item = item,
+                extras = extras,
+                isFav = isFav,
+                series = seriesUi,
+                actions = actions,
+            )
         }
     }
 }
@@ -217,7 +261,7 @@ private fun DetailsContent(item: Item, similar: List<Item>, isFav: Boolean, acti
 @Composable
 private fun DetailsBody(
     item: Item,
-    similar: List<Item>,
+    extras: DetailsExtras,
     isFav: Boolean,
     series: SeriesUiState,
     actions: DetailsActions,
@@ -225,6 +269,10 @@ private fun DetailsBody(
     val sidePadding = Modifier.padding(horizontal = FilmaxMetrics.DetailsPadding)
     // Кнопка играет недосмотренную серию, иначе первую серию ВЫБРАННОГО сезона.
     val target = series.data?.let { it.resume ?: series.episodes.firstOrNull() ?: item.tracklist.firstOrNull() }
+    // Трейлер показываем, только если url — играбельный http(s) (kino.pub отдаёт прямой HLS).
+    val trailerUrl = item.trailer?.url?.takeIf { it.startsWith("http") }
+    // Люди для секции «Актёры»: фото из TMDB, если доехали; иначе — имена из строки kino.pub.
+    val people = remember(extras.cast, item.cast) { resolveCast(extras.cast, item.cast) }
 
     DetailsHeader(item = item, series = series.data, modifier = sidePadding)
     DetailsButtons(
@@ -241,10 +289,17 @@ private fun DetailsBody(
             },
             onToggleFav = actions.onToggleFav,
             onShare = actions.onShare,
+            onTrailer = trailerUrl?.let { url -> { actions.onPlayTrailer(url, "Трейлер · ${item.title}") } },
         ),
         modifier = sidePadding.padding(top = 18.dp),
     )
     DetailsAbout(item = item, modifier = sidePadding.padding(top = 18.dp))
+    CastSection(
+        people = people,
+        director = item.director,
+        onOpenPerson = actions.onOpenPerson,
+        modifier = Modifier.padding(top = 22.dp),
+    )
     if (series.episodes.isNotEmpty()) {
         EpisodesSection(
             data = EpisodesSectionData(
@@ -259,9 +314,9 @@ private fun DetailsBody(
     }
     // «Похожее» — и у фильма, и у сериала: state.similar грузится всегда, а экран его молча
     // выбрасывал.
-    if (similar.isNotEmpty()) {
+    if (extras.similar.isNotEmpty()) {
         SimilarSection(
-            similar = similar,
+            similar = extras.similar,
             onOpenItem = actions.onOpenItem,
             modifier = Modifier.padding(top = 24.dp),
         )
@@ -419,6 +474,8 @@ private data class DetailsButtonActions(
     val onPlay: () -> Unit,
     val onToggleFav: () -> Unit,
     val onShare: () -> Unit,
+    /** null — у тайтла нет играбельного трейлера, кнопки нет. */
+    val onTrailer: (() -> Unit)? = null,
 )
 
 @Composable
@@ -439,7 +496,18 @@ private fun DetailsButtons(
                 onClick = actions.onToggleFav,
                 modifier = Modifier.weight(1f),
             )
-            ShareButton(onClick = actions.onShare)
+            actions.onTrailer?.let { onTrailer ->
+                IconSquareButton(
+                    icon = Icons.Filled.Movie,
+                    contentDescription = "Трейлер",
+                    onClick = onTrailer,
+                )
+            }
+            IconSquareButton(
+                icon = Icons.Filled.Share,
+                contentDescription = "Поделиться",
+                onClick = actions.onShare,
+            )
         }
     }
 }
@@ -491,8 +559,9 @@ private fun WatchlistButton(isFav: Boolean, onClick: () -> Unit, modifier: Modif
     }
 }
 
+/** Квадратная вторичная кнопка-иконка (Поделиться, Трейлер) — одна форма на оба действия. */
 @Composable
-private fun ShareButton(onClick: () -> Unit) {
+private fun IconSquareButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     Box(
         Modifier
             .size(FilmaxMetrics.SecondaryButtonHeight)
@@ -502,8 +571,8 @@ private fun ShareButton(onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            Icons.Filled.Share,
-            contentDescription = "Поделиться",
+            icon,
+            contentDescription = contentDescription,
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(18.dp),
         )
@@ -514,23 +583,136 @@ private fun ShareButton(onClick: () -> Unit) {
 
 @Composable
 private fun DetailsAbout(item: Item, modifier: Modifier = Modifier) {
-    val cast = remember(item) { castLine(item) }
+    if (item.plot.isNotBlank()) {
+        Text(
+            item.plot,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier,
+        )
+    }
+}
+
+// ─────────────────────────────── Актёры и режиссёр ────────────────────────────
+
+/**
+ * Состав тайтла карточками с фото. Фото приходят из TMDB ([DetailsState.cast]); пока их нет —
+ * показываем те же карточки, но с инициалами вместо фото (имена всегда есть от kino.pub). Любая
+ * карточка кликабельна и ведёт в фильмографию человека.
+ */
+@Composable
+private fun CastSection(
+    people: List<CastMember>,
+    director: String,
+    onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (people.isEmpty() && director.isBlank()) return
     Column(modifier) {
-        if (item.plot.isNotBlank()) {
+        if (people.isNotEmpty()) {
             Text(
-                item.plot,
-                style = MaterialTheme.typography.bodyLarge,
+                "Актёры",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(horizontal = FilmaxMetrics.DetailsPadding, vertical = 0.dp),
+            )
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = FilmaxMetrics.DetailsPadding),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.padding(top = 14.dp),
+            ) {
+                items(people) { member ->
+                    ActorCard(member = member, onClick = { onOpenPerson(member.name, false) })
+                }
+            }
+        }
+        if (director.isNotBlank()) {
+            DirectorLine(
+                director = director,
+                // По запятой — только первый режиссёр: kino.pub ищет по одному имени в `director`.
+                onClick = { onOpenPerson(director.substringBefore(",").trim(), true) },
+                modifier = Modifier.padding(
+                    start = FilmaxMetrics.DetailsPadding,
+                    end = FilmaxMetrics.DetailsPadding,
+                    top = if (people.isNotEmpty()) 18.dp else 0.dp,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActorCard(member: CastMember, onClick: () -> Unit) {
+    Column(
+        Modifier.width(ActorCardWidth).clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ActorAvatar(member)
+        Text(
+            member.name,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        member.character?.takeIf { it.isNotBlank() }?.let { character ->
+            Text(
+                character,
+                style = MaterialTheme.typography.bodySmall,
+                color = FilmaxOnSurfaceDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActorAvatar(member: CastMember) {
+    Box(
+        Modifier
+            .size(ActorAvatarSize)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        val photo = member.photoUrl
+        if (photo != null) {
+            PosterImage(
+                url = photo,
+                contentDescription = member.name,
+                modifier = Modifier.fillMaxSize(),
+                shape = CircleShape,
+                accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            )
+        } else {
+            Text(
+                initials(member.name),
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (cast.isNotBlank()) {
-            Text(
-                cast,
-                style = MaterialTheme.typography.bodyMedium,
-                color = FilmaxOnSurfaceDim,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-        }
+    }
+}
+
+@Composable
+private fun DirectorLine(director: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "Режиссёр",
+            style = MaterialTheme.typography.bodyMedium,
+            color = FilmaxOnSurfaceDim,
+        )
+        Text(
+            director,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.clickable(onClick = onClick),
+        )
     }
 }
 
@@ -812,14 +994,25 @@ private fun playLabel(resume: MediaTrack?): String = when {
 }
 
 /**
- * Состав и режиссёр — одной строкой под описанием. Режиссёр жил на цветной стат-карточке; карточки
- * ушли вместе с «экспрессивной» палитрой, и эта строка — единственное оставшееся для него место
- * (так же сделано на TV, чтобы экраны не расходились).
+ * Люди для секции «Актёры»: если фото из TMDB доехали — берём их (с ролями), иначе строим карточки
+ * из строки имён kino.pub (`item.cast`, имена через запятую) без фото. Так каст кликабелен всегда,
+ * а фото — приятное дополнение, а не условие.
  */
-private fun castLine(item: Item): String = buildList {
-    if (item.cast.isNotBlank()) add("В ролях: ${item.cast}")
-    if (item.director.isNotBlank()) add("Режиссёр: ${item.director}")
-}.joinToString("  ·  ")
+private fun resolveCast(cast: List<CastMember>, rawCast: String): List<CastMember> =
+    cast.ifEmpty {
+        rawCast.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .map { name -> CastMember(name = name, character = null, photoUrl = null) }
+    }
+
+/** Инициалы для заглушки без фото: до двух заглавных букв из имени. */
+private fun initials(name: String): String =
+    name.split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .map { word -> word.first().uppercaseChar() }
+        .joinToString("")
 
 /** «Сезон 1»; у тайтла без сезонов (kino.pub отдаёт 0) сезона нет — есть просто серии. */
 private fun seasonLabel(number: Int): String = if (number > 0) "Сезон $number" else "Серии"
