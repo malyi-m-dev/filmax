@@ -6,10 +6,6 @@
 package com.filmax.feature.details.tv
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +14,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,11 +23,11 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRestorer
@@ -55,20 +51,18 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.person.CastMember
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvCardSize
 import com.filmax.core.tv.designsystem.TvChip
-import com.filmax.core.tv.designsystem.TvFocus
+import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.tv.designsystem.TvMetaRow
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceDim
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvPosterCard
@@ -80,6 +74,7 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.posterMeta
 import com.filmax.core.tv.designsystem.ratingLabel
+import com.filmax.core.tv.designsystem.rememberDimAlpha
 import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
@@ -91,6 +86,10 @@ private val HeroTextWidth = 600.dp
 
 /** Максимальная ширина описания и строки состава: длинная строка на 3 метрах не читается. */
 private val ReadableTextWidth = 760.dp
+
+/** Ширина карточки актёра и диаметр круглого аватара в ряду «Актёры» (крупнее мобильных — 10-foot UI). */
+private val TvActorCardWidth = 120.dp
+private val TvActorAvatarSize = 104.dp
 
 private const val EPISODES_TITLE = "Эпизоды"
 
@@ -114,8 +113,7 @@ private fun Item.isSeries(): Boolean =
  */
 @Composable
 fun TvDetailsScreen(
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
-    onOpenItem: (Int) -> Unit,
+    nav: TvDetailsNav,
     modifier: Modifier = Modifier,
     screenModel: DetailsScreenModel = koinViewModel(),
 ) {
@@ -136,28 +134,47 @@ fun TvDetailsScreen(
             item != null -> DetailsContent(
                 item = item,
                 similar = state.similar,
+                cast = state.cast,
                 isFav = state.isFav,
                 actions = DetailsActions(
-                    onPlay = { videoId -> onPlay(item.id, videoId) },
+                    onPlay = { videoId -> nav.onPlay(item.id, videoId) },
                     onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
-                    onOpenItem = onOpenItem,
+                    onOpenItem = nav.onOpenItem,
+                    onOpenPerson = nav.onOpenPerson,
+                    onPlayTrailer = nav.onPlayTrailer,
                 ),
             )
         }
     }
 }
 
+/**
+ * Навигация TV-деталей — группой (detekt LongParameterList): входной composable иначе набирает
+ * больше шести параметров.
+ */
+data class TvDetailsNav(
+    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onOpenItem: (Int) -> Unit,
+    /** Тап по актёру/режиссёру -> его фильмография (isDirector различает запрос к API). */
+    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
+    /** Играть трейлер: прямой HLS-url и заголовок. */
+    val onPlayTrailer: (url: String, title: String) -> Unit,
+)
+
 /** Действия экрана — группой, чтобы не раздувать списки параметров у вложенных секций. */
 private data class DetailsActions(
     val onPlay: (videoId: Int) -> Unit,
     val onToggleFav: () -> Unit,
     val onOpenItem: (Int) -> Unit,
+    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
+    val onPlayTrailer: (url: String, title: String) -> Unit,
 )
 
 @Composable
 private fun DetailsContent(
     item: Item,
     similar: List<Item>,
+    cast: List<CastMember>,
     isFav: Boolean,
     actions: DetailsActions,
 ) {
@@ -176,6 +193,10 @@ private fun DetailsContent(
     // Кнопка играет недосмотренную серию, иначе первую серию ВЫБРАННОГО сезона (у фильма дорожка
     // не выбирается вовсе).
     val target = series?.let { it.resume ?: episodes.firstOrNull() ?: item.tracklist.firstOrNull() }
+    // Трейлер показываем, только если url — играбельный http(s) (kino.pub отдаёт прямой HLS).
+    val trailerUrl = item.trailer?.url?.takeIf { it.startsWith("http") }
+    // Актёры карточками: фото из TMDB, если доехали; иначе — имена из строки kino.pub.
+    val people = remember(cast, item.cast) { resolveCast(cast, item.cast) }
 
     // Единый LazyColumn вместо статичного Row из двух колонок: раньше у сериала нижние кнопки и
     // «Похожее» были недостижимы фокусом — упирались в край экрана без возможности докрутить.
@@ -204,11 +225,19 @@ private fun DetailsContent(
                         }
                     },
                     onToggleFav = actions.onToggleFav,
+                    onTrailer = trailerUrl?.let { url -> { actions.onPlayTrailer(url, "Трейлер · ${item.title}") } },
                 ),
             )
         }
 
         item(key = "about") { DetailsAbout(item) }
+
+        if (people.isNotEmpty()) {
+            castRail(people = people, onOpenPerson = actions.onOpenPerson)
+        }
+        if (item.director.isNotBlank()) {
+            directorSection(director = item.director, onOpenPerson = actions.onOpenPerson)
+        }
 
         if (episodes.isNotEmpty()) {
             episodesSection(
@@ -238,6 +267,8 @@ private data class HeroPlayback(
     val playFocus: FocusRequester,
     val onPlay: () -> Unit,
     val onToggleFav: () -> Unit,
+    /** null — у тайтла нет играбельного трейлера, кнопки нет. */
+    val onTrailer: (() -> Unit)? = null,
 )
 
 /**
@@ -335,6 +366,14 @@ private fun HeroButtons(
             primary = false,
             leadingIcon = if (isFav) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
         )
+        playback.onTrailer?.let { onTrailer ->
+            TvButton(
+                text = "Трейлер",
+                onClick = onTrailer,
+                primary = false,
+                leadingIcon = Icons.Filled.Movie,
+            )
+        }
     }
 }
 
@@ -386,108 +425,105 @@ private fun RatingValue(value: String, source: String) {
 
 @Composable
 private fun DetailsAbout(item: Item) {
-    Column(
-        Modifier
-            .padding(start = TvMetrics.SafeHorizontal, end = TvMetrics.SafeHorizontal, top = 22.dp)
-            .widthIn(max = ReadableTextWidth),
-    ) {
-        if (item.plot.isNotBlank()) {
-            Text(
-                item.plot,
-                style = MaterialTheme.typography.bodyLarge,
-                color = TvOnSurfaceVariant,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        CastLine(item = item, modifier = Modifier.padding(top = 14.dp))
+    if (item.plot.isNotBlank()) {
+        Text(
+            item.plot,
+            style = MaterialTheme.typography.bodyLarge,
+            color = TvOnSurfaceVariant,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .padding(start = TvMetrics.SafeHorizontal, end = TvMetrics.SafeHorizontal, top = 22.dp)
+                .widthIn(max = ReadableTextWidth),
+        )
     }
 }
+
+// ─────────────────────────────── Актёры и режиссёр ────────────────────────────
 
 /**
- * Состав и режиссёр — строкой под описанием (макет `det.castLine`), а не отдельной стеклянной
- * панелью: форм в системе две, и асимметричной «печеньки» среди них нет.
- *
- * Строка кликабельна, ТОЛЬКО если текст реально не поместился: overflow меряем рантаймом через
- * [TextOverflow]/`hasVisualOverflow`, а не гадаем по длине. Иначе на коротком составе появляется
- * фокус-ловушка, которая ничего не открывает.
+ * Ряд актёров карточками с круглым аватаром. Фото приходят из TMDB ([DetailsState.cast]); пока
+ * их нет — те же карточки с инициалами (имена всегда есть от kino.pub). Каждая карточка ведёт в
+ * фильмографию человека, поэтому каст на TV наконец фокусируемый и кликабельный, а не мёртвая строка.
  */
-@Composable
-private fun CastLine(item: Item, modifier: Modifier = Modifier) {
-    val text = remember(item) { castLine(item) }
-    if (text.isBlank()) return
-
-    var overflow by remember(item.id) { mutableStateOf(false) }
-    var expanded by remember(item.id) { mutableStateOf(false) }
-    var focused by remember { mutableStateOf(false) }
-    // Держим источник взаимодействия снаружи ветки: внутри `if (overflow)` remember вызывался бы
-    // условно и пересоздавался при каждом переключении overflow.
-    val interaction = remember { MutableInteractionSource() }
-
-    Text(
-        text,
-        style = MaterialTheme.typography.bodySmall,
-        color = TvOnSurfaceDim,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-        onTextLayout = { overflow = it.hasVisualOverflow },
-        modifier = modifier
-            // clickable сам по себе фокусируемый и реагирует на DPAD_CENTER — отдельный focusable
-            // не нужен (он перехватил бы фокус, и центр не доходил бы до клика).
-            .then(
-                if (overflow) {
-                    Modifier
-                        .onFocusChanged { focused = it.isFocused }
-                        .clickable(interactionSource = interaction, indication = null) { expanded = true }
-                } else {
-                    Modifier
-                }
-            )
-            .then(
-                if (focused) {
-                    Modifier.border(TvMetrics.FocusBorderWidth, TvFocus, TvMetrics.PanelShape)
-                } else {
-                    Modifier
-                }
-            )
-            .padding(vertical = 4.dp),
-    )
-
-    if (expanded) {
-        DetailsCastDialog(item = item, onDismiss = { expanded = false })
-    }
-}
-
-/** Оверлей с полным составом и режиссёром; «Назад» закрывает (onDismissRequest). */
-@Composable
-private fun DetailsCastDialog(item: Item, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(0.6f)
-                .widthIn(max = 720.dp)
-                .heightIn(max = 440.dp)
-                .clip(TvMetrics.PanelShape)
-                .background(TvSurfaceContainer)
-                .verticalScroll(rememberScrollState())
-                .focusable()
-                .padding(36.dp),
-        ) {
-            Text(item.title, style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
-            if (item.director.isNotBlank()) {
-                CastDialogSection(title = "Режиссёр", body = item.director)
-            }
-            if (item.cast.isNotBlank()) {
-                CastDialogSection(title = "В ролях", body = item.cast)
+private fun LazyListScope.castRail(people: List<CastMember>, onOpenPerson: (String, Boolean) -> Unit) {
+    item(key = "cast") {
+        TvRail(title = "Актёры", modifier = Modifier.padding(top = 24.dp)) {
+            // Без key: имена в составе могут повторяться, позиционного ключа достаточно.
+            items(people) { member ->
+                TvActorCard(member = member, onClick = { onOpenPerson(member.name, false) })
             }
         }
     }
 }
 
+/** Режиссёр отдельным фокусируемым чипом под рядом актёров — ведёт в его фильмографию. */
+private fun LazyListScope.directorSection(director: String, onOpenPerson: (String, Boolean) -> Unit) {
+    item(key = "director") {
+        Column(
+            Modifier.padding(start = TvMetrics.SafeHorizontal, top = 22.dp),
+        ) {
+            TvOverline("Режиссёр", Modifier.padding(bottom = 8.dp))
+            Row(Modifier.padding(vertical = TvMetrics.FocusInset)) {
+                TvChip(
+                    label = director,
+                    selected = false,
+                    // По запятой — только первый режиссёр: kino.pub ищет по одному имени.
+                    onClick = { onOpenPerson(director.substringBefore(",").trim(), true) },
+                )
+            }
+        }
+    }
+}
+
+/** Карточка актёра: круглый аватар (фото TMDB или инициалы) + имя. Фокус/скейл — как у медиа-карточек. */
 @Composable
-private fun CastDialogSection(title: String, body: String) {
-    TvOverline(title, Modifier.padding(top = 20.dp, bottom = 6.dp))
-    Text(body, style = MaterialTheme.typography.bodyLarge, color = TvOnSurfaceVariant)
+private fun TvActorCard(member: CastMember, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val dim = rememberDimAlpha(focused)
+    Column(
+        modifier = Modifier
+            .width(TvActorCardWidth)
+            .onFocusChanged { focused = it.hasFocus }
+            .alpha(dim),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        TvFocusCard(
+            onClick = onClick,
+            shape = CircleShape,
+            modifier = Modifier.size(TvActorAvatarSize),
+        ) {
+            Box(
+                Modifier.fillMaxSize().clip(CircleShape).background(TvSurfaceContainerHigh),
+                contentAlignment = Alignment.Center,
+            ) {
+                val photo = member.photoUrl
+                if (photo != null) {
+                    PosterImage(
+                        url = photo,
+                        contentDescription = member.name,
+                        modifier = Modifier.fillMaxSize(),
+                        shape = CircleShape,
+                        accentColor = TvSurfaceContainerHigh,
+                    )
+                } else {
+                    Text(
+                        initials(member.name),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TvOnSurfaceVariant,
+                    )
+                }
+            }
+        }
+        Text(
+            member.name,
+            style = MaterialTheme.typography.bodyMedium,
+            color = TvOnSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
 }
 
 // ────────────────────────────── Эпизоды сериала ──────────────────────────────
@@ -730,11 +766,25 @@ private fun playLabel(resume: MediaTrack?): String = when {
     else -> "Продолжить · Серия ${resume.number}"
 }
 
-/** Строка под описанием: «Режиссёр: X  ·  В ролях: A, B, C» (макет `det.castLine`). */
-private fun castLine(item: Item): String = buildList {
-    if (item.director.isNotBlank()) add("Режиссёр: ${item.director}")
-    if (item.cast.isNotBlank()) add("В ролях: ${item.cast}")
-}.joinToString("  ·  ")
+/**
+ * Люди для ряда «Актёры»: фото из TMDB, если доехали; иначе — карточки из строки имён kino.pub
+ * (`item.cast`, имена через запятую) без фото. Каст кликабелен всегда, фото — дополнение.
+ */
+private fun resolveCast(cast: List<CastMember>, rawCast: String): List<CastMember> =
+    cast.ifEmpty {
+        rawCast.split(",")
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .map { name -> CastMember(name = name, character = null, photoUrl = null) }
+    }
+
+/** Инициалы для заглушки без фото: до двух заглавных букв из имени. */
+private fun initials(name: String): String =
+    name.split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .map { word -> word.first().uppercaseChar() }
+        .joinToString("")
 
 /** Мета карточки серии: «Серия 3 · 45 мин». Номер опускаем, если он уже стал заголовком. */
 private fun episodeMeta(episode: MediaTrack): String? = buildList {

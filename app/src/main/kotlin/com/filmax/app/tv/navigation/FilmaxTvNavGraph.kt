@@ -40,10 +40,14 @@ import com.filmax.feature.library.tv.navigation.tvLibraryScreen
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
 import com.filmax.feature.player.common.navigation.PlayerRoute
+import com.filmax.feature.player.common.navigation.TrailerRoute
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
+import com.filmax.feature.player.tv.navigation.tvTrailerScreen
 import com.filmax.feature.profile.tv.navigation.TvDeviceSettingsRoute
 import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
+import com.filmax.feature.search.common.navigation.FilmographyRoute
+import com.filmax.feature.search.tv.navigation.tvFilmographyScreen
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
@@ -178,7 +182,17 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
     tvDetailsScreen(
         onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
+        onOpenPerson = { name, isDirector ->
+            navController.navigate(FilmographyRoute(name = name, isDirector = isDirector))
+        },
+        onPlayTrailer = { url, title -> navController.navigate(TrailerRoute(url = url, title = title)) },
     )
+    // Фильмография человека — push-экран из деталей (тап по актёру/режиссёру).
+    tvFilmographyScreen(
+        onBack = { navController.popBackStack() },
+        onOpenItem = { navController.navigate(DetailsRoute(it)) },
+    )
+    tvTrailerScreen(onBack = { navController.popBackStack() })
     tvPlayerScreen(
         onBack = { navController.popBackStack() },
         // «Следующая серия» — навигация, а не подмена MediaItem: прогресс пишется в трек,
