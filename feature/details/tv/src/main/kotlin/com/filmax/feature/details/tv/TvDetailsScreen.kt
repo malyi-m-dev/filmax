@@ -20,11 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -174,19 +172,19 @@ private data class DetailsActions(
 )
 
 /**
- * Стартовый фокус на «Смотреть» + возврат списка к началу. Пульту нужен фокус на входе, но
- * bringIntoView под него тянет список к кнопке и срезает верх постера-бэкдропа («постер не виден»).
- * Кнопка и так видна снизу hero, поэтому сразу возвращаем список к началу — пара кадров перебивает
- * отложенный bringIntoView. Ключ [itemId]: на соседнем тайтле фокус снова встаёт на «Смотреть».
+ * Стартовый фокус на «Смотреть» — но ПОСЛЕ первого кадра, когда ленивый список уже разложил hero.
+ * На разложенном списке bringIntoView видит кнопку на своём месте (она и так в нижней части hero)
+ * и НЕ тащит список вниз, срезая верх постера. Немедленный фокус на первом кадре, где кнопка ещё
+ * не измерена, утягивал список к ней и рывком прятал постер. Так делают и популярные кинотеатры:
+ * hero сразу виден целиком, а контент открывается прокруткой вниз.
+ *
+ * Ключ [itemId]: на соседнем тайтле фокус снова встаёт на «Смотреть».
  */
 @Composable
-private fun StartFocusPinnedToTop(itemId: Int, playFocus: FocusRequester, listState: LazyListState) {
+private fun StartPlayFocus(itemId: Int, playFocus: FocusRequester) {
     LaunchedEffect(itemId) {
+        withFrameNanos { }
         runCatching { playFocus.requestFocus() }
-        repeat(2) {
-            withFrameNanos { }
-            listState.scrollToItem(0)
-        }
     }
 }
 
@@ -205,8 +203,7 @@ private fun DetailsContent(
     val episodes = series?.seasons?.getOrNull(selectedSeason)?.second.orEmpty()
 
     val playFocus = remember { FocusRequester() }
-    val listState = rememberLazyListState()
-    StartFocusPinnedToTop(itemId = item.id, playFocus = playFocus, listState = listState)
+    StartPlayFocus(itemId = item.id, playFocus = playFocus)
 
     // Кнопка играет недосмотренную серию, иначе первую серию ВЫБРАННОГО сезона (у фильма дорожка
     // не выбирается вовсе).
@@ -221,7 +218,6 @@ private fun DetailsContent(
     // Отступ сверху обязателен: без него hero упирается в край экрана, а верхние строки пикселей
     // на телевизоре съедает overscan — кадр выглядит обрезанным по живому.
     LazyColumn(
-        state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(top = TvMetrics.SafeVertical, bottom = 70.dp),
     ) {
