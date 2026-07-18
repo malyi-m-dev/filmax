@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Баннер Android TV (Leanback launcher), 320×180. Монохром по бренду: нейтральный тёмный фон
+  и белый вордмарк FILMAX (буквы — векторные пути, т.к. vector drawable не рендерит текст).
+  Никаких цветных акцентов — акцент в приложении = чистый белый.
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="320dp"
@@ -6,20 +11,33 @@
     android:viewportWidth="320"
     android:viewportHeight="180">
 
+    <!-- Фон: тонкий нейтральный градиент (R=G=B), без цветного тона -->
     <path android:pathData="M0,0h320v180h-320z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:type="linear"
                 android:startX="0" android:startY="0"
                 android:endX="320" android:endY="180">
-                <item android:offset="0" android:color="#FF5E1133" />
-                <item android:offset="1" android:color="#FF0A0809" />
+                <item android:offset="0" android:color="#FF1C1C1C" />
+                <item android:offset="1" android:color="#FF0A0A0A" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Play glyph -->
-    <path
-        android:fillColor="#FFFFB1C8"
-        android:pathData="M134,68 L134,112 L172,90 Z" />
+    <!-- Вордмарк FILMAX (белый). Каждая буква — заливной путь, высота 44 (y 68..112), толщина 7. -->
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M48,68 L76,68 L76,75 L55,75 L55,86.5 L72,86.5 L72,93.5 L55,93.5 L55,112 L48,112 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M88,68 L95,68 L95,112 L88,112 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M107,68 L114,68 L114,105 L133,105 L133,112 L107,112 Z" />
+    <path android:fillColor="#FFFFFFFF"
+        android:pathData="M145,68 L152,68 L167.5,88 L183,68 L190,68 L190,112 L183,112 L183,82 L167.5,101 L152,82 L152,112 L145,112 Z" />
+    <!-- A: две ножки + перекладина -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M208,68 L214,68 L202,112 L195,112 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M208,68 L214,68 L227,112 L220,112 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M201,93 L221,93 L221,99 L201,99 Z" />
+    <!-- X: две диагонали -->
+    <path android:fillColor="#FFFFFFFF" android:pathData="M239,68 L246,68 L271,112 L264,112 Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M264,68 L271,68 L246,112 L239,112 Z" />
 </vector>
