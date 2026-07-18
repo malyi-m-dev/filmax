@@ -3,9 +3,10 @@ package com.filmax.feature.player.tv
 import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -44,8 +45,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -58,6 +59,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -570,6 +572,10 @@ private fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: 
             .padding(bottom = 34.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        // Основные контролы (скраббер + пауза/перемотка) прижаты к низу. Ряд настроек — ПОД ними,
+        // за AnimatedVisibility: в транспорте его нет вовсе (место не держит), а по «вниз» он
+        // раскрывается снизу и толкает основные контролы вверх. Так «вниз» открывает настройки, а
+        // не приходится жать «вниз», потом несколько раз «вверх».
         Scrubber(
             positionMs = if (ui.isScrubbing) ui.scrubTargetMs else ui.positionMs,
             durationMs = ui.durationMs,
@@ -582,11 +588,17 @@ private fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: 
             color = TvOnSurfaceDim,
             modifier = Modifier.padding(top = 12.dp),
         )
-        SettingsBar(
-            ui = ui,
-            menu = menu,
-            modifier = Modifier.padding(top = 14.dp),
-        )
+        AnimatedVisibility(
+            visible = ui.mode == PlayerMode.Settings,
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+        ) {
+            SettingsBar(
+                ui = ui,
+                menu = menu,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
     }
 }
 
@@ -724,30 +736,32 @@ private fun SeekHint(label: String) {
 }
 
 /**
- * Ряд настроек. Появляется по «вниз» и в транспорт-режиме прозрачен, но место под себя держит:
- * иначе весь нижний блок прыгал бы вверх-вниз на каждое нажатие.
+ * Ряд настроек. Всплывает по «вниз» через AnimatedVisibility над основными контролами; в транспорте
+ * его нет вовсе, поэтому место под себя он не держит и низ панели не прыгает.
  *
- * Чипы намеренно не фокусируемые: в плеере фокус никуда не ходит, курсор ведёт обработчик клавиш,
- * а `selected` рисует его белой заливкой — в монохроме это и есть индикация выбора. `onClick`
- * остаётся настоящим: у TV-Surface он же обслуживает accessibility-действие «активировать».
+ * Чипы намеренно не фокусируемые: в плеере фокус никуда не ходит, курсор ведёт обработчик клавиш.
+ * Курсор рисуют белая заливка (`selected`) И увеличение — на ярком кадре одной заливки мало, чтобы
+ * сразу читалось, что выбрано. `onClick` остаётся настоящим: у TV-Surface он обслуживает
+ * accessibility-действие «активировать».
  */
 @Composable
 private fun SettingsBar(ui: TvPlayerUiState, menu: PlayerActions, modifier: Modifier = Modifier) {
-    val active = ui.mode == PlayerMode.Settings
-    val barAlpha by animateFloatAsState(if (active) 1f else 0f, label = "playerSettingsBar")
     Row(
-        modifier.alpha(barAlpha),
+        modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         menu.items.forEachIndexed { index, action ->
+            val isCursor = index == ui.settingsCursor
             TvChip(
                 label = action.label,
-                selected = active && index == ui.settingsCursor,
+                selected = isCursor,
                 onClick = {
                     ui.settingsCursor = index
                     ui.activate(action, menu)
                 },
-                modifier = Modifier.focusProperties { canFocus = false },
+                modifier = Modifier
+                    .focusProperties { canFocus = false }
+                    .scale(if (isCursor) CURSOR_CHIP_SCALE else 1f),
             )
         }
     }
@@ -789,7 +803,9 @@ private fun SettingsRow(label: String, highlighted: Boolean, current: Boolean) {
             .fillMaxWidth()
             .height(40.dp)
             .clip(MaterialTheme.shapes.small)
-            .background(if (highlighted) TvSurfaceContainerHighest else TvSurface.copy(alpha = 0f))
+            // Курсор — сплошная белая заливка (акцент), а не еле заметный серый: сразу видно, на чём
+            // стоишь. Выбранное сейчас значение помечает галочка независимо от положения курсора.
+            .background(if (highlighted) TvAccent else TvSurface.copy(alpha = 0f))
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -797,13 +813,14 @@ private fun SettingsRow(label: String, highlighted: Boolean, current: Boolean) {
         Text(
             label,
             style = MaterialTheme.typography.titleSmall,
-            color = if (highlighted) TvOnSurface else TvOnSurfaceVariant,
+            fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Normal,
+            color = if (highlighted) TvOnAccent else TvOnSurfaceVariant,
         )
         if (current) {
             Icon(
                 Icons.Filled.Check,
                 contentDescription = null,
-                tint = TvAccent,
+                tint = if (highlighted) TvOnAccent else TvAccent,
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -875,6 +892,9 @@ private const val SEEK_LABEL_HOLD_MS = 800L
 private const val SEEK_STREAK_WINDOW_MS = 450L
 
 private const val MILLIS_IN_SECOND = 1000L
+
+/** Увеличение чипа-курсора в ряду настроек — белой заливки на ярком кадре мало для читаемости выбора. */
+private const val CURSOR_CHIP_SCALE = 1.12f
 
 /** Лестница разгона перемотки (секунды): шаг растёт, пока пользователь давит стрелку. */
 private val SEEK_STEPS_SEC = listOf(10, 10, 20, 30, 60, 90, 120)
