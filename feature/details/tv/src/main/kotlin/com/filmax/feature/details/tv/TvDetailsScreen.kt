@@ -20,9 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
@@ -34,12 +36,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -49,9 +52,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
@@ -80,6 +85,7 @@ import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
+import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 /** Ширина текстового блока в hero (макет: 600dp из 960) — правее лежит открытый бэкдроп. */
@@ -87,6 +93,18 @@ private val HeroTextWidth = 600.dp
 
 /** Максимальная ширина описания и строки состава: длинная строка на 3 метрах не читается. */
 private val ReadableTextWidth = 760.dp
+
+/**
+ * Свёрнутая высота hero при прокрутке контента. Не ниже текстового блока (заголовок + мета +
+ * рейтинги + кнопки), иначе он бы срезался сверху.
+ */
+private val HeroCollapsedHeight = 188.dp
+
+/** Прокрутка контента, на которой hero сворачивается полностью. */
+private val HeroCollapseDistance = 220.dp
+
+/** Насколько притухает бэкдроп при полном сворачивании (0..1). */
+private const val BACKDROP_FADE_ON_COLLAPSE = 0.35f
 
 /** Ширина карточки актёра и диаметр круглого аватара в ряду «Актёры» (крупнее мобильных — 10-foot UI). */
 private val TvActorCardWidth = 120.dp
@@ -171,23 +189,6 @@ private data class DetailsActions(
     val onPlayTrailer: (url: String, title: String) -> Unit,
 )
 
-/**
- * Стартовый фокус на «Смотреть» — но ПОСЛЕ первого кадра, когда ленивый список уже разложил hero.
- * На разложенном списке bringIntoView видит кнопку на своём месте (она и так в нижней части hero)
- * и НЕ тащит список вниз, срезая верх постера. Немедленный фокус на первом кадре, где кнопка ещё
- * не измерена, утягивал список к ней и рывком прятал постер. Так делают и популярные кинотеатры:
- * hero сразу виден целиком, а контент открывается прокруткой вниз.
- *
- * Ключ [itemId]: на соседнем тайтле фокус снова встаёт на «Смотреть».
- */
-@Composable
-private fun StartPlayFocus(itemId: Int, playFocus: FocusRequester) {
-    LaunchedEffect(itemId) {
-        withFrameNanos { }
-        runCatching { playFocus.requestFocus() }
-    }
-}
-
 @Composable
 private fun DetailsContent(
     item: Item,
@@ -203,7 +204,9 @@ private fun DetailsContent(
     val episodes = series?.seasons?.getOrNull(selectedSeason)?.second.orEmpty()
 
     val playFocus = remember { FocusRequester() }
-    StartPlayFocus(itemId = item.id, playFocus = playFocus)
+    // Фокус на «Смотреть» — для пульта. Кнопки живут в ФИКСИРОВАННОМ hero (вне прокрутки), поэтому
+    // bringIntoView под фокус ничего не крутит: постер-бэкдроп всегда виден целиком.
+    LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
 
     // Кнопка играет недосмотренную серию, иначе первую серию ВЫБРАННОГО сезона (у фильма дорожка
     // не выбирается вовсе).
@@ -213,64 +216,112 @@ private fun DetailsContent(
     // Актёры карточками: фото из TMDB, если доехали; иначе — имена из строки kino.pub.
     val people = remember(cast, item.cast) { resolveCast(cast, item.cast) }
 
-    // Единый LazyColumn вместо статичного Row из двух колонок: раньше у сериала нижние кнопки и
-    // «Похожее» были недостижимы фокусом — упирались в край экрана без возможности докрутить.
-    // Отступ сверху обязателен: без него hero упирается в край экрана, а верхние строки пикселей
-    // на телевизоре съедает overscan — кадр выглядит обрезанным по живому.
+    val listState = rememberLazyListState()
+    val collapse = rememberHeroCollapse(listState)
+    val scope = rememberCoroutineScope()
+
+    Column(Modifier.fillMaxSize().padding(top = TvMetrics.SafeVertical)) {
+        DetailsHero(
+            item = item,
+            series = series,
+            isFav = isFav,
+            collapse = collapse,
+            playback = HeroPlayback(
+                playFocus = playFocus,
+                // Фильм играется целиком (videoId = -1), сериал — конкретной серией. Сериал без
+                // серий играть нечем — кнопка молчит. В плеер уходит НОМЕР серии, а не id трека.
+                onPlay = {
+                    if (series == null) {
+                        actions.onPlay(MOVIE_VIDEO_ID)
+                    } else {
+                        target?.let { actions.onPlay(it.number) }
+                    }
+                },
+                onToggleFav = actions.onToggleFav,
+                // Вернулись на кнопки — контент к началу, hero разжимается полностью.
+                onEnterHero = { scope.launch { listState.animateScrollToItem(0) } },
+                onTrailer = trailerUrl?.let { url -> { actions.onPlayTrailer(url, "Трейлер · ${item.title}") } },
+            ),
+        )
+        DetailsScrollContent(
+            data = DetailsScrollData(item, similar, people, series, episodes, selectedSeason),
+            listState = listState,
+            actions = actions,
+            onSelectSeason = { selectedSeason = it },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/**
+ * Доля свёрнутости hero из прокрутки контента: 0 у верха, 1 — когда контент проскроллен на
+ * [HeroCollapseDistance] или первый элемент уже уехал. Отдельный помощник — чтобы [DetailsContent]
+ * не разрастался.
+ */
+@Composable
+private fun rememberHeroCollapse(listState: LazyListState): Float {
+    val distancePx = with(LocalDensity.current) { HeroCollapseDistance.toPx() }
+    val collapse by remember(distancePx) {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / distancePx).coerceIn(0f, 1f)
+            }
+        }
+    }
+    return collapse
+}
+
+/** Данные прокручиваемого контента деталей — группой (detekt LongParameterList). */
+private class DetailsScrollData(
+    val item: Item,
+    val similar: List<Item>,
+    val people: List<CastMember>,
+    val series: SeriesData?,
+    val episodes: List<MediaTrack>,
+    val selectedSeason: Int,
+)
+
+/**
+ * Прокручиваемый контент под фиксированным hero: описание, актёры, режиссёр, эпизоды, «Похожее».
+ * Отдельный LazyColumn (а не элементы hero-списка): фокус с кнопок уходит сюда «вниз», а сам список
+ * прокруткой сжимает hero. Так у сериала нижние ряды достижимы фокусом, а постер не режется.
+ */
+@Composable
+private fun DetailsScrollContent(
+    data: DetailsScrollData,
+    listState: LazyListState,
+    actions: DetailsActions,
+    onSelectSeason: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = TvMetrics.SafeVertical, bottom = 70.dp),
+        state = listState,
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(bottom = 70.dp),
     ) {
-        item(key = "hero") {
-            DetailsHero(
-                item = item,
-                series = series,
-                isFav = isFav,
-                playback = HeroPlayback(
-                    playFocus = playFocus,
-                    // Фильм играется целиком (videoId = -1), сериал — конкретной серией.
-                    // Сериал без серий играть нечем — кнопка молчит, а не открывает пустой плеер.
-                    // В плеер уходит НОМЕР серии, а не id трека: тем же числом kino.pub
-                    // принимает и отдаёт прогресс (watching/marktime → video).
-                    onPlay = {
-                        if (series == null) {
-                            actions.onPlay(MOVIE_VIDEO_ID)
-                        } else {
-                            target?.let { actions.onPlay(it.number) }
-                        }
-                    },
-                    onToggleFav = actions.onToggleFav,
-                    onTrailer = trailerUrl?.let { url -> { actions.onPlayTrailer(url, "Трейлер · ${item.title}") } },
-                ),
-            )
+        item(key = "about") { DetailsAbout(data.item) }
+        if (data.people.isNotEmpty()) {
+            castRail(people = data.people, onOpenPerson = actions.onOpenPerson)
         }
-
-        item(key = "about") { DetailsAbout(item) }
-
-        if (people.isNotEmpty()) {
-            castRail(people = people, onOpenPerson = actions.onOpenPerson)
+        if (data.item.director.isNotBlank()) {
+            directorSection(director = data.item.director, onOpenPerson = actions.onOpenPerson)
         }
-        if (item.director.isNotBlank()) {
-            directorSection(director = item.director, onOpenPerson = actions.onOpenPerson)
-        }
-
-        if (episodes.isNotEmpty()) {
+        if (data.episodes.isNotEmpty()) {
             episodesSection(
                 EpisodesSection(
-                    seasons = series?.seasons.orEmpty(),
-                    episodes = episodes,
-                    resumeId = series?.resume?.id,
-                    selectedSeason = selectedSeason,
-                    onSelectSeason = { selectedSeason = it },
+                    seasons = data.series?.seasons.orEmpty(),
+                    episodes = data.episodes,
+                    resumeId = data.series?.resume?.id,
+                    selectedSeason = data.selectedSeason,
+                    onSelectSeason = onSelectSeason,
                     onPlayEpisode = actions.onPlay,
                 )
             )
         }
-
-        // «Похожее» — и у фильма, и у сериала: state.similar грузится всегда, а сериал его
-        // молча выбрасывал.
-        if (similar.isNotEmpty()) {
-            similarRail(similar = similar, onOpenItem = actions.onOpenItem)
+        if (data.similar.isNotEmpty()) {
+            similarRail(similar = data.similar, onOpenItem = actions.onOpenItem)
         }
     }
 }
@@ -282,29 +333,37 @@ private data class HeroPlayback(
     val playFocus: FocusRequester,
     val onPlay: () -> Unit,
     val onToggleFav: () -> Unit,
+    /** Фокус вернулся на кнопки hero — контент к началу, чтобы hero разжался полностью. */
+    val onEnterHero: () -> Unit,
     /** null — у тайтла нет играбельного трейлера, кнопки нет. */
     val onTrailer: (() -> Unit)? = null,
 )
 
 /**
  * Hero: бэкдроп во всю ширину, текстовый блок прижат к низу слева (вариант A макета).
+ *
+ * [collapse] 0→1 — доля свёрнутости: hero живёт ФИКСИРОВАННЫМ блоком над прокруткой (кнопки в нём,
+ * поэтому фокус на «Смотреть» ничего не крутит и постер виден целиком), а при прокрутке контента
+ * вниз сжимается по высоте и притухает бэкдроп — освобождая место контенту, как у популярных
+ * кинотеатров. Текстовый блок остаётся у низа и не режется: свёрнутая высота не ниже его высоты.
  */
 @Composable
 private fun DetailsHero(
     item: Item,
     series: SeriesData?,
     isFav: Boolean,
+    collapse: Float,
     playback: HeroPlayback,
 ) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(TvMetrics.DetailsHeroHeight),
+            .height(lerp(TvMetrics.DetailsHeroHeight, HeroCollapsedHeight, collapse)),
     ) {
         HeroBackdrop(
             item = item,
             scrims = heroScrims(),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().alpha(1f - collapse * BACKDROP_FADE_ON_COLLAPSE),
             posterUrl = item.posters.wide ?: item.posters.big,
             // Заглушка постера — нейтральная поверхность: цвет на экране только у самого кадра.
             accentColor = TvSurfaceContainerHigh,
@@ -368,7 +427,10 @@ private fun HeroButtons(
     playback: HeroPlayback,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(
+        modifier.onFocusChanged { if (it.hasFocus) playback.onEnterHero() },
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         TvButton(
             text = playLabel(resume),
             onClick = playback.onPlay,
