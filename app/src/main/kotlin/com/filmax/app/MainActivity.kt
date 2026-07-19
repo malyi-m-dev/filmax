@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.filmax.app.navigation.FilmaxNavGraph
 import com.filmax.app.tv.navigation.FilmaxTvNavGraph
+import com.filmax.app.update.AppUpdatePrompt
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 
@@ -30,9 +31,15 @@ class MainActivity : ComponentActivity() {
         val isTv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         setContent {
             if (isTv) {
-                FilmaxTvTheme { FilmaxTvNavGraph() }
+                FilmaxTvTheme {
+                    FilmaxTvNavGraph()
+                    AppUpdatePrompt()
+                }
             } else {
-                FilmaxTheme { FilmaxNavGraph() }
+                FilmaxTheme {
+                    FilmaxNavGraph()
+                    AppUpdatePrompt()
+                }
             }
         }
     }

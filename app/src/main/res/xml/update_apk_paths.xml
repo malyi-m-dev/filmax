@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Каталог кэша со скачанными APK обновлений — раздаётся установщику через FileProvider. -->
+<paths>
+    <cache-path
+        name="updates"
+        path="updates/" />
+</paths>

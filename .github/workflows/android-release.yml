@@ -57,6 +57,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          # In-app update: fine-grained токен (только чтение contents этого репо) зашивается в
+          # APK, чтобы приложение читало Releases приватного репозитория. Не задан — сборка
+          # пройдёт, но проверка обновлений в приложении будет молча выключена.
+          UPDATE_GITHUB_TOKEN: ${{ secrets.UPDATE_GITHUB_TOKEN }}
         run: ./gradlew :app:assembleRelease --stacktrace
 
       - name: Locate & rename APK

@@ -32,6 +32,12 @@ val tmdbApiKey: String = (System.getenv("TMDB_API_KEY") ?: localProps.getPropert
 val demoAccessToken: String = (localProps.getProperty("demo.accessToken") ?: "").trim()
 val demoRefreshToken: String = (localProps.getProperty("demo.refreshToken") ?: "").trim()
 
+// In-app update читает GitHub Releases ПРИВАТНОГО репозитория, поэтому в сборку зашивается
+// fine-grained токен ТОЛЬКО на чтение contents этого репо (local.properties → github.updateToken,
+// в CI — env UPDATE_GITHUB_TOKEN). Пусто — проверка обновлений молча не находит релизов.
+val updateGithubToken: String =
+    (System.getenv("UPDATE_GITHUB_TOKEN") ?: localProps.getProperty("github.updateToken") ?: "").trim()
+
 // versionName ← последний git-тег vX.Y.Z (без «v»); нет тегов → 1.0.0.
 fun gitVersionName(): String =
     providers.exec {
@@ -61,6 +67,9 @@ android {
         // По умолчанию токена нет — его несёт только build type `demo`.
         buildConfigField("String", "DEMO_ACCESS_TOKEN", "\"\"")
         buildConfigField("String", "DEMO_REFRESH_TOKEN", "\"\"")
+        // In-app update: откуда читать релизы и чем авторизоваться (см. GitHubUpdateRepository).
+        buildConfigField("String", "UPDATE_GITHUB_REPO", "\"malyi-m-dev/filmax\"")
+        buildConfigField("String", "UPDATE_GITHUB_TOKEN", "\"$updateGithubToken\"")
     }
 
     buildFeatures {
@@ -180,6 +189,9 @@ dependencies {
 
     // Navigation
     implementation(libs.navigation.compose)
+
+    // In-app update: разбор ответа GitHub Releases.
+    implementation(libs.kotlinx.serialization.json)
 
     // Koin
     implementation(platform(libs.koin.bom))
