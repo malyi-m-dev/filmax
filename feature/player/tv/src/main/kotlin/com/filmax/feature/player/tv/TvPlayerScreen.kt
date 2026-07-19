@@ -46,6 +46,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -164,6 +165,28 @@ private class TvPlayerUiState(val player: Player) {
     var episodesSeasonCursor by mutableIntStateOf(0)
     var episodesCursor by mutableIntStateOf(0)
 
+    /** Плашка автоперехода: видимость, секунды до старта и отмена «Назад» до конца серии. */
+    var autoNextVisible by mutableStateOf(false)
+    var autoNextSeconds by mutableIntStateOf(0)
+    var autoNextDismissed by mutableStateOf(false)
+
+    /**
+     * Обновляется тиком прогресса: плашка живёт в последних [AUTO_NEXT_WINDOW_MS] серии,
+     * пока переход не отменён и пользователь не перематывает. Нижней границы у окна нет:
+     * у HLS позиция может уйти ЗА заявленную длительность (поток длиннее метаданных),
+     * и отрицательный остаток — тоже «конец серии».
+     */
+    fun updateAutoNext(remainingMs: Long, enabled: Boolean) {
+        val active = enabled && !autoNextDismissed && !isScrubbing &&
+            remainingMs <= AUTO_NEXT_WINDOW_MS
+        autoNextVisible = active
+        if (active) {
+            autoNextSeconds = ((remainingMs + MILLIS_IN_SECOND - 1) / MILLIS_IN_SECOND)
+                .toInt()
+                .coerceAtLeast(1)
+        }
+    }
+
     /** Индикатор шага последней перемотки («+30 с»); гаснет сам. */
     var seekLabel by mutableStateOf<String?>(null)
 
@@ -203,6 +226,13 @@ private class TvPlayerUiState(val player: Player) {
      * не ставя на паузу. Неизвестные клавиши не трогаем — иначе съедим громкость и системные.
      */
     fun onKey(key: Key, menu: PlayerActions): Boolean = when {
+        // OK при видимой плашке автоперехода (и только в транспорте) — следующая серия сразу.
+        autoNextVisible && submenu == null && !episodesOpen && mode == PlayerMode.Transport &&
+            (key == Key.DirectionCenter || key == Key.Enter) -> {
+            autoNextVisible = false
+            menu.onNextEpisode()
+            true
+        }
         episodesOpen -> onEpisodesKey(key, menu)
         submenu != null -> onSubmenuKey(key, menu)
         mode == PlayerMode.Settings -> onSettingsKey(key, menu)
@@ -323,6 +353,13 @@ private class TvPlayerUiState(val player: Player) {
      * одного. Возвращает false, если закрывать больше нечего (тогда экран выходит из плеера).
      */
     fun back(): Boolean = when {
+        // «Назад» при плашке автоперехода — отмена: серия дотечёт до конца и остановится.
+        autoNextVisible -> {
+            autoNextDismissed = true
+            autoNextVisible = false
+            touch()
+            true
+        }
         episodesOpen -> {
             episodesOpen = false
             touch()
@@ -399,6 +436,9 @@ data class TvPlayerNav(
     val onPlayEpisode: ((season: Int, videoId: Int) -> Unit)? = null,
 )
 
+/** Автопереход: [enabled] — есть следующая серия и навигация к ней; [play] — запустить её. */
+private class PlayerAutoNext(val enabled: Boolean, val play: () -> Unit)
+
 /** TV-Плеер: видеоповерхность ExoPlayer и оверлей под пульт поверх неё. */
 @Composable
 fun TvPlayerScreen(
@@ -430,18 +470,30 @@ fun TvPlayerScreen(
         nav = nav,
         dispatch = screenModel::dispatch,
     )
+    val autoNext = PlayerAutoNext(
+        enabled = nextTrack != null && nav.onPlayEpisode != null,
+        play = { nextTrack?.let { next -> nav.onPlayEpisode?.invoke(next.seasonNumber, next.number) } },
+    )
 
-    PlayerEffects(ui = ui, screenModel = screenModel)
+    PlayerEffects(ui = ui, screenModel = screenModel, autoNext = autoNext)
     BackHandler { if (!ui.back()) onBack() }
 
     PlayerContent(
         ui = ui,
         state = state,
         menu = menu,
-        subtitle = playerSubtitle(state, track, tracks.size),
+        labels = PlayerLabels(
+            subtitle = playerSubtitle(state, track, tracks.size),
+            autoNext = nextTrack?.let { next ->
+                "Дальше: ${next.number}. ${next.title.ifBlank { "Серия ${next.number}" }}"
+            },
+        ),
         modifier = modifier,
     )
 }
+
+/** Тексты кадра — группой (detekt LongParameterList): подстрока шапки и метка автоперехода. */
+private class PlayerLabels(val subtitle: String, val autoNext: String?)
 
 /** Подстрока шапки: «Сезон 2 · Серия 5» у сериала, «год · качество» у фильма. */
 private fun playerSubtitle(state: PlayerState, track: MediaTrack?, tracksCount: Int): String = when {
@@ -503,16 +555,29 @@ private fun episodesPanelData(
     )
 }
 
-/** Тики и таймеры плеера: прогресс/SaveProgress, подтверждение скраба, автоскрытие оверлея. */
+/** Тики и таймеры плеера: прогресс/SaveProgress, автопереход, скраб, автоскрытие оверлея. */
 @Composable
-private fun PlayerEffects(ui: TvPlayerUiState, screenModel: PlayerScreenModel) {
+private fun PlayerEffects(ui: TvPlayerUiState, screenModel: PlayerScreenModel, autoNext: PlayerAutoNext) {
     val player = screenModel.player
+
+    // Эффекты живут с ключом player и переживают рекомпозиции, а autoNext пересобирается,
+    // когда доезжает плейлист (при старте треков ещё нет и enabled=false) — читаем всегда
+    // АКТУАЛЬНЫЙ через rememberUpdatedState, иначе эффекты замкнут пустой первый экземпляр.
+    val currentAutoNext by rememberUpdatedState(autoNext)
 
     DisposableEffect(player) {
         ui.isPlaying = player.isPlaying
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 ui.isPlaying = isPlaying
+            }
+
+            // Серия дотекла до конца раньше тика — переходим сразу (если не отменяли «Назад»).
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && currentAutoNext.enabled && !ui.autoNextDismissed) {
+                    ui.autoNextVisible = false
+                    currentAutoNext.play()
+                }
             }
         }
         player.addListener(listener)
@@ -528,6 +593,14 @@ private fun PlayerEffects(ui: TvPlayerUiState, screenModel: PlayerScreenModel) {
             ui.durationMs = duration
             if (!ui.isScrubbing) ui.positionMs = player.currentPosition
             screenModel.dispatch(PlayerEvent.SaveProgress(player.currentPosition))
+
+            // Автопереход: плашка живёт в конце серии, по порогу — следующая серия.
+            val remaining = duration - player.currentPosition
+            ui.updateAutoNext(remainingMs = remaining, enabled = currentAutoNext.enabled)
+            if (ui.autoNextVisible && remaining <= AUTO_NEXT_FIRE_MS) {
+                ui.autoNextVisible = false
+                currentAutoNext.play()
+            }
         }
     }
 
@@ -562,7 +635,7 @@ private fun PlayerContent(
     ui: TvPlayerUiState,
     state: PlayerState,
     menu: PlayerActions,
-    subtitle: String,
+    labels: PlayerLabels,
     modifier: Modifier = Modifier,
 ) {
     val keyFocus = remember { FocusRequester() }
@@ -603,8 +676,48 @@ private fun PlayerContent(
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize(),
         ) {
-            PlayerOverlay(ui = ui, state = state, menu = menu, subtitle = subtitle)
+            PlayerOverlay(ui = ui, state = state, menu = menu, subtitle = labels.subtitle)
         }
+
+        // Плашка автоперехода — ВНЕ оверлея: в конце серии оверлей обычно скрыт, а отсчёт
+        // должен быть виден всегда.
+        val autoNextLabel = labels.autoNext
+        if (ui.autoNextVisible && autoNextLabel != null) {
+            AutoNextCard(
+                label = autoNextLabel,
+                seconds = ui.autoNextSeconds,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = TvMetrics.SafeHorizontal, bottom = AutoNextCardBottom),
+            )
+        }
+    }
+}
+
+/** Плашка «Дальше: серия N» с отсчётом. OK — сразу, «Назад» — отмена (см. onKey/back). */
+@Composable
+private fun AutoNextCard(label: String, seconds: Int, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .widthIn(max = AutoNextCardMaxWidth)
+            .clip(TvMetrics.PanelShape)
+            .background(TvSurfaceContainer.copy(alpha = 0.97f))
+            .border(1.dp, TvSurfaceContainerHighest, TvMetrics.PanelShape)
+            .padding(horizontal = 18.dp, vertical = 13.dp),
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.titleSmall,
+            color = TvOnSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            "Автостарт через $seconds с · OK — сейчас · «Назад» — отмена",
+            style = MaterialTheme.typography.labelSmall,
+            color = TvOnSurfaceVariant,
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
 
@@ -1268,6 +1381,15 @@ private val SEEK_STEPS_SEC = listOf(10, 10, 20, 30, 60, 90, 120)
 
 /** Ширина боковой панели серий. */
 private val EpisodesPanelWidth = 330.dp
+
+/** Окно плашки автоперехода: последние 20 секунд серии. */
+private const val AUTO_NEXT_WINDOW_MS = 20_000L
+
+/** Порог запуска следующей серии тиком (сек до конца меньше тика — не промахнуться). */
+private const val AUTO_NEXT_FIRE_MS = 1_500L
+
+private val AutoNextCardMaxWidth = 460.dp
+private val AutoNextCardBottom = 120.dp
 
 /** `watching.status` из API: 1 — серия досмотрена до конца. */
 private const val WATCH_STATUS_FINISHED = 1
