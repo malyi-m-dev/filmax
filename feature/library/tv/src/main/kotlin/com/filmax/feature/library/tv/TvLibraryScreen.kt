@@ -102,7 +102,6 @@ private enum class MineSegment(val label: String) {
 /** Действия раздела одним объектом — как TvHomeActions на главной. */
 private data class TvLibraryActions(
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, videoId: Int) -> Unit,
     val onOpenFolder: (BookmarkFolder) -> Unit,
     val onLoadMoreFolderItems: () -> Unit,
 )
@@ -129,7 +128,6 @@ private class TvBookmarkUi {
 @Composable
 fun TvLibraryScreen(
     onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: LibraryScreenModel = koinViewModel(),
 ) {
@@ -178,7 +176,6 @@ fun TvLibraryScreen(
                 ui = ui,
                 actions = TvLibraryActions(
                     onOpenItem = onOpenItem,
-                    onPlay = onPlay,
                     onOpenFolder = { folder -> screenModel.dispatch(LibraryEvent.OpenFolder(folder)) },
                     onLoadMoreFolderItems = { screenModel.dispatch(LibraryEvent.LoadMoreFolderItems) },
                 ),
@@ -332,18 +329,18 @@ private fun MineGrid(
         contentPadding = GridPadding,
     ) {
         when (segment) {
-            MineSegment.CONTINUE -> continueSegment(state.history, actions.onPlay)
+            MineSegment.CONTINUE -> continueSegment(state.history, actions.onOpenItem)
             MineSegment.WATCHLIST -> watchlistSegment(state, actions.onOpenItem)
             MineSegment.BOOKMARKS -> bookmarksSegment(state, ui, actions)
-            MineSegment.HISTORY -> historySegment(state, actions.onPlay)
+            MineSegment.HISTORY -> historySegment(state, actions.onOpenItem)
         }
     }
 }
 
-/** «Продолжить» — начатое, но не досмотренное. Ведёт сразу в плеер, а не в описание. */
+/** «Продолжить» — начатое, но не досмотренное. Ведёт в карточку тайтла: там и «продолжить», и контекст. */
 private fun LazyGridScope.continueSegment(
     history: List<WatchHistory>,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onOpenItem: (Int) -> Unit,
 ) {
     val started = history.filter { entry ->
         val fraction = entry.progress?.fraction ?: 0f
@@ -357,7 +354,7 @@ private fun LazyGridScope.continueSegment(
         )
         return
     }
-    items(started, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onPlay = onPlay) }
+    items(started, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onOpenItem = onOpenItem) }
 }
 
 /**
@@ -465,10 +462,10 @@ private fun LazyGridScope.folderPosters(
     }
 }
 
-/** «История» — всё просмотренное. Как и «Продолжить», ведёт в плеер. */
+/** «История» — всё просмотренное. Как и «Продолжить», ведёт в карточку тайтла. */
 private fun LazyGridScope.historySegment(
     state: LibraryState,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onOpenItem: (Int) -> Unit,
 ) {
     if (state.historyHidden) {
         emptyItem(
@@ -486,7 +483,7 @@ private fun LazyGridScope.historySegment(
         )
         return
     }
-    items(state.history, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onPlay = onPlay) }
+    items(state.history, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onOpenItem = onOpenItem) }
 }
 
 private fun LazyGridScope.emptyItem(icon: ImageVector, title: String, hint: String) {
@@ -516,16 +513,16 @@ private fun MineEmpty(icon: ImageVector, title: String, hint: String) {
 }
 
 @Composable
-private fun ProgressCard(entry: WatchHistory, onPlay: (itemId: Int, videoId: Int) -> Unit) {
+private fun ProgressCard(entry: WatchHistory, onOpenItem: (Int) -> Unit) {
     TvProgressCard(
         title = entry.title,
         meta = progressMeta(entry.progress),
         // Карточка 16:9 — берём кадр, а не вертикальный постер: тот обрезался бы по центру.
         posterUrl = entry.wideOrPoster,
         progress = entry.progress?.fraction ?: 0f,
-        // Карточка с прогрессом ведёт в плеер: «продолжить» — это про воспроизведение, а не про
-        // чтение описания. Эпизод берём из истории, позицию внутри трека восстановит плеер.
-        onClick = { onPlay(entry.itemId, entry.progress?.videoId ?: NO_VIDEO_ID) },
+        // Карточка ведёт в карточку тайтла, а не сразу в плеер: оттуда «Продолжить · SxEy»
+        // играет ту же серию, но остаётся выбор эпизода, сезонов и описание.
+        onClick = { onOpenItem(entry.itemId) },
         posterContent = { url, posterModifier ->
             TvPoster(url, entry.title, posterModifier, TvMetrics.CardShape)
         },
@@ -878,7 +875,6 @@ private const val WIDE_COLUMNS = 3
 private const val FOLDER_COLUMNS = 3
 
 /** Фильм — единственный трек, эпизод выбирать не из чего: PlayerRoute.videoId = -1. */
-private const val NO_VIDEO_ID = -1
 
 /** Доля просмотра, при которой тайтл считается начатым, но не досмотренным. */
 private const val CONTINUE_MIN_FRACTION = 0.01f

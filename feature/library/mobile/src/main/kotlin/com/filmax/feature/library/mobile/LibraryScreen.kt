@@ -97,7 +97,6 @@ private enum class MineSegment(val label: String) {
 /** Действия сетки одним объектом: навигация экрана + события модели, иначе LongParameterList. */
 private data class MineActions(
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, videoId: Int) -> Unit,
     val onOpenCatalog: () -> Unit,
     val onOpenFolder: (BookmarkFolder) -> Unit,
     val onLoadMoreFolderItems: () -> Unit,
@@ -122,14 +121,12 @@ private class BookmarkDialogs {
 }
 
 /**
- * Раздел «Моё» (экран 08 макета). [onPlay] ведёт в плеер: «Продолжить» и «История» — это про
- * воспроизведение, а не про чтение описания. Постеры «Буду смотреть» и содержимое папок —
- * в детали через [onOpenItem].
+ * Раздел «Моё» (экран 08 макета). Все карточки — включая «Продолжить» и «Историю» — ведут в
+ * карточку тайтла через [onOpenItem]: там и «Продолжить · SxEy», и выбор серий, и описание.
  */
 @Composable
 fun LibraryScreen(
     onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
     onOpenCatalog: () -> Unit,
     modifier: Modifier = Modifier,
     screenModel: LibraryScreenModel = koinViewModel(),
@@ -181,7 +178,6 @@ fun LibraryScreen(
                 segment = segment,
                 actions = MineActions(
                     onOpenItem = onOpenItem,
-                    onPlay = onPlay,
                     onOpenCatalog = onOpenCatalog,
                     onOpenFolder = { folder -> screenModel.dispatch(LibraryEvent.OpenFolder(folder)) },
                     onLoadMoreFolderItems = { screenModel.dispatch(LibraryEvent.LoadMoreFolderItems) },
@@ -330,7 +326,7 @@ private fun LazyGridScope.continueSegment(history: List<WatchHistory>, actions: 
         )
         return
     }
-    items(started, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onPlay = actions.onPlay) }
+    items(started, key = { it.itemId }) { entry -> ProgressCard(entry = entry, onOpenItem = actions.onOpenItem) }
 }
 
 /**
@@ -447,22 +443,22 @@ private fun LazyGridScope.historySegment(state: LibraryState, actions: MineActio
         return
     }
     items(state.history, key = { it.itemId }) { entry ->
-        ProgressCard(entry = entry, onPlay = actions.onPlay)
+        ProgressCard(entry = entry, onOpenItem = actions.onOpenItem)
     }
 }
 
 // ── Карточки ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun ProgressCard(entry: WatchHistory, onPlay: (itemId: Int, videoId: Int) -> Unit) {
+private fun ProgressCard(entry: WatchHistory, onOpenItem: (Int) -> Unit) {
     FilmaxProgressCard(
         title = entry.title,
         meta = progressMeta(entry.progress),
         // Карточка 16:9 — берём кадр серии, а не вертикальный постер: тот обрезался бы по центру.
         posterUrl = entry.wideOrPoster,
         progress = entry.progress?.fraction ?: 0f,
-        // Эпизод берём из истории, позицию внутри трека восстановит плеер.
-        onClick = { onPlay(entry.itemId, entry.progress?.videoId ?: NO_VIDEO_ID) },
+        // В карточку тайтла, а не сразу в плеер: там «Продолжить · SxEy», серии и описание.
+        onClick = { onOpenItem(entry.itemId) },
         width = FilmaxMetrics.MineCardWidth,
         height = FilmaxMetrics.MineCardHeight,
     )
@@ -870,7 +866,6 @@ private const val WIDE_COLUMNS = 2
 private const val FOLDER_COLUMNS = 2
 
 /** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
-private const val NO_VIDEO_ID = -1
 
 /** Доля просмотра, при которой тайтл считается начатым, но не досмотренным. */
 private const val CONTINUE_MIN_FRACTION = 0.01f

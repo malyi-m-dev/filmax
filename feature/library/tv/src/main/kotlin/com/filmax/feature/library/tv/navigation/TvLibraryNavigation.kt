@@ -9,14 +9,13 @@ import kotlinx.serialization.Serializable
 object TvLibraryRoute
 
 /**
- * Раздел «Моё». [onPlay] обязателен: «Продолжить» и «История» ведут сразу в плеер (videoId
- * из истории, -1 — если трек единственный), постеры «Буду смотреть» — в детали.
+ * Раздел «Моё». Все карточки — «Продолжить», «История», «Буду смотреть» и содержимое папок —
+ * ведут в карточку тайтла: там есть и «Продолжить · SxEy», и выбор серий, и описание.
  */
 fun NavGraphBuilder.tvLibraryScreen(
     onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
 ) {
     composable<TvLibraryRoute> {
-        TvLibraryScreen(onOpenItem = onOpenItem, onPlay = onPlay)
+        TvLibraryScreen(onOpenItem = onOpenItem)
     }
 }

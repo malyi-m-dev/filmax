@@ -9,19 +9,16 @@ import kotlinx.serialization.Serializable
 object LibraryRoute
 
 /**
- * Раздел «Моё». [onPlay] обязателен: «Продолжить» и «История» ведут сразу в плеер (videoId
- * из истории, -1 — если трек единственный), постеры «Буду смотреть» и содержимое папок — в
- * детали. [onOpenCatalog] — единственное действие пустых состояний раздела.
+ * Раздел «Моё». Все карточки — включая «Продолжить» и «Историю» — ведут в карточку тайтла
+ * через [onOpenItem]. [onOpenCatalog] — единственное действие пустых состояний раздела.
  */
 fun NavGraphBuilder.libraryScreen(
     onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
     onOpenCatalog: () -> Unit,
 ) {
     composable<LibraryRoute> {
         LibraryScreen(
             onOpenItem = onOpenItem,
-            onPlay = onPlay,
             onOpenCatalog = onOpenCatalog,
         )
     }
