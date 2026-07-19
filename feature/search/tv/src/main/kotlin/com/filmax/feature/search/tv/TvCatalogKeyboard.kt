@@ -55,7 +55,8 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.ui.components.PosterImage
-import com.filmax.core.ui.components.rememberVoiceSearch
+import com.filmax.core.ui.components.VoiceListeningDialog
+import com.filmax.core.ui.components.rememberInAppVoiceSearch
 import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchState
 import kotlinx.coroutines.delay
@@ -126,7 +127,9 @@ internal data class TvKeyboardActions(
 internal fun TvKeyboardOverlay(state: SearchState, actions: TvKeyboardActions) {
     var layout by remember { mutableStateOf(KeyLayout.RU) }
     val firstKey = remember { FocusRequester() }
-    val startVoice = rememberVoiceSearch { spoken -> actions.onSubmit(spoken) }
+    // Голос слушаем внутри приложения (SpeechRecognizer), без стороннего экрана распознавания.
+    val voice = rememberInAppVoiceSearch { spoken -> actions.onSubmit(spoken) }
+    VoiceListeningDialog(voice)
 
     BackHandler(onBack = actions.onClose)
     LaunchedEffect(Unit) {
@@ -142,7 +145,7 @@ internal fun TvKeyboardOverlay(state: SearchState, actions: TvKeyboardActions) {
             KeyAction.BACKSPACE -> actions.onQuery(state.query.dropLast(1))
             KeyAction.CLEAR -> actions.onQuery("")
             KeyAction.SWITCH -> layout = nextLayout(layout)
-            KeyAction.VOICE -> startVoice()
+            KeyAction.VOICE -> voice.start()
             KeyAction.DONE -> actions.onClose()
         }
     }

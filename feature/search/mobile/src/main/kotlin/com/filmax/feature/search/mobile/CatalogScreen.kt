@@ -77,9 +77,10 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxPosterCard
+import com.filmax.core.ui.components.VoiceListeningDialog
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.rememberVoiceSearch
+import com.filmax.core.ui.components.rememberInAppVoiceSearch
 import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
@@ -550,7 +551,9 @@ private fun SearchHeader(query: String, actions: SearchActions) {
 @Composable
 private fun SearchInput(query: String, actions: SearchActions, modifier: Modifier = Modifier) {
     val focusRequester = remember { FocusRequester() }
-    val startVoiceSearch = rememberVoiceSearch(onResult = actions.onSubmitQuery)
+    // Голос слушаем внутри приложения (SpeechRecognizer), без стороннего экрана распознавания.
+    val voiceSearch = rememberInAppVoiceSearch(onResult = actions.onSubmitQuery)
+    VoiceListeningDialog(voiceSearch)
 
     // Автофокус: в режим поиска входят, чтобы набирать, — клавиатуру система поднимет сама.
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -580,7 +583,7 @@ private fun SearchInput(query: String, actions: SearchActions, modifier: Modifie
         SearchInputTrailing(
             query = query,
             onClear = { actions.onQueryChange("") },
-            onVoiceSearch = startVoiceSearch,
+            onVoiceSearch = voiceSearch::start,
         )
     }
 }
