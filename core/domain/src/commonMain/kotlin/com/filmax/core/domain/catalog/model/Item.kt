@@ -95,9 +95,15 @@ data class VideoFile(
 
 data class AudioTrack(
     val id: Int,
+    /** Порядковый номер дорожки в потоке (1-based) — совпадает с порядком в HLS-манифесте. */
+    val index: Int,
     val lang: String?,
     val title: String?,
     val channels: Int,
+    /** Тип озвучки: «Многоголосый», «Дубляж», «Оригинал»… null — API не отдал. */
+    val voiceType: String? = null,
+    /** Студия озвучки: «BaibaKo», «Русский дубляж»… null — API не отдал. */
+    val voiceAuthor: String? = null,
 )
 
 data class SubtitleTrack(

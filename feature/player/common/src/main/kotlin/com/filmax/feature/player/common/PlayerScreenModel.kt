@@ -8,10 +8,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
 import com.filmax.core.domain.common.RequestResult
@@ -47,6 +49,9 @@ class PlayerScreenModel(
 
     /** Выбранный трек/эпизод — нужен для сохранения прогресса (сериалы пишутся по сезону). */
     private var selectedTrack: MediaTrack? = null
+
+    /** Аудиогруппы последнего onTracksChanged — по ним selectAudio делает точечный override. */
+    private var audioGroups: List<Tracks.Group> = emptyList()
 
     /** Позиция последней отправки прогресса — база для троттлинга в [saveProgress]. */
     private var lastSentSeconds: Int? = null
@@ -87,8 +92,10 @@ class PlayerScreenModel(
                     val item = result.data
                     // Сериал: играем выбранный эпизод. `videoId` — это НОМЕР видео (`number` из
                     // API), а не id трека: тем же числом kino.pub принимает и отдаёт прогресс
-                    // в watching/marktime. Фильм/нет совпадения — первый трек.
-                    val track = item.tracklist.firstOrNull { it.number == route.videoId }
+                    // в watching/marktime. Номер уникален только внутри сезона, поэтому сезон
+                    // обязателен в матчинге — без него S3E2 находил бы S1E2.
+                    // Фильм/нет совпадения — первый трек.
+                    val track = item.tracklist.firstOrNull { it.matchesRoute(route) }
                         ?: item.tracklist.firstOrNull()
                     selectedTrack = track
                     trackSubtitles = track?.subtitles.orEmpty()
@@ -167,25 +174,34 @@ class PlayerScreenModel(
 
     private fun selectAudio(label: String) {
         val option = state.audioTracks.firstOrNull { it.label == label } ?: return
-        val builder = player.trackSelectionParameters.buildUpon()
-        option.lang?.let { builder.setPreferredAudioLanguage(it) }
-        player.trackSelectionParameters = builder.build()
+        val group = audioGroups.getOrNull(option.groupIndex) ?: return
+        // Точечный override на конкретную группу: предпочитаемый ЯЗЫК не различил бы несколько
+        // русских озвучек разных студий.
+        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+            .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
+            .build()
         screenModelScope { _ -> updateState { it.copy(currentAudio = label) } }
     }
 
-    /** Снимает список аудиодорожек с плеера; селектор показываем только при выборе из нескольких. */
+    /**
+     * Снимает список аудиодорожек с плеера — ВСЕ группы, а не уникальные языки: у тайтла
+     * обычно несколько озвучек одного языка (дубляж, многоголоски разных студий, оригинал),
+     * и оригинальный клиент kino.pub показывает их полным списком. Подписи — из `audios[]`
+     * ответа API (язык · тип · студия); селектор показываем только при выборе из нескольких.
+     */
     private fun updateAudioTracks(tracks: Tracks) {
-        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
-        val options = audioGroups
-            .map { group -> group.getTrackFormat(0).language }
-            .distinct()
-            .map { code -> AudioOption(audioDisplay(code), code) }
-        val selectedLang = audioGroups.firstOrNull { it.isSelected }?.getTrackFormat(0)?.language
+        audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        val apiAudios = selectedTrack?.audios.orEmpty()
+        val options = audioGroups.mapIndexed { index, group ->
+            AudioOption(label = audioLabel(index, group, apiAudios), groupIndex = index)
+        }
+        val selectedIndex = audioGroups.indexOfFirst { it.isSelected }
         screenModelScope { _ ->
             updateState {
                 it.copy(
                     audioTracks = if (options.size > 1) options else emptyList(),
-                    currentAudio = audioDisplay(selectedLang),
+                    currentAudio = options.getOrNull(selectedIndex)?.label
+                        ?: options.firstOrNull()?.label.orEmpty(),
                 )
             }
         }
@@ -259,6 +275,10 @@ class PlayerScreenModel(
         const val SEEK_INCREMENT_MS = 10_000L
         const val MILLIS_IN_SECOND = 1000L
 
+        /** Трек маршрута: номер видео + сезон (у фильма сезона нет — совпадения по номеру достаточно). */
+        fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean =
+            number == route.videoId && (route.season <= 0 || seasonNumber == route.season)
+
         /** `watchStatus` из API: 1 — трек досмотрен до конца. */
         const val WATCH_STATUS_FINISHED = 1
 
@@ -285,6 +305,24 @@ class PlayerScreenModel(
             "ukr", "uk" -> "Українська"
             null, "" -> "Оригинал"
             else -> code
+        }
+
+        /**
+         * Подпись дорожки: «2. Русский · Многоголосый · BaibaKo» — как в оригинальном клиенте
+         * kino.pub. Метаданные берём из `audios[]` ответа API, сопоставляя с группой Media3 по
+         * порядку (`audios[].index` 1-based = порядок дорожек в HLS-манифесте): сам манифест
+         * kino.pub кладёт в NAME только код языка, и по нему озвучки неотличимы. Номер в начале
+         * гарантирует уникальность подписи, даже если у двух озвучек совпали студия и тип.
+         */
+        fun audioLabel(groupIndex: Int, group: Tracks.Group, apiAudios: List<AudioTrack>): String {
+            val meta = apiAudios.firstOrNull { it.index == groupIndex + 1 }
+            val language = meta?.lang ?: group.getTrackFormat(0).language
+            val parts = buildList {
+                add(audioDisplay(language))
+                meta?.voiceType?.let { add(it) }
+                meta?.voiceAuthor?.let { add(it) }
+            }.distinct()
+            return "${groupIndex + 1}. ${parts.joinToString(" · ")}"
         }
     }
 }

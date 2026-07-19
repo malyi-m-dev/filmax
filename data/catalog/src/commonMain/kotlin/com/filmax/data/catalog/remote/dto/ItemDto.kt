@@ -128,6 +128,17 @@ data class AudioDto(
     val channels: Int = 2,
     val lang: String? = null,
     val title: String? = null,
+    // Тип озвучки («Многоголосый», «Оригинал») и студия («BaibaKo») — из них оригинальный
+    // клиент kino.pub собирает подписи дорожек в плеере.
+    val type: AudioMetaDto? = null,
+    val author: AudioMetaDto? = null,
+)
+
+/** Пара id+title у типа/автора озвучки. */
+@Serializable
+data class AudioMetaDto(
+    val id: Int = 0,
+    val title: String = "",
 )
 
 @Serializable

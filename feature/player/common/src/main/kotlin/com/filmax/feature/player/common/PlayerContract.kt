@@ -8,8 +8,12 @@ data class StreamQuality(val label: String, val url: String)
 /** Вариант субтитров; [lang] == null означает «Выкл». */
 data class SubtitleOption(val label: String, val lang: String?)
 
-/** Аудиодорожка потока (язык из манифеста); [lang] == null — язык неизвестен. */
-data class AudioOption(val label: String, val lang: String?)
+/**
+ * Аудиодорожка потока. [groupIndex] — индекс аудиогруппы в Media3 `Tracks`: выбор идёт точечным
+ * override, а не «предпочитаемым языком» — у тайтла бывает несколько русских озвучек разных
+ * студий, и по языку они неотличимы.
+ */
+data class AudioOption(val label: String, val groupIndex: Int)
 
 /** Вариант скорости воспроизведения: [value] уходит в ExoPlayer, [label] — на экран. */
 data class SpeedOption(val label: String, val value: Float)

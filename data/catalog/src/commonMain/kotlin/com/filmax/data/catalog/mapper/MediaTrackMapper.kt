@@ -34,9 +34,12 @@ fun VideoFileDto.toDomain() = VideoFile(
 
 fun AudioDto.toDomain() = AudioTrack(
     id = id,
+    index = index,
     lang = lang,
     title = title,
     channels = channels,
+    voiceType = type?.title?.ifBlank { null },
+    voiceAuthor = author?.title?.ifBlank { null },
 )
 
 fun SubtitleDto.toDomain() = SubtitleTrack(
