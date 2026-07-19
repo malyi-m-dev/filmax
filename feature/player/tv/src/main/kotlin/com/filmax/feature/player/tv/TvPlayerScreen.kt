@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -62,13 +65,17 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.zIndex
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvChip
+import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvFocusHalo
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnAccent
@@ -90,18 +97,35 @@ import kotlin.math.roundToInt
 /** Что сейчас ведёт D-pad: транспорт (пауза/перемотка) или ряд настроек под скраббером. */
 private enum class PlayerMode { Transport, Settings }
 
-/** Пункт ряда настроек. Первые четыре открывают поповер выбора, [NextEpisode] — действие сразу. */
+/**
+ * Пункт ряда настроек. Первые четыре открывают поповер выбора, [Episodes] — боковую панель
+ * сезонов и серий, [NextEpisode] — действие сразу.
+ */
 private enum class SettingsAction(val label: String) {
     Quality("Качество"),
     Audio("Аудио"),
     Subtitle("Субтитры"),
     Speed("Скорость"),
+    Episodes("Серии"),
     NextEpisode("Следующая серия"),
 }
 
 /**
+ * Данные боковой панели серий: сезоны с эпизодами, «где мы сейчас» для стартового курсора и
+ * отметки, и колбэк воспроизведения (та же навигация, что у «Следующей серии»).
+ */
+private class EpisodesPanelData(
+    val seasons: List<Pair<Int, List<MediaTrack>>>,
+    val currentTrackId: Int?,
+    val currentSeasonIndex: Int,
+    val currentEpisodeIndex: Int,
+    val onPlayEpisode: (season: Int, videoId: Int) -> Unit,
+)
+
+/**
  * Ряд настроек в терминах текущего кадра композиции: что показываем и что делать по OK.
  * Передаётся обработчику клавиш параметром — [TvPlayerUiState] про [PlayerState] ничего не знает.
+ * [episodes] == null — фильм или навигации по сериям нет: пункта «Серии» в ряду не будет.
  */
 private class PlayerActions(
     val items: List<SettingsAction>,
@@ -109,6 +133,7 @@ private class PlayerActions(
     val selectedIndex: (SettingsAction) -> Int,
     val onSelect: (SettingsAction, String) -> Unit,
     val onNextEpisode: () -> Unit,
+    val episodes: EpisodesPanelData? = null,
 )
 
 /**
@@ -119,6 +144,9 @@ private class PlayerActions(
  * эмулируется индексами, а клавиши разбирает один обработчик: пока открыт поповер, всё уходит
  * в него, и панель не может «зависнуть», когда фокус ушёл мимо списка.
  */
+// Клавиатурный автомат плеера: обработчики слоёв (транспорт/настройки/поповер/панель серий) и
+// есть его API — дробить их по классам значило бы разорвать одну раскладку пульта на куски.
+@Suppress("TooManyFunctions")
 @Stable
 private class TvPlayerUiState(val player: Player) {
 
@@ -130,6 +158,11 @@ private class TvPlayerUiState(val player: Player) {
     var submenu by mutableStateOf<SettingsAction?>(null)
     var settingsCursor by mutableIntStateOf(0)
     var submenuCursor by mutableIntStateOf(0)
+
+    /** Открыта ли боковая панель серий; курсоры — выбранный сезон и серия внутри него. */
+    var episodesOpen by mutableStateOf(false)
+    var episodesSeasonCursor by mutableIntStateOf(0)
+    var episodesCursor by mutableIntStateOf(0)
 
     /** Индикатор шага последней перемотки («+30 с»); гаснет сам. */
     var seekLabel by mutableStateOf<String?>(null)
@@ -156,7 +189,7 @@ private class TvPlayerUiState(val player: Player) {
      * и в настройках он остаётся на экране (правило armHide из макета).
      */
     val idleHidesOverlay: Boolean
-        get() = visible && isPlaying && mode == PlayerMode.Transport && submenu == null
+        get() = visible && isPlaying && mode == PlayerMode.Transport && submenu == null && !episodesOpen
 
     /** Было действие пользователя: оверлей на экран, таймер автоскрытия — с нуля. */
     fun touch() {
@@ -170,9 +203,45 @@ private class TvPlayerUiState(val player: Player) {
      * не ставя на паузу. Неизвестные клавиши не трогаем — иначе съедим громкость и системные.
      */
     fun onKey(key: Key, menu: PlayerActions): Boolean = when {
+        episodesOpen -> onEpisodesKey(key, menu)
         submenu != null -> onSubmenuKey(key, menu)
         mode == PlayerMode.Settings -> onSettingsKey(key, menu)
         else -> onTransportKey(key, menu)
+    }
+
+    /**
+     * Панель серий: ↑/↓ — по сериям сезона, ◄/► — соседний сезон (курсор серий — в начало),
+     * OK — играть выбранную. Как и поповер, панель забирает весь ввод, кроме чужих клавиш.
+     */
+    // Та же структура, что у onSubmenuKey: ветка «клавиша не наша» обязана вернуть false.
+    @Suppress("ReturnCount")
+    private fun onEpisodesKey(key: Key, menu: PlayerActions): Boolean {
+        val panel = menu.episodes ?: return false
+        val episodes = panel.seasons.getOrNull(episodesSeasonCursor)?.second.orEmpty()
+
+        fun switchSeason(delta: Int) {
+            val next = (episodesSeasonCursor + delta).coerceIn(0, panel.seasons.lastIndex)
+            if (next != episodesSeasonCursor) {
+                episodesSeasonCursor = next
+                episodesCursor = 0
+            }
+        }
+
+        when (key) {
+            Key.DirectionUp -> episodesCursor = (episodesCursor - 1).coerceAtLeast(0)
+            Key.DirectionDown -> episodesCursor = (episodesCursor + 1).coerceAtMost(episodes.lastIndex)
+            Key.DirectionLeft -> switchSeason(-1)
+            Key.DirectionRight -> switchSeason(+1)
+            Key.DirectionCenter, Key.Enter -> {
+                episodes.getOrNull(episodesCursor)?.let { episode ->
+                    panel.onPlayEpisode(episode.seasonNumber, episode.number)
+                }
+                episodesOpen = false
+            }
+            else -> return false
+        }
+        touch()
+        return true
     }
 
     // Три выхода вместо двух: ветка «клавиша не наша» обязана вернуть false, иначе плеер
@@ -234,6 +303,12 @@ private class TvPlayerUiState(val player: Player) {
     fun activate(action: SettingsAction, menu: PlayerActions) {
         when (action) {
             SettingsAction.NextEpisode -> menu.onNextEpisode()
+            // Панель открывается на играющей сейчас серии — переключить на соседнюю быстрее всего.
+            SettingsAction.Episodes -> menu.episodes?.let { panel ->
+                episodesSeasonCursor = panel.currentSeasonIndex
+                episodesCursor = panel.currentEpisodeIndex
+                episodesOpen = true
+            }
             else -> {
                 submenu = action
                 submenuCursor = menu.selectedIndex(action)
@@ -243,11 +318,16 @@ private class TvPlayerUiState(val player: Player) {
     }
 
     /**
-     * «Назад» закрывает ровно один слой и не более: поповер → ряд настроек → выход. Скрытие
-     * оверлея слоем НЕ считается — прятать за ним выход значило бы четыре нажатия вместо одного.
-     * Возвращает false, если закрывать больше нечего (тогда экран выходит из плеера).
+     * «Назад» закрывает ровно один слой и не более: панель серий/поповер → ряд настроек → выход.
+     * Скрытие оверлея слоем НЕ считается — прятать за ним выход значило бы четыре нажатия вместо
+     * одного. Возвращает false, если закрывать больше нечего (тогда экран выходит из плеера).
      */
     fun back(): Boolean = when {
+        episodesOpen -> {
+            episodesOpen = false
+            touch()
+            true
+        }
         submenu != null -> {
             submenu = null
             touch()
@@ -306,57 +386,121 @@ private class TvPlayerUiState(val player: Player) {
 }
 
 /**
- * TV-Плеер: видеоповерхность ExoPlayer и оверлей под пульт поверх неё.
+ * Аргументы TV-плеера из маршрута — группой (detekt LongParameterList).
  *
- * [videoId] — эпизод из маршрута, нужен для подстроки «Сезон 2 · Серия 5» и «Следующей серии».
- * [onPlayEpisode] задаёт граф навигации: следующая серия — это новый экран плеера с новым
- * [PlayerScreenModel], а не подмена MediaItem (иначе прогресс писался бы в предыдущую серию).
+ * [videoId] и [season] — эпизод, нужны для подстроки «Сезон 2 · Серия 5», панели серий и
+ * «Следующей серии». [onPlayEpisode] задаёт граф навигации: другая серия — это новый экран
+ * плеера с новым [PlayerScreenModel], а не подмена MediaItem (иначе прогресс писался бы в
+ * предыдущую серию).
  */
+data class TvPlayerNav(
+    val videoId: Int = -1,
+    val season: Int = -1,
+    val onPlayEpisode: ((season: Int, videoId: Int) -> Unit)? = null,
+)
+
+/** TV-Плеер: видеоповерхность ExoPlayer и оверлей под пульт поверх неё. */
 @Composable
 fun TvPlayerScreen(
     onBack: () -> Unit,
+    nav: TvPlayerNav,
     modifier: Modifier = Modifier,
-    videoId: Int = -1,
-    onPlayEpisode: ((videoId: Int) -> Unit)? = null,
     screenModel: PlayerScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
     val ui = remember(screenModel.player) { TvPlayerUiState(screenModel.player) }
 
-    // Играющий трек ищем так же, как модель: нет совпадения по videoId — это фильм/первый трек.
+    // Играющий трек ищем так же, как модель: номер видео + сезон (номер уникален только внутри
+    // сезона); нет совпадения — это фильм/первый трек.
     val tracks = state.item?.tracklist.orEmpty()
-    val trackIndex = tracks.indexOfFirst { it.id == videoId }.coerceAtLeast(0)
+    val trackIndex = tracks
+        .indexOfFirst { it.number == nav.videoId && (nav.season <= 0 || it.seasonNumber == nav.season) }
+        .coerceAtLeast(0)
     val track = tracks.getOrNull(trackIndex)
     val nextTrack = tracks.getOrNull(trackIndex + 1)
 
-    val subtitle = when {
-        track == null -> ""
-        track.seasonNumber > 0 -> "Сезон ${track.seasonNumber} · Серия ${track.number}"
-        tracks.size > 1 -> "Серия ${track.number}"
-        else -> listOfNotNull(state.item?.year?.takeIf { it > 0 }?.toString(), state.currentQuality)
-            .joinToString(" · ")
+    // Панель серий есть только у сериала и только когда граф дал навигацию по сериям.
+    val episodesPanel = remember(tracks, track, nav.onPlayEpisode) {
+        episodesPanelData(tracks, track, nav.onPlayEpisode)
     }
-
-    // Настройку показываем только там, где реально есть из чего выбрать.
-    val menu = PlayerActions(
-        items = buildList {
-            if (state.qualities.size > 1) add(SettingsAction.Quality)
-            if (state.audioTracks.size > 1) add(SettingsAction.Audio)
-            if (state.subtitles.size > 1) add(SettingsAction.Subtitle)
-            // Скорость доступна всегда — набор фиксированный, выбирать есть из чего.
-            add(SettingsAction.Speed)
-            if (nextTrack != null && onPlayEpisode != null) add(SettingsAction.NextEpisode)
-        },
-        options = { action -> action.options(state) },
-        selectedIndex = { action -> action.options(state).indexOf(action.selected(state)).coerceAtLeast(0) },
-        onSelect = { action, label -> action.toEvent(label)?.let(screenModel::dispatch) },
-        onNextEpisode = { nextTrack?.let { next -> onPlayEpisode?.invoke(next.id) } },
+    val menu = playerMenu(
+        state = state,
+        episodesPanel = episodesPanel,
+        nextTrack = nextTrack,
+        nav = nav,
+        dispatch = screenModel::dispatch,
     )
 
     PlayerEffects(ui = ui, screenModel = screenModel)
     BackHandler { if (!ui.back()) onBack() }
 
-    PlayerContent(ui = ui, state = state, menu = menu, subtitle = subtitle, modifier = modifier)
+    PlayerContent(
+        ui = ui,
+        state = state,
+        menu = menu,
+        subtitle = playerSubtitle(state, track, tracks.size),
+        modifier = modifier,
+    )
+}
+
+/** Подстрока шапки: «Сезон 2 · Серия 5» у сериала, «год · качество» у фильма. */
+private fun playerSubtitle(state: PlayerState, track: MediaTrack?, tracksCount: Int): String = when {
+    track == null -> ""
+    track.seasonNumber > 0 -> "Сезон ${track.seasonNumber} · Серия ${track.number}"
+    tracksCount > 1 -> "Серия ${track.number}"
+    else -> listOfNotNull(state.item?.year?.takeIf { it > 0 }?.toString(), state.currentQuality)
+        .joinToString(" · ")
+}
+
+/** Ряд настроек кадра: пункт показываем только там, где реально есть из чего выбрать. */
+private fun playerMenu(
+    state: PlayerState,
+    episodesPanel: EpisodesPanelData?,
+    nextTrack: MediaTrack?,
+    nav: TvPlayerNav,
+    dispatch: (PlayerEvent) -> Unit,
+): PlayerActions = PlayerActions(
+    items = buildList {
+        if (state.qualities.size > 1) add(SettingsAction.Quality)
+        if (state.audioTracks.size > 1) add(SettingsAction.Audio)
+        if (state.subtitles.size > 1) add(SettingsAction.Subtitle)
+        // Скорость доступна всегда — набор фиксированный, выбирать есть из чего.
+        add(SettingsAction.Speed)
+        if (episodesPanel != null) add(SettingsAction.Episodes)
+        if (nextTrack != null && nav.onPlayEpisode != null) add(SettingsAction.NextEpisode)
+    },
+    options = { action -> action.options(state) },
+    selectedIndex = { action -> action.options(state).indexOf(action.selected(state)).coerceAtLeast(0) },
+    onSelect = { action, label -> action.toEvent(label)?.let(dispatch) },
+    onNextEpisode = { nextTrack?.let { next -> nav.onPlayEpisode?.invoke(next.seasonNumber, next.number) } },
+    episodes = episodesPanel,
+)
+
+/**
+ * Данные панели серий из плейлиста: сезоны отсортированы, стартовый курсор — играющая серия.
+ * null — фильм (один трек) или граф не дал [onPlayEpisode].
+ */
+private fun episodesPanelData(
+    tracks: List<MediaTrack>,
+    track: MediaTrack?,
+    onPlayEpisode: ((season: Int, videoId: Int) -> Unit)?,
+): EpisodesPanelData? {
+    if (tracks.size < 2 || onPlayEpisode == null) return null
+    val seasons = tracks
+        .groupBy { it.seasonNumber }
+        .toSortedMap()
+        .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
+    val seasonIndex = seasons.indexOfFirst { it.first == track?.seasonNumber }.coerceAtLeast(0)
+    val episodeIndex = seasons.getOrNull(seasonIndex)?.second.orEmpty()
+        .indexOfFirst { it.id == track?.id }
+        .coerceAtLeast(0)
+    return EpisodesPanelData(
+        seasons = seasons,
+        currentTrackId = track?.id,
+        currentSeasonIndex = seasonIndex,
+        currentEpisodeIndex = episodeIndex,
+        onPlayEpisode = onPlayEpisode,
+    )
 }
 
 /** Тики и таймеры плеера: прогресс/SaveProgress, подтверждение скраба, автоскрытие оверлея. */
@@ -506,15 +650,28 @@ private fun PlayerOverlay(
 
         PlayerTransport(ui = ui, menu = menu, modifier = Modifier.align(Alignment.BottomCenter))
 
+        // Поповер выбора — по центру кадра: у края он терялся, взгляд при выборе смотрит в центр.
         ui.submenu?.let { category ->
             SettingsPopover(
                 action = category,
                 state = state,
                 cursor = ui.submenuCursor,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = TvMetrics.SafeHorizontal, bottom = PopoverBottom),
+                modifier = Modifier.align(Alignment.Center),
             )
+        }
+
+        // Панель серий — ровно по центру экрана, как и поповеры: у края она терялась.
+        if (ui.episodesOpen) {
+            menu.episodes?.let { panel ->
+                EpisodesPanel(
+                    panel = panel,
+                    seasonCursor = ui.episodesSeasonCursor,
+                    episodeCursor = ui.episodesCursor,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(vertical = 20.dp),
+                )
+            }
         }
     }
 }
@@ -562,7 +719,7 @@ private fun PlayerTopBar(title: String, subtitle: String, modifier: Modifier = M
 @Composable
 private fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: Modifier = Modifier) {
     val hint = when {
-        menu.items.contains(SettingsAction.NextEpisode) -> "↓ настройки и следующая серия · ↕ показать прогресс"
+        menu.items.contains(SettingsAction.Episodes) -> "↓ настройки и серии · ↕ показать прогресс"
         menu.items.isNotEmpty() -> "↓ настройки · ↕ показать прогресс"
         else -> "↕ показать прогресс"
     }
@@ -583,7 +740,13 @@ private fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: 
             active = ui.isScrubbing,
             modifier = Modifier.fillMaxWidth(),
         )
-        TransportHints(isPlaying = ui.isPlaying, modifier = Modifier.padding(top = 16.dp))
+        TransportHints(
+            isPlaying = ui.isPlaying,
+            // Виртуальный фокус транспорта: пока не перематываем и не в настройках — «работаем»
+            // с кнопкой паузы; при перемотке фокус-кольцо переезжает на thumb скраббера.
+            focused = ui.mode == PlayerMode.Transport && !ui.isScrubbing,
+            modifier = Modifier.padding(top = 16.dp),
+        )
         Text(
             hint,
             style = MaterialTheme.typography.labelSmall,
@@ -649,7 +812,6 @@ private fun RowScope.ScrubTrack(fraction: Float, active: Boolean) {
     ) {
         val density = LocalDensity.current
         val trackPx = with(density) { maxWidth.toPx() }
-        val haloPx = with(density) { haloSize.toPx() }
 
         Box(
             Modifier
@@ -667,32 +829,44 @@ private fun RowScope.ScrubTrack(fraction: Float, active: Boolean) {
                 .clip(CircleShape)
                 .background(TvAccent),
         )
-        // Ореол вокруг thumb: белая точка на светлом кадре иначе теряется.
+        // Кольцо фокуса вокруг thumb при перемотке: видно, что сейчас «в руках» именно прогресс.
+        val ringSize = haloSize + ScrubFocusRingExtra
+        val ringPx = with(density) { ringSize.toPx() }
         Box(
             Modifier
                 .align(Alignment.CenterStart)
-                .offset { IntOffset((fraction * trackPx - haloPx / 2f).roundToInt(), 0) }
-                .size(haloSize)
+                .offset { IntOffset((fraction * trackPx - ringPx / 2f).roundToInt(), 0) }
+                .size(ringSize)
                 .clip(CircleShape)
-                .background(TvFocusHalo),
+                .background(if (active) TvFocus else TvFocus.copy(alpha = 0f)),
             contentAlignment = Alignment.Center,
         ) {
+            // Ореол вокруг thumb: белая точка на светлом кадре иначе теряется.
             Box(
                 Modifier
-                    .size(thumbSize)
+                    .size(haloSize)
                     .clip(CircleShape)
-                    .background(TvAccent),
-            )
+                    .background(TvFocusHalo),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(thumbSize)
+                        .clip(CircleShape)
+                        .background(TvAccent),
+                )
+            }
         }
     }
 }
 
 /**
  * Подсказки транспорта. Это именно подсказки, а не кнопки: перемотку и паузу ведёт D-pad,
- * фокусу тут ходить не по чему.
+ * фокусу тут ходить не по чему. [focused] — виртуальный фокус транспорта на кнопке OK:
+ * белое кольцо с тёмным зазором (белая рамка на белой кнопке иначе не видна, как у TvButton).
  */
 @Composable
-private fun TransportHints(isPlaying: Boolean, modifier: Modifier = Modifier) {
+private fun TransportHints(isPlaying: Boolean, focused: Boolean, modifier: Modifier = Modifier) {
     Row(
         modifier,
         horizontalArrangement = Arrangement.spacedBy(26.dp),
@@ -705,17 +879,33 @@ private fun TransportHints(isPlaying: Boolean, modifier: Modifier = Modifier) {
         ) {
             Box(
                 Modifier
-                    .size(50.dp)
+                    .size(PauseFocusOuter)
                     .clip(CircleShape)
-                    .background(TvAccent),
+                    .background(if (focused) TvFocus else TvFocus.copy(alpha = 0f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = null,
-                    tint = TvOnAccent,
-                    modifier = Modifier.size(22.dp),
-                )
+                Box(
+                    Modifier
+                        .size(PauseFocusInner)
+                        .clip(CircleShape)
+                        .background(if (focused) TvFocusHalo else TvFocusHalo.copy(alpha = 0f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(TvAccent),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = TvOnAccent,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
             }
             Text(
                 if (isPlaying) "OK — пауза" else "OK — смотреть",
@@ -775,6 +965,9 @@ private fun SettingsBar(ui: TvPlayerUiState, menu: PlayerActions, modifier: Modi
                 },
                 modifier = Modifier
                     .focusProperties { canFocus = false }
+                    // Чип-курсор поверх соседей: увеличенный масштабом чип иначе уходил ПОД
+                    // следующий по порядку отрисовки.
+                    .zIndex(if (isCursor) 1f else 0f)
                     .scale(if (isCursor) CURSOR_CHIP_SCALE else 1f),
             )
         }
@@ -841,6 +1034,166 @@ private fun SettingsRow(label: String, highlighted: Boolean, current: Boolean) {
     }
 }
 
+// ─────────────────────────── Панель серий ───────────────────────────
+
+/**
+ * Боковая панель сезонов и серий. Рядов-кнопок с фокусом здесь нет — как и всюду в плеере,
+ * курсор ведёт обработчик клавиш: подсветка — [episodeCursor], сезон меняется ◄/►.
+ * У каждой серии — полоса просмотра (как в «Моё») и отметка «Сейчас» у играющей.
+ */
+@Composable
+private fun EpisodesPanel(
+    panel: EpisodesPanelData,
+    seasonCursor: Int,
+    episodeCursor: Int,
+    modifier: Modifier = Modifier,
+) {
+    val season = panel.seasons.getOrNull(seasonCursor) ?: return
+    val listState = rememberLazyListState()
+    // Курсор всегда в кадре: список едет за клавишами, включая стартовую позицию «Сейчас».
+    LaunchedEffect(seasonCursor, episodeCursor) { listState.animateScrollToItem(episodeCursor) }
+
+    Column(
+        modifier
+            .width(EpisodesPanelWidth)
+            .clip(TvMetrics.PanelShape)
+            .background(TvSurfaceContainer.copy(alpha = 0.97f))
+            .border(1.dp, TvSurfaceContainerHighest, TvMetrics.PanelShape)
+            .padding(14.dp),
+    ) {
+        EpisodesPanelHeader(
+            seasonNumber = season.first,
+            hasPrev = seasonCursor > 0,
+            hasNext = seasonCursor < panel.seasons.lastIndex,
+        )
+        Text(
+            "◄ ► сезон · OK — смотреть",
+            style = MaterialTheme.typography.labelSmall,
+            color = TvOnSurfaceDim,
+            modifier = Modifier.padding(top = 3.dp, start = 8.dp),
+        )
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.padding(top = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            itemsIndexed(season.second, key = { _, episode -> episode.id }) { index, episode ->
+                EpisodePanelRow(
+                    episode = episode,
+                    highlighted = index == episodeCursor,
+                    isCurrent = episode.id == panel.currentTrackId,
+                )
+            }
+        }
+    }
+}
+
+/** Шапка панели: «Сезон N» и стрелки-подсказки только в те стороны, где сезоны есть. */
+@Composable
+private fun EpisodesPanelHeader(seasonNumber: Int, hasPrev: Boolean, hasNext: Boolean) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            "‹",
+            style = MaterialTheme.typography.titleMedium,
+            color = if (hasPrev) TvOnSurface else TvSurfaceContainerHighest,
+        )
+        Text(
+            if (seasonNumber > 0) "Сезон $seasonNumber" else "Серии",
+            style = MaterialTheme.typography.titleMedium,
+            color = TvOnSurface,
+        )
+        Text(
+            "›",
+            style = MaterialTheme.typography.titleMedium,
+            color = if (hasNext) TvOnSurface else TvSurfaceContainerHighest,
+        )
+    }
+}
+
+/** [highlighted] — под курсором, [isCurrent] — серия, которая играет сейчас. Это разные вещи. */
+@Composable
+private fun EpisodePanelRow(episode: MediaTrack, highlighted: Boolean, isCurrent: Boolean) {
+    val contentColor = if (highlighted) TvOnAccent else TvOnSurface
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .background(if (highlighted) TvAccent else TvSurface.copy(alpha = 0f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                "${episode.number}. ${episode.title.ifBlank { "Серия ${episode.number}" }}",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = if (highlighted) FontWeight.Bold else FontWeight.Normal,
+                color = contentColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Text(
+                text = if (isCurrent) "Сейчас" else episodeDurationLabel(episode),
+                style = MaterialTheme.typography.labelSmall,
+                color = when {
+                    isCurrent && highlighted -> TvOnAccent
+                    isCurrent -> TvAccent
+                    highlighted -> TvOnAccent
+                    else -> TvOnSurfaceVariant
+                },
+                modifier = Modifier.padding(start = 10.dp),
+            )
+        }
+        EpisodeWatchBar(episode = episode, highlighted = highlighted)
+    }
+}
+
+/**
+ * Полоса просмотра серии — как на карточках «Моё»: трек виден у КАЖДОЙ серии (у непросмотренной
+ * он пустой), заполнение — сколько досмотрено. Так список читается как история просмотра.
+ */
+@Composable
+private fun EpisodeWatchBar(episode: MediaTrack, highlighted: Boolean) {
+    val fraction = episodeWatchFraction(episode)
+    val barColor = if (highlighted) TvOnAccent else TvAccent
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 7.dp)
+            .height(3.dp)
+            .clip(CircleShape)
+            .background(barColor.copy(alpha = 0.25f)),
+    ) {
+        if (fraction > 0f) {
+            Box(
+                Modifier
+                    .fillMaxWidth(fraction)
+                    .height(3.dp)
+                    .background(barColor),
+            )
+        }
+    }
+}
+
+/** Доля просмотра серии: досмотренная — всегда полная полоса, даже если время чуть меньше конца. */
+private fun episodeWatchFraction(episode: MediaTrack): Float = when {
+    episode.watchStatus == WATCH_STATUS_FINISHED -> 1f
+    episode.durationSeconds > 0 -> (episode.watchedSeconds.toFloat() / episode.durationSeconds).coerceIn(0f, 1f)
+    else -> 0f
+}
+
+private fun episodeDurationLabel(episode: MediaTrack): String =
+    episode.durationSeconds.takeIf { it > 0 }?.let { "${it / SECONDS_IN_MINUTE} мин" }.orEmpty()
+
 /** Заголовок поповера: у «Аудио» он длиннее, чем подпись чипа. */
 private val SettingsAction.menuTitle: String
     get() = when (this) {
@@ -848,7 +1201,7 @@ private val SettingsAction.menuTitle: String
         SettingsAction.Audio -> "Аудиодорожка"
         SettingsAction.Subtitle -> "Субтитры"
         SettingsAction.Speed -> "Скорость"
-        SettingsAction.NextEpisode -> ""
+        SettingsAction.Episodes, SettingsAction.NextEpisode -> ""
     }
 
 private fun SettingsAction.options(state: PlayerState): List<String> = when (this) {
@@ -856,7 +1209,7 @@ private fun SettingsAction.options(state: PlayerState): List<String> = when (thi
     SettingsAction.Audio -> state.audioTracks.map { it.label }
     SettingsAction.Subtitle -> state.subtitles.map { it.label }
     SettingsAction.Speed -> PlaybackSpeeds.labels
-    SettingsAction.NextEpisode -> emptyList()
+    SettingsAction.Episodes, SettingsAction.NextEpisode -> emptyList()
 }
 
 private fun SettingsAction.selected(state: PlayerState): String = when (this) {
@@ -864,7 +1217,7 @@ private fun SettingsAction.selected(state: PlayerState): String = when (this) {
     SettingsAction.Audio -> state.currentAudio
     SettingsAction.Subtitle -> state.currentSubtitle
     SettingsAction.Speed -> PlaybackSpeeds.labelFor(state.currentSpeed)
-    SettingsAction.NextEpisode -> ""
+    SettingsAction.Episodes, SettingsAction.NextEpisode -> ""
 }
 
 private fun SettingsAction.toEvent(label: String): PlayerEvent? = when (this) {
@@ -872,7 +1225,7 @@ private fun SettingsAction.toEvent(label: String): PlayerEvent? = when (this) {
     SettingsAction.Audio -> PlayerEvent.SelectAudio(label)
     SettingsAction.Subtitle -> PlayerEvent.SelectSubtitle(label)
     SettingsAction.Speed -> PlaybackSpeeds.valueFor(label)?.let { PlayerEvent.SetSpeed(it) }
-    SettingsAction.NextEpisode -> null
+    SettingsAction.Episodes, SettingsAction.NextEpisode -> null
 }
 
 private fun formatSeekLabel(direction: Int, stepSec: Int): String =
@@ -913,10 +1266,24 @@ private const val CURSOR_CHIP_SCALE = 1.3f
 /** Лестница разгона перемотки (секунды): шаг растёт, пока пользователь давит стрелку. */
 private val SEEK_STEPS_SEC = listOf(10, 10, 20, 30, 60, 90, 120)
 
+/** Ширина боковой панели серий. */
+private val EpisodesPanelWidth = 330.dp
+
+/** `watching.status` из API: 1 — серия досмотрена до конца. */
+private const val WATCH_STATUS_FINISHED = 1
+
+private const val SECONDS_IN_MINUTE = 60
+
 private val ScrubTrackHeight = 6.dp
 private val ScrubTrackHeightActive = 9.dp
 private val ScrubThumb = 15.dp
 private val ScrubThumbActive = 24.dp
 private val ScrubThumbHalo = 24.dp
 private val ScrubThumbHaloActive = 38.dp
-private val PopoverBottom = 120.dp
+
+/** Насколько кольцо фокуса при перемотке шире тёмного ореола thumb. */
+private val ScrubFocusRingExtra = 6.dp
+
+/** Кольца виртуального фокуса кнопки OK: белое снаружи (62) и тёмный зазор (56) вокруг круга 50. */
+private val PauseFocusOuter = 62.dp
+private val PauseFocusInner = 56.dp

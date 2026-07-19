@@ -4,6 +4,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.filmax.feature.player.common.navigation.PlayerRoute
+import com.filmax.feature.player.tv.TvPlayerNav
 import com.filmax.feature.player.tv.TvPlayerScreen
 
 /**
@@ -17,14 +18,22 @@ import com.filmax.feature.player.tv.TvPlayerScreen
  */
 fun NavGraphBuilder.tvPlayerScreen(
     onBack: () -> Unit,
-    onPlayEpisode: ((itemId: Int, videoId: Int) -> Unit)? = null,
+    onPlayEpisode: ((itemId: Int, season: Int, videoId: Int) -> Unit)? = null,
 ) {
     composable<PlayerRoute> { entry ->
         val route = entry.toRoute<PlayerRoute>()
+
+        // Локальная функция вместо лямбды-в-лямбде: экрану нужен колбэк без itemId (он у маршрута).
+        fun playEpisode(season: Int, videoId: Int) {
+            onPlayEpisode?.invoke(route.itemId, season, videoId)
+        }
         TvPlayerScreen(
             onBack = onBack,
-            videoId = route.videoId,
-            onPlayEpisode = onPlayEpisode?.let { play -> { videoId -> play(route.itemId, videoId) } },
+            nav = TvPlayerNav(
+                videoId = route.videoId,
+                season = route.season,
+                onPlayEpisode = onPlayEpisode?.let { ::playEpisode },
+            ),
         )
     }
 }
