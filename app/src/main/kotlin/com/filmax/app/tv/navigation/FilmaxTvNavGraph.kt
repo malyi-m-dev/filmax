@@ -43,7 +43,6 @@ import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.common.navigation.TrailerRoute
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.player.tv.navigation.tvTrailerScreen
-import com.filmax.feature.profile.tv.navigation.TvDeviceSettingsRoute
 import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.common.navigation.FilmographyRoute
@@ -157,7 +156,9 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
 
     tvHomeScreen(
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
-        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+        onPlay = { itemId, season, videoId ->
+            navController.navigate(PlayerRoute(itemId, videoId, season))
+        },
         onOpenCollection = { id, title ->
             navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
         },
@@ -166,21 +167,23 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
     // «Подборки» больше не вкладка — это контент внутри Каталога. Экран содержимого
     // подборки остаётся push-экраном: в него ведёт Каталог.
     tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    // Все карточки «Моё» ведут в карточку тайтла — играть оттуда: кнопка «Продолжить · SxEy».
     tvLibraryScreen(
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
-        // «Продолжить» и «История» ведут сразу в плеер, а не в карточку.
-        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
     )
     tvProfileScreen(
         onLogout = {
             navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
         },
-        onOpenDeviceSettings = { navController.navigate(TvDeviceSettingsRoute) },
     )
+    // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
+    // device/info и device/settings на бэкенде отвечают 500.
     tvDeviceSettingsScreen(onBack = { navController.popBackStack() })
 
     tvDetailsScreen(
-        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+        onPlay = { itemId, season, videoId ->
+            navController.navigate(PlayerRoute(itemId, videoId, season))
+        },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
         onOpenPerson = { name, isDirector ->
             navController.navigate(FilmographyRoute(name = name, isDirector = isDirector))
@@ -198,8 +201,8 @@ private fun NavGraphBuilder.tvDestinations(navController: NavHostController) {
         // «Следующая серия» — навигация, а не подмена MediaItem: прогресс пишется в трек,
         // выбранный при старте плеера, и подмена на месте писала бы позицию новой серии
         // в запись предыдущей. popUpTo не копит стек при перещёлкивании серий подряд.
-        onPlayEpisode = { itemId, videoId ->
-            navController.navigate(PlayerRoute(itemId, videoId)) {
+        onPlayEpisode = { itemId, season, videoId ->
+            navController.navigate(PlayerRoute(itemId, videoId, season)) {
                 popUpTo<PlayerRoute> { inclusive = true }
             }
         },

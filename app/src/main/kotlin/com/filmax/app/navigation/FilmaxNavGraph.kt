@@ -41,7 +41,6 @@ import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.common.navigation.TrailerRoute
 import com.filmax.feature.player.mobile.navigation.playerScreen
 import com.filmax.feature.player.mobile.navigation.trailerScreen
-import com.filmax.feature.profile.mobile.navigation.DeviceSettingsRoute
 import com.filmax.feature.profile.mobile.navigation.ProfileRoute
 import com.filmax.feature.profile.mobile.navigation.deviceSettingsScreen
 import com.filmax.feature.profile.mobile.navigation.profileScreen
@@ -157,7 +156,9 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
     homeScreen(
         HomeActions(
             onOpenItem = { navController.navigate(DetailsRoute(it)) },
-            onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+            onPlay = { itemId, season, videoId ->
+                navController.navigate(PlayerRoute(itemId, videoId, season))
+            },
             onOpenCollection = { id, title ->
                 navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
             },
@@ -174,10 +175,9 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
         onBack = { navController.popBackStack() },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
     )
+    // Все карточки «Моё» ведут в карточку тайтла — играть оттуда: кнопка «Продолжить · SxEy».
     libraryScreen(
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
-        // «Продолжить» и «История» ведут сразу в плеер, а не в карточку.
-        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
         onOpenCatalog = { navController.navigateToTab(FilmaxTab.CATALOG) },
     )
     profileScreen(
@@ -186,19 +186,23 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
                 popUpTo(HomeRoute) { inclusive = true }
             }
         },
-        onOpenDeviceSettings = { navController.navigate(DeviceSettingsRoute) },
         onOpenDesignSystem = if (BuildConfig.DEBUG) {
             { navController.navigate(DesignSystemRoute) }
         } else {
             null
         },
     )
+    // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
+    // device/info и device/settings на бэкенде отвечают 500.
     deviceSettingsScreen(onBack = { navController.popBackStack() })
 
     detailsScreen(
         onBack = { navController.popBackStack() },
         // videoId — НОМЕР видео (у фильма -1): им же kino.pub принимает и отдаёт прогресс.
-        onPlay = { itemId, videoId -> navController.navigate(PlayerRoute(itemId, videoId)) },
+        // Сезон обязателен: номер уникален только внутри сезона.
+        onPlay = { itemId, season, videoId ->
+            navController.navigate(PlayerRoute(itemId, videoId, season))
+        },
         onOpenItem = { navController.navigate(DetailsRoute(it)) },
         onOpenPerson = { name, isDirector ->
             navController.navigate(FilmographyRoute(name = name, isDirector = isDirector))

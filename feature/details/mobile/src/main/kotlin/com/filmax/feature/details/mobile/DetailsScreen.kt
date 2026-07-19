@@ -88,6 +88,9 @@ import org.koin.androidx.compose.koinViewModel
 /** Фильм играется целиком, без выбора дорожки: плеер ждёт videoId = -1. */
 private const val MOVIE_VIDEO_ID = -1
 
+/** «Сезона нет» — фильм или сезон неизвестен (PlayerRoute.season = -1). */
+private const val NO_SEASON = -1
+
 private const val MINUTES_IN_HOUR = 60
 private const val SECONDS_IN_MINUTE = 60
 
@@ -133,7 +136,7 @@ private fun Item.isSeries(): Boolean =
  */
 data class DetailsNav(
     val onBack: () -> Unit,
-    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     val onOpenItem: (Int) -> Unit,
     /** Тап по актёру/режиссёру -> его фильмография (isDirector различает запрос к API). */
     val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
@@ -165,7 +168,7 @@ fun DetailsScreen(
                 isFav = state.isFav,
                 actions = DetailsActions(
                     onBack = nav.onBack,
-                    onPlay = { videoId -> nav.onPlay(item.id, videoId) },
+                    onPlay = { season, videoId -> nav.onPlay(item.id, season, videoId) },
                     onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
                     onShare = { shareItem(context, item) },
                     onOpenItem = nav.onOpenItem,
@@ -188,7 +191,8 @@ fun DetailsScreen(
 /** Действия экрана — группой, чтобы не раздувать списки параметров вложенных секций. */
 private data class DetailsActions(
     val onBack: () -> Unit,
-    val onPlay: (videoId: Int) -> Unit,
+    /** [season] ≤ 0 — фильм/сезон неизвестен; номер видео уникален только внутри сезона. */
+    val onPlay: (season: Int, videoId: Int) -> Unit,
     val onToggleFav: () -> Unit,
     val onShare: () -> Unit,
     val onOpenItem: (Int) -> Unit,
@@ -281,10 +285,11 @@ private fun DetailsBody(
         actions = DetailsButtonActions(
             onPlay = {
                 // Сериал без серий играть нечем — кнопка молчит, а не открывает пустой плеер.
+                // В плеер уходят номер серии И сезон: номер уникален только внутри сезона.
                 if (series.data == null) {
-                    actions.onPlay(MOVIE_VIDEO_ID)
+                    actions.onPlay(NO_SEASON, MOVIE_VIDEO_ID)
                 } else {
-                    target?.let { actions.onPlay(it.number) }
+                    target?.let { actions.onPlay(it.seasonNumber, it.number) }
                 }
             },
             onToggleFav = actions.onToggleFav,
@@ -724,7 +729,7 @@ private data class EpisodesSectionData(
     val episodes: List<MediaTrack>,
     val selectedSeason: Int,
     val onSelectSeason: (Int) -> Unit,
-    val onPlayEpisode: (videoId: Int) -> Unit,
+    val onPlayEpisode: (season: Int, videoId: Int) -> Unit,
 )
 
 @Composable
@@ -758,7 +763,7 @@ private fun EpisodesSection(data: EpisodesSectionData, modifier: Modifier = Modi
                 EpisodeRow(
                     episode = episode,
                     // Плееру нужен НОМЕР серии (API `video`), а не id трека.
-                    onClick = { data.onPlayEpisode(episode.number) },
+                    onClick = { data.onPlayEpisode(episode.seasonNumber, episode.number) },
                 )
             }
         }
@@ -940,7 +945,7 @@ private fun SimilarSection(similar: List<Item>, onOpenItem: (Int) -> Unit, modif
 private data class SeriesData(
     /** Пары «номер сезона → серии по порядку», отсортированные по номеру сезона. */
     val seasons: List<Pair<Int, List<MediaTrack>>>,
-    /** Эпизод для «продолжить»: в процессе → последний досмотренный → иначе null. */
+    /** Эпизод для «продолжить»: в процессе → следующая после досмотренной → иначе null. */
     val resume: MediaTrack?,
     /** Индекс сезона эпизода «продолжить» в [seasons] (0, если не определён). */
     val resumeSeasonIndex: Int,
@@ -952,12 +957,27 @@ private fun calculateSeriesData(tracklist: List<MediaTrack>): SeriesData {
         .groupBy { it.seasonNumber }
         .toSortedMap()
         .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
-    val resume = tracklist.firstOrNull { it.watchStatus == WATCH_STATUS_IN_PROGRESS }
-        ?: tracklist.lastOrNull { it.watchStatus == WATCH_STATUS_FINISHED }
+    val resume = resumeEpisode(seasons)
     val resumeSeasonIndex = resume
         ?.let { episode -> seasons.indexOfFirst { it.first == episode.seasonNumber }.takeIf { it >= 0 } }
         ?: 0
     return SeriesData(seasons = seasons, resume = resume, resumeSeasonIndex = resumeSeasonIndex)
+}
+
+/**
+ * Точка «продолжить»: недосмотренная серия → СЛЕДУЮЩАЯ после последней досмотренной
+ * («продолжить» — это смотреть дальше, а не пересматривать) → всё досмотрено — последняя
+ * (пересмотр). Порядок — по отсортированным сезонам, а не по сырому tracklist.
+ */
+private fun resumeEpisode(seasons: List<Pair<Int, List<MediaTrack>>>): MediaTrack? {
+    val ordered = seasons.flatMap { (_, episodes) -> episodes }
+    val inProgress = ordered.firstOrNull { it.watchStatus == WATCH_STATUS_IN_PROGRESS }
+    val lastWatched = ordered.indexOfLast { it.watchStatus == WATCH_STATUS_FINISHED }
+    return when {
+        inProgress != null -> inProgress
+        lastWatched >= 0 -> ordered.getOrNull(lastWatched + 1) ?: ordered[lastWatched]
+        else -> null
+    }
 }
 
 /** Мета-строка макета: «Фильм · 2024 · 2 ч 46 мин · США» (у сериала вместо длительности — объём). */

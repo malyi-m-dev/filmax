@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
@@ -27,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
@@ -67,7 +68,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun TvHomeScreen(
     onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     onOpenCollection: (id: Int, title: String) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: HomeScreenModel = koinViewModel(),
@@ -102,7 +103,7 @@ fun TvHomeScreen(
 /** Действия главной одним объектом — как MovieActions в TV-деталях. */
 private data class TvHomeActions(
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     val onOpenCollection: (id: Int, title: String) -> Unit,
     val onReload: () -> Unit,
 )
@@ -134,7 +135,7 @@ private fun TvHomeContent(
                 TvHero(
                     item = hero,
                     // Фильм — единственный трек, эпизод выбирать не из чего: PlayerRoute.videoId = -1.
-                    onPlay = { actions.onPlay(hero.id, NO_VIDEO_ID) },
+                    onPlay = { actions.onPlay(hero.id, NO_SEASON, NO_VIDEO_ID) },
                     onDetails = { actions.onOpenItem(hero.id) },
                 )
             }
@@ -163,17 +164,24 @@ private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions) {
 
 private fun LazyListScope.tvContinueRail(
     history: List<WatchHistory>,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
 ) {
     if (history.isEmpty()) return
     item(key = "continue") {
-        TvRail(title = "Продолжить просмотр") {
-            items(history, key = { it.itemId }) { entry ->
-                // Ряд продолжения ведёт сразу в плеер — на недосмотренный эпизод (videoId из
-                // истории), позицию внутри трека восстановит PlayerScreenModel.
+        TvRail(title = "Продолжить просмотр") { firstItemFocus ->
+            itemsIndexed(history, key = { _, entry -> entry.itemId }) { index, entry ->
+                // Ряд продолжения ведёт сразу в плеер — на недосмотренный эпизод (videoId+сезон
+                // из истории), позицию внутри трека восстановит PlayerScreenModel.
                 TvContinueCard(
                     history = entry,
-                    onClick = { onPlay(entry.itemId, entry.progress?.videoId ?: NO_VIDEO_ID) },
+                    onClick = {
+                        onPlay(
+                            entry.itemId,
+                            entry.progress?.season ?: NO_SEASON,
+                            entry.progress?.videoId ?: NO_VIDEO_ID,
+                        )
+                    },
+                    focusRequester = firstItemFocus.takeIf { index == 0 },
                 )
             }
         }
@@ -188,9 +196,13 @@ private fun LazyListScope.tvPosterRail(
 ) {
     if (railItems.isEmpty()) return
     item(key = key) {
-        TvRail(title = title) {
-            items(railItems, key = { it.id }) { catalogItem ->
-                TvHomePosterCard(item = catalogItem, onClick = { onOpenItem(catalogItem.id) })
+        TvRail(title = title) { firstItemFocus ->
+            itemsIndexed(railItems, key = { _, catalogItem -> catalogItem.id }) { index, catalogItem ->
+                TvHomePosterCard(
+                    item = catalogItem,
+                    onClick = { onOpenItem(catalogItem.id) },
+                    focusRequester = firstItemFocus.takeIf { index == 0 },
+                )
             }
         }
     }
@@ -204,11 +216,12 @@ private fun LazyListScope.tvCollectionsRail(
     val withPoster = collections.filter { it.posterUrl() != null }
     if (withPoster.isEmpty()) return
     item(key = "collections") {
-        TvRail(title = "Подборки") {
-            items(withPoster, key = { it.id }) { collection ->
+        TvRail(title = "Подборки") { firstItemFocus ->
+            itemsIndexed(withPoster, key = { _, collection -> collection.id }) { index, collection ->
                 TvCollectionCard(
                     collection = collection,
                     onClick = { onOpenCollection(collection.id, collection.title) },
+                    focusRequester = firstItemFocus.takeIf { index == 0 },
                 )
             }
         }
@@ -336,13 +349,14 @@ private fun TvHeroMeta(item: Item) {
 // ── Карточки рядов ────────────────────────────────────────────────────────
 
 @Composable
-private fun TvHomePosterCard(item: Item, onClick: () -> Unit) {
+private fun TvHomePosterCard(item: Item, onClick: () -> Unit, focusRequester: FocusRequester?) {
     TvPosterCard(
         title = item.title,
         meta = posterMeta(type = item.type.label(), year = item.year),
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         rating = ratingLabel(item.rating.kinopoisk),
         onClick = onClick,
+        focusRequester = focusRequester,
         posterContent = { url, posterModifier ->
             PosterImage(
                 url = url,
@@ -356,12 +370,13 @@ private fun TvHomePosterCard(item: Item, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TvCollectionCard(collection: Collection, onClick: () -> Unit) {
+private fun TvCollectionCard(collection: Collection, onClick: () -> Unit, focusRequester: FocusRequester?) {
     TvPosterCard(
         title = collection.title,
         meta = null,
         posterUrl = collection.posterUrl().orEmpty(),
         onClick = onClick,
+        focusRequester = focusRequester,
         posterContent = { url, posterModifier ->
             PosterImage(
                 url = url,
@@ -375,7 +390,7 @@ private fun TvCollectionCard(collection: Collection, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TvContinueCard(history: WatchHistory, onClick: () -> Unit) {
+private fun TvContinueCard(history: WatchHistory, onClick: () -> Unit, focusRequester: FocusRequester?) {
     TvProgressCard(
         title = history.title,
         meta = continueMeta(history.progress),
@@ -383,6 +398,7 @@ private fun TvContinueCard(history: WatchHistory, onClick: () -> Unit) {
         posterUrl = history.wideOrPoster,
         progress = history.progress?.fraction ?: 0f,
         onClick = onClick,
+        focusRequester = focusRequester,
         posterContent = { url, posterModifier ->
             PosterImage(
                 url = url,
@@ -411,6 +427,9 @@ private fun TvOfflineBanner(onReload: () -> Unit) {
 
 /** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
 private const val NO_VIDEO_ID = -1
+
+/** `PlayerRoute.season` для фильма/неизвестного сезона. */
+private const val NO_SEASON = -1
 
 /** Больше трёх жанров мета-строка hero не вмещает по ширине [HeroContentWidth]. */
 private const val MAX_HERO_GENRES = 3

@@ -62,7 +62,7 @@ import org.koin.androidx.compose.koinViewModel
  */
 data class HomeActions(
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     val onOpenCollection: (id: Int, title: String) -> Unit,
     val onOpenSearch: () -> Unit,
     val onOpenProfile: () -> Unit,
@@ -136,7 +136,7 @@ private fun HomeFeed(
                 HomeHero(
                     item = hero,
                     // Фильм — единственный трек, эпизод выбирать не из чего.
-                    onPlay = { actions.onPlay(hero.id, NO_VIDEO_ID) },
+                    onPlay = { actions.onPlay(hero.id, NO_SEASON, NO_VIDEO_ID) },
                     onOpenItem = { actions.onOpenItem(hero.id) },
                 )
             }
@@ -167,20 +167,26 @@ private fun LazyListScope.homeRows(state: HomeState, actions: HomeActions) {
 
 private fun LazyListScope.continueRow(
     history: List<WatchHistory>,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
 ) {
     if (history.isEmpty()) return
     item(key = "continue") {
         HomeRow(title = "Продолжить") {
             items(history, key = { it.itemId }) { entry ->
                 // Ряд продолжения ведёт сразу в плеер, минуя детали: недосмотренный эпизод —
-                // videoId из истории, позицию внутри трека восстановит PlayerScreenModel.
+                // videoId+сезон из истории, позицию внутри трека восстановит PlayerScreenModel.
                 FilmaxProgressCard(
                     title = entry.title,
                     meta = continueMeta(entry.progress),
                     posterUrl = entry.wideOrPoster,
                     progress = entry.progress?.fraction ?: 0f,
-                    onClick = { onPlay(entry.itemId, entry.progress?.videoId ?: NO_VIDEO_ID) },
+                    onClick = {
+                        onPlay(
+                            entry.itemId,
+                            entry.progress?.season ?: NO_SEASON,
+                            entry.progress?.videoId ?: NO_VIDEO_ID,
+                        )
+                    },
                 )
             }
         }
@@ -503,6 +509,9 @@ private val HeaderActionGap = 5.5.dp
 
 /** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
 private const val NO_VIDEO_ID = -1
+
+/** `PlayerRoute.season` для фильма/неизвестного сезона. */
+private const val NO_SEASON = -1
 
 /** Больше двух жанров мета-строка hero не вмещает: на 360dp рядом ещё оценка и год. */
 private const val MAX_HERO_GENRES = 2

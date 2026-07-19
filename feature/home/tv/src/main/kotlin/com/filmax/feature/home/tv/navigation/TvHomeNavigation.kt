@@ -10,7 +10,7 @@ object TvHomeRoute
 
 fun NavGraphBuilder.tvHomeScreen(
     onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     onOpenCollection: (id: Int, title: String) -> Unit,
 ) {
     composable<TvHomeRoute> {
