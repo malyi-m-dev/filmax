@@ -2,10 +2,15 @@
 // свой composable, и это правильное дробление; растаскивать их по файлам значило бы разорвать
 // один экран на куски, которые читаются только вместе.
 @file:Suppress("TooManyFunctions")
+// BringIntoViewSpec: единственный способ выключить фокус-прокрутку полотна в hero-стейте.
+@file:OptIn(ExperimentalFoundationApi::class)
 
 package com.filmax.feature.details.tv
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,28 +40,29 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
@@ -94,17 +100,14 @@ private val HeroTextWidth = 600.dp
 /** Максимальная ширина описания и строки состава: длинная строка на 3 метрах не читается. */
 private val ReadableTextWidth = 760.dp
 
-/**
- * Свёрнутая высота hero при прокрутке контента. Не ниже текстового блока (заголовок + мета +
- * рейтинги + кнопки), иначе он бы срезался сверху.
- */
-private val HeroCollapsedHeight = 188.dp
+/** Отступ снизу единого полотна: рамке фокуса последнего ряда нужно место. */
+private val ContentBottomPadding = 70.dp
 
-/** Прокрутка контента, на которой hero сворачивается полностью. */
-private val HeroCollapseDistance = 220.dp
+/** Индекс элемента «описание» в полотне: сюда полотно едет, когда фокус уходит с кнопок вниз. */
+private const val CONTENT_START_INDEX = 1
 
-/** Насколько притухает бэкдроп при полном сворачивании (0..1). */
-private const val BACKDROP_FADE_ON_COLLAPSE = 0.35f
+/** Сколько кадров пропустить перед прокруткой к стейту (см. [rememberHeroFocusScroller]). */
+private const val FRAMES_BEFORE_STATE_SCROLL = 2
 
 /** Ширина карточки актёра и диаметр круглого аватара в ряду «Актёры» (крупнее мобильных — 10-foot UI). */
 private val TvActorCardWidth = 120.dp
@@ -114,6 +117,9 @@ private const val EPISODES_TITLE = "Эпизоды"
 
 /** Фильм играется целиком, без выбора дорожки: плеер ждёт videoId = -1. */
 private const val MOVIE_VIDEO_ID = -1
+
+/** «Сезона нет» — фильм или сезон неизвестен (PlayerRoute.season = -1). */
+private const val NO_SEASON = -1
 
 private const val MAX_META_GENRES = 2
 private const val MINUTES_IN_HOUR = 60
@@ -156,7 +162,7 @@ fun TvDetailsScreen(
                 cast = state.cast,
                 isFav = state.isFav,
                 actions = DetailsActions(
-                    onPlay = { videoId -> nav.onPlay(item.id, videoId) },
+                    onPlay = { season, videoId -> nav.onPlay(item.id, season, videoId) },
                     onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
                     onOpenItem = nav.onOpenItem,
                     onOpenPerson = nav.onOpenPerson,
@@ -172,7 +178,7 @@ fun TvDetailsScreen(
  * больше шести параметров.
  */
 data class TvDetailsNav(
-    val onPlay: (itemId: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     val onOpenItem: (Int) -> Unit,
     /** Тап по актёру/режиссёру -> его фильмография (isDirector различает запрос к API). */
     val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
@@ -182,7 +188,8 @@ data class TvDetailsNav(
 
 /** Действия экрана — группой, чтобы не раздувать списки параметров у вложенных секций. */
 private data class DetailsActions(
-    val onPlay: (videoId: Int) -> Unit,
+    /** [season] ≤ 0 — фильм/сезон неизвестен; номер видео уникален только внутри сезона. */
+    val onPlay: (season: Int, videoId: Int) -> Unit,
     val onToggleFav: () -> Unit,
     val onOpenItem: (Int) -> Unit,
     val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
@@ -204,8 +211,7 @@ private fun DetailsContent(
     val episodes = series?.seasons?.getOrNull(selectedSeason)?.second.orEmpty()
 
     val playFocus = remember { FocusRequester() }
-    // Фокус на «Смотреть» — для пульта. Кнопки живут в ФИКСИРОВАННОМ hero (вне прокрутки), поэтому
-    // bringIntoView под фокус ничего не крутит: постер-бэкдроп всегда виден целиком.
+    // Стартовый фокус — на «Смотреть»: экран открывается в стейте hero.
     LaunchedEffect(item.id) { runCatching { playFocus.requestFocus() } }
 
     // Кнопка играет недосмотренную серию, иначе первую серию ВЫБРАННОГО сезона (у фильма дорожка
@@ -217,64 +223,107 @@ private fun DetailsContent(
     val people = remember(cast, item.cast) { resolveCast(cast, item.cast) }
 
     val listState = rememberLazyListState()
-    val collapse = rememberHeroCollapse(listState)
-    val scope = rememberCoroutineScope()
+    // false = стейт hero (открытие экрана), true = фокус ушёл в контент. Пока полотно в стейте
+    // hero, фокус-прокрутка (bringIntoView) выключена ПОЛНОСТЬЮ: именно она давала подскролл к
+    // середине при открытии — стартовый requestFocus на «Смотреть» уезжал раньше раскладки.
+    val contentFocused = remember { mutableStateOf(false) }
+    val onHeroFocusChanged = rememberHeroFocusScroller(listState, contentFocused)
 
-    Column(Modifier.fillMaxSize().padding(top = TvMetrics.SafeVertical)) {
-        DetailsHero(
-            item = item,
-            series = series,
-            isFav = isFav,
-            collapse = collapse,
-            playback = HeroPlayback(
-                playFocus = playFocus,
-                // Фильм играется целиком (videoId = -1), сериал — конкретной серией. Сериал без
-                // серий играть нечем — кнопка молчит. В плеер уходит НОМЕР серии, а не id трека.
-                onPlay = {
-                    if (series == null) {
-                        actions.onPlay(MOVIE_VIDEO_ID)
-                    } else {
-                        target?.let { actions.onPlay(it.number) }
-                    }
-                },
-                onToggleFav = actions.onToggleFav,
-                // Вернулись на кнопки — контент к началу, hero разжимается полностью.
-                onEnterHero = { scope.launch { listState.animateScrollToItem(0) } },
-                onTrailer = trailerUrl?.let { url -> { actions.onPlayTrailer(url, "Трейлер · ${item.title}") } },
-            ),
-        )
-        DetailsScrollContent(
-            data = DetailsScrollData(item, similar, people, series, episodes, selectedSeason),
-            listState = listState,
-            actions = actions,
-            onSelectSeason = { selectedSeason = it },
-            modifier = Modifier.weight(1f),
-        )
+    // Локальная функция вместо лямбды-в-лямбде (ktlint Wrapping): у тайтла без трейлера кнопки нет.
+    fun playTrailer() {
+        trailerUrl?.let { url -> actions.onPlayTrailer(url, "Трейлер · ${item.title}") }
+    }
+
+    CompositionLocalProvider(
+        LocalBringIntoViewSpec provides
+            if (contentFocused.value) LocalBringIntoViewSpec.current else NoFocusScroll,
+    ) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(top = TvMetrics.SafeVertical, bottom = ContentBottomPadding),
+        ) {
+            item(key = "hero") {
+                DetailsHero(
+                    item = item,
+                    series = series,
+                    isFav = isFav,
+                    playback = HeroPlayback(
+                        playFocus = playFocus,
+                        // Фильм играется целиком (videoId = -1), сериал — конкретной серией. Сериал
+                        // без серий играть нечем — кнопка молчит. В плеер уходят НОМЕР серии и
+                        // СЕЗОН: номер уникален только внутри сезона.
+                        onPlay = {
+                            if (series == null) {
+                                actions.onPlay(NO_SEASON, MOVIE_VIDEO_ID)
+                            } else {
+                                target?.let { actions.onPlay(it.seasonNumber, it.number) }
+                            }
+                        },
+                        onToggleFav = actions.onToggleFav,
+                        onHeroFocusChanged = onHeroFocusChanged,
+                        onTrailer = trailerUrl?.let { ::playTrailer },
+                    ),
+                )
+            }
+            detailsSections(
+                data = DetailsSectionsData(item, similar, people, series, episodes, selectedSeason),
+                actions = actions,
+                onSelectSeason = { selectedSeason = it },
+            )
+        }
     }
 }
 
 /**
- * Доля свёрнутости hero из прокрутки контента: 0 у верха, 1 — когда контент проскроллен на
- * [HeroCollapseDistance] или первый элемент уже уехал. Отдельный помощник — чтобы [DetailsContent]
- * не разрастался.
+ * Переключатель двух стейтов полотна по фокусу кнопок hero. Стейт 1: фокус на кнопках —
+ * полотно к началу, hero виден целиком (плюс описание под ним). Стейт 2: фокус ушёл с кнопок
+ * вниз — полотно едет к описанию, hero скрывается прокруткой. Всё это ОДИН LazyColumn:
+ * ничего не накладывается и не режется. Начальная композиция (фокуса ещё не было) — не выход.
  */
 @Composable
-private fun rememberHeroCollapse(listState: LazyListState): Float {
-    val distancePx = with(LocalDensity.current) { HeroCollapseDistance.toPx() }
-    val collapse by remember(distancePx) {
-        derivedStateOf {
-            if (listState.firstVisibleItemIndex > 0) {
-                1f
-            } else {
-                (listState.firstVisibleItemScrollOffset / distancePx).coerceIn(0f, 1f)
-            }
+private fun rememberHeroFocusScroller(
+    listState: LazyListState,
+    contentFocused: MutableState<Boolean>,
+): (Boolean) -> Unit {
+    val scope = rememberCoroutineScope()
+    var heroHadFocus by remember { mutableStateOf(false) }
+
+    // Прокрутка к стейту — через кадр: смена фокуса в этом же кадре запускает системный
+    // bringIntoView, и без паузы он перехватывал бы нашу прокрутку (полотно застревало на
+    // полпути, верх постера оставался срезанным). Более поздний вызов забирает scroll-мьютекс
+    // списка себе — поэтому пропускаем кадры и едем к цели последними.
+    fun scrollAfterFrame(targetIndex: Int) {
+        scope.launch {
+            repeat(FRAMES_BEFORE_STATE_SCROLL) { withFrameNanos { } }
+            listState.animateScrollToItem(targetIndex)
         }
     }
-    return collapse
+
+    return { focused ->
+        if (focused) {
+            heroHadFocus = true
+            contentFocused.value = false
+            scrollAfterFrame(0)
+        } else if (heroHadFocus) {
+            heroHadFocus = false
+            contentFocused.value = true
+            scrollAfterFrame(CONTENT_START_INDEX)
+        }
+    }
 }
 
-/** Данные прокручиваемого контента деталей — группой (detekt LongParameterList). */
-private class DetailsScrollData(
+/**
+ * Спека «не скроллить»: пока полотно в стейте hero, любой bringIntoView от фокуса гасится —
+ * позицией полотна управляет только [rememberHeroFocusScroller]. Включается обратно, когда
+ * фокус уходит в контент: там штатная фокус-прокрутка нужна для глубоких рядов.
+ */
+private val NoFocusScroll = object : BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
+}
+
+/** Данные секций полотна под hero — группой (detekt LongParameterList). */
+private class DetailsSectionsData(
     val item: Item,
     val similar: List<Item>,
     val people: List<CastMember>,
@@ -283,46 +332,33 @@ private class DetailsScrollData(
     val selectedSeason: Int,
 )
 
-/**
- * Прокручиваемый контент под фиксированным hero: описание, актёры, режиссёр, эпизоды, «Похожее».
- * Отдельный LazyColumn (а не элементы hero-списка): фокус с кнопок уходит сюда «вниз», а сам список
- * прокруткой сжимает hero. Так у сериала нижние ряды достижимы фокусом, а постер не режется.
- */
-@Composable
-private fun DetailsScrollContent(
-    data: DetailsScrollData,
-    listState: LazyListState,
+/** Секции полотна под hero: описание, актёры, режиссёр, эпизоды, «Похожее». */
+private fun LazyListScope.detailsSections(
+    data: DetailsSectionsData,
     actions: DetailsActions,
     onSelectSeason: (Int) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        state = listState,
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(bottom = 70.dp),
-    ) {
-        item(key = "about") { DetailsAbout(data.item) }
-        if (data.people.isNotEmpty()) {
-            castRail(people = data.people, onOpenPerson = actions.onOpenPerson)
-        }
-        if (data.item.director.isNotBlank()) {
-            directorSection(director = data.item.director, onOpenPerson = actions.onOpenPerson)
-        }
-        if (data.episodes.isNotEmpty()) {
-            episodesSection(
-                EpisodesSection(
-                    seasons = data.series?.seasons.orEmpty(),
-                    episodes = data.episodes,
-                    resumeId = data.series?.resume?.id,
-                    selectedSeason = data.selectedSeason,
-                    onSelectSeason = onSelectSeason,
-                    onPlayEpisode = actions.onPlay,
-                )
+    item(key = "about") { DetailsAbout(data.item) }
+    if (data.people.isNotEmpty()) {
+        castRail(people = data.people, onOpenPerson = actions.onOpenPerson)
+    }
+    if (data.item.director.isNotBlank()) {
+        directorSection(director = data.item.director, onOpenPerson = actions.onOpenPerson)
+    }
+    if (data.episodes.isNotEmpty()) {
+        episodesSection(
+            EpisodesSection(
+                seasons = data.series?.seasons.orEmpty(),
+                episodes = data.episodes,
+                resumeId = data.series?.resume?.id,
+                selectedSeason = data.selectedSeason,
+                onSelectSeason = onSelectSeason,
+                onPlayEpisode = actions.onPlay,
             )
-        }
-        if (data.similar.isNotEmpty()) {
-            similarRail(similar = data.similar, onOpenItem = actions.onOpenItem)
-        }
+        )
+    }
+    if (data.similar.isNotEmpty()) {
+        similarRail(similar = data.similar, onOpenItem = actions.onOpenItem)
     }
 }
 
@@ -333,8 +369,8 @@ private data class HeroPlayback(
     val playFocus: FocusRequester,
     val onPlay: () -> Unit,
     val onToggleFav: () -> Unit,
-    /** Фокус вернулся на кнопки hero — контент к началу, чтобы hero разжался полностью. */
-    val onEnterHero: () -> Unit,
+    /** Фокус зашёл на кнопки hero или ушёл с них — экран переключает стейт полотна. */
+    val onHeroFocusChanged: (Boolean) -> Unit,
     /** null — у тайтла нет играбельного трейлера, кнопки нет. */
     val onTrailer: (() -> Unit)? = null,
 )
@@ -342,28 +378,26 @@ private data class HeroPlayback(
 /**
  * Hero: бэкдроп во всю ширину, текстовый блок прижат к низу слева (вариант A макета).
  *
- * [collapse] 0→1 — доля свёрнутости: hero живёт ФИКСИРОВАННЫМ блоком над прокруткой (кнопки в нём,
- * поэтому фокус на «Смотреть» ничего не крутит и постер виден целиком), а при прокрутке контента
- * вниз сжимается по высоте и притухает бэкдроп — освобождая место контенту, как у популярных
- * кинотеатров. Текстовый блок остаётся у низа и не режется: свёрнутая высота не ниже его высоты.
+ * Высота фиксированная: hero — первый элемент единого полотна и скрывается обычной прокруткой,
+ * когда фокус уходит в контент, а не сжимается поверх него. Так постер всегда либо виден
+ * целиком, либо честно уезжает вверх — ничего не режется.
  */
 @Composable
 private fun DetailsHero(
     item: Item,
     series: SeriesData?,
     isFav: Boolean,
-    collapse: Float,
     playback: HeroPlayback,
 ) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(lerp(TvMetrics.DetailsHeroHeight, HeroCollapsedHeight, collapse)),
+            .height(TvMetrics.DetailsHeroHeight),
     ) {
         HeroBackdrop(
             item = item,
             scrims = heroScrims(),
-            modifier = Modifier.fillMaxSize().alpha(1f - collapse * BACKDROP_FADE_ON_COLLAPSE),
+            modifier = Modifier.fillMaxSize(),
             posterUrl = item.posters.wide ?: item.posters.big,
             // Заглушка постера — нейтральная поверхность: цвет на экране только у самого кадра.
             accentColor = TvSurfaceContainerHigh,
@@ -428,7 +462,7 @@ private fun HeroButtons(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier.onFocusChanged { if (it.hasFocus) playback.onEnterHero() },
+        modifier.onFocusChanged { playback.onHeroFocusChanged(it.hasFocus) },
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         TvButton(
@@ -525,10 +559,14 @@ private fun DetailsAbout(item: Item) {
  */
 private fun LazyListScope.castRail(people: List<CastMember>, onOpenPerson: (String, Boolean) -> Unit) {
     item(key = "cast") {
-        TvRail(title = "Актёры", modifier = Modifier.padding(top = 24.dp)) {
+        TvRail(title = "Актёры", modifier = Modifier.padding(top = 24.dp)) { firstItemFocus ->
             // Без key: имена в составе могут повторяться, позиционного ключа достаточно.
-            items(people) { member ->
-                TvActorCard(member = member, onClick = { onOpenPerson(member.name, false) })
+            itemsIndexed(people) { index, member ->
+                TvActorCard(
+                    member = member,
+                    onClick = { onOpenPerson(member.name, false) },
+                    focusRequester = firstItemFocus.takeIf { index == 0 },
+                )
             }
         }
     }
@@ -555,7 +593,7 @@ private fun LazyListScope.directorSection(director: String, onOpenPerson: (Strin
 
 /** Карточка актёра: круглый аватар (фото TMDB или инициалы) + имя. Фокус/скейл — как у медиа-карточек. */
 @Composable
-private fun TvActorCard(member: CastMember, onClick: () -> Unit) {
+private fun TvActorCard(member: CastMember, onClick: () -> Unit, focusRequester: FocusRequester? = null) {
     var focused by remember { mutableStateOf(false) }
     val dim = rememberDimAlpha(focused)
     Column(
@@ -568,6 +606,7 @@ private fun TvActorCard(member: CastMember, onClick: () -> Unit) {
         TvFocusCard(
             onClick = onClick,
             shape = CircleShape,
+            focusRequester = focusRequester,
             modifier = Modifier.size(TvActorAvatarSize),
         ) {
             Box(
@@ -612,7 +651,7 @@ private data class EpisodesSection(
     val resumeId: Int?,
     val selectedSeason: Int,
     val onSelectSeason: (Int) -> Unit,
-    val onPlayEpisode: (videoId: Int) -> Unit,
+    val onPlayEpisode: (season: Int, videoId: Int) -> Unit,
 )
 
 /**
@@ -625,13 +664,14 @@ private data class EpisodesSection(
 private fun LazyListScope.episodesSection(section: EpisodesSection) {
     if (section.seasons.size > 1) {
         item(key = "seasons") {
-            TvRail(title = EPISODES_TITLE, modifier = Modifier.padding(top = 24.dp)) {
+            TvRail(title = EPISODES_TITLE, modifier = Modifier.padding(top = 24.dp)) { firstItemFocus ->
                 itemsIndexed(section.seasons, key = { _, season -> season.first }) { index, season ->
                     val number = season.first
                     TvChip(
                         label = if (number > 0) "Сезон $number" else "Серии",
                         selected = index == section.selectedSeason,
                         onClick = { section.onSelectSeason(index) },
+                        modifier = if (index == 0) Modifier.focusRequester(firstItemFocus) else Modifier,
                     )
                 }
             }
@@ -672,7 +712,7 @@ private fun SectionTitle(title: String, modifier: Modifier = Modifier) {
 private fun EpisodesRow(
     episodes: List<MediaTrack>,
     resumeId: Int?,
-    onPlay: (videoId: Int) -> Unit,
+    onPlay: (season: Int, videoId: Int) -> Unit,
 ) {
     LazyRow(
         modifier = Modifier.focusRestorer(),
@@ -688,8 +728,8 @@ private fun EpisodesRow(
             EpisodeCard(
                 episode = episode,
                 isResume = episode.id == resumeId,
-                // Плееру нужен номер серии (API `video`), а не id трека.
-                onClick = { onPlay(episode.number) },
+                // Плееру нужны номер серии (API `video`) и сезон, а не id трека.
+                onClick = { onPlay(episode.seasonNumber, episode.number) },
             )
         }
     }
@@ -757,14 +797,15 @@ private fun EpisodeThumb(url: String, episode: MediaTrack, isResume: Boolean, mo
 
 private fun LazyListScope.similarRail(similar: List<Item>, onOpenItem: (Int) -> Unit) {
     item(key = "similar") {
-        TvRail(title = "Похожее", modifier = Modifier.padding(top = 26.dp)) {
-            items(similar, key = { it.id }) { simItem ->
+        TvRail(title = "Похожее", modifier = Modifier.padding(top = 26.dp)) { firstItemFocus ->
+            itemsIndexed(similar, key = { _, simItem -> simItem.id }) { index, simItem ->
                 TvPosterCard(
                     title = simItem.title,
                     meta = posterMeta(typeLabel(simItem.type), simItem.year),
                     posterUrl = simItem.posters.medium.ifEmpty { simItem.posters.big },
                     onClick = { onOpenItem(simItem.id) },
                     rating = ratingLabel(simItem.rating.kinopoisk),
+                    focusRequester = firstItemFocus.takeIf { index == 0 },
                 ) { url, modifier ->
                     PosterImage(
                         url = url,
@@ -788,11 +829,15 @@ private fun LazyListScope.similarRail(similar: List<Item>, onOpenItem: (Int) -> 
 private data class SeriesData(
     /** Пары «номер сезона → серии по порядку», отсортированные по номеру сезона. */
     val seasons: List<Pair<Int, List<MediaTrack>>>,
-    /** Эпизод для «продолжить»: в процессе → последний досмотренный → иначе null. */
+    /** Эпизод для «продолжить»: в процессе → следующая после досмотренной → иначе null. */
     val resume: MediaTrack?,
     /** Индекс сезона эпизода «продолжить» в [seasons] (0, если не определён). */
     val resumeSeasonIndex: Int,
 )
+
+/** `watching.status` из API: 0 — серия в процессе, 1 — досмотрена, -1 — не начата. */
+private const val WATCH_STATUS_IN_PROGRESS = 0
+private const val WATCH_STATUS_FINISHED = 1
 
 /** Считает [SeriesData] из плейлиста серий — чистая функция, тестируемая отдельно от UI. */
 private fun calculateSeriesData(tracklist: List<MediaTrack>): SeriesData {
@@ -800,12 +845,27 @@ private fun calculateSeriesData(tracklist: List<MediaTrack>): SeriesData {
         .groupBy { it.seasonNumber }
         .toSortedMap()
         .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
-    val resume = tracklist.firstOrNull { it.watchStatus == 0 }
-        ?: tracklist.lastOrNull { it.watchStatus == 1 }
+    val resume = resumeEpisode(seasons)
     val resumeSeasonIndex = resume
         ?.let { episode -> seasons.indexOfFirst { it.first == episode.seasonNumber }.takeIf { it >= 0 } }
         ?: 0
     return SeriesData(seasons = seasons, resume = resume, resumeSeasonIndex = resumeSeasonIndex)
+}
+
+/**
+ * Точка «продолжить»: недосмотренная серия → СЛЕДУЮЩАЯ после последней досмотренной
+ * («продолжить» — это смотреть дальше, а не пересматривать) → всё досмотрено — последняя
+ * (пересмотр). Порядок — по отсортированным сезонам, а не по сырому tracklist.
+ */
+private fun resumeEpisode(seasons: List<Pair<Int, List<MediaTrack>>>): MediaTrack? {
+    val ordered = seasons.flatMap { (_, episodes) -> episodes }
+    val inProgress = ordered.firstOrNull { it.watchStatus == WATCH_STATUS_IN_PROGRESS }
+    val lastWatched = ordered.indexOfLast { it.watchStatus == WATCH_STATUS_FINISHED }
+    return when {
+        inProgress != null -> inProgress
+        lastWatched >= 0 -> ordered.getOrNull(lastWatched + 1) ?: ordered[lastWatched]
+        else -> null
+    }
 }
 
 /** Мета-строка hero: год · объём/длительность · страна · жанры. Пустые части выпадают. */

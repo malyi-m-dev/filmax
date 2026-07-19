@@ -13,7 +13,7 @@ import com.filmax.feature.details.tv.TvDetailsScreen
  * [onOpenPerson] ведёт в фильмографию актёра/режиссёра, [onPlayTrailer] — в TV-плеер трейлера.
  */
 fun NavGraphBuilder.tvDetailsScreen(
-    onPlay: (itemId: Int, videoId: Int) -> Unit,
+    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     onOpenItem: (Int) -> Unit,
     onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
     onPlayTrailer: (url: String, title: String) -> Unit,
