@@ -1,6 +1,7 @@
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,7 +86,7 @@ fun TvPosterCard(
                 }
             }
         }
-        TvCardCaption(title = title, meta = meta)
+        TvCardCaption(title = title, meta = meta, focused = focused)
     }
 }
 
@@ -134,7 +135,7 @@ fun TvProgressCard(
                 )
             }
         }
-        TvCardCaption(title = title, meta = meta)
+        TvCardCaption(title = title, meta = meta, focused = focused)
     }
 }
 
@@ -176,16 +177,31 @@ fun TvRatingPill(rating: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** Подпись под карточкой: название (16sp) + мета (13sp). Мельче на TV не опускаемся. */
+/**
+ * Отступ подписи от постера. Рамка фокуса рисуется поверх увеличенной (scale 1.08) карточки
+ * и опускается ниже её исходной границы на ~11dp у постера 2:3 — при меньшем отступе белая
+ * рамка ложится прямо на текст.
+ */
+private val CaptionTopGap = 16.dp
+
+/**
+ * Подпись под карточкой: название (16sp) + мета (13sp). Мельче на TV не опускаемся.
+ *
+ * Длинное название не переносится и не обрезается многоточием навсегда: строка одна, а при
+ * фокусе на карточке запускается бегущая строка — так виден весь заголовок без роста карточки.
+ */
 @Composable
-private fun TvCardCaption(title: String, meta: String?) {
+private fun TvCardCaption(title: String, meta: String?, focused: Boolean) {
     Text(
         title,
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.titleSmall,
         color = TvOnSurface,
         maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(top = 8.dp),
+        softWrap = false,
+        overflow = if (focused) TextOverflow.Clip else TextOverflow.Ellipsis,
+        modifier = Modifier
+            .padding(top = CaptionTopGap)
+            .then(if (focused) Modifier.basicMarquee(iterations = Int.MAX_VALUE) else Modifier),
     )
     if (!meta.isNullOrBlank()) {
         Text(
@@ -194,7 +210,7 @@ private fun TvCardCaption(title: String, meta: String?) {
             color = TvOnSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 1.dp),
+            modifier = Modifier.padding(top = 2.dp),
         )
     }
 }
