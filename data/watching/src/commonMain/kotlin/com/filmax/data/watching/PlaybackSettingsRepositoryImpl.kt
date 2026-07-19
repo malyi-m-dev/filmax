@@ -22,6 +22,15 @@ internal class PlaybackSettingsRepositoryImpl(
 
     override suspend fun setSubtitleLanguage(language: String) = update { it.copy(subtitleLanguage = language) }
 
+    // Озвучка на тайтл — точечные ключи мимо state: это не глобальная настройка, а память
+    // «какую дорожку слушали в этом сериале», и подписки на неё не нужны.
+    override suspend fun voiceKeyFor(itemId: Int): String? =
+        storage.getStringOrNull(KEY_VOICE_PREFIX + itemId)
+
+    override suspend fun setVoiceKey(itemId: Int, key: String) {
+        storage.putString(KEY_VOICE_PREFIX + itemId, key)
+    }
+
     private fun update(transform: (PlaybackSettings) -> PlaybackSettings) {
         val updated = transform(state.value)
         storage.putString(KEY_QUALITY, updated.quality)
@@ -40,5 +49,6 @@ internal class PlaybackSettingsRepositoryImpl(
         const val KEY_QUALITY = "playback_quality"
         const val KEY_AUDIO = "playback_audio"
         const val KEY_SUBTITLES = "playback_subtitles"
+        const val KEY_VOICE_PREFIX = "playback_voice_"
     }
 }

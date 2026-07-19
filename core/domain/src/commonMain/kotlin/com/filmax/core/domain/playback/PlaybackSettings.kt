@@ -31,4 +31,13 @@ interface PlaybackSettingsRepository {
     suspend fun setAudioLanguage(language: String)
 
     suspend fun setSubtitleLanguage(language: String)
+
+    /**
+     * Озвучка, выбранная для конкретного тайтла: следующие серии сериала стартуют с неё же.
+     * [key] — непрозрачный идентификатор дорожки (язык|тип|студия), собирает и разбирает его
+     * плеер. null — для тайтла озвучку ещё не выбирали.
+     */
+    suspend fun voiceKeyFor(itemId: Int): String?
+
+    suspend fun setVoiceKey(itemId: Int, key: String)
 }

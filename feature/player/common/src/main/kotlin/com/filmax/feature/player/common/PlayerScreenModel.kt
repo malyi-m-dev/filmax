@@ -53,6 +53,13 @@ class PlayerScreenModel(
     /** Аудиогруппы последнего onTracksChanged — по ним selectAudio делает точечный override. */
     private var audioGroups: List<Tracks.Group> = emptyList()
 
+    /**
+     * Озвучка, выбранная для этого тайтла (язык|тип|студия). Читается при загрузке и
+     * применяется к КАЖДОМУ onTracksChanged: так следующая серия сериала стартует с той же
+     * студией, а смена качества не сбрасывает выбор. Обновляется при ручном выборе дорожки.
+     */
+    private var savedVoiceKey: String? = null
+
     /** Позиция последней отправки прогресса — база для троттлинга в [saveProgress]. */
     private var lastSentSeconds: Int? = null
 
@@ -87,6 +94,7 @@ class PlayerScreenModel(
         screenModelScope { _ ->
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
+            savedVoiceKey = playbackSettings.voiceKeyFor(route.itemId)
             when (val result = catalog.getItemDetails(route.itemId)) {
                 is RequestResult.Success -> {
                     val item = result.data
@@ -180,7 +188,13 @@ class PlayerScreenModel(
         player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
             .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
             .build()
-        screenModelScope { _ -> updateState { it.copy(currentAudio = label) } }
+        // Запоминаем озвучку на весь тайтл: следующие серии стартуют с этой же студии.
+        val key = voiceKey(option.groupIndex, group, selectedTrack?.audios.orEmpty())
+        savedVoiceKey = key
+        screenModelScope { _ ->
+            playbackSettings.setVoiceKey(route.itemId, key)
+            updateState { it.copy(currentAudio = label) }
+        }
     }
 
     /**
@@ -195,7 +209,20 @@ class PlayerScreenModel(
         val options = audioGroups.mapIndexed { index, group ->
             AudioOption(label = audioLabel(index, group, apiAudios), groupIndex = index)
         }
-        val selectedIndex = audioGroups.indexOfFirst { it.isSelected }
+
+        // Запомненная озвучка тайтла: находим группу с тем же ключом и ставим override —
+        // следующая серия стартует с той же студии, а смена качества не сбрасывает выбор.
+        // Не нашлась (у серии другой набор озвучек) — остаёмся на выборе плеера.
+        val savedIndex = savedVoiceKey?.let { key ->
+            audioGroups.indices.firstOrNull { voiceKey(it, audioGroups[it], apiAudios) == key }
+        }
+        if (savedIndex != null && !audioGroups[savedIndex].isSelected) {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
+                .setOverrideForType(TrackSelectionOverride(audioGroups[savedIndex].mediaTrackGroup, 0))
+                .build()
+        }
+
+        val selectedIndex = savedIndex ?: audioGroups.indexOfFirst { it.isSelected }
         screenModelScope { _ ->
             updateState {
                 it.copy(
@@ -323,6 +350,18 @@ class PlayerScreenModel(
                 meta?.voiceAuthor?.let { add(it) }
             }.distinct()
             return "${groupIndex + 1}. ${parts.joinToString(" · ")}"
+        }
+
+        /**
+         * Ключ озвучки для памяти на тайтл: `язык|тип|студия` из метаданных API. Позиционный
+         * индекс не годится — у разных серий порядок дорожек может отличаться, а связка
+         * язык+тип+студия идентифицирует именно озвучку.
+         */
+        fun voiceKey(groupIndex: Int, group: Tracks.Group, apiAudios: List<AudioTrack>): String {
+            val meta = apiAudios.firstOrNull { it.index == groupIndex + 1 }
+            val language = meta?.lang ?: group.getTrackFormat(0).language
+            return listOf(language.orEmpty(), meta?.voiceType.orEmpty(), meta?.voiceAuthor.orEmpty())
+                .joinToString("|")
         }
     }
 }
