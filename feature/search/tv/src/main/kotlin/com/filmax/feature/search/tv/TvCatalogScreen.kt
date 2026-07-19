@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -36,6 +35,8 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -233,13 +234,22 @@ private fun CatalogHeader(
             onClick = actions.onOpenKeyboard,
         )
         Spacer(Modifier.height(16.dp))
-        CatalogTypeRow(state = state, actions = actions)
-        if (state.genres.isNotEmpty()) {
+        // Явная связь «вниз»: ряд типов → первый жанр. Спатиальный поиск здесь ненадёжен:
+        // с focusRestorer на обоих рядах DOWN проскакивал жанры и падал сразу в сетку постеров.
+        val firstGenreFocus = remember { FocusRequester() }
+        val hasGenres = state.genres.isNotEmpty()
+        CatalogTypeRow(
+            state = state,
+            actions = actions,
+            downFocus = firstGenreFocus.takeIf { hasGenres },
+        )
+        if (hasGenres) {
             Spacer(Modifier.height(12.dp))
             CatalogGenreRow(
                 genres = state.genres,
                 selectedId = state.selectedGenreId,
                 onGenre = actions.onGenre,
+                firstChipFocus = firstGenreFocus,
             )
         }
         Spacer(Modifier.height(22.dp))
@@ -297,21 +307,37 @@ private fun CatalogSearchBar(
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun CatalogTypeRow(state: SearchState, actions: CatalogActions) {
+private fun CatalogTypeRow(
+    state: SearchState,
+    actions: CatalogActions,
+    downFocus: FocusRequester?,
+) {
     val sort = state.sort
     val filters = state.filters
     var filtersOpen by remember { mutableStateOf(false) }
+    // Первый вход фокуса в ряд — всегда на первый чип (fallback focusRestorer): без него D-pad
+    // сажал фокус на пространственно-ближайший чип в середине ряда (строка поиска сверху и сетка
+    // снизу — во всю ширину). Повторные входы восстанавливают последний сфокусированный.
+    val firstTypeChipFocus = remember { FocusRequester() }
+    // «Вниз» с любого чипа — на первый жанр. Свойство стоит на КАЖДОМ чипе: focusProperties
+    // контейнера на детей не распространяется, и спатиальный поиск скипал ряд жанров в сетку.
+    val chipModifier = Modifier.focusProperties { downFocus?.let { down = it } }
     // Горизонтальный скролл, а не Row: тип + сортировка + «Фильтры» не влезали в safe area, и
     // последний чип клипился. Разделители-палочки убраны — от них между группами зиял большой
     // отступ; теперь шаг между всеми чипами одинаковый. offset/contentPadding — как у ряда жанров.
     LazyRow(
-        modifier = Modifier.fillMaxWidth().focusRestorer(),
+        modifier = Modifier.fillMaxWidth().focusRestorer(firstTypeChipFocus),
         contentPadding = PaddingValues(horizontal = TvMetrics.SafeHorizontal),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        items(TypeOptions) { (type, label) ->
-            TvChip(label = label, selected = state.filter == type, onClick = { actions.onFilter(type) })
+        itemsIndexed(TypeOptions) { index, (type, label) ->
+            TvChip(
+                label = label,
+                selected = state.filter == type,
+                onClick = { actions.onFilter(type) },
+                modifier = if (index == 0) chipModifier.focusRequester(firstTypeChipFocus) else chipModifier,
+            )
         }
         // Поле сортировки: OK листает по кругу. Стрелка ↕ (U+2195), а не ⇅ из макета: у второй
         // покрытие во встроенных шрифтах Android TV не гарантировано.
@@ -320,6 +346,7 @@ private fun CatalogTypeRow(state: SearchState, actions: CatalogActions) {
                 label = "↕ ${sortLabel(sort.field)}",
                 selected = false,
                 onClick = { actions.onSort(SortOption(nextSort(sort.field), sort.ascending)) },
+                modifier = chipModifier,
             )
         }
         // Направление: ↑ по возрастанию (kino.pub `-field`), ↓ по убыванию.
@@ -328,6 +355,7 @@ private fun CatalogTypeRow(state: SearchState, actions: CatalogActions) {
                 label = if (sort.ascending) "↑ Возр." else "↓ Убыв.",
                 selected = false,
                 onClick = { actions.onSort(sort.copy(ascending = !sort.ascending)) },
+                modifier = chipModifier,
             )
         }
         // Полный набор фильтров (год, рейтинги, страна, 4K, завершённость) — в оверлей-панели.
@@ -336,6 +364,7 @@ private fun CatalogTypeRow(state: SearchState, actions: CatalogActions) {
                 label = if (filters.activeCount > 0) "Фильтры · ${filters.activeCount}" else "Фильтры",
                 selected = filters.activeCount > 0,
                 onClick = { filtersOpen = true },
+                modifier = chipModifier,
             )
         }
     }
@@ -355,20 +384,23 @@ private fun CatalogGenreRow(
     genres: List<Genre>,
     selectedId: Int?,
     onGenre: (Int?) -> Unit,
+    /** Привязывается к первому жанру: fallback focusRestorer и цель `down` ряда типов. */
+    firstChipFocus: FocusRequester,
 ) {
     LazyRow(
         // От края до края: viewport на всю ширину, а первый/последний чип держит на линии safe area
         // contentPadding. Так чипы скроллятся к самым краям экрана, а не обрываются на safe-границе.
-        modifier = Modifier.fillMaxWidth().focusRestorer(),
+        modifier = Modifier.fillMaxWidth().focusRestorer(firstChipFocus),
         contentPadding = PaddingValues(horizontal = TvMetrics.SafeHorizontal),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        items(genres, key = { it.id }) { genre ->
+        itemsIndexed(genres, key = { _, genre -> genre.id }) { index, genre ->
             TvChip(
                 label = genre.title,
                 selected = genre.id == selectedId,
                 // Повторный OK по выбранному жанру снимает фильтр — отдельного чипа «Все» в ряду нет.
                 onClick = { onGenre(if (genre.id == selectedId) null else genre.id) },
+                modifier = if (index == 0) Modifier.focusRequester(firstChipFocus) else Modifier,
             )
         }
     }

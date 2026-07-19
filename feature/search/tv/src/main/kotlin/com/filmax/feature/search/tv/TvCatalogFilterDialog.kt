@@ -186,15 +186,22 @@ private fun RatingSection(title: String, selected: Int?, onSelect: (Int?) -> Uni
 @Composable
 private fun CountrySection(countries: List<Country>, selectedId: Int?, onSelect: (Int?) -> Unit) {
     FilterSection(title = "Страна") {
+        // Первый вход фокуса — на «Любая», а не на пространственно-ближайший чип в середине.
+        val firstCountryFocus = remember { FocusRequester() }
         // Стран десятки — горизонтальный список с focusRestorer, как ряд жанров в каталоге. Сдвиг
         // на FocusInset возвращает первый чип на линию секции, отдав рамке фокуса запас.
         LazyRow(
-            modifier = Modifier.focusRestorer().offset(x = -TvMetrics.FocusInset),
+            modifier = Modifier.focusRestorer(firstCountryFocus).offset(x = -TvMetrics.FocusInset),
             contentPadding = PaddingValues(horizontal = TvMetrics.FocusInset),
             horizontalArrangement = Arrangement.spacedBy(ChipGap),
         ) {
             item(key = "any") {
-                TvChip(label = "Любая", selected = selectedId == null, onClick = { onSelect(null) })
+                TvChip(
+                    label = "Любая",
+                    selected = selectedId == null,
+                    onClick = { onSelect(null) },
+                    modifier = Modifier.focusRequester(firstCountryFocus),
+                )
             }
             items(countries, key = { it.id }) { country ->
                 TvChip(

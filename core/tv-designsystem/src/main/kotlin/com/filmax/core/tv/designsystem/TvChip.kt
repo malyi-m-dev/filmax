@@ -12,10 +12,12 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,11 @@ fun TvChip(
  * `focusRestorer` обязателен: без него «вниз» в ряд ведёт на пространственно-ближайшую
  * карточку, а после горизонтального скролла фокус мажет мимо первой.
  *
+ * [content] получает [FocusRequester], который ОБЯЗАН быть привязан к первой карточке ряда:
+ * это fallback для focusRestorer. Без него первый вход в ряд отдаёт фокус D-pad-поиску, и тот
+ * сажает его на пространственно-ближайшую карточку (2–3-ю — под вкладкой таб-бара или кнопкой
+ * hero), а не на первую. Повторные входы по-прежнему восстанавливают последнюю сфокусированную.
+ *
  * Отступы ряда живут в `contentPadding`, а не на родителе: карточка при фокусе растёт
  * (scale 1.08), и её рамка обязана поместиться внутрь viewport.
  */
@@ -64,8 +71,9 @@ fun TvChip(
 fun TvRail(
     title: String,
     modifier: Modifier = Modifier,
-    content: LazyListScope.() -> Unit,
+    content: LazyListScope.(firstItemFocus: FocusRequester) -> Unit,
 ) {
+    val firstItemFocus = remember { FocusRequester() }
     Column(modifier) {
         Text(
             title,
@@ -74,7 +82,7 @@ fun TvRail(
             modifier = Modifier.padding(start = TvMetrics.SafeHorizontal, bottom = 12.dp),
         )
         LazyRow(
-            modifier = Modifier.focusRestorer(),
+            modifier = Modifier.focusRestorer(firstItemFocus),
             contentPadding = PaddingValues(
                 start = TvMetrics.SafeHorizontal,
                 end = TvMetrics.SafeHorizontal,
@@ -82,7 +90,7 @@ fun TvRail(
                 bottom = TvMetrics.FocusInset,
             ),
             horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
-            content = content,
+            content = { content(firstItemFocus) },
         )
     }
 }
