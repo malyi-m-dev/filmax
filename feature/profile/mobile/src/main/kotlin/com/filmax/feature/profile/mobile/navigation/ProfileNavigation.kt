@@ -15,13 +15,11 @@ object DeviceSettingsRoute
 
 fun NavGraphBuilder.profileScreen(
     onLogout: () -> Unit,
-    onOpenDeviceSettings: () -> Unit,
     onOpenDesignSystem: (() -> Unit)? = null,
 ) {
     composable<ProfileRoute> {
         ProfileScreen(
             onLogout = onLogout,
-            onOpenDeviceSettings = onOpenDeviceSettings,
             onOpenDesignSystem = onOpenDesignSystem,
         )
     }

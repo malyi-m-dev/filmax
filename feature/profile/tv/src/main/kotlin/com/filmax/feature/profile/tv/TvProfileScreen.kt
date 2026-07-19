@@ -79,7 +79,6 @@ private val RowGap = 10.dp
 @Composable
 fun TvProfileScreen(
     onLogout: () -> Unit,
-    onOpenDeviceSettings: () -> Unit,
     modifier: Modifier = Modifier,
     screenModel: ProfileScreenModel = koinViewModel(),
 ) {
@@ -105,7 +104,7 @@ fun TvProfileScreen(
 
     ProfileContent(
         state = state,
-        actions = profileActions(screenModel, state, onOpenDeviceSettings),
+        actions = profileActions(screenModel, state),
         modifier = modifier,
     )
 }
@@ -139,14 +138,8 @@ private fun ProfileContent(
             Spacer(Modifier.height(12.dp))
             PlaybackRows(state = state, actions = actions)
             Spacer(Modifier.height(26.dp))
-            TvOverline("Устройство", color = TvOnSurfaceDim)
-            Spacer(Modifier.height(12.dp))
-            // Значение строки — максимальное качество устройства (4K HDR/HEVC/HD) из device/info.
-            SettingRow(
-                spec = SettingRowSpec(label = "Настройки устройства", value = state.quality),
-                onClick = actions.onOpenDeviceSettings,
-            )
-            Spacer(Modifier.height(26.dp))
+            // Блока «Устройство» временно нет: device/info и device/settings отвечают 500,
+            // и строка вела на нерабочий экран. Вернуть, когда бэкенд починят.
             TvOverline("Аккаунт", color = TvOnSurfaceDim)
             Spacer(Modifier.height(12.dp))
             AccountRows(state = state, actions = actions)
@@ -195,7 +188,6 @@ private data class ProfileActions(
     val onCycleQuality: () -> Unit,
     val onCycleAudio: () -> Unit,
     val onCycleSubtitle: () -> Unit,
-    val onOpenDeviceSettings: () -> Unit,
     val onLogout: () -> Unit,
 )
 
@@ -203,7 +195,6 @@ private data class ProfileActions(
 private fun profileActions(
     screenModel: ProfileScreenModel,
     state: ProfileState,
-    onOpenDeviceSettings: () -> Unit,
 ) = ProfileActions(
     onCycleQuality = {
         screenModel.dispatch(
@@ -222,7 +213,6 @@ private fun profileActions(
             )
         )
     },
-    onOpenDeviceSettings = onOpenDeviceSettings,
     onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
 )
 

@@ -63,7 +63,6 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
-    onOpenDeviceSettings: () -> Unit,
     onOpenDesignSystem: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     screenModel: ProfileScreenModel = koinViewModel(),
@@ -94,7 +93,6 @@ fun ProfileScreen(
         state = state,
         actions = ProfileActions(
             onOpenSheet = { sheet -> activeSheet = sheet },
-            onOpenDeviceSettings = onOpenDeviceSettings,
             onOpenDesignSystem = onOpenDesignSystem,
             onLogout = { screenModel.dispatch(ProfileEvent.Logout) },
         ),
@@ -116,7 +114,6 @@ fun ProfileScreen(
 /** Колбэки профиля одним объектом — иначе список параметров ProfileContent за порогом detekt. */
 private data class ProfileActions(
     val onOpenSheet: (ProfileSheet) -> Unit,
-    val onOpenDeviceSettings: () -> Unit,
     val onOpenDesignSystem: (() -> Unit)?,
     val onLogout: () -> Unit,
 )
@@ -143,13 +140,8 @@ private fun ProfileContent(
         // (PlaybackSettingsRepository) и применяются в плеере. Заглушек на экране нет.
         PlaybackRows(playback = state.playback, onOpenSheet = actions.onOpenSheet)
 
-        SectionOverline("УСТРОЙСТВО")
-        // Значение строки — максимальное качество устройства (4K HDR/HEVC/HD) из device/info.
-        SettingRow(
-            spec = SettingRowSpec(label = "Настройки устройства", value = state.quality),
-            onClick = actions.onOpenDeviceSettings,
-        )
-
+        // Блока «УСТРОЙСТВО» временно нет: device/info и device/settings отвечают 500,
+        // и строка вела на нерабочий экран. Вернуть, когда бэкенд починят.
         SectionOverline("АККАУНТ")
         AccountRows(state = state, onLogout = actions.onLogout)
 

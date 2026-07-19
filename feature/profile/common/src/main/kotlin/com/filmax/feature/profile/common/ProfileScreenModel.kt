@@ -5,7 +5,6 @@ import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.user.UserRepository
-import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 
@@ -77,10 +76,8 @@ class ProfileScreenModel(
             (watching.getHistory() as? RequestResult.Success)?.let { history ->
                 updateState { it.copy(watchedCount = history.data.size) }
             }
-            // «В избранном» — из локального кэша favorites (см. observeFavorites).
-            (user.getDeviceSettings() as? RequestResult.Success)?.let { device ->
-                updateState { it.copy(quality = device.data.toQualityLabel()) }
-            }
+            // device/info не запрашиваем: бэкенд отвечает 500, а блок «Устройство» с экранов
+            // временно убран. Вернуть вместе с блоком, когда бэкенд починят.
         }
     }
 
@@ -90,11 +87,4 @@ class ProfileScreenModel(
             postSideEffect(ProfileSideEffect.LoggedOut)
         }
     }
-}
-
-private fun DeviceSettings.toQualityLabel(): String = when {
-    support4k && supportHdr -> "4K HDR"
-    support4k -> "4K"
-    supportHevc -> "HEVC"
-    else -> "HD"
 }
