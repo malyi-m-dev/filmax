@@ -1,12 +1,71 @@
 # Filmax
 
-Приложение для просмотра фильмов и сериалов (API kino.pub) — **одно приложение на
-телефоне и Android TV**. Современный стек: 100% Kotlin, Jetpack Compose, многомодульная
-архитектура, Material 3 Expressive дизайн.
+**Кинотеатр для телефона и Android TV в одном APK.** Неофициальный клиент kino.pub:
+каталог с фильтрами, продолжение просмотра с точностью до серии, плеер с выбором озвучки
+и субтитров, голосовой поиск и автообновления — 100% Kotlin, Jetpack Compose,
+многомодульная архитектура.
 
-> Авторизация — OAuth2 device-flow. Бэкенд: `https://smarttvcdn.online/`.
->
-> 📋 **[Доска задач (GitHub Projects)](https://github.com/users/malyi-m-dev/projects/1)** — текущие задачи и прогресс.
+[![Latest release](https://img.shields.io/github/v/release/malyi-m-dev/filmax?label=release)](https://github.com/malyi-m-dev/filmax/releases/latest)
+[![Android](https://img.shields.io/badge/platform-Android%20%7C%20Android%20TV-3DDC84?logo=android&logoColor=white)](#установка)
+[![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?logo=kotlin&logoColor=white)](#стек)
+
+> 📋 **[Доска задач (GitHub Projects)](https://github.com/users/malyi-m-dev/projects/1)** · 📦 **[Релизы](https://github.com/malyi-m-dev/filmax/releases)**
+
+---
+
+## Скриншоты
+
+### Android TV — 10-foot UI под пульт
+
+![Главная на Android TV](docs/screenshots/tv-home.png)
+
+| | |
+|:--:|:--:|
+| ![Карточка тайтла](docs/screenshots/tv-details.png) | ![Плеер с панелью серий](docs/screenshots/tv-player-episodes.png) |
+| *Карточка тайтла: «Продолжить · S2E2», серии, актёры* | *Плеер: панель сезонов и серий с прогрессом просмотра* |
+| ![Каталог](docs/screenshots/tv-catalog.png) | ![Раздел «Моё»](docs/screenshots/tv-library.png) |
+| *Каталог: типы, жанры, сортировка, фильтры* | *«Моё»: продолжить, отложенное, закладки, история* |
+
+### Телефон
+
+<p align="center">
+  <img src="docs/screenshots/mobile-home.png" width="30%" alt="Главная на телефоне">
+  &nbsp;&nbsp;
+  <img src="docs/screenshots/mobile-details.png" width="30%" alt="Карточка тайтла на телефоне">
+</p>
+
+---
+
+## Возможности
+
+- **Один APK — два форм-фактора.** На телефоне — Material 3 с нижним таб-баром, на
+  Android TV — монохромный 10-foot интерфейс под D-pad (`androidx.tv.material3`),
+  выбор автоматический по `FEATURE_LEANBACK`.
+- **Продолжение просмотра — с точностью до серии.** Прогресс синхронизируется с сервером;
+  кнопка «Продолжить · S2E5» ведёт на недосмотренную серию, а после досмотренной — на следующую.
+- **Плеер (Media3 ExoPlayer):** выбор качества, **полный список озвучек с названиями студий**,
+  субтитры, скорость, перемотка с разгоном; на TV — панель сезонов/серий с прогрессом каждой
+  серии прямо в плеере и переход к следующей серии.
+- **Каталог:** типы, жанры, сортировка и расширенные фильтры (год, рейтинги КП/IMDb,
+  страна, 4K, завершённость); экранная клавиатура на TV с **голосовым поиском внутри
+  приложения** (SpeechRecognizer, без сторонних экранов).
+- **Карточка тайтла:** рейтинги КП/IMDb раздельно, кликабельные актёры с фото (TMDB) и
+  режиссёр → фильмография, трейлеры, сезоны и серии.
+- **«Моё»:** продолжение, «Буду смотреть» (серверный watchlist + локальный кэш),
+  папки-закладки, история.
+- **Обновления приложения из GitHub Releases:** проверка при старте, скачивание с прогрессом
+  и установка — без сторонних магазинов.
+- **Офлайн-деградация:** кэшированный контент с баннером «нет сети» вместо экрана ошибки.
+
+---
+
+## Установка
+
+1. Скачайте `filmax-X.Y.Z.apk` из [последнего релиза](https://github.com/malyi-m-dev/filmax/releases/latest).
+2. Установите на телефон или Android TV — APK один для обоих.
+3. Войдите по коду (OAuth2 device-flow) с аккаунтом kino.pub.
+
+Дальше приложение обновляется само: увидев новый релиз, предложит скачать и установить.
 
 ---
 
@@ -14,17 +73,17 @@
 
 | Слой | Технологии |
 |------|-----------|
-| Язык | Kotlin 2.0.21 |
-| UI (телефон) | Jetpack Compose (BOM 2025.05.01), Material 3, Coil 3 |
+| Язык | Kotlin 2.0 |
+| UI (телефон) | Jetpack Compose (BOM 2025.05), Material 3, Coil 3 |
 | UI (Android TV) | `androidx.tv.material3` — D-pad фокус, 10-foot UI |
-| Навигация | Navigation Compose 2.8.9 (типобезопасные routes на `@Serializable`) |
-| DI | Koin 4.0.4 |
-| Сеть | Ktor Client 3.x + `kotlinx.serialization` (+ Chucker — инспектор запросов в debug) |
-| Локальное хранилище | multiplatform-settings (избранное, загрузки) |
+| Навигация | Navigation Compose (типобезопасные routes на `@Serializable`) |
+| DI | Koin 4 |
+| Сеть | Ktor Client 3 + `kotlinx.serialization` (+ Chucker — инспектор запросов в debug) |
+| Локальное хранилище | multiplatform-settings (избранное, настройки) |
 | Плеер | Media3 ExoPlayer |
-| Асинхронность | Coroutines 1.9 + Flow |
-| Сборка | AGP 8.7.3, Gradle (convention plugins в `build-logic`) |
-| CI | GitHub Actions: сборка debug-APK + доставка в Telegram |
+| Асинхронность | Coroutines + Flow |
+| Сборка | AGP 8.7, convention plugins в `build-logic`, detekt |
+| CI | GitHub Actions: debug → Telegram; тег `vX.Y.Z` → GitHub Release + Telegram |
 | SDK | minSdk 26, target/compileSdk 35 |
 
 ---
@@ -59,17 +118,18 @@ if (isTv) FilmaxTvTheme { FilmaxTvNavGraph() } else FilmaxTheme { FilmaxNavGraph
 ```
 app/                         # один таргет: телефон + Android TV
 ├─ MainActivity              # выбор UI по FEATURE_LEANBACK
+├─ update/                   # in-app обновления из GitHub Releases
 ├─ navigation/               # FilmaxNavGraph (телефон, нижний таб-бар)
 └─ tv/navigation/            # FilmaxTvNavGraph + TvTopNavBar (ТВ, верхний таб-бар)
 core/
 ├─ domain/                   # модели, интерфейсы репозиториев, RequestResult, UseCase
-├─ network/                  # сетевой клиент, токены
+├─ network/                  # сетевой клиент, токены, авторефреш OAuth
 ├─ presentation/             # BaseScreenModel (MVI: State/Event/SideEffect)
 ├─ designsystem/             # цвета, типографика, формы, тема (телефон)
-├─ tv-designsystem/          # FilmaxTvTheme, TvButton, TvFocusCard (androidx.tv.material3)
-└─ ui/                       # переиспользуемые Composable (PosterImage, FilmaxTabBar, …)
+├─ tv-designsystem/          # FilmaxTvTheme, TvPosterCard, TvFocusCard, TvRail (фокус из коробки)
+└─ ui/                       # переиспользуемые Composable (PosterImage, голосовой ввод, …)
 data/                        # реализации репозиториев + DTO + мапперы
-└─ auth/ catalog/ search/ user/ watching/
+└─ auth/ catalog/ search/ user/ watching/ tmdb/
 feature/
 ├─ onboarding/ home/ search/ collections/ library/ profile/ details/ player/
 │     └─ каждая: <feature>(логика) + <feature>:mobile + <feature>:tv
@@ -84,12 +144,11 @@ feature/
 события через `dispatch(Event)`) → `ScreenModel` (`BaseScreenModel`, `State` + одноразовые
 `SideEffect`) → `Repository` (`RequestResult<T>`: `Success` / `Error`) → сеть.
 
-### Экраны
+### Разделы
 
-- **Телефон** (нижний таб-бар): Главная · Поиск · Подборки · Библиотека · Профиль, плюс
-  Детали и Плеер.
-- **Android TV** (верхний таб-бар, D-pad): Главная · Поиск · Подборки · Библиотека · Профиль,
-  плюс Детали и Плеер.
+И на телефоне, и на ТВ — четыре раздела: **Главная · Каталог · Моё · Профиль**, плюс
+push-экраны: карточка тайтла, фильмография, содержимое подборки, плеер, трейлер.
+Поиск и подборки живут внутри Каталога.
 
 Подробнее про TV — [`docs/TV.md`](docs/TV.md).
 
@@ -106,35 +165,6 @@ feature/
 
 ---
 
-## Ключевые возможности
-
-- **Дизайн-система** — переиспользуемые `Filmax*`-компоненты в `core:ui`; TV-аналоги
-  (`TvButton`, `TvFocusCard`, `FilmaxTvTheme`) — в `core:tv-designsystem` на
-  `androidx.tv.material3` с нативным фокусом из коробки.
-- **Избранное** — серверный watchlist (`togglewatchlist`) + локальный кэш как источник
-  списка для Библиотеки; синхронизация на тоггле и импорт `inWatchlist` в Деталях.
-- **Загрузки** — метаданные скачанного локально, отображение в Библиотеке.
-- **Система ошибок** — `AppError` + резолвер в `core:domain`, единая модалка
-  `FilmaxErrorModal`; из `ScreenModel` вызывается `showError(...)`.
-- **Плеер** — Media3 ExoPlayer, выбор качества из бэкенда, переключение субтитров на лету.
-- **Настройки воспроизведения** — качество видео и язык аудио/субтитров (Профиль),
-  сохраняются локально и применяются в плеере.
-- **Регистрация устройства** — `device/notify` при успешной авторизации.
-
----
-
-## Что осталось сделать
-
-- [ ] **TV: Профиль** — показывает реальный аккаунт/настройки вместо мульти-профиля из макета.
-- [ ] **Реальное офлайн-кэширование** загрузок (сейчас только метаданные).
-- [ ] Серверная синхронизация **списка** избранного (у API нет ручки на список).
-- [ ] Экран **«Списки»/закладки** (папки `bookmarks`) и управление ими.
-- [ ] Полноэкранный режим и регулировка громкости в плеере.
-- [ ] **Чистка ScreenModel-ей** — вынести воспроизведение/деривации за интерфейсы и UseCase,
-      убрать платформенные зависимости из presentation (подготовка к KMP).
-
----
-
 ## Сборка и запуск
 
 Требуется JDK 17 и Android SDK 35.
@@ -146,32 +176,47 @@ feature/
 # Установить на устройство/эмулятор
 ./gradlew :app:installDebug
 
-# Скомпилировать конкретный модуль
-./gradlew :feature:home:tv:compileDebugKotlin
+# Статический анализ
+./gradlew detekt
 ```
 
-`local.properties` (путь к Android SDK) и каталоги `build/` не коммитятся — см. `.gitignore`.
+Опциональные ключи в `local.properties` (не коммитится):
 
-### CI → Telegram
+| Ключ | Зачем |
+|------|-------|
+| `tmdb.apiKey` | Фото актёров из TMDB; без ключа — инициалы вместо фото |
+| `demo.accessToken` / `demo.refreshToken` | Build type `demo`: APK стартует авторизованным (для демо-стендов) |
+| `github.updateToken` | Не нужен, пока репозиторий публичный; на случай приватных релизов |
 
-`.github/workflows/android-build.yml` собирает `:app:assembleDebug` на пуш и по кнопке
-(Actions → Run workflow), кладёт APK в Artifacts и присылает в Telegram. Нужно один раз
-добавить секреты `TELEGRAM_BOT_TOKEN` и `TELEGRAM_CHAT_ID` (Settings → Secrets and variables
-→ Actions); без них шаг отправки пропускается.
+### CI и релизы
+
+- **`android-build.yml`** — debug-APK на каждый пуш: Artifacts + Telegram
+  (секреты `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`).
+- **`android-release.yml`** — пуш тега `vX.Y.Z`: подписанный release-APK (R8),
+  авто-changelog из conventional commits, публикация в GitHub Release и Telegram
+  (плюс секреты подписи `KEYSTORE_*`). Установленное приложение подхватит релиз само.
 
 ---
 
 ## Дизайн
 
-Дизайн ведётся в Claude Design и портируется поэкранно в Compose. Токены маппятся на
-`core:designsystem` (`Color` / `Type` / `Shape`); TV переиспользует их в `core:tv-designsystem`
-с затемнёнными под 10-foot поверхностями и focus-цветом. Акцент — `#B4305A`.
-TV-макет: [`docs/design/filmax-tv-all-screens.html`](docs/design/filmax-tv-all-screens.html).
+Дизайн ведётся в Claude Design и портируется поэкранно в Compose. Телефон — Material 3
+с акцентом `#B4305A`; Android TV — **монохромный редизайн** (акцент — белый, фокус —
+рамка с тёмным ореолом, работает на любом постере). Токены — в `core:designsystem` и
+`core:tv-designsystem`. TV-макет: [`docs/design/filmax-tv-all-screens.html`](docs/design/filmax-tv-all-screens.html).
 
 ---
 
 ## Развитие
 
-Текущий техдолг и дорожная карта (в т.ч. **Kotlin Multiplatform**: общий `data`/`domain` уже вынесен
-в `commonMain`/`:shared`, а iOS/Apple TV — на нативном **SwiftUI** поверх общего слоя, не Compose MP) —
-в [`docs/REFACTORING_PLAN.md`](docs/REFACTORING_PLAN.md).
+- [ ] Реальное офлайн-кэширование загрузок (сейчас только метаданные).
+- [ ] Вернуть «Настройки устройства» в Профиль, когда бэкенд починит `device/*` (сейчас 500).
+- [ ] Полноэкранный режим и регулировка громкости в плеере.
+- [ ] iOS/Apple TV: остальные экраны на SwiftUI поверх `:shared`.
+- [ ] Чистка ScreenModel-ей: UseCase-слой, убрать платформенные зависимости из presentation.
+
+Техдолг и дорожная карта — в [`docs/REFACTORING_PLAN.md`](docs/REFACTORING_PLAN.md).
+
+---
+
+*Filmax — некоммерческий проект для личного использования. Требуется аккаунт kino.pub.*
