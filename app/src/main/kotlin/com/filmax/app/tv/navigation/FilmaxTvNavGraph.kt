@@ -12,14 +12,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalView
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -87,9 +88,13 @@ fun FilmaxTvNavGraph(
     var scrollToTopSignal by remember { mutableIntStateOf(0) }
 
     // Переход по вкладкам: единственный экземпляр + сохранение/восстановление состояния.
+    // Попап — до TvHomeRoute, реального корня вкладок: стартовый destination графа — сплэш,
+    // которого после логина нет в стеке (popUpTo{inclusive}), и попап по нему молча не
+    // срабатывал — каждый заход на вкладку создавал свежую энтри, а restoreState не
+    // восстанавливал ни выбранный сегмент, ни скролл.
     fun navigateTab(route: Any) {
         navController.navigate(route) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            popUpTo<TvHomeRoute> { saveState = true }
             launchSingleTop = true
             restoreState = true
         }
@@ -132,15 +137,30 @@ fun FilmaxTvNavGraph(
         }
     }
 
-    // Стартовый фокус — на контенте, а не на шапке: иначе каждый вход в раздел стоит
-    // пользователю лишнего «вниз». Контент композится не мгновенно, поэтому пробуем его
-    // первым и откатываемся на таб-бар, если он ещё не готов принять фокус (гарантия
-    // «фокус есть всегда» из гайдлайна Google).
+    InitialContentFocus(showTopBar = showTopBar, content = contentFocus, navBar = navBarFocus)
+}
+
+/**
+ * Стартовый фокус — на контенте, а не на шапке: иначе каждый вход в раздел стоит пользователю
+ * лишнего «вниз». Контент композится не мгновенно, поэтому сначала пара кадров ожидания.
+ *
+ * Реквест — только когда фокуса нет нигде (первый вход после сплэша). При возврате из
+ * карточки/плеера Compose сам возвращает фокус в контент, и принудительный requestFocus
+ * лишь портил картину: фокус улетал на первый focusable экрана (hero), bring-into-view
+ * подтягивал к нему прокрутку, и восстановленный скролл терялся.
+ * Фоллбек на таб-бар остаётся (гарантия «фокус есть всегда» из гайдлайна Google).
+ */
+@Composable
+private fun InitialContentFocus(showTopBar: Boolean, content: FocusRequester, navBar: FocusRequester) {
+    val view = LocalView.current
     LaunchedEffect(showTopBar) {
-        if (showTopBar) {
-            runCatching { contentFocus.requestFocus() }
-                .onFailure { runCatching { navBarFocus.requestFocus() } }
-        }
+        if (!showTopBar) return@LaunchedEffect
+        // 10 кадров: позже ретраев rememberTvReturnFocus (8), чтобы точечное восстановление
+        // фокуса на карточку успело раньше этого фоллбека.
+        repeat(10) { withFrameNanos { } }
+        if (view.findFocus() != null) return@LaunchedEffect
+        runCatching { content.requestFocus() }
+            .onFailure { runCatching { navBar.requestFocus() } }
     }
 }
 

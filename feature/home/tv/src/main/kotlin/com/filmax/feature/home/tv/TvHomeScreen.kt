@@ -48,10 +48,12 @@ import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvRail
+import com.filmax.core.tv.designsystem.TvReturnFocus
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.posterMeta
 import com.filmax.core.tv.designsystem.ratingLabel
+import com.filmax.core.tv.designsystem.rememberTvReturnFocus
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
@@ -116,6 +118,7 @@ private fun TvHomeContent(
 ) {
     val listState = rememberLazyListState()
     ScrollToTopOnNavFocus(listState)
+    val returnFocus = rememberTvReturnFocus()
 
     LazyColumn(
         state = listState,
@@ -140,17 +143,18 @@ private fun TvHomeContent(
                 )
             }
         }
-        tvRails(state = state, actions = actions)
+        tvRails(state = state, actions = actions, returnFocus = returnFocus)
     }
 }
 
-private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions) {
-    tvContinueRail(history = state.continueWatching, onPlay = actions.onPlay)
+private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions, returnFocus: TvReturnFocus) {
+    tvContinueRail(history = state.continueWatching, onPlay = actions.onPlay, returnFocus = returnFocus)
     tvPosterRail(
         key = "trending",
         title = "В тренде",
         railItems = state.trending,
         onOpenItem = actions.onOpenItem,
+        returnFocus = returnFocus,
     )
     // Заголовок честный: `forYou` — это топ сериалов по рейтингу, персонализации в фиде нет.
     tvPosterRail(
@@ -158,13 +162,19 @@ private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions) {
         title = "Сериалы с высоким рейтингом",
         railItems = state.forYou,
         onOpenItem = actions.onOpenItem,
+        returnFocus = returnFocus,
     )
-    tvCollectionsRail(collections = state.collections, onOpenCollection = actions.onOpenCollection)
+    tvCollectionsRail(
+        collections = state.collections,
+        onOpenCollection = actions.onOpenCollection,
+        returnFocus = returnFocus,
+    )
 }
 
 private fun LazyListScope.tvContinueRail(
     history: List<WatchHistory>,
     onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    returnFocus: TvReturnFocus,
 ) {
     if (history.isEmpty()) return
     item(key = "continue") {
@@ -175,13 +185,15 @@ private fun LazyListScope.tvContinueRail(
                 TvContinueCard(
                     history = entry,
                     onClick = {
+                        returnFocus.onOpen("continue:${entry.itemId}")
                         onPlay(
                             entry.itemId,
                             entry.progress?.season ?: NO_SEASON,
                             entry.progress?.videoId ?: NO_VIDEO_ID,
                         )
                     },
-                    focusRequester = firstItemFocus.takeIf { index == 0 },
+                    focusRequester = returnFocus.target("continue:${entry.itemId}")
+                        ?: firstItemFocus.takeIf { index == 0 },
                 )
             }
         }
@@ -193,6 +205,7 @@ private fun LazyListScope.tvPosterRail(
     title: String,
     railItems: List<Item>,
     onOpenItem: (Int) -> Unit,
+    returnFocus: TvReturnFocus,
 ) {
     if (railItems.isEmpty()) return
     item(key = key) {
@@ -200,8 +213,12 @@ private fun LazyListScope.tvPosterRail(
             itemsIndexed(railItems, key = { _, catalogItem -> catalogItem.id }) { index, catalogItem ->
                 TvHomePosterCard(
                     item = catalogItem,
-                    onClick = { onOpenItem(catalogItem.id) },
-                    focusRequester = firstItemFocus.takeIf { index == 0 },
+                    onClick = {
+                        returnFocus.onOpen("$key:${catalogItem.id}")
+                        onOpenItem(catalogItem.id)
+                    },
+                    focusRequester = returnFocus.target("$key:${catalogItem.id}")
+                        ?: firstItemFocus.takeIf { index == 0 },
                 )
             }
         }
@@ -211,6 +228,7 @@ private fun LazyListScope.tvPosterRail(
 private fun LazyListScope.tvCollectionsRail(
     collections: List<Collection>,
     onOpenCollection: (id: Int, title: String) -> Unit,
+    returnFocus: TvReturnFocus,
 ) {
     // Подборка без постера — пустая плашка: в монохроме карточку держит только картинка.
     val withPoster = collections.filter { it.posterUrl() != null }
@@ -220,8 +238,12 @@ private fun LazyListScope.tvCollectionsRail(
             itemsIndexed(withPoster, key = { _, collection -> collection.id }) { index, collection ->
                 TvCollectionCard(
                     collection = collection,
-                    onClick = { onOpenCollection(collection.id, collection.title) },
-                    focusRequester = firstItemFocus.takeIf { index == 0 },
+                    onClick = {
+                        returnFocus.onOpen("collections:${collection.id}")
+                        onOpenCollection(collection.id, collection.title)
+                    },
+                    focusRequester = returnFocus.target("collections:${collection.id}")
+                        ?: firstItemFocus.takeIf { index == 0 },
                 )
             }
         }

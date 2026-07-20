@@ -54,11 +54,13 @@ import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceDim
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
+import com.filmax.core.tv.designsystem.TvReturnFocus
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.posterMeta
 import com.filmax.core.tv.designsystem.ratingLabel
+import com.filmax.core.tv.designsystem.rememberTvReturnFocus
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
@@ -171,6 +173,7 @@ private fun CatalogContent(
     actions: CatalogActions,
 ) {
     ScrollToTopOnNavFocus(listState)
+    val returnFocus = rememberTvReturnFocus()
     val gridItems = state.visibleItems
     // Постеры бьём на ряды по GRID_COLUMNS и кладём в ОБЩИЙ LazyColumn вместе с шапкой — так
     // скроллится ВЕСЬ экран (шапка уезжает вверх), а не только сетка под фиксированной шапкой,
@@ -199,7 +202,7 @@ private fun CatalogContent(
             item(key = "empty") { CatalogEmpty() }
         }
         itemsIndexed(rows, key = { index, _ -> "row-$index" }) { _, row ->
-            CatalogPosterRow(row = row, onOpenItem = actions.onOpenItem)
+            CatalogPosterRow(row = row, onOpenItem = actions.onOpenItem, returnFocus = returnFocus)
         }
     }
 }
@@ -209,13 +212,20 @@ private fun CatalogContent(
  * safe area. Хвостовые пустые ячейки не добираем — последний ряд просто короче.
  */
 @Composable
-private fun CatalogPosterRow(row: List<Item>, onOpenItem: (Int) -> Unit) {
+private fun CatalogPosterRow(row: List<Item>, onOpenItem: (Int) -> Unit, returnFocus: TvReturnFocus) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = TvMetrics.SafeHorizontal),
         horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
     ) {
         row.forEach { item ->
-            CatalogPoster(item = item, onClick = { onOpenItem(item.id) })
+            CatalogPoster(
+                item = item,
+                focusRequester = returnFocus.target("grid:${item.id}"),
+                onClick = {
+                    returnFocus.onOpen("grid:${item.id}")
+                    onOpenItem(item.id)
+                },
+            )
         }
     }
 }
@@ -429,13 +439,14 @@ private fun CatalogEmpty() {
 }
 
 @Composable
-private fun CatalogPoster(item: Item, onClick: () -> Unit) {
+private fun CatalogPoster(item: Item, focusRequester: FocusRequester?, onClick: () -> Unit) {
     TvPosterCard(
         title = item.title,
         meta = posterMeta(itemTypeLabel(item.type), item.year),
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         onClick = onClick,
         rating = formatRating(item.rating.external),
+        focusRequester = focusRequester,
     ) { url, posterModifier ->
         PosterImage(
             url = url,

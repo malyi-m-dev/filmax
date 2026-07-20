@@ -12,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -223,7 +222,13 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
     )
 }
 
-/** Переход по нижней вкладке: единственный экземпляр + сохранение/восстановление состояния. */
+/**
+ * Переход по нижней вкладке: единственный экземпляр + сохранение/восстановление состояния.
+ *
+ * Попап — до HomeRoute, реального корня вкладок: стартовый destination графа — сплэш,
+ * которого после логина нет в стеке (popUpTo{inclusive}), и попап по нему молча не
+ * срабатывал — каждый заход на вкладку создавал свежую энтри без восстановления состояния.
+ */
 private fun NavHostController.navigateToTab(tab: FilmaxTab) {
     val route: Any = when (tab) {
         FilmaxTab.HOME -> HomeRoute
@@ -232,7 +237,7 @@ private fun NavHostController.navigateToTab(tab: FilmaxTab) {
         FilmaxTab.PROFILE -> ProfileRoute
     }
     navigate(route) {
-        popUpTo(graph.findStartDestination().id) {
+        popUpTo<HomeRoute> {
             saveState = true
         }
         launchSingleTop = true
