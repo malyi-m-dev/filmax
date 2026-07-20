@@ -2,7 +2,7 @@ package com.filmax.app.update
 
 import android.content.Context
 import com.filmax.app.BuildConfig
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -36,12 +36,15 @@ private data class AssetDto(
  * Репозиторий приватный, поэтому запросы идут с токеном из `BuildConfig.UPDATE_GITHUB_TOKEN`
  * (fine-grained, только чтение contents). Без токена проверка тихо не находит обновлений.
  */
-class GitHubUpdateRepository(private val context: Context) {
+class GitHubUpdateRepository(
+    private val context: Context,
+    private val ioDispatcher: CoroutineDispatcher,
+) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
     /** Свежий релиз, если он новее установленной версии; null — обновляться не на что. */
-    suspend fun latestUpdate(): UpdateInfo? = withContext(Dispatchers.IO) {
+    suspend fun latestUpdate(): UpdateInfo? = withContext(ioDispatcher) {
         runCatching { fetchLatestRelease() }.getOrNull()?.let { release ->
             val version = release.tagName.removePrefix("v")
             val apk = release.assets.firstOrNull { it.name.endsWith(".apk") } ?: return@let null
@@ -57,7 +60,7 @@ class GitHubUpdateRepository(private val context: Context) {
      * objects.githubusercontent.com, и туда токен передавать нельзя — CDN отвечает на него 400.
      */
     suspend fun downloadApk(info: UpdateInfo, onProgress: suspend (Float) -> Unit): File =
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val dir = File(context.cacheDir, UPDATES_DIR).apply { mkdirs() }
             val apkFile = File(dir, "filmax-${info.version}.apk")
 

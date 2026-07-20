@@ -2,7 +2,7 @@ package com.filmax.app.update
 
 import com.filmax.app.BuildConfig
 import com.filmax.core.presentation.BaseScreenModel
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 
 /** Боевой applicationId: только он обновляется release-APK из GitHub Releases. */
 private const val RELEASE_APPLICATION_ID = "com.filmax.app"
@@ -18,6 +18,7 @@ private const val PROGRESS_STEP = 0.01f
  */
 class AppUpdateScreenModel(
     private val repository: GitHubUpdateRepository,
+    private val ioDispatcher: CoroutineDispatcher,
 ) : BaseScreenModel<AppUpdateState, AppUpdateSideEffect, AppUpdateEvent>(AppUpdateState()) {
 
     init {
@@ -34,7 +35,7 @@ class AppUpdateScreenModel(
 
     override fun onFetchData() {
         if (BuildConfig.APPLICATION_ID != RELEASE_APPLICATION_ID) return
-        screenModelScope(Dispatchers.IO) {
+        screenModelScope(ioDispatcher) { _ ->
             // Ошибки проверки молчаливые: обновление — фон, а не повод для модалки при старте.
             val update = repository.latestUpdate() ?: return@screenModelScope
             updateState { it.copy(update = update) }
@@ -42,7 +43,7 @@ class AppUpdateScreenModel(
     }
 
     private fun download() {
-        screenModelScope(Dispatchers.IO) { snapshot ->
+        screenModelScope(ioDispatcher) { snapshot ->
             val update = snapshot.update ?: return@screenModelScope
             updateState { it.copy(downloading = true, progress = 0f, downloadError = false) }
             var lastReported = 0f
@@ -59,7 +60,7 @@ class AppUpdateScreenModel(
                     updateState { it.copy(downloading = false, progress = 1f, downloadedApk = apk) }
                     postSideEffect(AppUpdateSideEffect.LaunchInstaller(apk))
                 },
-                onFailure = {
+                onFailure = { _ ->
                     updateState { it.copy(downloading = false, downloadError = true) }
                 },
             )
@@ -73,7 +74,7 @@ class AppUpdateScreenModel(
     }
 
     private fun dismiss() {
-        screenModelScope {
+        screenModelScope { _ ->
             updateState { it.copy(dismissed = true) }
         }
     }
