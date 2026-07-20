@@ -172,20 +172,20 @@ private class TvPlayerUiState(val player: Player) {
     var autoNextDismissed by mutableStateOf(false)
 
     /**
-     * Обновляется тиком прогресса: плашка живёт в последних [AUTO_NEXT_WINDOW_MS] серии,
-     * пока переход не отменён и пользователь не перематывает. Нижней границы у окна нет:
-     * у HLS позиция может уйти ЗА заявленную длительность (поток длиннее метаданных),
-     * и отрицательный остаток — тоже «конец серии».
+     * Обновляется тиком прогресса: плашка появляется в последних [AUTO_NEXT_WINDOW_MS] серии
+     * (наш прокси «пошли титры» — маркеров у kino.pub нет), и с этого момента идёт ФИКСИРОВАННЫЙ
+     * отсчёт [AUTO_NEXT_COUNTDOWN_SEC]: конца титров не ждём, хвост серии срезается переходом.
+     * Отсчёт замирает на паузе; перемотка прячет плашку и начинает отсчёт заново. Нижней границы
+     * у окна нет: у HLS позиция может уйти ЗА заявленную длительность (поток длиннее метаданных).
      */
-    fun updateAutoNext(remainingMs: Long, enabled: Boolean) {
-        val active = enabled && !autoNextDismissed && !isScrubbing &&
+    fun updateAutoNext(remainingMs: Long, enabled: Boolean, playing: Boolean) {
+        val inWindow = enabled && !autoNextDismissed && !isScrubbing &&
             remainingMs <= AUTO_NEXT_WINDOW_MS
-        autoNextVisible = active
-        if (active) {
-            autoNextSeconds = ((remainingMs + MILLIS_IN_SECOND - 1) / MILLIS_IN_SECOND)
-                .toInt()
-                .coerceAtLeast(1)
+        when {
+            inWindow && !autoNextVisible -> autoNextSeconds = AUTO_NEXT_COUNTDOWN_SEC
+            inWindow && playing -> autoNextSeconds = (autoNextSeconds - 1).coerceAtLeast(0)
         }
+        autoNextVisible = inWindow
     }
 
     /** Индикатор шага последней перемотки («+30 с»); гаснет сам. */
@@ -595,10 +595,14 @@ private fun PlayerEffects(ui: TvPlayerUiState, screenModel: PlayerScreenModel, a
             if (!ui.isScrubbing) ui.positionMs = player.currentPosition
             screenModel.dispatch(PlayerEvent.SaveProgress(player.currentPosition))
 
-            // Автопереход: плашка живёт в конце серии, по порогу — следующая серия.
+            // Автопереход: плашка появляется в конце серии, отсчёт дошёл до нуля — следующая.
             val remaining = duration - player.currentPosition
-            ui.updateAutoNext(remainingMs = remaining, enabled = currentAutoNext.enabled)
-            if (ui.autoNextVisible && remaining <= AUTO_NEXT_FIRE_MS) {
+            ui.updateAutoNext(
+                remainingMs = remaining,
+                enabled = currentAutoNext.enabled,
+                playing = ui.isPlaying,
+            )
+            if (ui.autoNextVisible && ui.autoNextSeconds <= 0) {
                 ui.autoNextVisible = false
                 currentAutoNext.play()
             }
@@ -1386,11 +1390,11 @@ private val SEEK_STEPS_SEC = listOf(10, 10, 20, 30, 60, 90, 120)
 /** Ширина боковой панели серий. */
 private val EpisodesPanelWidth = 330.dp
 
-/** Окно плашки автоперехода: последние 20 секунд серии. */
+/** Окно плашки автоперехода: последние 20 секунд серии (прокси «пошли титры»). */
 private const val AUTO_NEXT_WINDOW_MS = 20_000L
 
-/** Порог запуска следующей серии тиком (сек до конца меньше тика — не промахнуться). */
-private const val AUTO_NEXT_FIRE_MS = 1_500L
+/** Отсчёт до автостарта следующей серии с момента появления плашки. */
+private const val AUTO_NEXT_COUNTDOWN_SEC = 5
 
 private val AutoNextCardMaxWidth = 460.dp
 private val AutoNextCardBottom = 120.dp
