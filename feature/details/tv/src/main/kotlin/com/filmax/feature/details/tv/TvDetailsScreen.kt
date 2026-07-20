@@ -27,7 +27,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -687,6 +686,7 @@ private fun LazyListScope.episodesSection(section: EpisodesSection) {
         EpisodesRow(
             episodes = section.episodes,
             resumeId = section.resumeId,
+            selectedSeason = section.selectedSeason,
             onPlay = section.onPlayEpisode,
         )
     }
@@ -706,16 +706,26 @@ private fun SectionTitle(title: String, modifier: Modifier = Modifier) {
 /**
  * Ряд серий. Свой LazyRow, а не [TvRail]: заголовок «Эпизоды» стоит над чипами сезонов, а
  * TvRail жёстко ставит заголовок над своим рядом. Отступы и focusRestorer — как у TvRail.
+ *
+ * Выбор другого сезона пересоздаёт карточки (новые key), но LazyRow хранит прежний скролл,
+ * а focusRestorer — уже не существующего ребёнка: вход в ряд отдавался D-pad-поиску и сажал
+ * фокус на серию под чипом сезона, а не на первую. Поэтому смена сезона возвращает скролл
+ * к началу, а fallback-фокус закреплён за первой серией.
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun EpisodesRow(
     episodes: List<MediaTrack>,
     resumeId: Int?,
+    selectedSeason: Int,
     onPlay: (season: Int, videoId: Int) -> Unit,
 ) {
+    val firstItemFocus = remember { FocusRequester() }
+    val listState = rememberLazyListState()
+    LaunchedEffect(selectedSeason) { listState.scrollToItem(0) }
     LazyRow(
-        modifier = Modifier.focusRestorer(),
+        state = listState,
+        modifier = Modifier.focusRestorer(firstItemFocus),
         contentPadding = PaddingValues(
             start = TvMetrics.SafeHorizontal,
             end = TvMetrics.SafeHorizontal,
@@ -724,10 +734,11 @@ private fun EpisodesRow(
         ),
         horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
     ) {
-        items(episodes, key = { it.id }) { episode ->
+        itemsIndexed(episodes, key = { _, episode -> episode.id }) { index, episode ->
             EpisodeCard(
                 episode = episode,
                 isResume = episode.id == resumeId,
+                focusRequester = if (index == 0) firstItemFocus else null,
                 // Плееру нужны номер серии (API `video`) и сезон, а не id трека.
                 onClick = { onPlay(episode.seasonNumber, episode.number) },
             )
@@ -736,7 +747,12 @@ private fun EpisodesRow(
 }
 
 @Composable
-private fun EpisodeCard(episode: MediaTrack, isResume: Boolean, onClick: () -> Unit) {
+private fun EpisodeCard(
+    episode: MediaTrack,
+    isResume: Boolean,
+    focusRequester: FocusRequester?,
+    onClick: () -> Unit,
+) {
     val progress = if (episode.durationSeconds > 0) {
         episode.watchedSeconds.toFloat() / episode.durationSeconds
     } else {
@@ -749,6 +765,7 @@ private fun EpisodeCard(episode: MediaTrack, isResume: Boolean, onClick: () -> U
         progress = progress,
         onClick = onClick,
         size = TvCardSize.Episode,
+        focusRequester = focusRequester,
     ) { url, modifier ->
         EpisodeThumb(url = url, episode = episode, isResume = isResume, modifier = modifier)
     }
