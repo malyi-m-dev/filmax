@@ -27,8 +27,18 @@ private const val RECENT_LIMIT = 8
 /**
  * Что показывает чип «Все». `api/v1/items` без параметра `type` не ходит, поэтому «все» —
  * это объединение конкретных типов; ItemType.TV (эфирные каналы) в витрину не входит.
+ * ANIME здесь нет: у kino.pub нет такого типа (api/v1/types), и аниме-тайтлы уже входят
+ * в выдачу как movie/serial со своим жанром.
  */
-private val BrowseTypes = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.ANIME, ItemType.DOCUMENTARY)
+private val BrowseTypes = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.DOCUMENTARY)
+
+/**
+ * Чип «Аниме»: типа «anime» у kino.pub НЕТ — аниме это ЖАНР (id 25) поверх фильмов и
+ * сериалов. Поэтому фильтр ANIME разворачивается в movie+serial с жанром [ANIME_GENRE_ID];
+ * выбранный в ряду жанр на это время игнорируется — параметр `genre` в API один.
+ */
+private const val ANIME_GENRE_ID = 25
+private val AnimeTypes = listOf(ItemType.MOVIE, ItemType.SERIES)
 
 /**
  * Типы жанров, которые показываем в каталоге. `api/v1/genres` отдаёт одним списком жанры всех
@@ -219,7 +229,7 @@ class SearchScreenModel(
      * частичная выдача лучше пустой сетки.
      */
     private suspend fun fetchCatalogPage(page: Int): RequestResult<List<Item>> {
-        val genreId = state.selectedGenreId
+        val genreId = if (state.filter == ItemType.ANIME) ANIME_GENRE_ID else state.selectedGenreId
         val sort = state.sort
         val filters = state.filters
         val types = activeTypes.filterNot { it in exhaustedTypes }
@@ -247,7 +257,11 @@ class SearchScreenModel(
     }
 
     private val activeTypes: List<ItemType>
-        get() = state.filter?.let { listOf(it) } ?: BrowseTypes
+        get() = when (val filter = state.filter) {
+            null -> BrowseTypes
+            ItemType.ANIME -> AnimeTypes
+            else -> listOf(filter)
+        }
 }
 
 /**
