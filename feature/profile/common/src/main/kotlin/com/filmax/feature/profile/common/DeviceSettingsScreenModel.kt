@@ -34,7 +34,7 @@ class DeviceSettingsScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope {
+        screenModelScope { _ ->
             updateState { it.copy(loading = true, error = null) }
             when (val result = user.getDeviceSettings()) {
                 is RequestResult.Success ->
@@ -57,7 +57,7 @@ class DeviceSettingsScreenModel(
 
     private fun save() {
         val settings = state.settings ?: return
-        screenModelScope {
+        screenModelScope { _ ->
             updateState { it.copy(saving = true, error = null) }
             when (val result = user.updateDeviceSettings(settings)) {
                 is RequestResult.Success -> {

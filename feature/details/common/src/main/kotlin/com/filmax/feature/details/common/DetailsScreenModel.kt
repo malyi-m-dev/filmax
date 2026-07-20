@@ -71,7 +71,7 @@ class DetailsScreenModel(
      * а фото «доезжают» без блокировки. Пустой ответ (нет ключа/совпадения) молча оставляет строку.
      */
     private fun loadCast(imdbId: String?) {
-        screenModelScope {
+        screenModelScope { _ ->
             val members = cast.getCast(imdbId)
             if (members.isNotEmpty()) {
                 updateState { it.copy(cast = members) }
