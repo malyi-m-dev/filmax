@@ -1,7 +1,5 @@
 package com.filmax.app.tv.navigation
 
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
@@ -29,6 +27,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filmax.app.navigation.RootScreenModel
+import com.filmax.app.navigation.navFadeIn
+import com.filmax.app.navigation.navFadeOut
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
@@ -109,10 +109,10 @@ fun FilmaxTvNavGraph(
                     .focusRequester(contentFocus)
                     .focusProperties { up = navBarFocus }
                     .focusGroup(),
-                enterTransition = { fadeIn() },
-                exitTransition = { fadeOut() },
-                popEnterTransition = { fadeIn() },
-                popExitTransition = { fadeOut() },
+                enterTransition = { navFadeIn },
+                exitTransition = { navFadeOut },
+                popEnterTransition = { navFadeIn },
+                popExitTransition = { navFadeOut },
             ) {
                 tvDestinations(navController)
             }
