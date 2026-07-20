@@ -87,6 +87,7 @@ import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
@@ -640,6 +641,9 @@ private fun PlayerContent(
 ) {
     val keyFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { runCatching { keyFocus.requestFocus() } }
+
+    // Пока идёт воспроизведение, экран не гаснет; на паузе — обычный таймаут системы.
+    KeepScreenOn(enabled = ui.isPlaying)
 
     Box(
         modifier = modifier

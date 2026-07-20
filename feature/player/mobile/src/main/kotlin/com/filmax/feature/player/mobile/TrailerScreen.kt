@@ -33,6 +33,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.ui.components.KeepScreenOn
 
 /**
  * Экран трейлера — одноразовый плеер по готовому HLS-URL.
@@ -62,6 +63,9 @@ fun TrailerScreen(
     DisposableEffect(exoPlayer) {
         onDispose { exoPlayer.release() }
     }
+
+    // Трейлер короткий — держим экран, пока он на экране, без слежения за паузой.
+    KeepScreenOn()
 
     Box(
         modifier = modifier

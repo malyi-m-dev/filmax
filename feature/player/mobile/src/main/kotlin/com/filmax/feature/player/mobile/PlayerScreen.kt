@@ -44,6 +44,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -60,8 +61,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.filmax.core.ui.components.FilmaxErrorModal
+import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
@@ -88,6 +91,20 @@ fun PlayerScreen(
     var subtitleMenu by remember { mutableStateOf(false) }
     var audioMenu by remember { mutableStateOf(false) }
     var speedMenu by remember { mutableStateOf(false) }
+
+    // Пока идёт воспроизведение, экран не гаснет (жалоба: гас через 10 минут при живом звуке);
+    // на паузе — обычный таймаут системы.
+    var playing by remember { mutableStateOf(screenModel.player.isPlaying) }
+    DisposableEffect(screenModel.player) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playing = isPlaying
+            }
+        }
+        screenModel.player.addListener(listener)
+        onDispose { screenModel.player.removeListener(listener) }
+    }
+    KeepScreenOn(enabled = playing)
 
     // Auto-hide controls (но не во время скраббинга — таймер стартует заново после жеста).
     LaunchedEffect(controlsVisible, isScrubbing) {

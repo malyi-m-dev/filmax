@@ -21,6 +21,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.filmax.core.tv.designsystem.TvMetrics
+import com.filmax.core.ui.components.KeepScreenOn
 
 /**
  * TV-экран трейлера — одноразовый плеер по готовому HLS-URL.
@@ -53,6 +54,9 @@ fun TvTrailerScreen(
 
     // На TV «Назад» — системная кнопка пульта: перехватываем её, чтобы выйти из трейлера.
     BackHandler { onBack() }
+
+    // Трейлер короткий — держим экран, пока он на экране, без слежения за паузой.
+    KeepScreenOn()
 
     Box(
         modifier = modifier
