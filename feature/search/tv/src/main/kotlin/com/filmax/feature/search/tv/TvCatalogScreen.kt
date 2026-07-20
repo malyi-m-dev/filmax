@@ -20,11 +20,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +71,9 @@ import org.koin.androidx.compose.koinViewModel
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ровно ложатся в 844dp между safe area. */
 private const val GRID_COLUMNS = 4
+
+/** За сколько хвостовых рядов сетки до конца просить следующую страницу витрины. */
+private const val LOAD_MORE_TAIL = 3
 
 /** Типы в порядке чипов. null — «Все» (объединение типов, см. SearchScreenModel). */
 private val TypeOptions = listOf(
@@ -150,6 +155,7 @@ fun TvCatalogScreen(
                     onGenre = { screenModel.dispatch(SearchEvent.GenreChange(it)) },
                     onApplyFilters = { screenModel.dispatch(SearchEvent.ApplyFilters(it)) },
                 ),
+                onLoadMore = { screenModel.dispatch(SearchEvent.LoadMoreCatalog) },
             )
         }
     }
@@ -171,6 +177,7 @@ private fun CatalogContent(
     listState: LazyListState,
     searchBarFocus: FocusRequester,
     actions: CatalogActions,
+    onLoadMore: () -> Unit,
 ) {
     ScrollToTopOnNavFocus(listState)
     val returnFocus = rememberTvReturnFocus()
@@ -180,6 +187,18 @@ private fun CatalogContent(
     // которая занимала пол-экрана. Фокус ходит одним списком: «вниз» из чипов идёт в постеры,
     // «вверх» с первого ряда прокручивает шапку обратно и уходит на таб-бар (как на Главной).
     val rows = remember(gridItems) { gridItems.chunked(GRID_COLUMNS) }
+
+    // Догрузка витрины: фокус/скролл в LOAD_MORE_TAIL хвостовых рядах — просим следующую
+    // страницу. derivedStateOf пересчитывается без рекомпозиции, дёргает её только смена
+    // «пора/не пора»; повторные вызовы гасит идемпотентность модели.
+    val loadMore by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
+        }
+    }
+    LaunchedEffect(loadMore) { if (loadMore) onLoadMore() }
 
     LazyColumn(
         state = listState,
@@ -204,6 +223,17 @@ private fun CatalogContent(
         itemsIndexed(rows, key = { index, _ -> "row-$index" }) { _, row ->
             CatalogPosterRow(row = row, onOpenItem = actions.onOpenItem, returnFocus = returnFocus)
         }
+        if (state.catalogLoadingMore) {
+            item(key = "loading_more") { CatalogLoadingMore() }
+        }
+    }
+}
+
+/** Хвостовой индикатор догрузки страницы — невысокий, чтобы не дёргать сетку. */
+@Composable
+private fun CatalogLoadingMore() {
+    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = TvOnSurfaceVariant, modifier = Modifier.size(28.dp))
     }
 }
 

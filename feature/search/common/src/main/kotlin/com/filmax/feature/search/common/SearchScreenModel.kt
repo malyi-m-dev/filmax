@@ -55,6 +55,12 @@ class SearchScreenModel(
 
     private val queryFlow = MutableStateFlow("")
 
+    /** Последняя загруженная страница витрины (0 — ещё не грузили). Общая для всех типов. */
+    private var catalogPage = 0
+
+    /** Типы, у которых страницы кончились: их не запрашиваем при догрузке. */
+    private var exhaustedTypes = setOf<ItemType>()
+
     init {
         onFetchData()
     }
@@ -77,6 +83,7 @@ class SearchScreenModel(
             }
 
             SearchEvent.LoadCatalog -> onLoadCatalog()
+            SearchEvent.LoadMoreCatalog -> onLoadMoreCatalog()
         }
     }
 
@@ -159,23 +166,88 @@ class SearchScreenModel(
 
     private suspend fun loadCatalog() {
         if (!state.catalogEnabled) return
-        updateState { it.copy(loading = true) }
+        updateState { it.copy(loading = true, catalogLoadingMore = false, catalogEndReached = false) }
+        catalogPage = 0
+        exhaustedTypes = emptySet()
+        when (val first = fetchCatalogPage(1)) {
+            is RequestResult.Success -> updateState {
+                it.copy(
+                    loading = false,
+                    catalogItems = sortLocally(first.data, it.sort),
+                    catalogEndReached = activeTypes.all { type -> type in exhaustedTypes },
+                    error = null,
+                )
+            }
+
+            is RequestResult.Error -> updateState {
+                it.copy(loading = false, catalogItems = emptyList(), error = first.message)
+            }
+        }
+    }
+
+    /**
+     * Догрузка следующей страницы витрины. Идемпотентна: во время загрузки, после конца
+     * каталога и в режиме поиска повторный вызов игнорируется — UI может дёргать её при
+     * каждом подходе скролла к хвосту сетки.
+     */
+    private fun onLoadMoreCatalog() {
+        val current = state
+        val busy = current.loading || current.catalogLoadingMore || current.catalogEndReached
+        if (!current.catalogEnabled || busy || current.query.length >= MIN_QUERY_LENGTH) return
+        screenModelScope { _ ->
+            updateState { it.copy(catalogLoadingMore = true) }
+            when (val next = fetchCatalogPage(catalogPage + 1)) {
+                is RequestResult.Success -> updateState { s ->
+                    val seen = s.catalogItems.mapTo(HashSet()) { it.id }
+                    val merged = s.catalogItems + next.data.filter { it.id !in seen }
+                    s.copy(
+                        catalogLoadingMore = false,
+                        catalogItems = sortLocally(merged, s.sort),
+                        catalogEndReached = activeTypes.all { type -> type in exhaustedTypes },
+                    )
+                }
+
+                // Тихий фейл: показанную витрину не рушим, следующий подход к хвосту повторит.
+                is RequestResult.Error -> updateState { it.copy(catalogLoadingMore = false) }
+            }
+        }
+    }
+
+    /**
+     * Грузит страницу [page] витрины для всех неисчерпанных типов текущего фильтра, помечает
+     * кончившиеся типы и двигает [catalogPage]. Ошибка — только когда не ответил НИ один тип:
+     * частичная выдача лучше пустой сетки.
+     */
+    private suspend fun fetchCatalogPage(page: Int): RequestResult<List<Item>> {
         val genreId = state.selectedGenreId
         val sort = state.sort
         val filters = state.filters
-        val types = state.filter?.let { listOf(it) } ?: BrowseTypes
-        val pages = coroutineScope {
-            types.map { type -> async { catalog.getItems(type, genreId, filters, sort) } }.awaitAll()
+        val types = activeTypes.filterNot { it in exhaustedTypes }
+        if (types.isEmpty()) return RequestResult.Success(emptyList())
+        val results = coroutineScope {
+            types.map { type ->
+                async { type to catalog.getItems(type, genreId, filters, sort, page) }
+            }.awaitAll()
         }
-        val lists = pages.mapNotNull { it.getOrNull()?.items }
-        if (lists.isEmpty()) {
-            val message = pages.firstNotNullOfOrNull { (it as? RequestResult.Error)?.message }
-            updateState { it.copy(loading = false, catalogItems = emptyList(), error = message) }
-            return
+        val succeeded = results.mapNotNull { (type, result) ->
+            result.getOrNull()?.let { itemPage -> type to itemPage }
         }
-        val merged = sortLocally(interleave(lists), sort)
-        updateState { it.copy(loading = false, catalogItems = merged, error = null) }
+        return if (succeeded.isEmpty()) {
+            val message = results.firstNotNullOfOrNull { (_, result) ->
+                (result as? RequestResult.Error)?.message
+            }
+            RequestResult.Error(message)
+        } else {
+            catalogPage = page
+            exhaustedTypes = exhaustedTypes + succeeded
+                .filter { (_, itemPage) -> itemPage.items.isEmpty() || !itemPage.pagination.hasNextPage }
+                .map { (type, _) -> type }
+            RequestResult.Success(interleave(succeeded.map { (_, itemPage) -> itemPage.items }))
+        }
     }
+
+    private val activeTypes: List<ItemType>
+        get() = state.filter?.let { listOf(it) } ?: BrowseTypes
 }
 
 /**

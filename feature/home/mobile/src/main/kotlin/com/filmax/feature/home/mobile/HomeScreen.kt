@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudOff
@@ -29,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +104,7 @@ fun HomeScreen(
                     state = state,
                     offline = offline,
                     actions = actions,
-                    onReload = { screenModel.dispatch(HomeEvent.Load) },
+                    onEvent = screenModel::dispatch,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -123,13 +125,13 @@ private fun HomeFeed(
     state: HomeState,
     offline: Boolean,
     actions: HomeActions,
-    onReload: () -> Unit,
+    onEvent: (HomeEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier.fillMaxSize()) {
         // Офлайн-деградация (issue #42): контент из кэша + ненавязчивый баннер вместо модалки.
         if (offline) {
-            item(key = "offline") { OfflineBanner(onReload = onReload) }
+            item(key = "offline") { OfflineBanner(onReload = { onEvent(HomeEvent.Load) }) }
         }
         state.hero?.let { hero ->
             item(key = "hero") {
@@ -141,26 +143,28 @@ private fun HomeFeed(
                 )
             }
         }
-        homeRows(state = state, actions = actions)
+        homeRows(state = state, actions = actions, onEvent = onEvent)
     }
 }
 
 // ── Ряды ──────────────────────────────────────────────────────────────────
 
-private fun LazyListScope.homeRows(state: HomeState, actions: HomeActions) {
+private fun LazyListScope.homeRows(state: HomeState, actions: HomeActions, onEvent: (HomeEvent) -> Unit) {
     continueRow(history = state.continueWatching, onPlay = actions.onPlay)
     posterRow(
         key = "trending",
         title = "В тренде",
-        rowItems = state.trending,
+        rowItems = state.trendingRow.items,
         onOpenItem = actions.onOpenItem,
+        onLoadMore = { onEvent(HomeEvent.LoadMoreTrending) },
     )
     // Заголовок честный: `forYou` — это топ сериалов по рейтингу, персонализации в фиде нет.
     posterRow(
         key = "forYou",
         title = "Сериалы с высоким рейтингом",
-        rowItems = state.forYou,
+        rowItems = state.forYouRow.items,
         onOpenItem = actions.onOpenItem,
+        onLoadMore = { onEvent(HomeEvent.LoadMoreForYou) },
     )
     collectionsRow(collections = state.collections, onOpenCollection = actions.onOpenCollection)
 }
@@ -198,11 +202,18 @@ private fun LazyListScope.posterRow(
     title: String,
     rowItems: List<Item>,
     onOpenItem: (Int) -> Unit,
+    onLoadMore: (() -> Unit)? = null,
 ) {
     if (rowItems.isEmpty()) return
     item(key = key) {
         HomeRow(title = title) {
-            items(rowItems, key = { it.id }) { rowItem ->
+            itemsIndexed(rowItems, key = { _, rowItem -> rowItem.id }) { index, rowItem ->
+                // Хвостовая карточка скомпонована — ряд долистан почти до конца: просим
+                // следующую страницу. Ленивый ряд композит только видимое (+префетч), так что
+                // триггер дешёвый; повторные вызовы гасит идемпотентность модели.
+                if (onLoadMore != null && index == rowItems.lastIndex) {
+                    LaunchedEffect(rowItems.size) { onLoadMore() }
+                }
                 FilmaxPosterCard(
                     title = rowItem.title,
                     posterUrl = rowItem.posters.medium,

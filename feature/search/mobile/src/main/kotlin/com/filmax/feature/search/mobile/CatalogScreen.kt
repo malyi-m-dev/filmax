@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -49,6 +50,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,6 +91,9 @@ import org.koin.androidx.compose.koinViewModel
 
 /** Сетка каталога: 3×98dp постера + 2×12dp зазора + поля 20dp ровно ложатся в кадр 360dp. */
 private const val GRID_COLUMNS = 3
+
+/** За сколько хвостовых ячеек сетки до конца просить следующую страницу витрины. */
+private const val LOAD_MORE_TAIL = 9
 
 private const val SEARCH_PLACEHOLDER = "Поиск фильмов, сериалов, людей"
 
@@ -172,6 +177,7 @@ fun CatalogScreen(
                     onGenre = { screenModel.dispatch(SearchEvent.GenreChange(it)) },
                     onOpenFilters = { filtersOpen = true },
                 ),
+                onLoadMore = { screenModel.dispatch(SearchEvent.LoadMoreCatalog) },
             )
         }
     }
@@ -194,9 +200,22 @@ fun CatalogScreen(
 }
 
 @Composable
-private fun CatalogContent(state: SearchState, actions: CatalogActions) {
+private fun CatalogContent(state: SearchState, actions: CatalogActions, onLoadMore: () -> Unit) {
+    val gridState = rememberLazyGridState()
+    // Догрузка витрины при подходе к хвосту сетки. derivedStateOf пересчитывается без
+    // рекомпозиции; повторные вызовы гасит идемпотентность модели.
+    val loadMore by remember {
+        derivedStateOf {
+            val info = gridState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
+        }
+    }
+    LaunchedEffect(loadMore) { if (loadMore) onLoadMore() }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
+        state = gridState,
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(
             start = FilmaxMetrics.ScreenPadding,
@@ -214,6 +233,25 @@ private fun CatalogContent(state: SearchState, actions: CatalogActions) {
             state = state,
             emptySubtitle = "Измените фильтры или запрос",
             onOpenItem = actions.onOpenItem,
+        )
+        if (state.catalogLoadingMore) {
+            item(key = "loading_more", span = { GridItemSpan(maxLineSpan) }) {
+                CatalogLoadingMore()
+            }
+        }
+    }
+}
+
+/** Хвостовой индикатор догрузки страницы — невысокий, чтобы не дёргать сетку. */
+@Composable
+private fun CatalogLoadingMore() {
+    Box(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(26.dp),
         )
     }
 }

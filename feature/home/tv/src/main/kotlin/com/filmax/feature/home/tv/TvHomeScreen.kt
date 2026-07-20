@@ -23,6 +23,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -96,6 +97,8 @@ fun TvHomeScreen(
                     onPlay = onPlay,
                     onOpenCollection = onOpenCollection,
                     onReload = { screenModel.dispatch(HomeEvent.Load) },
+                    onLoadMoreTrending = { screenModel.dispatch(HomeEvent.LoadMoreTrending) },
+                    onLoadMoreForYou = { screenModel.dispatch(HomeEvent.LoadMoreForYou) },
                 ),
             )
         }
@@ -108,6 +111,8 @@ private data class TvHomeActions(
     val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     val onOpenCollection: (id: Int, title: String) -> Unit,
     val onReload: () -> Unit,
+    val onLoadMoreTrending: () -> Unit,
+    val onLoadMoreForYou: () -> Unit,
 )
 
 @Composable
@@ -150,17 +155,23 @@ private fun TvHomeContent(
 private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions, returnFocus: TvReturnFocus) {
     tvContinueRail(history = state.continueWatching, onPlay = actions.onPlay, returnFocus = returnFocus)
     tvPosterRail(
-        key = "trending",
-        title = "В тренде",
-        railItems = state.trending,
+        rail = TvRailSpec(
+            key = "trending",
+            title = "В тренде",
+            railItems = state.trendingRow.items,
+            onLoadMore = actions.onLoadMoreTrending,
+        ),
         onOpenItem = actions.onOpenItem,
         returnFocus = returnFocus,
     )
     // Заголовок честный: `forYou` — это топ сериалов по рейтингу, персонализации в фиде нет.
     tvPosterRail(
-        key = "forYou",
-        title = "Сериалы с высоким рейтингом",
-        railItems = state.forYou,
+        rail = TvRailSpec(
+            key = "forYou",
+            title = "Сериалы с высоким рейтингом",
+            railItems = state.forYouRow.items,
+            onLoadMore = actions.onLoadMoreForYou,
+        ),
         onOpenItem = actions.onOpenItem,
         returnFocus = returnFocus,
     )
@@ -170,6 +181,14 @@ private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions, retu
         returnFocus = returnFocus,
     )
 }
+
+/** Описание постер-ряда одним объектом (detekt LongParameterList). */
+private data class TvRailSpec(
+    val key: String,
+    val title: String,
+    val railItems: List<Item>,
+    val onLoadMore: (() -> Unit)? = null,
+)
 
 private fun LazyListScope.tvContinueRail(
     history: List<WatchHistory>,
@@ -201,23 +220,30 @@ private fun LazyListScope.tvContinueRail(
 }
 
 private fun LazyListScope.tvPosterRail(
-    key: String,
-    title: String,
-    railItems: List<Item>,
+    rail: TvRailSpec,
     onOpenItem: (Int) -> Unit,
     returnFocus: TvReturnFocus,
 ) {
+    val railItems = rail.railItems
     if (railItems.isEmpty()) return
-    item(key = key) {
-        TvRail(title = title) { firstItemFocus ->
+    item(key = rail.key) {
+        TvRail(title = rail.title) { firstItemFocus ->
             itemsIndexed(railItems, key = { _, catalogItem -> catalogItem.id }) { index, catalogItem ->
+                // Хвостовая карточка скомпонована — зритель долистал ряд почти до конца:
+                // просим следующую страницу. Ленивый ряд композит только видимое (+префетч),
+                // поэтому это дешёвый триггер без слежения за скроллом; повторные вызовы
+                // гасит идемпотентность модели.
+                val onLoadMore = rail.onLoadMore
+                if (onLoadMore != null && index == railItems.lastIndex) {
+                    LaunchedEffect(railItems.size) { onLoadMore() }
+                }
                 TvHomePosterCard(
                     item = catalogItem,
                     onClick = {
-                        returnFocus.onOpen("$key:${catalogItem.id}")
+                        returnFocus.onOpen("${rail.key}:${catalogItem.id}")
                         onOpenItem(catalogItem.id)
                     },
-                    focusRequester = returnFocus.target("$key:${catalogItem.id}")
+                    focusRequester = returnFocus.target("${rail.key}:${catalogItem.id}")
                         ?: firstItemFocus.takeIf { index == 0 },
                 )
             }

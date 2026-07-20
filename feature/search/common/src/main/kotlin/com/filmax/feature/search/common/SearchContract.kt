@@ -35,6 +35,10 @@ data class SearchState(
      * поиск на каждом открытии тянул бы выдачу, которую никогда не рисует.
      */
     val catalogEnabled: Boolean = false,
+    /** Идёт догрузка следующей страницы витрины (хвостовой индикатор сетки). */
+    val catalogLoadingMore: Boolean = false,
+    /** Все типы витрины исчерпаны — больше не грузим. */
+    val catalogEndReached: Boolean = false,
     val recentQueries: List<String> = emptyList(),
     val trendingQueries: List<String> = emptyList(),
     val loading: Boolean = false,
@@ -67,6 +71,9 @@ sealed interface SearchEvent {
 
     /** Экран-витрина заявляет о себе: подтянуть жанры, страны и выдачу по текущим фильтрам. */
     data object LoadCatalog : SearchEvent
+
+    /** Догрузить следующую страницу витрины (триггерится при подходе скролла к концу сетки). */
+    data object LoadMoreCatalog : SearchEvent
 }
 
 sealed interface SearchSideEffect

@@ -33,6 +33,19 @@ class HomeScreenModel(
         when (event) {
             HomeEvent.Load -> onFetchData()
             HomeEvent.LoadMoreAll -> loadMoreAll()
+            HomeEvent.LoadMoreTrending -> loadMoreRow(
+                type = ItemType.MOVIE,
+                sort = CatalogSort.VIEWS,
+                read = { it.trendingRow },
+                write = { current, row -> current.copy(trendingRow = row) },
+            )
+
+            HomeEvent.LoadMoreForYou -> loadMoreRow(
+                type = ItemType.SERIES,
+                sort = CatalogSort.RATING,
+                read = { it.forYouRow },
+                write = { current, row -> current.copy(forYouRow = row) },
+            )
         }
     }
 
@@ -56,8 +69,8 @@ class HomeScreenModel(
                     hero = feed.hero,
                     continueWatching = feed.continueWatching,
                     collections = feed.collections,
-                    trending = feed.trending,
-                    forYou = feed.forYou,
+                    trendingRow = RowPaging(items = feed.trending),
+                    forYouRow = RowPaging(items = feed.forYou),
                     error = feed.error,
                 )
             }
@@ -100,5 +113,54 @@ class HomeScreenModel(
                 is RequestResult.Error -> updateState { it.copy(allLoadingMore = false) }
             }
         }
+    }
+
+    /**
+     * Догрузка горизонтального ряда главной. Идемпотентна (guard на загрузку/конец), с потолком
+     * [HOME_ROW_MAX]: бесконечный ряд на пульте — сотни нажатий вправо, а каждая сотня карточек —
+     * лишняя память под постеры; дальше пусть зовёт Каталог. Стартовая горстка приходит из фида
+     * (page = 0), первая догрузка тянет страницу 1 целиком — пересечение срезает дедуп по id.
+     */
+    private fun loadMoreRow(
+        type: ItemType,
+        sort: CatalogSort,
+        read: (HomeState) -> RowPaging,
+        write: (HomeState, RowPaging) -> HomeState,
+    ) {
+        val row = read(state)
+        val busy = row.loadingMore || row.endReached
+        val capped = row.items.isEmpty() || row.items.size >= HOME_ROW_MAX
+        if (busy || capped) return
+        val nextPage = row.page + 1
+        screenModelScope { _ ->
+            updateState { write(it, read(it).copy(loadingMore = true)) }
+            when (val result = catalog.getItems(type, sort, nextPage)) {
+                is RequestResult.Success -> updateState { s ->
+                    val current = read(s)
+                    val seen = current.items.mapTo(HashSet()) { it.id }
+                    val merged = (current.items + result.data.items.filter { it.id !in seen })
+                        .take(HOME_ROW_MAX)
+                    val exhausted = result.data.items.isEmpty() ||
+                        !result.data.pagination.hasNextPage ||
+                        merged.size >= HOME_ROW_MAX
+                    write(
+                        s,
+                        current.copy(
+                            items = merged,
+                            page = nextPage,
+                            loadingMore = false,
+                            endReached = exhausted,
+                        ),
+                    )
+                }
+
+                is RequestResult.Error -> updateState { write(it, read(it).copy(loadingMore = false)) }
+            }
+        }
+    }
+
+    private companion object {
+        /** Потолок карточек в одном ряду главной — дальше зовёт Каталог. */
+        const val HOME_ROW_MAX = 100
     }
 }
