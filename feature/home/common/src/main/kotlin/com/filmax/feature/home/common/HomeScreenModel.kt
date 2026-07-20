@@ -2,6 +2,7 @@ package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
@@ -46,6 +47,8 @@ class HomeScreenModel(
                 read = { it.forYouRow },
                 write = { current, row -> current.copy(forYouRow = row) },
             )
+
+            HomeEvent.LoadMoreCollections -> loadMoreCollections()
         }
     }
 
@@ -68,7 +71,7 @@ class HomeScreenModel(
                     loading = false,
                     hero = feed.hero,
                     continueWatching = feed.continueWatching,
-                    collections = feed.collections,
+                    collectionsRow = RowPaging(items = feed.collections),
                     trendingRow = RowPaging(items = feed.trending),
                     forYouRow = RowPaging(items = feed.forYou),
                     error = feed.error,
@@ -124,8 +127,8 @@ class HomeScreenModel(
     private fun loadMoreRow(
         type: ItemType,
         sort: CatalogSort,
-        read: (HomeState) -> RowPaging,
-        write: (HomeState, RowPaging) -> HomeState,
+        read: (HomeState) -> RowPaging<Item>,
+        write: (HomeState, RowPaging<Item>) -> HomeState,
     ) {
         val row = read(state)
         val busy = row.loadingMore || row.endReached
@@ -155,6 +158,41 @@ class HomeScreenModel(
                 }
 
                 is RequestResult.Error -> updateState { write(it, read(it).copy(loadingMore = false)) }
+            }
+        }
+    }
+
+    /**
+     * Догрузка «Подборок». Отдельно от [loadMoreRow]: другой источник, и репозиторий отдаёт
+     * список без пагинации — конец определяется пустой страницей (или потолком [HOME_ROW_MAX]).
+     */
+    private fun loadMoreCollections() {
+        val row = state.collectionsRow
+        val busy = row.loadingMore || row.endReached
+        val capped = row.items.isEmpty() || row.items.size >= HOME_ROW_MAX
+        if (busy || capped) return
+        val nextPage = row.page + 1
+        screenModelScope { _ ->
+            updateState { it.copy(collectionsRow = it.collectionsRow.copy(loadingMore = true)) }
+            when (val result = catalog.getCollections(nextPage)) {
+                is RequestResult.Success -> updateState { s ->
+                    val current = s.collectionsRow
+                    val seen = current.items.mapTo(HashSet()) { it.id }
+                    val merged = (current.items + result.data.filter { it.id !in seen })
+                        .take(HOME_ROW_MAX)
+                    s.copy(
+                        collectionsRow = current.copy(
+                            items = merged,
+                            page = nextPage,
+                            loadingMore = false,
+                            endReached = result.data.isEmpty() || merged.size >= HOME_ROW_MAX,
+                        ),
+                    )
+                }
+
+                is RequestResult.Error -> updateState {
+                    it.copy(collectionsRow = it.collectionsRow.copy(loadingMore = false))
+                }
             }
         }
     }

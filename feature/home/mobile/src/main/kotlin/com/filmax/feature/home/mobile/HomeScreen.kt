@@ -166,7 +166,11 @@ private fun LazyListScope.homeRows(state: HomeState, actions: HomeActions, onEve
         onOpenItem = actions.onOpenItem,
         onLoadMore = { onEvent(HomeEvent.LoadMoreForYou) },
     )
-    collectionsRow(collections = state.collections, onOpenCollection = actions.onOpenCollection)
+    collectionsRow(
+        collections = state.collectionsRow.items,
+        onOpenCollection = actions.onOpenCollection,
+        onLoadMore = { onEvent(HomeEvent.LoadMoreCollections) },
+    )
 }
 
 private fun LazyListScope.continueRow(
@@ -228,6 +232,7 @@ private fun LazyListScope.posterRow(
 private fun LazyListScope.collectionsRow(
     collections: List<Collection>,
     onOpenCollection: (id: Int, title: String) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     // Подборка без постера — пустая плашка: в монохроме карточку держит только картинка.
     val withPoster = collections.mapNotNull { collection ->
@@ -236,7 +241,11 @@ private fun LazyListScope.collectionsRow(
     if (withPoster.isEmpty()) return
     item(key = "collections") {
         HomeRow(title = "Подборки") {
-            items(withPoster, key = { it.first.id }) { (collection, poster) ->
+            itemsIndexed(withPoster, key = { _, entry -> entry.first.id }) { index, (collection, poster) ->
+                // Хвостовая карточка скомпонована — просим следующую страницу (как у постер-рядов).
+                if (index == withPoster.lastIndex) {
+                    LaunchedEffect(withPoster.size) { onLoadMore() }
+                }
                 FilmaxPosterCard(
                     title = collection.title,
                     posterUrl = poster,

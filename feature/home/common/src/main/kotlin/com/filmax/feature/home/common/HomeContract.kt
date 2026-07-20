@@ -8,8 +8,8 @@ import com.filmax.core.domain.watching.model.WatchHistory
  * Срез постранично догружаемого ряда главной. [page] — последняя загруженная страница каталога
  * (0 — в ряду только стартовая горстка из фида, каталог ещё не листали).
  */
-data class RowPaging(
-    val items: List<Item> = emptyList(),
+data class RowPaging<T>(
+    val items: List<T> = emptyList(),
     val page: Int = 0,
     val loadingMore: Boolean = false,
     val endReached: Boolean = false,
@@ -21,11 +21,12 @@ data class HomeState(
     val initials: String = "",
     val hero: Item? = null,
     val continueWatching: List<WatchHistory> = emptyList(),
-    val collections: List<Collection> = emptyList(),
+    /** «Подборки» — догружается при доскролле ряда. */
+    val collectionsRow: RowPaging<Collection> = RowPaging(),
     /** «В тренде» — фильмы по просмотрам, догружается при доскролле ряда. */
-    val trendingRow: RowPaging = RowPaging(),
+    val trendingRow: RowPaging<Item> = RowPaging(),
     /** «Сериалы с высоким рейтингом» — догружается при доскролле ряда. */
-    val forYouRow: RowPaging = RowPaging(),
+    val forYouRow: RowPaging<Item> = RowPaging(),
     /** Секция «Все» — постранично подгружаемый список фильмов (newest first). */
     val all: List<Item> = emptyList(),
     /** Последняя загруженная страница секции «Все» (0 — ещё не загружали). */
@@ -48,6 +49,9 @@ sealed interface HomeEvent {
 
     /** Догрузить ряд «Сериалы с высоким рейтингом». */
     data object LoadMoreForYou : HomeEvent
+
+    /** Догрузить ряд «Подборки». */
+    data object LoadMoreCollections : HomeEvent
 }
 
 /** Экран пока не порождает одноразовых эффектов — навигация открытия айтема идёт колбэком из Screen. */

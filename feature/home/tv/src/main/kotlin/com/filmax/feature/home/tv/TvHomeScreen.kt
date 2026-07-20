@@ -99,6 +99,7 @@ fun TvHomeScreen(
                     onReload = { screenModel.dispatch(HomeEvent.Load) },
                     onLoadMoreTrending = { screenModel.dispatch(HomeEvent.LoadMoreTrending) },
                     onLoadMoreForYou = { screenModel.dispatch(HomeEvent.LoadMoreForYou) },
+                    onLoadMoreCollections = { screenModel.dispatch(HomeEvent.LoadMoreCollections) },
                 ),
             )
         }
@@ -113,6 +114,7 @@ private data class TvHomeActions(
     val onReload: () -> Unit,
     val onLoadMoreTrending: () -> Unit,
     val onLoadMoreForYou: () -> Unit,
+    val onLoadMoreCollections: () -> Unit,
 )
 
 @Composable
@@ -176,9 +178,10 @@ private fun LazyListScope.tvRails(state: HomeState, actions: TvHomeActions, retu
         returnFocus = returnFocus,
     )
     tvCollectionsRail(
-        collections = state.collections,
+        collections = state.collectionsRow.items,
         onOpenCollection = actions.onOpenCollection,
         returnFocus = returnFocus,
+        onLoadMore = actions.onLoadMoreCollections,
     )
 }
 
@@ -255,6 +258,7 @@ private fun LazyListScope.tvCollectionsRail(
     collections: List<Collection>,
     onOpenCollection: (id: Int, title: String) -> Unit,
     returnFocus: TvReturnFocus,
+    onLoadMore: () -> Unit,
 ) {
     // Подборка без постера — пустая плашка: в монохроме карточку держит только картинка.
     val withPoster = collections.filter { it.posterUrl() != null }
@@ -262,6 +266,10 @@ private fun LazyListScope.tvCollectionsRail(
     item(key = "collections") {
         TvRail(title = "Подборки") { firstItemFocus ->
             itemsIndexed(withPoster, key = { _, collection -> collection.id }) { index, collection ->
+                // Хвостовая карточка скомпонована — просим следующую страницу (как у постер-рядов).
+                if (index == withPoster.lastIndex) {
+                    LaunchedEffect(withPoster.size) { onLoadMore() }
+                }
                 TvCollectionCard(
                     collection = collection,
                     onClick = {
