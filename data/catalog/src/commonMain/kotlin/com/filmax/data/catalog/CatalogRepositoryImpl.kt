@@ -27,7 +27,7 @@ internal class CatalogRepositoryImpl(
 ) : CatalogRepository {
 
     override suspend fun getItems(type: ItemType, sort: CatalogSort, page: Int): RequestResult<ItemPage> =
-        safeRequest { api.getItems(type.apiValue, sort.apiValue, page).toDomain() }
+        safeRequest { api.getItems(type.apiValue, sort.descending, page).toDomain() }
 
     override suspend fun getItemsByGenre(
         type: ItemType,
@@ -35,7 +35,7 @@ internal class CatalogRepositoryImpl(
         sort: CatalogSort,
         page: Int,
     ): RequestResult<ItemPage> =
-        safeRequest { api.getItemsByGenre(type.apiValue, genreId, sort.apiValue, page).toDomain() }
+        safeRequest { api.getItemsByGenre(type.apiValue, genreId, sort.descending, page).toDomain() }
 
     override suspend fun getItems(
         type: ItemType,
@@ -70,6 +70,12 @@ internal class CatalogRepositoryImpl(
     override suspend fun getCollectionItems(collectionId: Int, page: Int): RequestResult<CollectionPage> =
         safeRequest { api.getCollectionItems(collectionId, page).toDomain() }
 }
+
+/**
+ * Короткие перегрузки без [SortOption] всегда сортируют по убыванию: «популярное», «лучшее»
+ * и «свежее» читаются сверху вниз. kino.pub: минус-префикс = DESC (см. [SortOption.apiValue]).
+ */
+private val CatalogSort.descending: String get() = "-$apiValue"
 
 /**
  * Разворачивает доменные [CatalogFilters] в параметры `api/v1/items`. Диапазоны года и пороги

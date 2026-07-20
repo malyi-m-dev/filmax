@@ -75,8 +75,10 @@ enum class CatalogSort(val apiValue: String) {
 }
 
 /**
- * Сортировка с направлением. kino.pub: `sort=field` — по убыванию, `sort=-field` — по возрастанию
- * (префикс «минус»). Дефолт — убывание: и «свежие», и «высокий рейтинг» читаются сверху вниз.
+ * Сортировка с направлением. kino.pub: `sort=-field` — по УБЫВАНИЮ, `sort=field` — по
+ * возрастанию (проверено живым API: `-rating` отдаёт топ, `rating` — худшее). Раньше знак
+ * трактовался наоборот, и «лучшее сверху» на деле показывало хвост каталога.
+ * Дефолт — убывание: и «свежие», и «высокий рейтинг» читаются сверху вниз.
  */
 data class SortOption(
     val field: CatalogSort,
@@ -84,5 +86,5 @@ data class SortOption(
 ) {
     // this.field, а не field: внутри геттера `field` — это ключевое слово backing-field, а не
     // конструкторный параметр. Без `this` компилятор считает apiValue свойством с полем и падает.
-    val apiValue: String get() = if (ascending) "-${this.field.apiValue}" else this.field.apiValue
+    val apiValue: String get() = if (ascending) this.field.apiValue else "-${this.field.apiValue}"
 }
