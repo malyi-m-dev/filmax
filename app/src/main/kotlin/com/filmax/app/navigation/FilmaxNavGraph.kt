@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -67,18 +66,12 @@ fun FilmaxNavGraph(
     val isAuthenticated = rootState.isAuthenticated
     val navController = rememberNavController()
 
-    LaunchedEffect(isAuthenticated) {
-        val auth = isAuthenticated ?: return@LaunchedEffect
-        if (auth) {
-            navController.navigate(HomeRoute) {
-                popUpTo(SplashRoute) { inclusive = true }
-            }
-        } else {
-            navController.navigate(OnboardingRoute) {
-                popUpTo(SplashRoute) { inclusive = true }
-            }
-        }
-    }
+    AuthStateNavigation(
+        isAuthenticated = isAuthenticated,
+        navController = navController,
+        homeRoute = HomeRoute,
+        onboardingRoute = OnboardingRoute,
+    )
 
     val backStack by navController.currentBackStackEntryAsState()
     val currentDest = backStack?.destination

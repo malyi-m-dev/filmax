@@ -27,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.filmax.app.navigation.AuthStateNavigation
 import com.filmax.app.navigation.RootScreenModel
 import com.filmax.app.navigation.navFadeIn
 import com.filmax.app.navigation.navFadeOut
@@ -64,14 +65,12 @@ fun FilmaxTvNavGraph(
     val isAuthenticated = rootState.isAuthenticated
     val navController = rememberNavController()
 
-    LaunchedEffect(isAuthenticated) {
-        val auth = isAuthenticated ?: return@LaunchedEffect
-        if (auth) {
-            navController.navigate(TvHomeRoute) { popUpTo(TvSplashRoute) { inclusive = true } }
-        } else {
-            navController.navigate(TvOnboardingRoute) { popUpTo(TvSplashRoute) { inclusive = true } }
-        }
-    }
+    AuthStateNavigation(
+        isAuthenticated = isAuthenticated,
+        navController = navController,
+        homeRoute = TvHomeRoute,
+        onboardingRoute = TvOnboardingRoute,
+    )
 
     val backStack by navController.currentBackStackEntryAsState()
     val currentDest = backStack?.destination
