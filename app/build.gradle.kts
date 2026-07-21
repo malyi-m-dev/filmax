@@ -9,6 +9,40 @@ plugins {
     id("filmax.detekt")
 }
 
+// Firebase (Crashlytics) включается только при наличии конфига: локальная сборка и PR-CI без
+// секретов не должны падать. Файл содержит ключи проекта Firebase — в публичном репо его не
+// держим (.gitignore); локально кладётся в app/, в CI декодируется из секрета
+// GOOGLE_SERVICES_JSON_BASE64. Без файла сборка проходит, репортинг остаётся no-op.
+val googleServicesConfig = file("google-services.json")
+if (googleServicesConfig.exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+    apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
+
+    // google-services строго сверяет applicationId с client-списком json и роняет сборку
+    // вариантов, чьих пакетов там нет («No matching client found»). Пока в Firebase
+    // зарегистрирован только боевой com.filmax.app — для остальных вариантов выключаем
+    // задачи Firebase; их рантайм и так no-op (FirebaseApp.initializeApp вернёт null).
+    // Зарегистрируешь .debug/.demo и обновишь json — фильтр сам перестанет что-либо выключать.
+    val registeredPackages = Regex("\"package_name\"\\s*:\\s*\"([^\"]+)\"")
+        .findAll(googleServicesConfig.readText())
+        .map { it.groupValues[1] }
+        .toSet()
+    val variantPackages = mapOf(
+        "Debug" to "com.filmax.app.debug",
+        "Demo" to "com.filmax.app.demo",
+        "Release" to "com.filmax.app",
+    )
+    tasks.whenTaskAdded {
+        val firebaseTask = name.contains("GoogleServices") || name.contains("Crashlytics")
+        if (!firebaseTask) return@whenTaskAdded
+        val unregistered = variantPackages
+            .filterValues { it !in registeredPackages }
+            .keys
+            .any { variantName -> name.contains(variantName) }
+        if (unregistered) enabled = false
+    }
+}
+
 // Секреты подписи release: локально из keystore.properties (в .gitignore),
 // в CI — из env-переменных (GitHub Secrets). env имеет приоритет над файлом.
 val keystorePropsFile = rootProject.file("keystore.properties")
@@ -192,6 +226,11 @@ dependencies {
 
     // In-app update: разбор ответа GitHub Releases.
     implementation(libs.kotlinx.serialization.json)
+
+    // Crashlytics: SDK подключён всегда (код компилируется без google-services.json),
+    // но без конфига Firebase не инициализируется и репортинг остаётся no-op.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
 
     // Koin
     implementation(platform(libs.koin.bom))

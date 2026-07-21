@@ -1,7 +1,9 @@
 package com.filmax.app
 
 import android.app.Application
+import android.content.pm.PackageManager
 import com.filmax.app.di.appModule
+import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
 import com.filmax.data.auth.di.authModule
@@ -19,6 +21,8 @@ import com.filmax.feature.onboarding.common.di.onboardingModule
 import com.filmax.feature.player.common.di.playerModule
 import com.filmax.feature.profile.common.di.profileModule
 import com.filmax.feature.search.common.di.searchFeatureModule
+import com.google.firebase.FirebaseApp
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -27,6 +31,7 @@ import org.koin.core.logger.Level
 class FilmaxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        initErrorReporting()
         seedDemoTokenIfNeeded()
         startKoin {
             androidLogger(Level.ERROR)
@@ -57,6 +62,21 @@ class FilmaxApplication : Application() {
                 appModule,
             )
         }
+    }
+
+    /**
+     * Включает телеметрию ошибок. Сборка без app/google-services.json (локальная/PR-CI) Firebase
+     * не сконфигурирована — initializeApp вернёт null, и репортинг остаётся no-op из ErrorReporting.
+     */
+    private fun initErrorReporting() {
+        FirebaseApp.initializeApp(this) ?: return
+        val crashlytics = FirebaseCrashlytics.getInstance()
+        // Debug-сессии — шум разработки, их не собираем; release/demo шлют крэши и non-fatal'ы.
+        crashlytics.setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+        // Один APK на оба форм-фактора — в отчётах различаем их так же, как MainActivity выбирает UI.
+        val isTv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+        crashlytics.setCustomKey("form_factor", if (isTv) "tv" else "mobile")
+        ErrorReporting.reporter = CrashlyticsErrorReporter(crashlytics)
     }
 
     /**

@@ -3,6 +3,7 @@ package com.filmax.data.auth
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.auth.model.DeviceCode
 import com.filmax.core.domain.auth.model.Token
+import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.network.TokenStorage
@@ -42,5 +43,9 @@ internal class AuthRepositoryImpl(
         Token(dto.accessToken, dto.refreshToken, dto.expiresIn)
     }
 
-    override suspend fun logout(): RequestResult<Unit> = safeRequest { tokenStorage.clear() }
+    override suspend fun logout(): RequestResult<Unit> = safeRequest {
+        tokenStorage.clear()
+        // Дальше устройством может пользоваться другой аккаунт — отвязываем телеметрию.
+        ErrorReporting.reporter.setUser(null)
+    }
 }

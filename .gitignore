@@ -18,6 +18,9 @@ keystore.properties
 *.jks
 *.keystore
 
+# Firebase — конфиг с ключами проекта; репо публичное, файл живёт локально и в CI-секрете
+google-services.json
+
 # IDE — IntelliJ IDEA / Android Studio
 .idea/
 *.iml

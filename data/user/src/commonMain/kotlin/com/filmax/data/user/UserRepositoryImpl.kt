@@ -1,7 +1,9 @@
 package com.filmax.data.user
 
 import com.filmax.core.domain.catalog.model.ItemPage
+import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.common.onSuccess
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
@@ -35,7 +37,8 @@ internal class UserRepositoryImpl(
                 )
             },
         )
-    }
+        // Профиль — единственное место, где известен username: привязываем к нему телеметрию.
+    }.onSuccess { profile -> ErrorReporting.reporter.setUser(profile.username) }
 
     override suspend fun getDeviceSettings(): RequestResult<DeviceSettings> = safeRequest {
         requireNotNull(api.getDeviceSettings().device).toDomain()

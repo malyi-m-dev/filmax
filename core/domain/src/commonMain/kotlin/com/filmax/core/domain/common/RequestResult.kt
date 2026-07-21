@@ -18,10 +18,13 @@ sealed interface RequestResult<out T> {
 suspend inline fun <T> safeRequest(crossinline block: suspend () -> T): RequestResult<T> =
     try {
         RequestResult.Success(block())
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Throwable) {
-        RequestResult.Error(e.message, e)
+    } catch (cancellation: CancellationException) {
+        throw cancellation
+    } catch (error: Throwable) {
+        // Единственная точка, где видны ВСЕ сбои data-слоя: HTTP-статусы (expectSuccess=true даёт
+        // исключение с URL и кодом, включая 500-е) и падения парсинга. Уходит в телеметрию non-fatal.
+        ErrorReporting.reporter.report(error)
+        RequestResult.Error(error.message, error)
     }
 
 inline fun <T, R> RequestResult<T>.map(transform: (T) -> R): RequestResult<R> = when (this) {

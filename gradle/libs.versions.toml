@@ -16,6 +16,10 @@ activity-compose = "1.10.1"
 tv-material = "1.0.0"
 chucker = "4.0.0"
 detekt = "1.23.8"
+# Firebase (Crashlytics: крэши + non-fatal телеметрия)
+google-services = "4.4.2"
+firebase-crashlytics-plugin = "3.0.2"
+firebase-bom = "33.7.0"
 junit = "5.10.2"
 junit-platform = "1.10.2"
 # KMP
@@ -101,6 +105,10 @@ activity-compose = { group = "androidx.activity", name = "activity-compose", ver
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 
+# Firebase (версии дорожек задаёт BoM)
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+
 # Player
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-exoplayer-hls = { group = "androidx.media3", name = "media3-exoplayer-hls", version.ref = "media3" }
@@ -137,3 +145,5 @@ kotlin-cocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref =
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 skie = { id = "co.touchlab.skie", version.ref = "skie" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics-plugin" }

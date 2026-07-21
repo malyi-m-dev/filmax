@@ -9,6 +9,8 @@ name: Release (tag v*) → GitHub Release + Telegram
 #   KEYSTORE_PASSWORD — пароль keystore
 #   KEY_ALIAS         — алиас ключа
 #   KEY_PASSWORD      — пароль ключа
+#   GOOGLE_SERVICES_JSON_BASE64 — app/google-services.json (Firebase Crashlytics), base64;
+#                                 не задан — релиз собирается без крэш-репортинга
 #   TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID — уже используются debug-workflow
 on:
   push:
@@ -50,6 +52,19 @@ jobs:
           fi
           echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/filmax-release.jks"
           echo "KEYSTORE_FILE=$RUNNER_TEMP/filmax-release.jks" >> "$GITHUB_ENV"
+
+      # Crashlytics: конфиг Firebase из секрета. Файл в .gitignore (репо публичное), а его
+      # наличие включает плагины google-services/crashlytics в app/build.gradle.kts —
+      # вместе с ними в релиз уезжает и mapping-файл R8 для читаемых стектрейсов.
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "::warning::Секрет GOOGLE_SERVICES_JSON_BASE64 не задан — релиз без Crashlytics."
+            exit 0
+          fi
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
 
       - name: Assemble signed release APK
         env:
