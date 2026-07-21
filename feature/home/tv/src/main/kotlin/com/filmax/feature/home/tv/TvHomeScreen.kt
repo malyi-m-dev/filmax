@@ -42,6 +42,7 @@ import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvErrorState
 import com.filmax.core.tv.designsystem.TvMetaRow
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
@@ -56,6 +57,7 @@ import com.filmax.core.tv.designsystem.posterMeta
 import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberTvReturnFocus
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.appErrorText
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
 import com.filmax.feature.home.common.HomeState
@@ -78,15 +80,29 @@ fun TvHomeScreen(
 ) {
     val state by screenModel.collectAsState()
     val offline by screenModel.collectOfflineBannerAsState()
+    val appError by screenModel.collectErrorAsState()
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(TvSurface),
     ) {
+        val error = appError
         when {
             state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = TvAccent)
+            }
+
+            // Показывать нечего и есть ошибка — объясняемся и даём «Повторить». Модалки, как на
+            // телефоне, тут нет: на пульте перекрывать ей пустой экран незачем, а фокусу нужна
+            // хоть одна цель. Пришли данные (пусть и из кэша) — ошибку снимает баннер «нет сети».
+            error != null && state.isEmpty -> {
+                val text = appErrorText(error)
+                TvErrorState(
+                    title = text.title,
+                    message = text.message,
+                    onRetry = screenModel::retry,
+                )
             }
 
             else -> TvHomeContent(

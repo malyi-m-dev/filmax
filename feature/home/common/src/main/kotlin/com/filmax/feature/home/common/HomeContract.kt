@@ -36,7 +36,18 @@ data class HomeState(
     /** Достигнут конец списка «Все» — больше не грузим. */
     val allEndReached: Boolean = false,
     val error: String? = null,
-)
+) {
+    /**
+     * Показывать нечего: ни hero, ни одного ряда. Холодный старт без сети выглядит именно так —
+     * экран должен объясниться, а не остаться пустым.
+     */
+    val isEmpty: Boolean
+        get() = hero == null &&
+            continueWatching.isEmpty() &&
+            collectionsRow.items.isEmpty() &&
+            trendingRow.items.isEmpty() &&
+            forYouRow.items.isEmpty()
+}
 
 sealed interface HomeEvent {
     data object Load : HomeEvent
