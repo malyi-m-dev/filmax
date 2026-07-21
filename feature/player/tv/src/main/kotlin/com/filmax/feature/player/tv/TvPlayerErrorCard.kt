@@ -19,6 +19,7 @@ import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.core.ui.components.appErrorText
 
 /**
  * Карточка ошибки поверх кадра TV-плеера. Кнопок нет намеренно: единственный выход из
@@ -36,15 +37,15 @@ internal fun PlayerErrorCard(error: AppError, modifier: Modifier = Modifier) {
             .padding(horizontal = 28.dp, vertical = 22.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val texts = errorTexts(error)
+        val text = appErrorText(error)
         Text(
-            texts.first,
+            text.title,
             style = MaterialTheme.typography.titleMedium,
             color = TvOnSurface,
             textAlign = TextAlign.Center,
         )
         Text(
-            texts.second,
+            text.message,
             style = MaterialTheme.typography.bodySmall,
             color = TvOnSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -57,18 +58,6 @@ internal fun PlayerErrorCard(error: AppError, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(top = 14.dp),
         )
     }
-}
-
-/** Тексты ошибки для TV-карточки — компактный аналог мобильной FilmaxErrorModal. */
-private fun errorTexts(error: AppError): Pair<String, String> = when (error) {
-    AppError.Offline -> "Нет подключения" to "Проверьте интернет-соединение и попробуйте снова."
-    AppError.Timeout -> "Сервер долго отвечает" to "Не дождались ответа сервера. Попробуйте ещё раз."
-    AppError.NotFound -> "Контент недоступен" to "Похоже, этот тайтл больше не в каталоге."
-    AppError.Premium -> "Только для Premium" to "Для просмотра нужна активная подписка."
-    AppError.Region -> "Недоступно в регионе" to "Контент ограничен лицензией в вашей стране."
-    AppError.Auth -> "Сессия истекла" to "Войдите снова, чтобы продолжить просмотр."
-    AppError.Playback -> "Ошибка воспроизведения" to "Не удалось запустить видео. Попробуйте другое качество."
-    AppError.Server, AppError.Empty -> "Что-то пошло не так" to "Сбой на сервере. Попробуйте ещё раз через минуту."
 }
 
 private val ErrorCardMaxWidth = 520.dp

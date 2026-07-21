@@ -32,15 +32,11 @@ if (googleServicesConfig.exists()) {
         "Demo" to "com.filmax.app.demo",
         "Release" to "com.filmax.app",
     )
-    tasks.whenTaskAdded {
-        val firebaseTask = name.contains("GoogleServices") || name.contains("Crashlytics")
-        if (!firebaseTask) return@whenTaskAdded
-        val unregistered = variantPackages
-            .filterValues { it !in registeredPackages }
-            .keys
-            .any { variantName -> name.contains(variantName) }
-        if (unregistered) enabled = false
-    }
+    val unregisteredVariants = variantPackages.filterValues { it !in registeredPackages }.keys
+    tasks.matching { task ->
+        val firebaseTask = task.name.contains("GoogleServices") || task.name.contains("Crashlytics")
+        firebaseTask && unregisteredVariants.any { variantName -> task.name.contains(variantName) }
+    }.configureEach { enabled = false }
 }
 
 // Секреты подписи release: локально из keystore.properties (в .gitignore),

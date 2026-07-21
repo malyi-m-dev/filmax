@@ -8,6 +8,10 @@ import com.filmax.core.domain.catalog.model.Item
  * DPI/SNI-блокировок. Плеер стартует с первого и при ошибке источника переключается на следующий.
  */
 data class StreamQuality(val label: String, val urls: List<String>) {
+    init {
+        require(urls.isNotEmpty()) { "Качество $label без единой ссылки на поток" }
+    }
+
     /** Основная ссылка варианта — первая в порядке предпочтения. */
     val url: String get() = urls.first()
 }

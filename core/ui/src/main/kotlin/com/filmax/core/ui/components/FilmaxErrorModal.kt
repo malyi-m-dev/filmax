@@ -64,73 +64,58 @@ private val PremiumOnAccent = Color(0xFF3A2C05)
 private val RegionAccent = Color(0xFF6B4B8F)
 private val AuthAccent = Color(0xFFE46962)
 
+/**
+ * Оформление модалки: иконка, палитра, код и подписи кнопок. Заголовок и текст сюда не входят —
+ * они общие с TV и живут в [appErrorText].
+ */
 private data class ErrorVisual(
     val icon: ImageVector,
-    val color: Color,
-    val onColor: Color,
+    val palette: ErrorPalette,
     val code: String,
-    val title: String,
-    val body: String,
     val primary: String,
-    val secondary: String?,
-    val retry: Boolean,
+    val secondary: String? = null,
+    val retry: Boolean = false,
 )
 
+/** Пара «акцент — цвет текста на нём»: у каждой ошибки своя, а вместе они всегда ходят парой. */
+private data class ErrorPalette(val accent: Color, val onAccent: Color)
+
+private val OfflinePalette = ErrorPalette(OfflineAccent, OfflineOnAccent)
+private val ServerPalette = ErrorPalette(ServerAccent, Color.White)
+private val TimeoutPalette = ErrorPalette(TimeoutAccent, TimeoutOnAccent)
+private val NotFoundPalette = ErrorPalette(NotFoundAccent, NotFoundOnAccent)
+private val EmptyPalette = ErrorPalette(EmptyAccent, EmptyOnAccent)
+private val PremiumPalette = ErrorPalette(PremiumAccent, PremiumOnAccent)
+private val RegionPalette = ErrorPalette(RegionAccent, Color.White)
+private val AuthPalette = ErrorPalette(AuthAccent, Color.White)
+
 private fun visualFor(error: AppError): ErrorVisual = when (error) {
-    AppError.Offline -> ErrorVisual(
-        Icons.Filled.WifiOff, OfflineAccent, OfflineOnAccent,
-        "NET · НЕТ СЕТИ", "Нет подключения",
-        "Проверьте интернет-соединение и попробуйте снова.",
-        "Повторить", null, retry = true,
-    )
-    AppError.Server -> ErrorVisual(
-        Icons.Filled.CloudOff, ServerAccent, Color.White,
-        "ERROR 500", "Что-то пошло не так",
-        "На нашей стороне сбой. Мы уже разбираемся — попробуйте через минуту.",
-        "Повторить", "Назад", retry = true,
-    )
-    AppError.Timeout -> ErrorVisual(
-        Icons.Filled.Schedule, TimeoutAccent, TimeoutOnAccent,
-        "ERROR 408", "Сервер долго отвечает",
-        "Не дождались ответа сервера. Проверьте соединение и повторите запрос.",
-        "Повторить", "Отмена", retry = true,
-    )
-    AppError.NotFound -> ErrorVisual(
-        Icons.Filled.VisibilityOff, NotFoundAccent, NotFoundOnAccent,
-        "ERROR 404", "Контент недоступен",
-        "Похоже, этот тайтл больше не в каталоге или был перемещён.",
-        "В каталог", null, retry = false,
-    )
-    AppError.Empty -> ErrorVisual(
-        Icons.Filled.SearchOff, EmptyAccent, EmptyOnAccent,
-        "ПУСТО", "Ничего не найдено",
-        "По вашему запросу нет результатов. Измените формулировку или сбросьте фильтры.",
-        "Сбросить фильтры", null, retry = false,
-    )
-    AppError.Premium -> ErrorVisual(
-        Icons.Filled.WorkspacePremium, PremiumAccent, PremiumOnAccent,
-        "ERROR 402", "Только для Premium",
-        "Оформите подписку Filmax Premium, чтобы смотреть в 4K HDR без рекламы.",
-        "Оформить Premium", "Позже", retry = false,
-    )
-    AppError.Region -> ErrorVisual(
-        Icons.Filled.Public, RegionAccent, Color.White,
-        "ERROR 403", "Недоступно в регионе",
-        "Этот контент недоступен в вашей стране из-за лицензионных ограничений.",
-        "Понятно", null, retry = false,
-    )
-    AppError.Auth -> ErrorVisual(
-        Icons.Filled.Lock, AuthAccent, Color.White,
-        "ERROR 401", "Сессия истекла",
-        "Время сессии вышло. Войдите снова, чтобы продолжить просмотр.",
-        "Войти заново", "Отмена", retry = false,
-    )
-    AppError.Playback -> ErrorVisual(
-        Icons.Filled.ErrorOutline, ServerAccent, Color.White,
-        "PLAYER", "Ошибка воспроизведения",
-        "Не удалось загрузить видео. Попробуйте снизить качество или повторить.",
-        "Повторить", "Закрыть", retry = true,
-    )
+    AppError.Offline ->
+        ErrorVisual(Icons.Filled.WifiOff, OfflinePalette, "NET · НЕТ СЕТИ", "Повторить", retry = true)
+
+    AppError.Server ->
+        ErrorVisual(Icons.Filled.CloudOff, ServerPalette, "ERROR 500", "Повторить", "Назад", retry = true)
+
+    AppError.Timeout ->
+        ErrorVisual(Icons.Filled.Schedule, TimeoutPalette, "ERROR 408", "Повторить", "Отмена", retry = true)
+
+    AppError.NotFound ->
+        ErrorVisual(Icons.Filled.VisibilityOff, NotFoundPalette, "ERROR 404", "В каталог")
+
+    AppError.Empty ->
+        ErrorVisual(Icons.Filled.SearchOff, EmptyPalette, "ПУСТО", "Сбросить фильтры")
+
+    AppError.Premium ->
+        ErrorVisual(Icons.Filled.WorkspacePremium, PremiumPalette, "ERROR 402", "Оформить Premium", "Позже")
+
+    AppError.Region ->
+        ErrorVisual(Icons.Filled.Public, RegionPalette, "ERROR 403", "Понятно")
+
+    AppError.Auth ->
+        ErrorVisual(Icons.Filled.Lock, AuthPalette, "ERROR 401", "Войти заново", "Отмена")
+
+    AppError.Playback ->
+        ErrorVisual(Icons.Filled.ErrorOutline, ServerPalette, "PLAYER", "Повторить", "Закрыть", retry = true)
 }
 
 /**
@@ -167,7 +152,7 @@ fun FilmaxErrorModal(
                 .padding(top = 32.dp, start = 24.dp, end = 24.dp, bottom = 24.dp),
         ) {
             ErrorModalCloseButton(onDismiss)
-            ErrorModalContent(visual, onPrimary, onSecondary, onDismiss)
+            ErrorModalContent(visual, appErrorText(error), onPrimary, onSecondary, onDismiss)
         }
     }
 }
@@ -197,6 +182,7 @@ private fun BoxScope.ErrorModalCloseButton(onDismiss: () -> Unit) {
 @Composable
 private fun ErrorModalContent(
     visual: ErrorVisual,
+    text: AppErrorText,
     onPrimary: () -> Unit,
     onSecondary: (() -> Unit)?,
     onDismiss: () -> Unit,
@@ -206,30 +192,30 @@ private fun ErrorModalContent(
             modifier = Modifier
                 .size(92.dp)
                 .clip(ShapeButton)
-                .background(visual.color.copy(alpha = 0.13f))
-                .border(1.dp, visual.color.copy(alpha = 0.2f), ShapeButton),
+                .background(visual.palette.accent.copy(alpha = 0.13f))
+                .border(1.dp, visual.palette.accent.copy(alpha = 0.2f), ShapeButton),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(visual.icon, contentDescription = null, tint = visual.color, modifier = Modifier.size(44.dp))
+            Icon(visual.icon, contentDescription = null, tint = visual.palette.accent, modifier = Modifier.size(44.dp))
         }
         Spacer(Modifier.height(22.dp))
         Text(
             visual.code,
-            color = visual.color,
+            color = visual.palette.accent,
             fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 2.sp,
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            visual.title,
+            text.title,
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            visual.body,
+            text.message,
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -254,7 +240,7 @@ private fun ErrorModalPrimaryButton(visual: ErrorVisual, onPrimary: () -> Unit) 
             .fillMaxWidth()
             .height(54.dp)
             .clip(CircleShape)
-            .background(visual.color)
+            .background(visual.palette.accent)
             .clickable(onClick = onPrimary),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -263,12 +249,12 @@ private fun ErrorModalPrimaryButton(visual: ErrorVisual, onPrimary: () -> Unit) 
             Icon(
                 Icons.Filled.Refresh,
                 contentDescription = null,
-                tint = visual.onColor,
+                tint = visual.palette.onAccent,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(Modifier.width(8.dp))
         }
-        Text(visual.primary, color = visual.onColor, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Text(visual.primary, color = visual.palette.onAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
 }
 

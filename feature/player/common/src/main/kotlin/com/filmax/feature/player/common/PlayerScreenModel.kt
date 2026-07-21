@@ -200,16 +200,26 @@ class PlayerScreenModel(
      * Варианты ведут на разные CDN-хосты, и недоступность одного (SNI-блокировка srvkp.com)
      * не значит, что тайтл не посмотреть. false — варианты кончились, ошибку показывает вызывающий.
      */
+    /** Хлебная крошка старта: при ошибке в отчёте видно тайтл, качество и CDN-хост. */
+    private fun reportPlaybackStart(initial: StreamQuality) {
+        ErrorReporting.reporter.log(
+            "player: start item=${route.itemId} quality=${initial.label} host=${urlHost(initial.url)}",
+        )
+    }
+
     private fun playNextStreamVariant(): Boolean {
         val quality = state.qualities.firstOrNull { it.label == state.currentQuality }
         val nextUrl = quality?.urls?.getOrNull(streamVariantIndex + 1) ?: return false
         streamVariantIndex++
         ErrorReporting.reporter.log("player: variant fallback #$streamVariantIndex host=${urlHost(nextUrl)}")
         val position = player.currentPosition
+        // Состояние воспроизведения переносим как есть: сбой CDN — не повод запускать видео
+        // у того, кто стоял на паузе.
+        val wasPlaying = player.playWhenReady
         player.setMediaItem(buildMediaItem(nextUrl))
         player.prepare()
         if (position > 0) player.seekTo(position)
-        player.playWhenReady = true
+        player.playWhenReady = wasPlaying
         screenModelScope { _ -> updateState { it.copy(streamUrl = nextUrl) } }
         return true
     }
@@ -344,13 +354,6 @@ class PlayerScreenModel(
 
         /** Хост из URL — для хлебных крошек телеметрии (сам URL с подписью в логи не пишем). */
         fun urlHost(url: String): String = url.substringAfter("://").substringBefore("/")
-
-        /** Хлебная крошка старта: при ошибке в отчёте видно тайтл, качество и CDN-хост. */
-        fun PlayerScreenModel.reportPlaybackStart(initial: StreamQuality) {
-            ErrorReporting.reporter.log(
-                "player: start item=${route.itemId} quality=${initial.label} host=${urlHost(initial.url)}",
-            )
-        }
 
         /** Трек маршрута: номер видео + сезон (у фильма сезона нет — совпадения по номеру достаточно). */
         fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean =

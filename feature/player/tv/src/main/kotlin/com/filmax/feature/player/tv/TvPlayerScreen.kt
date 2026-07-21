@@ -494,7 +494,7 @@ fun TvPlayerScreen(
         ui = ui,
         state = state,
         menu = menu,
-        labels = PlayerLabels(
+        frame = PlayerFrame(
             subtitle = playerSubtitle(state, track, tracks.size),
             autoNext = nextTrack?.let { next ->
                 "Дальше: ${next.number}. ${next.title.ifBlank { "Серия ${next.number}" }}"
@@ -505,8 +505,12 @@ fun TvPlayerScreen(
     )
 }
 
-/** Тексты и статус кадра — группой (detekt LongParameterList): подстрока шапки, метка автоперехода, ошибка. */
-private class PlayerLabels(val subtitle: String, val autoNext: String?, val error: AppError?)
+/**
+ * Что показывает кадр помимо самого видео: подстрока шапки, метка автоперехода и ошибка
+ * воспроизведения (null — всё в порядке). Одной группой, потому что рисуются они вместе и
+ * порознь смысла не имеют — [PlayerContent] раскладывает их по слоям оверлея.
+ */
+private class PlayerFrame(val subtitle: String, val autoNext: String?, val error: AppError?)
 
 /** Подстрока шапки: «Сезон 2 · Серия 5» у сериала, «год · качество» у фильма. */
 private fun playerSubtitle(state: PlayerState, track: MediaTrack?, tracksCount: Int): String = when {
@@ -654,7 +658,7 @@ private fun PlayerContent(
     ui: TvPlayerUiState,
     state: PlayerState,
     menu: PlayerActions,
-    labels: PlayerLabels,
+    frame: PlayerFrame,
     modifier: Modifier = Modifier,
 ) {
     val keyFocus = remember { FocusRequester() }
@@ -690,13 +694,13 @@ private fun PlayerContent(
 
         // Спиннер и на буферизации, а не только на загрузке деталей: старт следующей серии,
         // перемотка и смена качества иначе выглядели бы как зависший чёрный экран.
-        if ((state.loading || ui.isBuffering) && labels.error == null) {
+        if ((state.loading || ui.isBuffering) && frame.error == null) {
             CircularProgressIndicator(color = TvAccent, modifier = Modifier.align(Alignment.Center))
         }
 
         // Раньше ошибка не показывалась вовсе: сбой загрузки серии оставлял чёрный экран
         // без единого индикатора (жалоба «следующая серия не запустилась»).
-        labels.error?.let { error ->
+        frame.error?.let { error ->
             PlayerErrorCard(error = error, modifier = Modifier.align(Alignment.Center))
         }
 
@@ -706,12 +710,12 @@ private fun PlayerContent(
             exit = fadeOut(),
             modifier = Modifier.fillMaxSize(),
         ) {
-            PlayerOverlay(ui = ui, state = state, menu = menu, subtitle = labels.subtitle)
+            PlayerOverlay(ui = ui, state = state, menu = menu, subtitle = frame.subtitle)
         }
 
         // Плашка автоперехода — ВНЕ оверлея: в конце серии оверлей обычно скрыт, а отсчёт
         // должен быть виден всегда.
-        val autoNextLabel = labels.autoNext
+        val autoNextLabel = frame.autoNext
         if (ui.autoNextVisible && autoNextLabel != null) {
             AutoNextCard(
                 label = autoNextLabel,
