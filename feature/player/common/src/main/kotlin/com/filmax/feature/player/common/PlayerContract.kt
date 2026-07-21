@@ -2,8 +2,15 @@ package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
 
-/** Доступное качество потока (метка + ссылка), приходит с бэкенда. */
-data class StreamQuality(val label: String, val url: String)
+/**
+ * Доступное качество потока. [urls] — варианты доставки в порядке предпочтения (hls4 → hls → http):
+ * у kino.pub они ведут на РАЗНЫЕ CDN-хосты, и hls4 (api.srvkp.com) бывает недоступен из-за
+ * DPI/SNI-блокировок. Плеер стартует с первого и при ошибке источника переключается на следующий.
+ */
+data class StreamQuality(val label: String, val urls: List<String>) {
+    /** Основная ссылка варианта — первая в порядке предпочтения. */
+    val url: String get() = urls.first()
+}
 
 /** Вариант субтитров; [lang] == null означает «Выкл». */
 data class SubtitleOption(val label: String, val lang: String?)

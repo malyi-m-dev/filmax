@@ -16,6 +16,7 @@ import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
+import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
 import com.filmax.core.domain.playback.PlaybackSettings
@@ -26,6 +27,9 @@ import com.filmax.feature.player.common.navigation.PlayerRoute
 import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 
+// Контракт плеера целен: загрузка, выбор дорожек/качества, фолбэк CDN-вариантов и прогресс —
+// одна связная машина воспроизведения, дробление раздало бы половину полей в каждый кусок.
+@Suppress("TooManyFunctions")
 class PlayerScreenModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
@@ -63,10 +67,20 @@ class PlayerScreenModel(
     /** Позиция последней отправки прогресса — база для троттлинга в [saveProgress]. */
     private var lastSentSeconds: Int? = null
 
+    /** Индекс текущего варианта доставки в [StreamQuality.urls]; сбрасывается сменой качества. */
+    private var streamVariantIndex = 0
+
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
-                screenModelScope { showError(AppError.Playback) }
+                // Ошибки плеера не проходят через safeRequest — репортим сами, иначе телеметрия
+                // не увидит именно тот класс сбоев, на который жалуются («серия не запустилась»).
+                ErrorReporting.reporter.report(error)
+                // Ошибка источника часто значит «CDN этого варианта недоступен» (DPI/SNI-блокировка
+                // srvkp.com): прежде чем показывать модалку, пробуем следующий вариант доставки.
+                if (!playNextStreamVariant()) {
+                    screenModelScope { showError(AppError.Playback) }
+                }
             }
 
             // Аудиодорожки известны только после разбора манифеста — читаем их здесь.
@@ -108,9 +122,12 @@ class PlayerScreenModel(
                     selectedTrack = track
                     trackSubtitles = track?.subtitles.orEmpty()
 
-                    // Доступные качества — из файлов трека (метка + лучшая ссылка).
+                    // Доступные качества — из файлов трека; все варианты доставки в порядке
+                    // предпочтения, чтобы плееру было куда фолбэчить при недоступном CDN.
                     val qualities = track?.files.orEmpty().mapNotNull { file ->
-                        (file.hls4 ?: file.hls ?: file.http)?.let { StreamQuality(file.quality, it) }
+                        listOfNotNull(file.hls4, file.hls, file.http)
+                            .takeIf { it.isNotEmpty() }
+                            ?.let { StreamQuality(file.quality, it) }
                     }
                     // Предпочитаемое качество из настроек; «Авто»/нет совпадения — лучшее доступное.
                     val initial = qualities.firstOrNull { it.label == settings.quality }
@@ -141,6 +158,8 @@ class PlayerScreenModel(
                     }
 
                     if (initial != null) {
+                        streamVariantIndex = 0
+                        reportPlaybackStart(initial)
                         player.setMediaItem(buildMediaItem(initial.url))
                         player.prepare()
                         applyTrackPreferences(selectedSubtitle.lang)
@@ -166,12 +185,33 @@ class PlayerScreenModel(
         if (label == state.currentQuality) return
         val position = player.currentPosition
         val wasPlaying = player.playWhenReady
+        streamVariantIndex = 0
+        ErrorReporting.reporter.log("player: quality $label host=${urlHost(quality.url)}")
         // trackSelectionParameters (аудио/субтитры) живут на плеере и переживают смену MediaItem.
         player.setMediaItem(buildMediaItem(quality.url))
         player.prepare()
         player.seekTo(position)
         player.playWhenReady = wasPlaying
         screenModelScope { _ -> updateState { it.copy(currentQuality = label, streamUrl = quality.url) } }
+    }
+
+    /**
+     * Переключает поток на следующий вариант доставки текущего качества (hls4 → hls → http).
+     * Варианты ведут на разные CDN-хосты, и недоступность одного (SNI-блокировка srvkp.com)
+     * не значит, что тайтл не посмотреть. false — варианты кончились, ошибку показывает вызывающий.
+     */
+    private fun playNextStreamVariant(): Boolean {
+        val quality = state.qualities.firstOrNull { it.label == state.currentQuality }
+        val nextUrl = quality?.urls?.getOrNull(streamVariantIndex + 1) ?: return false
+        streamVariantIndex++
+        ErrorReporting.reporter.log("player: variant fallback #$streamVariantIndex host=${urlHost(nextUrl)}")
+        val position = player.currentPosition
+        player.setMediaItem(buildMediaItem(nextUrl))
+        player.prepare()
+        if (position > 0) player.seekTo(position)
+        player.playWhenReady = true
+        screenModelScope { _ -> updateState { it.copy(streamUrl = nextUrl) } }
+        return true
     }
 
     private fun selectSubtitle(label: String) {
@@ -301,6 +341,16 @@ class PlayerScreenModel(
     private companion object {
         const val SEEK_INCREMENT_MS = 10_000L
         const val MILLIS_IN_SECOND = 1000L
+
+        /** Хост из URL — для хлебных крошек телеметрии (сам URL с подписью в логи не пишем). */
+        fun urlHost(url: String): String = url.substringAfter("://").substringBefore("/")
+
+        /** Хлебная крошка старта: при ошибке в отчёте видно тайтл, качество и CDN-хост. */
+        fun PlayerScreenModel.reportPlaybackStart(initial: StreamQuality) {
+            ErrorReporting.reporter.log(
+                "player: start item=${route.itemId} quality=${initial.label} host=${urlHost(initial.url)}",
+            )
+        }
 
         /** Трек маршрута: номер видео + сезон (у фильма сезона нет — совпадения по номеру достаточно). */
         fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean =

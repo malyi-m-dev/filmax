@@ -71,9 +71,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.error.AppError
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvFocus
@@ -193,6 +195,9 @@ private class TvPlayerUiState(val player: Player) {
 
     /** Зеркало player.isPlaying: сам плеер не Compose-state и рекомпозицию не вызывает. */
     var isPlaying by mutableStateOf(false)
+
+    /** Зеркало буферизации: спиннер поверх кадра, пока поток не готов (старт/перемотка/след. серия). */
+    var isBuffering by mutableStateOf(false)
     var positionMs by mutableLongStateOf(0L)
     var durationMs by mutableLongStateOf(0L)
 
@@ -449,6 +454,7 @@ fun TvPlayerScreen(
     screenModel: PlayerScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
+    val appError by screenModel.collectErrorAsState()
     val ui = remember(screenModel.player) { TvPlayerUiState(screenModel.player) }
 
     // Играющий трек ищем так же, как модель: номер видео + сезон (номер уникален только внутри
@@ -477,6 +483,11 @@ fun TvPlayerScreen(
     )
 
     PlayerEffects(ui = ui, screenModel = screenModel, autoNext = autoNext)
+    // Ушли с плеера не «Назад», а HOME/лаунчером — пауза: ScreenModel (и ExoPlayer в нём) жив,
+    // и без этого звук продолжал играть за пределами приложения (жалоба пользователя).
+    LifecycleStartEffect(screenModel.player) {
+        onStopOrDispose { screenModel.player.pause() }
+    }
     BackHandler { if (!ui.back()) onBack() }
 
     PlayerContent(
@@ -488,13 +499,14 @@ fun TvPlayerScreen(
             autoNext = nextTrack?.let { next ->
                 "Дальше: ${next.number}. ${next.title.ifBlank { "Серия ${next.number}" }}"
             },
+            error = appError,
         ),
         modifier = modifier,
     )
 }
 
-/** Тексты кадра — группой (detekt LongParameterList): подстрока шапки и метка автоперехода. */
-private class PlayerLabels(val subtitle: String, val autoNext: String?)
+/** Тексты и статус кадра — группой (detekt LongParameterList): подстрока шапки, метка автоперехода, ошибка. */
+private class PlayerLabels(val subtitle: String, val autoNext: String?, val error: AppError?)
 
 /** Подстрока шапки: «Сезон 2 · Серия 5» у сериала, «год · качество» у фильма. */
 private fun playerSubtitle(state: PlayerState, track: MediaTrack?, tracksCount: Int): String = when {
@@ -568,6 +580,7 @@ private fun PlayerEffects(ui: TvPlayerUiState, screenModel: PlayerScreenModel, a
 
     DisposableEffect(player) {
         ui.isPlaying = player.isPlaying
+        ui.isBuffering = player.playbackState == Player.STATE_BUFFERING
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 ui.isPlaying = isPlaying
@@ -575,6 +588,7 @@ private fun PlayerEffects(ui: TvPlayerUiState, screenModel: PlayerScreenModel, a
 
             // Серия дотекла до конца раньше тика — переходим сразу (если не отменяли «Назад»).
             override fun onPlaybackStateChanged(playbackState: Int) {
+                ui.isBuffering = playbackState == Player.STATE_BUFFERING
                 if (playbackState == Player.STATE_ENDED && currentAutoNext.enabled && !ui.autoNextDismissed) {
                     ui.autoNextVisible = false
                     currentAutoNext.play()
@@ -674,8 +688,16 @@ private fun PlayerContent(
             modifier = Modifier.fillMaxSize(),
         )
 
-        if (state.loading) {
+        // Спиннер и на буферизации, а не только на загрузке деталей: старт следующей серии,
+        // перемотка и смена качества иначе выглядели бы как зависший чёрный экран.
+        if ((state.loading || ui.isBuffering) && labels.error == null) {
             CircularProgressIndicator(color = TvAccent, modifier = Modifier.align(Alignment.Center))
+        }
+
+        // Раньше ошибка не показывалась вовсе: сбой загрузки серии оставлял чёрный экран
+        // без единого индикатора (жалоба «следующая серия не запустилась»).
+        labels.error?.let { error ->
+            PlayerErrorCard(error = error, modifier = Modifier.align(Alignment.Center))
         }
 
         AnimatedVisibility(
