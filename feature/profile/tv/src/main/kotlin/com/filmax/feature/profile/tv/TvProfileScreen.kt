@@ -49,6 +49,7 @@ import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.core.ui.components.FilmaxVersionLabel
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
@@ -143,6 +144,8 @@ private fun ProfileContent(
             TvOverline("Аккаунт", color = TvOnSurfaceDim)
             Spacer(Modifier.height(12.dp))
             AccountRows(state = state, actions = actions)
+            Spacer(Modifier.height(26.dp))
+            FilmaxVersionLabel(color = TvOnSurfaceDim)
         }
     }
 }

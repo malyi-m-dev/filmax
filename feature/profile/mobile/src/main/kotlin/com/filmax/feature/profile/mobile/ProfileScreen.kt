@@ -45,6 +45,7 @@ import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.user.model.initials
+import com.filmax.core.ui.components.FilmaxVersionLabel
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
@@ -153,6 +154,13 @@ private fun ProfileContent(
                 onClick = onOpenDesignSystem,
             )
         }
+
+        FilmaxVersionLabel(
+            color = FilmaxOnSurfaceDim,
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 32.dp),
+        )
     }
 }
 
