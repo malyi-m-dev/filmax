@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.filmax.core.ui.components.FilmaxErrorModal
@@ -71,6 +73,16 @@ import com.filmax.feature.player.common.PlayerScreenModel
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 
+/**
+ * Навигация плеера: эпизод маршрута (номер видео + сезон) и переход к следующей серии.
+ * Зеркало [com.filmax.feature.player.tv.TvPlayerNav] — семантика та же (см. playerScreen).
+ */
+data class PlayerNav(
+    val videoId: Int = -1,
+    val season: Int = -1,
+    val onPlayEpisode: ((season: Int, videoId: Int) -> Unit)? = null,
+)
+
 // PlayerScreen — единая композиция экрана плеера: ExoPlayer-поверхность, верифицированный
 // Slider скраббинга и эффекты авто-скрытия/SaveProgress (#22). Декомпозиция раздробила бы
 // проверенную логику воспроизведения/перемотки/сохранения прогресса — поэтому подавляем.
@@ -79,10 +91,26 @@ import org.koin.androidx.compose.koinViewModel
 fun PlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    nav: PlayerNav = PlayerNav(),
     screenModel: PlayerScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
+
+    // Следующая серия — как на TV: играющий трек ищем по номеру видео + сезону (номер уникален
+    // только внутри сезона), следующий по плейлисту. null — фильм/последняя серия/нет навигации.
+    val tracks = state.item?.tracklist.orEmpty()
+    val trackIndex = tracks
+        .indexOfFirst { it.number == nav.videoId && (nav.season <= 0 || it.seasonNumber == nav.season) }
+        .coerceAtLeast(0)
+    val nextTrack = tracks.getOrNull(trackIndex + 1)
+    val playNext: (() -> Unit)? = if (nextTrack != null && nav.onPlayEpisode != null) {
+        { nav.onPlayEpisode.invoke(nextTrack.seasonNumber, nextTrack.number) }
+    } else {
+        null
+    }
+    // Эффекты замыкают АКТУАЛЬНЫЙ колбэк: при старте плейлиста ещё нет и playNext == null.
+    val currentPlayNext by rememberUpdatedState(playNext)
     var controlsVisible by remember { mutableStateOf(true) }
     var progress by remember { mutableFloatStateOf(0f) }
     // Пока пользователь тащит thumb — фоновый тик не перезаписывает progress, seek уходит по завершению жеста.
@@ -95,14 +123,28 @@ fun PlayerScreen(
     // Пока идёт воспроизведение, экран не гаснет (жалоба: гас через 10 минут при живом звуке);
     // на паузе — обычный таймаут системы.
     var playing by remember { mutableStateOf(screenModel.player.isPlaying) }
+    // Буферизация потока — под спиннер: старт видео, перемотка и смена качества иначе
+    // выглядели бы как зависший чёрный экран.
+    var buffering by remember { mutableStateOf(screenModel.player.playbackState == Player.STATE_BUFFERING) }
     DisposableEffect(screenModel.player) {
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 playing = isPlaying
             }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                buffering = playbackState == Player.STATE_BUFFERING
+                // Серия доиграла — сразу следующая (как на TV): раньше плеер застывал на титрах.
+                if (playbackState == Player.STATE_ENDED) currentPlayNext?.invoke()
+            }
         }
         screenModel.player.addListener(listener)
         onDispose { screenModel.player.removeListener(listener) }
+    }
+    // Свернули приложение (HOME/другое приложение) — пауза: иначе звук играл бы за пределами
+    // экрана, пока жив ScreenModel (жалоба с TV «вышел из плеера, а звук идёт»).
+    LifecycleStartEffect(screenModel.player) {
+        onStopOrDispose { screenModel.player.pause() }
     }
     KeepScreenOn(enabled = playing)
 
@@ -145,8 +187,8 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // ── Loading ───────────────────────────────────────────────────────────
-        if (state.loading) {
+        // ── Loading: детали тайтла ИЛИ буферизация потока (под модалкой ошибки не крутим) ─────
+        if ((state.loading || buffering) && appError == null) {
             CircularProgressIndicator(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.align(Alignment.Center),
@@ -157,10 +199,9 @@ fun PlayerScreen(
             FilmaxErrorModal(
                 error = error,
                 onDismiss = screenModel::dismissError,
-                onPrimary = {
-                    screenModel.dismissError()
-                    onBack()
-                },
+                // «Повторить» перезапускает загрузку и воспроизведение (retry сбрасывает ошибку
+                // и зовёт onFetchData) — раньше кнопка молча выходила из плеера.
+                onPrimary = screenModel::retry,
                 onSecondary = onBack,
             )
         }
@@ -471,13 +512,16 @@ fun PlayerScreen(
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-                            GlassBtn(size = 44.dp, onClick = {}) {
-                                Icon(
-                                    Icons.Filled.SkipNext,
-                                    contentDescription = "Далее",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                            // «Следующая серия» — только у сериала не на последней серии.
+                            playNext?.let { next ->
+                                GlassBtn(size = 44.dp, onClick = next) {
+                                    Icon(
+                                        Icons.Filled.SkipNext,
+                                        contentDescription = "Следующая серия",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
                             GlassBtn(size = 44.dp, onClick = {}) {
                                 Icon(

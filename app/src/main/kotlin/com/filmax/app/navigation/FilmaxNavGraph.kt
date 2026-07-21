@@ -206,6 +206,13 @@ private fun NavGraphBuilder.filmaxDestinations(navController: NavHostController)
     )
     playerScreen(
         onBack = { navController.popBackStack() },
+        // «Следующая серия» — навигация, а не подмена MediaItem (см. tvPlayerScreen):
+        // popUpTo не копит стек при перещёлкивании серий подряд.
+        onPlayEpisode = { itemId, season, videoId ->
+            navController.navigate(PlayerRoute(itemId, videoId, season)) {
+                popUpTo<PlayerRoute> { inclusive = true }
+            }
+        },
     )
     trailerScreen(
         onBack = { navController.popBackStack() },
