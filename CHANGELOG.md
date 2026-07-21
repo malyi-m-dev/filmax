@@ -10,6 +10,18 @@
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-07-21
+
+### Исправлено
+- TV: холодный старт без сети показывал пустой чёрный экран — теперь объяснение
+  с кнопкой «Повторить» (офлайн-баннер остаётся, когда есть что показать из кэша).
+- Телеметрия слала событие на каждый сбой запроса: один запуск без сети давал пять
+  non-fatal, и реальные баги тонули в них. В отчёты идут только сбои, похожие на баг
+  (5xx, падения парсинга); нет сети, таймаут и протухшая сессия — хлебной крошкой.
+  Debug-сборки не отправляют отчёты явным запретом, а не по стечению обстоятельств.
+- Плеер: переключение на запасной вариант доставки потока больше не запускает
+  воспроизведение, если оно было на паузе.
+
 ## [1.6.0] — 2026-07-21
 
 ### Добавлено
@@ -83,7 +95,8 @@
   R8 + `shrinkResources`, `versionCode` из числа коммитов и `versionName` из git-тега.
 - CI по тегу `v*`: сборка подписанного APK → GitHub Release (+ Telegram).
 
-[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v1.6.1...HEAD
+[1.6.1]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.6.1
 [1.6.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.6.0
 [1.5.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.5.0
 [1.4.1]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.4.1
