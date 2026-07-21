@@ -1,5 +1,6 @@
 package com.filmax.core.domain.common
 
+import com.filmax.core.domain.error.AppError
 import kotlin.concurrent.Volatile
 
 /**
@@ -34,3 +35,23 @@ object ErrorReporting {
         override fun report(error: Throwable) = Unit
     }
 }
+
+/**
+ * Отправляет сбой запроса с оглядкой на его класс: событием уходит только то, что похоже на
+ * баг (5xx, падение парсинга), а ожидаемое в эксплуатации — нет сети, таймаут, протухшая
+ * сессия, нет подписки — остаётся хлебной крошкой.
+ *
+ * Без этого деления один вход в приложение из метро давал пять non-fatal (главная тянет пять
+ * запросов параллельно), и настоящие баги тонули бы в отчётах о плохом канале связи.
+ */
+fun ErrorReporter.reportRequestFailure(error: Throwable) {
+    val kind = AppError.resolve(error.message, error)
+    if (kind in REPORTED_ERRORS) {
+        report(error)
+    } else {
+        log("request failed (${kind.name}): ${error::class.simpleName}: ${error.message}")
+    }
+}
+
+/** Классы сбоев, которые едут в телеметрию событием: остальные — крошкой (см. [reportRequestFailure]). */
+private val REPORTED_ERRORS = setOf(AppError.Server, AppError.Empty, AppError.Playback)

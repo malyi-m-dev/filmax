@@ -37,8 +37,9 @@ internal class UserRepositoryImpl(
                 )
             },
         )
+    }
         // Профиль — единственное место, где известен username: привязываем к нему телеметрию.
-    }.onSuccess { profile -> ErrorReporting.reporter.setUser(profile.username) }
+        .onSuccess { profile -> ErrorReporting.reporter.setUser(profile.username) }
 
     override suspend fun getDeviceSettings(): RequestResult<DeviceSettings> = safeRequest {
         requireNotNull(api.getDeviceSettings().device).toDomain()

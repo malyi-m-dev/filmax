@@ -65,14 +65,24 @@ class FilmaxApplication : Application() {
     }
 
     /**
-     * Включает телеметрию ошибок. Сборка без app/google-services.json (локальная/PR-CI) Firebase
-     * не сконфигурирована — initializeApp вернёт null, и репортинг остаётся no-op из ErrorReporting.
+     * Включает телеметрию ошибок. Debug пишет в logcat (Crashlytics в debug — шум разработки);
+     * release/demo — в Crashlytics, если сборка шла с app/google-services.json (без него
+     * Firebase не сконфигурирован, initializeApp вернёт null, и репортинг остаётся no-op).
      */
     private fun initErrorReporting() {
+        if (BuildConfig.DEBUG) {
+            // Сегодня в debug-сборке конфига Firebase нет (её applicationId не зарегистрирован,
+            // и задачи google-services для неё выключены), но стоит его зарегистрировать — и
+            // Crashlytics поднимется САМ через FirebaseInitProvider со сбором, включённым по
+            // умолчанию. Поэтому запрет явный, а не «по счастливому стечению обстоятельств».
+            FirebaseApp.initializeApp(this)?.let {
+                FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(false)
+            }
+            ErrorReporting.reporter = LogcatErrorReporter()
+            return
+        }
         FirebaseApp.initializeApp(this) ?: return
         val crashlytics = FirebaseCrashlytics.getInstance()
-        // Debug-сессии — шум разработки, их не собираем; release/demo шлют крэши и non-fatal'ы.
-        crashlytics.setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
         // Один APK на оба форм-фактора — в отчётах различаем их так же, как MainActivity выбирает UI.
         val isTv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
         crashlytics.setCustomKey("form_factor", if (isTv) "tv" else "mobile")

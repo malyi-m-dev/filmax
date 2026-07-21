@@ -22,8 +22,9 @@ suspend inline fun <T> safeRequest(crossinline block: suspend () -> T): RequestR
         throw cancellation
     } catch (error: Throwable) {
         // Единственная точка, где видны ВСЕ сбои data-слоя: HTTP-статусы (expectSuccess=true даёт
-        // исключение с URL и кодом, включая 500-е) и падения парсинга. Уходит в телеметрию non-fatal.
-        ErrorReporting.reporter.report(error)
+        // исключение с URL и кодом, включая 500-е) и падения парсинга. Что из этого поедет в
+        // телеметрию событием, а что крошкой, решает reportRequestFailure.
+        ErrorReporting.reporter.reportRequestFailure(error)
         RequestResult.Error(error.message, error)
     }
 
