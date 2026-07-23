@@ -1,6 +1,7 @@
 package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.catalog.model.MediaTrack
 
 /**
  * Доступное качество потока. [urls] — варианты доставки в порядке предпочтения (hls4 → hls → http):
@@ -61,6 +62,9 @@ object PlaybackSpeeds {
 data class PlayerState(
     val loading: Boolean = true,
     val item: Item? = null,
+    /** Играющий трек и следующий за ним по плейлисту — модель выбирает их по маршруту, UI не ищет заново. */
+    val track: MediaTrack? = null,
+    val nextTrack: MediaTrack? = null,
     val streamUrl: String? = null,
     val qualities: List<StreamQuality> = emptyList(),
     val currentQuality: String? = null,
@@ -71,6 +75,8 @@ data class PlayerState(
     val currentSubtitle: String = "Выкл",
     /** Скорость воспроизведения; сессионная, дефолт — обычная (1.0). */
     val currentSpeed: Float = PlaybackSpeeds.NormalSpeed,
+    /** У аккаунта нет активной подписки — поток не отдаётся, плеер объясняет это плашкой. */
+    val subscriptionRequired: Boolean = false,
     val error: String? = null,
 )
 
@@ -83,3 +89,17 @@ sealed interface PlayerEvent {
 }
 
 sealed interface PlayerSideEffect
+
+/** «1:23:45» / «23:45» — формат времени плеера, единый для mobile и TV. */
+@Suppress("MagicNumber")
+fun formatPlayerTime(ms: Long): String {
+    val totalSec = ms / 1000
+    val hours = totalSec / 3600
+    val minutes = (totalSec % 3600) / 60
+    val seconds = totalSec % 60
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%d:%02d".format(minutes, seconds)
+    }
+}

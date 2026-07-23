@@ -70,18 +70,9 @@ import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
+import com.filmax.feature.player.common.formatPlayerTime
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
-
-/**
- * Навигация плеера: эпизод маршрута (номер видео + сезон) и переход к следующей серии.
- * Зеркало [com.filmax.feature.player.tv.TvPlayerNav] — семантика та же (см. playerScreen).
- */
-data class PlayerNav(
-    val videoId: Int = -1,
-    val season: Int = -1,
-    val onPlayEpisode: ((season: Int, videoId: Int) -> Unit)? = null,
-)
 
 // PlayerScreen — единая композиция экрана плеера: ExoPlayer-поверхность, верифицированный
 // Slider скраббинга и эффекты авто-скрытия/SaveProgress (#22). Декомпозиция раздробила бы
@@ -91,21 +82,17 @@ data class PlayerNav(
 fun PlayerScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    nav: PlayerNav = PlayerNav(),
+    onPlayEpisode: ((season: Int, videoId: Int) -> Unit)? = null,
     screenModel: PlayerScreenModel = koinViewModel(),
 ) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
 
-    // Следующая серия — как на TV: играющий трек ищем по номеру видео + сезону (номер уникален
-    // только внутри сезона), следующий по плейлисту. null — фильм/последняя серия/нет навигации.
-    val tracks = state.item?.tracklist.orEmpty()
-    val trackIndex = tracks
-        .indexOfFirst { it.number == nav.videoId && (nav.season <= 0 || it.seasonNumber == nav.season) }
-        .coerceAtLeast(0)
-    val nextTrack = tracks.getOrNull(trackIndex + 1)
-    val playNext: (() -> Unit)? = if (nextTrack != null && nav.onPlayEpisode != null) {
-        { nav.onPlayEpisode.invoke(nextTrack.seasonNumber, nextTrack.number) }
+    // Следующая серия — из state (играющий трек выбирает модель по маршруту).
+    // null — фильм/последняя серия/нет навигации.
+    val nextTrack = state.nextTrack
+    val playNext: (() -> Unit)? = if (nextTrack != null && onPlayEpisode != null) {
+        { onPlayEpisode.invoke(nextTrack.seasonNumber, nextTrack.number) }
     } else {
         null
     }
@@ -203,6 +190,17 @@ fun PlayerScreen(
                 // и зовёт onFetchData) — раньше кнопка молча выходила из плеера.
                 onPrimary = screenModel::retry,
                 onSecondary = onBack,
+            )
+        }
+
+        // Плашка подписки — вне оверлея: без неё kino.pub не отдаст поток, и объяснение
+        // должно быть видно всегда, а не только пока контролы на экране.
+        if (state.subscriptionRequired && appError == null) {
+            SubscriptionBanner(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = SubscriptionBannerTop),
             )
         }
 
@@ -381,7 +379,7 @@ fun PlayerScreen(
                     ) {
                         if (isScrubbing) {
                             Text(
-                                formatMs(targetMs),
+                                formatPlayerTime(targetMs),
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
@@ -413,13 +411,13 @@ fun PlayerScreen(
                     )
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(
-                            formatMs(targetMs),
+                            formatPlayerTime(targetMs),
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            "-${formatMs(durationMs - targetMs)}",
+                            "-${formatPlayerTime(durationMs - targetMs)}",
                             color = Color.White.copy(0.7f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
@@ -543,12 +541,26 @@ private const val AUTO_HIDE_DELAY_MS = 4500L
 private const val PROGRESS_TICK_MS = 1000L
 private val PreviewBarHeight = 28.dp
 
-private fun formatMs(ms: Long): String {
-    val totalSec = ms / 1000
-    val h = totalSec / 3600
-    val m = (totalSec % 3600) / 60
-    val s = totalSec % 60
-    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+/** Отступ плашки подписки от статус-бара — ниже верхнего ряда контролов оверлея. */
+private val SubscriptionBannerTop = 76.dp
+
+/** Плашка «нужна подписка»: без неё kino.pub не отдаст поток, и экран остался бы просто чёрным. */
+@Composable
+private fun SubscriptionBanner(modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xD9000000))
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Нужна подписка", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text(
+            "Просмотр доступен только с активной подпиской kino.pub",
+            color = Color.White.copy(alpha = 0.8f),
+            fontSize = 12.sp,
+        )
+    }
 }
 
 @Composable

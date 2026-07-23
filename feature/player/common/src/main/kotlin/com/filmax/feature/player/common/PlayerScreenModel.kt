@@ -19,8 +19,10 @@ import com.filmax.core.domain.catalog.model.SubtitleTrack
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
+import com.filmax.core.domain.error.RequestFailure
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
@@ -35,6 +37,7 @@ class PlayerScreenModel(
     private val catalog: CatalogRepository,
     private val watching: WatchingRepository,
     private val playbackSettings: PlaybackSettingsRepository,
+    private val userRepository: UserRepository,
     context: Context,
 ) : BaseScreenModel<PlayerState, PlayerSideEffect, PlayerEvent>(PlayerState()) {
 
@@ -75,7 +78,8 @@ class PlayerScreenModel(
             override fun onPlayerError(error: PlaybackException) {
                 // Ошибки плеера не проходят через safeRequest — репортим сами, иначе телеметрия
                 // не увидит именно тот класс сбоев, на который жалуются («серия не запустилась»).
-                ErrorReporting.reporter.report(error)
+                // Обёртка RequestFailure даёт читаемый заголовок issue (см. reportRequestFailure).
+                ErrorReporting.reporter.report(RequestFailure.of(AppError.Playback, error))
                 // Ошибка источника часто значит «CDN этого варианта недоступен» (DPI/SNI-блокировка
                 // srvkp.com): прежде чем показывать модалку, пробуем следующий вариант доставки.
                 if (!playNextStreamVariant()) {
@@ -104,7 +108,21 @@ class PlayerScreenModel(
         }
     }
 
+    /**
+     * Подписка проверяется параллельно с загрузкой и не блокирует старт: без неё поток всё равно
+     * не пойдёт, а плашка объяснит почему. Ошибка профиля (офлайн и т.п.) плашку не показывает.
+     */
+    private fun checkSubscription() {
+        screenModelScope { _ ->
+            val profile = userRepository.getProfile()
+            if (profile is RequestResult.Success && profile.data.subscription?.active != true) {
+                updateState { it.copy(subscriptionRequired = true) }
+            }
+        }
+    }
+
     override fun onFetchData() {
+        checkSubscription()
         screenModelScope { _ ->
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
@@ -117,18 +135,12 @@ class PlayerScreenModel(
                     // в watching/marktime. Номер уникален только внутри сезона, поэтому сезон
                     // обязателен в матчинге — без него S3E2 находил бы S1E2.
                     // Фильм/нет совпадения — первый трек.
-                    val track = item.tracklist.firstOrNull { it.matchesRoute(route) }
-                        ?: item.tracklist.firstOrNull()
+                    val trackIndex = item.tracklist.indexOfFirst { it.matchesRoute(route) }.coerceAtLeast(0)
+                    val track = item.tracklist.getOrNull(trackIndex)
                     selectedTrack = track
                     trackSubtitles = track?.subtitles.orEmpty()
 
-                    // Доступные качества — из файлов трека; все варианты доставки в порядке
-                    // предпочтения, чтобы плееру было куда фолбэчить при недоступном CDN.
-                    val qualities = track?.files.orEmpty().mapNotNull { file ->
-                        listOfNotNull(file.hls4, file.hls, file.http)
-                            .takeIf { it.isNotEmpty() }
-                            ?.let { StreamQuality(file.quality, it) }
-                    }
+                    val qualities = streamQualities(track)
                     // Предпочитаемое качество из настроек; «Авто»/нет совпадения — лучшее доступное.
                     val initial = qualities.firstOrNull { it.label == settings.quality }
                         ?: qualities.firstOrNull()
@@ -149,6 +161,8 @@ class PlayerScreenModel(
                         it.copy(
                             loading = false,
                             item = item,
+                            track = track,
+                            nextTrack = item.tracklist.getOrNull(trackIndex + 1),
                             streamUrl = initial?.url,
                             qualities = qualities,
                             currentQuality = initial?.label,
@@ -179,6 +193,17 @@ class PlayerScreenModel(
             }
         }
     }
+
+    /**
+     * Доступные качества — из файлов трека; все варианты доставки в порядке предпочтения,
+     * чтобы плееру было куда фолбэчить при недоступном CDN.
+     */
+    private fun streamQualities(track: MediaTrack?): List<StreamQuality> =
+        track?.files.orEmpty().mapNotNull { file ->
+            listOfNotNull(file.hls4, file.hls, file.http)
+                .takeIf { it.isNotEmpty() }
+                ?.let { StreamQuality(file.quality, it) }
+        }
 
     private fun selectQuality(label: String) {
         val quality = state.qualities.firstOrNull { it.label == label } ?: return

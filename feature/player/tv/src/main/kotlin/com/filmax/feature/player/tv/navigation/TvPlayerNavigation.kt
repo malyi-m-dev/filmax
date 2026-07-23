@@ -4,7 +4,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.filmax.feature.player.common.navigation.PlayerRoute
-import com.filmax.feature.player.tv.TvPlayerNav
 import com.filmax.feature.player.tv.TvPlayerScreen
 
 /**
@@ -29,11 +28,7 @@ fun NavGraphBuilder.tvPlayerScreen(
         }
         TvPlayerScreen(
             onBack = onBack,
-            nav = TvPlayerNav(
-                videoId = route.videoId,
-                season = route.season,
-                onPlayEpisode = onPlayEpisode?.let { ::playEpisode },
-            ),
+            onPlayEpisode = onPlayEpisode?.let { ::playEpisode },
         )
     }
 }
