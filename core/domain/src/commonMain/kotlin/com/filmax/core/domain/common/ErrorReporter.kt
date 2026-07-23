@@ -1,6 +1,7 @@
 package com.filmax.core.domain.common
 
 import com.filmax.core.domain.error.AppError
+import com.filmax.core.domain.error.RequestFailure
 import kotlin.concurrent.Volatile
 
 /**
@@ -43,11 +44,15 @@ object ErrorReporting {
  *
  * Без этого деления один вход в приложение из метро давал пять non-fatal (главная тянет пять
  * запросов параллельно), и настоящие баги тонули бы в отчётах о плохом канале связи.
+ *
+ * Событие уходит обёрнутым в [RequestFailure]: тип non-fatal Crashlytics пишет строкой из
+ * рантайма и не деобфусцирует — с обёрткой заголовок issue читается («Server», «Empty»),
+ * а стек первопричины остаётся в cause.
  */
 fun ErrorReporter.reportRequestFailure(error: Throwable) {
     val kind = AppError.resolve(error.message, error)
     if (kind in REPORTED_ERRORS) {
-        report(error)
+        report(RequestFailure.of(kind, error))
     } else {
         log("request failed (${kind.name}): ${error::class.simpleName}: ${error.message}")
     }
