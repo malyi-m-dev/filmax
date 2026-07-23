@@ -144,7 +144,10 @@ data class AudioMetaDto(
 @Serializable
 data class SubtitleDto(
     val lang: String,
-    val url: String,
+    // url бывает null/отсутствует у части тайтлов (видели в проде на serials) — обязательное
+    // поле роняло парсинг ВСЕГО ответа items/{id}, и детали не открывались. Маппер такие
+    // субтитры отбрасывает: без ссылки дорожка бесполезна.
+    val url: String? = null,
     val shift: Int = 0,
 )
 

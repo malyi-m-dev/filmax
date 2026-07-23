@@ -20,7 +20,7 @@ fun MediaTrackDto.toDomain(seasonNumber: Int = snumber) = MediaTrack(
     durationSeconds = duration,
     files = files.map { it.toDomain() },
     audios = audios.map { it.toDomain() },
-    subtitles = subtitles.map { it.toDomain() },
+    subtitles = subtitles.mapNotNull { it.toDomainOrNull() },
     watchedSeconds = watching?.time?.coerceAtLeast(0) ?: 0,
     watchStatus = watching?.status ?: -1,
 )
@@ -42,10 +42,14 @@ fun AudioDto.toDomain() = AudioTrack(
     voiceAuthor = author?.title?.ifBlank { null },
 )
 
-fun SubtitleDto.toDomain() = SubtitleTrack(
-    lang = lang,
-    url = url,
-    shiftMs = shift,
-)
+/** null — субтитр без ссылки (бывает у kino.pub): дорожку не из чего играть, отбрасываем. */
+fun SubtitleDto.toDomainOrNull(): SubtitleTrack? {
+    val subtitleUrl = url?.takeIf { it.isNotBlank() } ?: return null
+    return SubtitleTrack(
+        lang = lang,
+        url = subtitleUrl,
+        shiftMs = shift,
+    )
+}
 
 fun TrailerDto.toDomain() = Trailer(id = id.toString(), url = url ?: "")

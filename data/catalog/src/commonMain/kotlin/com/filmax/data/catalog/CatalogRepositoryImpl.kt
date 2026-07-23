@@ -55,8 +55,10 @@ internal class CatalogRepositoryImpl(
     override suspend fun getItemDetails(id: Int): RequestResult<Item> =
         safeRequest { api.getItemDetails(id).item.toDomain() }
 
+    // distinctBy(id) здесь и в подборках: сервер может отдать тайтл дважды, а списки уходят
+    // в Lazy-контейнеры с key = id — дубликат ключа роняет Compose («Key … was already used»).
     override suspend fun getSimilarItems(id: Int): RequestResult<List<Item>> =
-        safeRequest { api.getSimilarItems(id).items.map { it.toDomain() } }
+        safeRequest { api.getSimilarItems(id).items.map { it.toDomain() }.distinctBy { it.id } }
 
     override suspend fun getGenres(): RequestResult<List<Genre>> =
         safeRequest { api.getGenres().items.map { it.toDomain() } }
@@ -65,10 +67,13 @@ internal class CatalogRepositoryImpl(
         safeRequest { api.getCountries().items.map { it.toDomain() } }
 
     override suspend fun getCollections(page: Int): RequestResult<List<Collection>> =
-        safeRequest { api.getCollections(page = page).items.map { it.toDomain() } }
+        safeRequest { api.getCollections(page = page).items.map { it.toDomain() }.distinctBy { it.id } }
 
     override suspend fun getCollectionItems(collectionId: Int, page: Int): RequestResult<CollectionPage> =
-        safeRequest { api.getCollectionItems(collectionId, page).toDomain() }
+        safeRequest {
+            val collectionPage = api.getCollectionItems(collectionId, page).toDomain()
+            collectionPage.copy(items = collectionPage.items.distinctBy { it.id })
+        }
 }
 
 /**
