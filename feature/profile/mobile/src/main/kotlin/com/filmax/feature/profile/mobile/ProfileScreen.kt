@@ -42,14 +42,14 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxOnSurfaceDim
 import com.filmax.core.designsystem.ShapeButton
 import com.filmax.core.domain.playback.PlaybackSettings
-import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
-import com.filmax.core.domain.user.model.initials
 import com.filmax.core.ui.components.FilmaxVersionLabel
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
+import com.filmax.feature.profile.common.initialsOrFallback
+import com.filmax.feature.profile.common.label
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -390,11 +390,3 @@ private fun OptionList(options: List<String>, selected: String, onSelect: (Strin
 private val AvatarSize = 64.dp
 
 private val RowGap = 9.dp
-
-private fun UserProfile?.initialsOrFallback(): String = this?.initials()?.ifEmpty { "?" } ?: "?"
-
-private fun Subscription?.label(): String = when {
-    this?.active == true && daysLeft != null -> "Filmax Premium · ещё $daysLeft дн."
-    this?.active == true -> "Filmax Premium"
-    else -> "Бесплатный аккаунт"
-}

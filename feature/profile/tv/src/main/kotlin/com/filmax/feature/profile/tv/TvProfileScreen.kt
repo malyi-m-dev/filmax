@@ -34,9 +34,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.playback.PlaybackSettings
-import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
-import com.filmax.core.domain.user.model.initials
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvFocus
@@ -54,6 +52,8 @@ import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
+import com.filmax.feature.profile.common.initialsOrFallback
+import com.filmax.feature.profile.common.label
 import org.koin.androidx.compose.koinViewModel
 
 /** Ширина колонки настроек. Читать строку длиной во весь экран с 3 метров невозможно. */
@@ -320,12 +320,4 @@ private fun SettingRow(spec: SettingRowSpec, onClick: (() -> Unit)?) {
 private fun next(options: List<String>, current: String): String {
     val index = options.indexOf(current)
     return options[(index + 1).mod(options.size)]
-}
-
-private fun UserProfile?.initialsOrFallback(): String = this?.initials()?.ifEmpty { "?" } ?: "?"
-
-private fun Subscription?.label(): String = when {
-    this?.active == true && daysLeft != null -> "Filmax Premium · ещё $daysLeft дн."
-    this?.active == true -> "Filmax Premium"
-    else -> "Бесплатный аккаунт"
 }

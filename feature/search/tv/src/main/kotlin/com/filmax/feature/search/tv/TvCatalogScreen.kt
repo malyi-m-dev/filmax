@@ -67,6 +67,10 @@ import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
+import com.filmax.feature.search.common.SortOptions
+import com.filmax.feature.search.common.TypeOptions
+import com.filmax.feature.search.common.itemTypeLabel
+import com.filmax.feature.search.common.sortLabel
 import org.koin.androidx.compose.koinViewModel
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ровно ложатся в 844dp между safe area. */
@@ -74,26 +78,6 @@ private const val GRID_COLUMNS = 4
 
 /** За сколько хвостовых рядов сетки до конца просить следующую страницу витрины. */
 private const val LOAD_MORE_TAIL = 3
-
-/** Типы в порядке чипов. null — «Все» (объединение типов, см. SearchScreenModel). */
-private val TypeOptions = listOf(
-    null to "Все",
-    ItemType.MOVIE to "Фильмы",
-    ItemType.SERIES to "Сериалы",
-    ItemType.ANIME to "Аниме",
-    ItemType.DOCUMENTARY to "Документальные",
-)
-
-/** Порядок перебора чипа сортировки (OK листает поле по кругу). Подписи — из макета. */
-private val SortOptions = listOf(
-    CatalogSort.UPDATED to "Обновлённые",
-    CatalogSort.CREATED to "Добавленные",
-    CatalogSort.RATING to "Рейтинг Filmax",
-    CatalogSort.VIEWS to "Просмотры",
-    CatalogSort.YEAR to "Год",
-    CatalogSort.KINOPOISK_RATING to "Рейтинг КП",
-    CatalogSort.IMDB_RATING to "Рейтинг IMDb",
-)
 
 /**
  * TV-Каталог (экран «Каталог» макета) — витрина, а не строка поиска: сетка постеров живёт по
@@ -502,18 +486,6 @@ private fun catalogSummary(state: SearchState): String {
 /** Подпись чипа-фильтра: множественное число. */
 private fun typeLabel(type: ItemType?): String =
     TypeOptions.firstOrNull { it.first == type }?.second ?: TypeOptions.first().second
-
-/** Подпись под карточкой — единственное число, в отличие от чипа-фильтра. */
-private fun itemTypeLabel(type: ItemType): String = when (type) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
-    ItemType.TV -> "ТВ"
-}
-
-private fun sortLabel(sort: CatalogSort): String =
-    SortOptions.firstOrNull { it.first == sort }?.second ?: SortOptions.first().second
 
 private fun nextSort(current: CatalogSort): CatalogSort {
     val index = SortOptions.indexOfFirst { it.first == current }

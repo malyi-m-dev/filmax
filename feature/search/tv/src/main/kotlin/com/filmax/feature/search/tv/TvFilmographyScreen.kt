@@ -29,7 +29,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
@@ -42,6 +41,7 @@ import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
+import com.filmax.feature.search.common.itemTypeLabel
 import org.koin.androidx.compose.koinViewModel
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ложатся между safe area, как в TV-Каталоге. */
@@ -195,13 +195,4 @@ private fun FilmographyEmpty(error: String?) {
             )
         }
     }
-}
-
-/** Подпись под карточкой: тип по-русски. `serial`/`docuserial` из API зрителю не показываем. */
-private fun itemTypeLabel(type: ItemType): String = when (type) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
-    ItemType.TV -> "ТВ"
 }

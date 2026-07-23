@@ -64,7 +64,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
 import com.filmax.core.tv.designsystem.TvButton
@@ -90,6 +89,13 @@ import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
+import com.filmax.feature.details.common.SeriesData
+import com.filmax.feature.details.common.calculateSeriesData
+import com.filmax.feature.details.common.initials
+import com.filmax.feature.details.common.isSeries
+import com.filmax.feature.details.common.resolveCast
+import com.filmax.feature.details.common.typeLabel
+import com.filmax.feature.details.common.volumeLabel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
@@ -121,15 +127,7 @@ private const val MOVIE_VIDEO_ID = -1
 private const val NO_SEASON = -1
 
 private const val MAX_META_GENRES = 2
-private const val MINUTES_IN_HOUR = 60
 private const val SECONDS_IN_MINUTE = 60
-
-/**
- * Сериал определяем по ТИПУ тайтла, а не по числу дорожек: у фильма с двумя озвучками
- * `tracklist.size > 1`, и он получал селектор сезонов из одного бессмысленного сезона.
- */
-private fun Item.isSeries(): Boolean =
-    type == ItemType.SERIES || type == ItemType.ANIME || type == ItemType.DOCUMENTARY
 
 /**
  * TV-Детали. Фильм и сериал — один вертикальный поток: hero, описание, эпизоды (сериал),
@@ -838,52 +836,7 @@ private fun LazyListScope.similarRail(similar: List<Item>, onOpenItem: (Int) -> 
 }
 
 // ───────────────────────────── Производные данные ────────────────────────────
-
-/**
- * Производные данные сериала для экрана: сезоны (сгруппированы и отсортированы) и точка «продолжить».
- * Отдельная чистая модель вместо переплетённых remember-блоков в Composable.
- */
-private data class SeriesData(
-    /** Пары «номер сезона → серии по порядку», отсортированные по номеру сезона. */
-    val seasons: List<Pair<Int, List<MediaTrack>>>,
-    /** Эпизод для «продолжить»: в процессе → следующая после досмотренной → иначе null. */
-    val resume: MediaTrack?,
-    /** Индекс сезона эпизода «продолжить» в [seasons] (0, если не определён). */
-    val resumeSeasonIndex: Int,
-)
-
-/** `watching.status` из API: 0 — серия в процессе, 1 — досмотрена, -1 — не начата. */
-private const val WATCH_STATUS_IN_PROGRESS = 0
-private const val WATCH_STATUS_FINISHED = 1
-
-/** Считает [SeriesData] из плейлиста серий — чистая функция, тестируемая отдельно от UI. */
-private fun calculateSeriesData(tracklist: List<MediaTrack>): SeriesData {
-    val seasons = tracklist
-        .groupBy { it.seasonNumber }
-        .toSortedMap()
-        .map { (number, episodes) -> number to episodes.sortedBy { it.number } }
-    val resume = resumeEpisode(seasons)
-    val resumeSeasonIndex = resume
-        ?.let { episode -> seasons.indexOfFirst { it.first == episode.seasonNumber }.takeIf { it >= 0 } }
-        ?: 0
-    return SeriesData(seasons = seasons, resume = resume, resumeSeasonIndex = resumeSeasonIndex)
-}
-
-/**
- * Точка «продолжить»: недосмотренная серия → СЛЕДУЮЩАЯ после последней досмотренной
- * («продолжить» — это смотреть дальше, а не пересматривать) → всё досмотрено — последняя
- * (пересмотр). Порядок — по отсортированным сезонам, а не по сырому tracklist.
- */
-private fun resumeEpisode(seasons: List<Pair<Int, List<MediaTrack>>>): MediaTrack? {
-    val ordered = seasons.flatMap { (_, episodes) -> episodes }
-    val inProgress = ordered.firstOrNull { it.watchStatus == WATCH_STATUS_IN_PROGRESS }
-    val lastWatched = ordered.indexOfLast { it.watchStatus == WATCH_STATUS_FINISHED }
-    return when {
-        inProgress != null -> inProgress
-        lastWatched >= 0 -> ordered.getOrNull(lastWatched + 1) ?: ordered[lastWatched]
-        else -> null
-    }
-}
+// Чистые производные сериала и подписи меты общие с mobile — см. details.common.DetailsFormat.
 
 /** Мета-строка hero: год · объём/длительность · страна · жанры. Пустые части выпадают. */
 private fun metaParts(item: Item, series: SeriesData?): List<String> = buildList {
@@ -895,24 +848,6 @@ private fun metaParts(item: Item, series: SeriesData?): List<String> = buildList
     }
 }
 
-/**
- * У фильма в мете длительность, у сериала — объём: «3 сезона», а у односезонного «12 серий»
- * («1 сезон» не сообщает ничего).
- */
-private fun volumeLabel(item: Item, series: SeriesData?): String? = when {
-    series == null -> item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let { durationLabel(it) }
-    series.seasons.size > 1 -> "${series.seasons.size} ${seasonsWord(series.seasons.size)}"
-    item.tracklist.isNotEmpty() -> "${item.tracklist.size} ${episodesWord(item.tracklist.size)}"
-    else -> null
-}
-
-/** «2 ч 46 мин» / «46 мин» — часы опускаем, когда их нет. */
-private fun durationLabel(minutes: Int): String {
-    val hours = minutes / MINUTES_IN_HOUR
-    val rest = minutes % MINUTES_IN_HOUR
-    return if (hours > 0) "$hours ч $rest мин" else "$rest мин"
-}
-
 /** «Продолжить · S2E5» — сериал с недосмотренной серией; иначе «Смотреть». */
 private fun playLabel(resume: MediaTrack?): String = when {
     resume == null -> "Смотреть"
@@ -920,54 +855,8 @@ private fun playLabel(resume: MediaTrack?): String = when {
     else -> "Продолжить · Серия ${resume.number}"
 }
 
-/**
- * Люди для ряда «Актёры»: фото из TMDB, если доехали; иначе — карточки из строки имён kino.pub
- * (`item.cast`, имена через запятую) без фото. Каст кликабелен всегда, фото — дополнение.
- */
-private fun resolveCast(cast: List<CastMember>, rawCast: String): List<CastMember> =
-    cast.ifEmpty {
-        rawCast.split(",")
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .map { name -> CastMember(name = name, character = null, photoUrl = null) }
-    }
-
-/** Инициалы для заглушки без фото: до двух заглавных букв из имени. */
-private fun initials(name: String): String =
-    name.split(" ")
-        .filter { it.isNotBlank() }
-        .take(2)
-        .map { word -> word.first().uppercaseChar() }
-        .joinToString("")
-
 /** Мета карточки серии: «Серия 3 · 45 мин». Номер опускаем, если он уже стал заголовком. */
 private fun episodeMeta(episode: MediaTrack): String? = buildList {
     if (episode.title.isNotBlank()) add("Серия ${episode.number}")
     episode.durationSeconds.takeIf { it > 0 }?.let { add("${it / SECONDS_IN_MINUTE} мин") }
 }.joinToString(" · ").ifBlank { null }
-
-private fun typeLabel(type: ItemType): String = when (type) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Док. сериал"
-    ItemType.TV -> "ТВ"
-}
-
-// Модули русских правил склонения по числу (последние две / одна цифра).
-private const val PLURAL_MOD_HUNDRED = 100
-private const val PLURAL_MOD_TEN = 10
-
-private fun seasonsWord(count: Int): String = when {
-    count % PLURAL_MOD_HUNDRED in 11..14 -> "сезонов"
-    count % PLURAL_MOD_TEN == 1 -> "сезон"
-    count % PLURAL_MOD_TEN in 2..4 -> "сезона"
-    else -> "сезонов"
-}
-
-private fun episodesWord(count: Int): String = when {
-    count % PLURAL_MOD_HUNDRED in 11..14 -> "серий"
-    count % PLURAL_MOD_TEN == 1 -> "серия"
-    count % PLURAL_MOD_TEN in 2..4 -> "серии"
-    else -> "серий"
-}

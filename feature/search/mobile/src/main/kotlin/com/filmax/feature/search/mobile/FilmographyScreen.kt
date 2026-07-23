@@ -37,13 +37,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
+import com.filmax.feature.search.common.itemTypeLabel
 import org.koin.androidx.compose.koinViewModel
 
 /** Та же сетка 3×98dp постера, что и в каталоге: единая раскладка на кадр 360dp. */
@@ -184,13 +184,4 @@ private fun FilmographyPoster(item: Item, onClick: () -> Unit) {
         rating = ratingLabel(item.rating.external),
         meta = posterMeta(itemTypeLabel(item.type), item.year),
     )
-}
-
-/** Подпись под карточкой: тип по-русски. `serial`/`docuserial` из API зрителю не показываем. */
-private fun itemTypeLabel(type: ItemType): String = when (type) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
-    ItemType.TV -> "ТВ"
 }
