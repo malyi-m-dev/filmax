@@ -15,6 +15,14 @@ name: Release (tag v*) → GitHub Release + Telegram
 on:
   push:
     tags: [ "v*" ]
+  # Ручной перезапуск для уже существующего тега: удобно, когда Release создан заранее
+  # (например, через UI) и `gh release create` упал бы с «tag already exists», или когда
+  # нужно доложить APK к готовому релизу. Собирает ровно код тега `tag`.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Тег для сборки/публикации (например v1.7.1)"
+        required: true
 
 permissions:
   contents: write   # нужно для создания GitHub Release
@@ -22,11 +30,16 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Единый источник имени тега: пуш даёт github.ref_name, ручной запуск — inputs.tag.
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - name: Checkout (полная история + теги)
         uses: actions/checkout@v4
         with:
           # versionCode = число коммитов, versionName = из тега — нужна вся история.
+          # ref: собираем именно код тега (важно для ручного запуска с ветки master).
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
           fetch-depth: 0
 
       - name: Set up JDK 17
@@ -83,7 +96,7 @@ jobs:
         run: |
           path=$(find . -path '*/outputs/apk/release/*.apk' | head -n1)
           if [ -z "$path" ]; then echo "::error::release-APK не найден"; exit 1; fi
-          version="${GITHUB_REF_NAME#v}"
+          version="${TAG#v}"
           dest="filmax-${version}.apk"
           cp "$path" "$dest"
           size_mb=$(( $(stat -c%s "$dest") / 1048576 ))
@@ -99,12 +112,12 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          prev=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          prev=$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)
           if [ -n "$prev" ]; then
-            range="${prev}..${GITHUB_REF_NAME}"
+            range="${prev}..${TAG}"
             echo "Изменения с ${prev}:" > "$RUNNER_TEMP/changelog.md"
           else
-            range="${GITHUB_REF_NAME}"
+            range="${TAG}"
             echo "Первый релиз Filmax." > "$RUNNER_TEMP/changelog.md"
           fi
           echo >> "$RUNNER_TEMP/changelog.md"
@@ -128,18 +141,27 @@ jobs:
           fi
           echo "---" >> "$RUNNER_TEMP/changelog.md"
           echo "versionName ${{ steps.apk.outputs.version }} · размер ${{ steps.apk.outputs.size_mb }} МБ" >> "$RUNNER_TEMP/changelog.md"
-          echo "Собрано из тега \`${GITHUB_REF_NAME}\`." >> "$RUNNER_TEMP/changelog.md"
+          echo "Собрано из тега \`${TAG}\`." >> "$RUNNER_TEMP/changelog.md"
           cat "$RUNNER_TEMP/changelog.md"
 
-      - name: Create GitHub Release
+      # Идемпотентно: если Release уже есть (создан заранее через UI или прошлым прогоном) —
+      # докладываем APK и обновляем заметки; иначе создаём. Так шаг не падает на «tag already exists».
+      - name: Create or update GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.apk.outputs.path }}
+          TITLE: Filmax ${{ steps.apk.outputs.version }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" \
-            "${{ steps.apk.outputs.path }}" \
-            --title "Filmax ${{ steps.apk.outputs.version }}" \
-            --notes-file "$RUNNER_TEMP/changelog.md"
-          echo "GitHub Release ${GITHUB_REF_NAME} опубликован."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$RUNNER_TEMP/changelog.md"
+            echo "GitHub Release $TAG обновлён (APK доложен)."
+          else
+            gh release create "$TAG" "$APK" \
+              --title "$TITLE" \
+              --notes-file "$RUNNER_TEMP/changelog.md"
+            echo "GitHub Release $TAG опубликован."
+          fi
 
       # Дублируем APK в Telegram. Лимит бота — 50 МБ; если больше — шлём ссылку на Release.
       - name: Send APK to Telegram
@@ -154,7 +176,7 @@ jobs:
             echo "::warning::Секреты Telegram не заданы — пропускаю. APK в GitHub Release."
             exit 0
           fi
-          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
+          release_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}"
           caption=$(printf 'Filmax %s · release\nПодписанный APK (%s МБ)\nRelease: %s' "$VERSION" "$SIZE_MB" "$release_url")
           if [ "$SIZE_MB" -ge 50 ]; then
             echo "::warning::APK ${SIZE_MB}MB ≥ 50MB — шлю ссылку вместо файла."
