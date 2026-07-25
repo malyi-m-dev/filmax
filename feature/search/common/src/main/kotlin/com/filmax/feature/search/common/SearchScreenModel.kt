@@ -183,7 +183,7 @@ class SearchScreenModel(
             is RequestResult.Success -> updateState {
                 it.copy(
                     loading = false,
-                    catalogItems = sortLocally(first.data, it.sort),
+                    catalogItems = sortLocally(first.data.distinctById(), it.sort),
                     catalogEndReached = activeTypes.all { type -> type in exhaustedTypes },
                     error = null,
                 )
@@ -209,7 +209,10 @@ class SearchScreenModel(
             when (val next = fetchCatalogPage(catalogPage + 1)) {
                 is RequestResult.Success -> updateState { s ->
                     val seen = s.catalogItems.mapTo(HashSet()) { it.id }
-                    val merged = s.catalogItems + next.data.filter { it.id !in seen }
+                    // filter гасит id, уже стоящие в сетке; distinctById — дубли внутри самой
+                    // страницы (склейка типов) и гонку с параллельным reload по фильтру/сортировке:
+                    // без этого две карточки с одним id роняют LazyGrid по неуникальному ключу.
+                    val merged = (s.catalogItems + next.data.filter { it.id !in seen }).distinctById()
                     s.copy(
                         catalogLoadingMore = false,
                         catalogItems = sortLocally(merged, s.sort),
@@ -274,9 +277,14 @@ private fun arrange(items: List<Item>, state: SearchState): List<Item> {
     val filtered = items.asSequence()
         .filter { item -> genreId == null || item.genres.any { it.id == genreId } }
         .filter { item -> item.matches(state.filters) }
+        // distinctById: поиск умеет вернуть один id дважды — в сетке это дубль ключа и краш.
+        .distinctBy { it.id }
         .toList()
     return sortLocally(filtered, state.sort)
 }
+
+/** Уникальность по id: ключ карточки в LazyGrid, и повтор роняет измерение сетки. */
+private fun List<Item>.distinctById(): List<Item> = distinctBy { it.id }
 
 /** Локальная проверка фильтров по полям, которые есть в [Item] (год, рейтинги, завершённость). */
 private fun Item.matches(filters: CatalogFilters): Boolean {
