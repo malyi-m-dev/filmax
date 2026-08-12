@@ -5,7 +5,9 @@ import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.presentation.BaseScreenModel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private const val MILLIS_PER_SECOND = 1000L
 
@@ -79,7 +81,12 @@ class OnboardingScreenModel(
         updateState { it.copy(polling = false, error = "Время ожидания истекло. Попробуйте снова.") }
     }
 
-    private suspend fun registerDevice() {
+    // NonCancellable: как только pollForToken() сохраняет токены, RootScreenModel реагирует
+    // на isAuthenticated и AuthStateNavigation уводит с онбординга через popUpTo(0) — это рвёт
+    // ViewModelStore онбординга и отменяет viewModelScope ДО того, как этот суспенд-вызов успеет
+    // дойти до сети (гонка чаще проигрывается на TV — тяжелее recomposition, план кадра длиннее).
+    // Без этого device/notify мог не уйти вовсе, и бэкенд не видел модель/железо/версию устройства.
+    private suspend fun registerDevice() = withContext(NonCancellable) {
         user.registerDevice(
             title = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
             hardware = Build.DEVICE.ifBlank { "android" },
