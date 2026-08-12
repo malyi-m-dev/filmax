@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import Shared
+import UIKit
 
 /// Презентейшен онбординга на Swift. Бизнес-логика (device-flow, поллинг) — на общих
 /// use-case'ах KMP (`RequestDeviceCodeUseCase`/`PollForTokenUseCase`); UI-состояние — здесь.
@@ -16,6 +17,7 @@ final class OnboardingViewModel: ObservableObject {
 
     private let requestDeviceCode = UseCaseProvider.shared.requestDeviceCodeUseCase()
     private let pollForToken = UseCaseProvider.shared.pollForTokenUseCase()
+    private let user = RepositoryProvider.shared.user
     private var flow: Task<Void, Never>?
 
     func next() {
@@ -83,6 +85,9 @@ final class OnboardingViewModel: ObservableObject {
                 if case .success = onEnum(of: result) {
                     // Токены сохранены общим data-слоем (multiplatform-settings);
                     // поток авторизации переключит RootView на главный экран.
+                    // Сообщаем бэку о клиенте (kino.pub device/notify) сразу после входа —
+                    // best-effort: ошибка регистрации не должна мешать авторизации.
+                    await registerDevice()
                     polling = false
                     return
                 }
@@ -93,5 +98,26 @@ final class OnboardingViewModel: ObservableObject {
         }
         polling = false
         error = "Время ожидания истекло. Попробуйте снова."
+    }
+
+    private func registerDevice() async {
+        let device = UIDevice.current
+        _ = try? await user.registerDevice(
+            title: device.model,
+            hardware: Self.hardwareIdentifier(),
+            software: "Filmax · \(device.systemName) \(device.systemVersion)"
+        )
+    }
+
+    /// Идентификатор модели («AppleTV6,2», «iPhone14,5») — аналог `Build.DEVICE` на Android.
+    private static func hardwareIdentifier() -> String {
+        var systemInfo = utsname()
+        uname(&systemInfo)
+        let machineMirror = Mirror(reflecting: systemInfo.machine)
+        let identifier = machineMirror.children.reduce(into: "") { partial, element in
+            guard let value = element.value as? Int8, value != 0 else { return }
+            partial.append(Character(UnicodeScalar(UInt8(value))))
+        }
+        return identifier.isEmpty ? "apple" : identifier
     }
 }
