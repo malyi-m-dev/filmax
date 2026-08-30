@@ -3,7 +3,6 @@ package com.filmax.feature.library.tv
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,24 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.VisibilityOff
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,37 +40,24 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
-import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvChip
-import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvOutlineVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
-import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurface
-import com.filmax.core.tv.designsystem.TvSurfaceContainer
-import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
-import com.filmax.core.ui.components.PosterImage
-import com.filmax.core.ui.components.continueMeta
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.library.common.LibraryEvent
@@ -112,7 +93,7 @@ private data class TvLibraryActions(
  * элементы; это состояние их связывает. Живёт в [TvLibraryScreen], меняется плитками и диалогами.
  */
 @Stable
-private class TvBookmarkUi {
+internal class TvBookmarkUi {
     var creating by mutableStateOf(false)
     var folderToDelete by mutableStateOf<BookmarkFolder?>(null)
     var itemToRemove by mutableStateOf<Item?>(null)
@@ -533,332 +514,6 @@ private fun MineEmpty(icon: ImageVector, title: String, hint: String) {
     }
 }
 
-@Composable
-private fun ProgressCard(
-    entry: WatchHistory,
-    returnKey: String,
-    focus: TvScreenFocus,
-    onOpenItem: (Int) -> Unit,
-) {
-    TvProgressCard(
-        title = entry.title,
-        meta = continueMeta(entry.progress),
-        // Карточка 16:9 — берём кадр, а не вертикальный постер: тот обрезался бы по центру.
-        posterUrl = entry.wideOrPoster,
-        progress = entry.progress?.fraction ?: 0f,
-        // Карточка ведёт в карточку тайтла, а не сразу в плеер: оттуда «Продолжить · SxEy»
-        // играет ту же серию, но остаётся выбор эпизода, сезонов и описание.
-        onClick = { onOpenItem(entry.itemId) },
-        modifier = focus.item(returnKey),
-        posterContent = { url, posterModifier ->
-            TvPoster(url, entry.title, posterModifier, TvMetrics.CardShape)
-        },
-    )
-}
-
-/** Плитка папки-закладки. Фокусируется и открывается — содержимое грузит [LibraryScreenModel]. */
-@Composable
-private fun FolderTile(folder: BookmarkFolder, onClick: () -> Unit) {
-    val count = folder.count
-    val word = when {
-        count % 100 in 11..14 -> "тайтлов"
-        count % 10 == 1 -> "тайтл"
-        count % 10 in 2..4 -> "тайтла"
-        else -> "тайтлов"
-    }
-    TvFocusCard(
-        onClick = onClick,
-        shape = TvMetrics.PanelShape,
-        modifier = Modifier.height(FolderTileHeight),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(TvMetrics.PanelShape)
-                .background(TvSurfaceContainer)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Bottom,
-        ) {
-            Text(
-                folder.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = TvOnSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                "$count $word",
-                style = MaterialTheme.typography.bodySmall,
-                color = TvOnSurfaceVariant,
-                modifier = Modifier.padding(top = 3.dp),
-            )
-        }
-    }
-}
-
-/** Плитка «＋ Новая папка» — первая ячейка сетки папок, вход в диалог создания. */
-@Composable
-private fun NewFolderTile(onClick: () -> Unit) {
-    TvFocusCard(
-        onClick = onClick,
-        shape = TvMetrics.PanelShape,
-        modifier = Modifier.height(FolderTileHeight),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(TvMetrics.PanelShape)
-                .background(TvSurfaceContainerHigh)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(
-                Icons.Filled.Add,
-                contentDescription = null,
-                tint = TvOnSurface,
-                modifier = Modifier.size(28.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("Новая папка", style = MaterialTheme.typography.titleMedium, color = TvOnSurface)
-        }
-    }
-}
-
-/** Пустое состояние закладок: подсказка и фокусируемая кнопка создания папки. */
-@Composable
-private fun BookmarksEmpty(onNewFolder: () -> Unit) {
-    val createFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { createFocus.requestFocus() }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 56.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Folder,
-            contentDescription = null,
-            tint = TvSurfaceContainerHighest,
-            modifier = Modifier.size(36.dp),
-        )
-        Text("Папок нет", style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
-        Text(
-            "Создайте папку и собирайте в неё тайтлы",
-            style = MaterialTheme.typography.bodyLarge,
-            color = TvOnSurfaceVariant,
-        )
-        TvButton(
-            text = "Новая папка",
-            onClick = onNewFolder,
-            leadingIcon = Icons.Filled.Add,
-            focusRequester = createFocus,
-        )
-    }
-}
-
-/** Постер тайтла в папке. В режиме удаления поверх — крестик: маркер, что клик уберёт тайтл. */
-@Composable
-private fun FolderPoster(url: String, title: String, modifier: Modifier, removeMode: Boolean) {
-    Box(modifier) {
-        TvPoster(url, title, Modifier.fillMaxSize(), TvMetrics.PosterShape)
-        if (removeMode) {
-            RemoveBadgeTv(Modifier.align(Alignment.TopStart).padding(6.dp))
-        }
-    }
-}
-
-/** Круглый крестик поверх постера — маркер режима удаления (слева, чтобы не спорить с рейтингом). */
-@Composable
-private fun RemoveBadgeTv(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(26.dp)
-            .clip(CircleShape)
-            .background(TvSurface.copy(alpha = 0.75f)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Filled.Close,
-            contentDescription = null,
-            tint = TvOnSurface,
-            modifier = Modifier.size(16.dp),
-        )
-    }
-}
-
-/** Постер для слота карточек дизайн-системы: монохромный плейсхолдер вместо розового по умолчанию. */
-@Composable
-private fun TvPoster(url: String, title: String, modifier: Modifier, shape: Shape) {
-    PosterImage(
-        url = url,
-        contentDescription = title,
-        modifier = modifier,
-        shape = shape,
-        accentColor = TvSurfaceContainerHighest,
-    )
-}
-
-// ── Диалоги закладок ──────────────────────────────────────────────────────
-
-/** Рисует активный диалог закладок и переводит подтверждение в события [LibraryScreenModel]. */
-@Composable
-private fun TvBookmarkDialogHost(
-    ui: TvBookmarkUi,
-    openFolderId: Int?,
-    dispatch: (LibraryEvent) -> Unit,
-) {
-    if (ui.creating) {
-        TvCreateFolderDialog(
-            onConfirm = { name ->
-                dispatch(LibraryEvent.CreateFolder(name))
-                ui.creating = false
-            },
-            onDismiss = { ui.creating = false },
-        )
-    }
-    ui.folderToDelete?.let { folder ->
-        TvConfirmDialog(
-            title = "Удалить папку?",
-            message = "«${folder.title}» и её список исчезнут. Тайтлы останутся в каталоге.",
-            confirmLabel = "Удалить",
-            onConfirm = {
-                dispatch(LibraryEvent.DeleteFolder(folder.id))
-                ui.folderToDelete = null
-            },
-            onDismiss = { ui.folderToDelete = null },
-        )
-    }
-    ui.itemToRemove?.let { item ->
-        TvConfirmDialog(
-            title = "Убрать из папки?",
-            message = "«${item.title}» исчезнет из папки, но останется в каталоге.",
-            confirmLabel = "Убрать",
-            onConfirm = {
-                // openFolderId непустой, пока папка открыта; без него событие не шлём.
-                openFolderId?.let { folderId ->
-                    dispatch(LibraryEvent.RemoveItemFromFolder(item.id, folderId))
-                }
-                ui.itemToRemove = null
-            },
-            onDismiss = { ui.itemToRemove = null },
-        )
-    }
-}
-
-/**
- * Диалог создания папки. Поле берёт фокус сразу — по нажатию OK открывается системная экранная
- * клавиатура телевизора (ввод пультом). Пустое имя модель игнорирует, поэтому кнопку не блокируем.
- */
-@Composable
-private fun TvCreateFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
-    var name by rememberSaveable { mutableStateOf("") }
-    val fieldFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { fieldFocus.requestFocus() }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = DialogMaxWidth)
-                .clip(TvMetrics.PanelShape)
-                .background(TvSurfaceContainer)
-                .padding(28.dp),
-        ) {
-            Text("Новая папка", style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "Введите название пультом",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TvOnSurfaceVariant,
-            )
-            Spacer(Modifier.height(18.dp))
-            TvFolderNameField(value = name, onValueChange = { name = it }, focusRequester = fieldFocus)
-            Spacer(Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvButton(text = "Создать", onClick = { onConfirm(name) })
-                TvButton(text = "Отмена", onClick = onDismiss, primary = false)
-            }
-        }
-    }
-}
-
-/** Поле имени папки: тёмная плашка с [BasicTextField] и плейсхолдером; системный IME вводит текст. */
-@Composable
-private fun TvFolderNameField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    focusRequester: FocusRequester,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(TvMetrics.ButtonShape)
-            .background(TvSurfaceContainerHigh)
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-    ) {
-        if (value.isEmpty()) {
-            Text(
-                "Название папки",
-                style = MaterialTheme.typography.bodyLarge,
-                color = TvOnSurfaceVariant,
-            )
-        }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TvOnSurface),
-            cursorBrush = SolidColor(TvAccent),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester),
-        )
-    }
-}
-
-/** Диалог подтверждения деструктива (удалить папку / убрать тайтл). Фокус — на действии. */
-@Composable
-private fun TvConfirmDialog(
-    title: String,
-    message: String,
-    confirmLabel: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val confirmFocus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { confirmFocus.requestFocus() }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .widthIn(max = DialogMaxWidth)
-                .clip(TvMetrics.PanelShape)
-                .background(TvSurfaceContainer)
-                .padding(28.dp),
-        ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = TvOnSurface)
-            Spacer(Modifier.height(10.dp))
-            Text(message, style = MaterialTheme.typography.bodyLarge, color = TvOnSurfaceVariant)
-            Spacer(Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                TvButton(text = confirmLabel, onClick = onConfirm, focusRequester = confirmFocus)
-                TvButton(text = "Отмена", onClick = onDismiss, primary = false)
-            }
-        }
-    }
-}
-
-@Composable
-private fun LoadingBox(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 40.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        CircularProgressIndicator(color = TvAccent)
-    }
-}
-
 /** Колонки сетки при ширине макета 960dp: постеры 190dp — вчетверо, карточки 16:9 250dp — втрое. */
 private fun columnsFor(segment: MineSegment, folderOpen: Boolean): Int = when (segment) {
     MineSegment.CONTINUE, MineSegment.HISTORY -> WIDE_COLUMNS
@@ -878,10 +533,10 @@ private val GridPadding = PaddingValues(
     bottom = TvMetrics.FocusInset + TvMetrics.SafeVertical,
 )
 
-private val FolderTileHeight = 130.dp
+internal val FolderTileHeight = 130.dp
 
 /** Ширина диалогов закладок: у́же экрана, чтобы читаться с дивана и не растягивать кнопки. */
-private val DialogMaxWidth = 420.dp
+internal val DialogMaxWidth = 420.dp
 
 private const val POSTER_COLUMNS = 4
 private const val WIDE_COLUMNS = 3
