@@ -59,16 +59,16 @@ import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
-import com.filmax.core.tv.designsystem.posterMeta
-import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.SortOptions
 import com.filmax.feature.search.common.TypeOptions
-import com.filmax.feature.search.common.itemTypeLabel
 import com.filmax.feature.search.common.sortLabel
 import org.koin.androidx.compose.koinViewModel
 
@@ -445,7 +445,7 @@ private fun CatalogEmpty() {
 private fun CatalogPoster(item: Item, modifier: Modifier, onClick: () -> Unit) {
     TvPosterCard(
         title = item.title,
-        meta = posterMeta(itemTypeLabel(item.type), item.year),
+        meta = posterMeta(typeLabel(item.type), item.year),
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         onClick = onClick,
         modifier = modifier,

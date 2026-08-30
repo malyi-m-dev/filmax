@@ -26,14 +26,5 @@ val SortOptions = listOf(
     CatalogSort.IMDB_RATING to "Рейтинг IMDb",
 )
 
-/** Подпись под карточкой: тип по-русски. `serial`/`docuserial` из API зрителю не показываем. */
-fun itemTypeLabel(type: ItemType): String = when (type) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
-    ItemType.TV -> "ТВ"
-}
-
 fun sortLabel(sort: CatalogSort): String =
     SortOptions.firstOrNull { it.first == sort }?.second ?: SortOptions.first().second

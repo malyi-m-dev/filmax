@@ -82,6 +82,7 @@ import com.filmax.core.ui.components.FilmaxProgressBar
 import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
 import com.filmax.feature.details.common.SeriesData
@@ -91,7 +92,6 @@ import com.filmax.feature.details.common.calculateSeriesData
 import com.filmax.feature.details.common.initials
 import com.filmax.feature.details.common.isSeries
 import com.filmax.feature.details.common.resolveCast
-import com.filmax.feature.details.common.typeLabel
 import com.filmax.feature.details.common.volumeLabel
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject

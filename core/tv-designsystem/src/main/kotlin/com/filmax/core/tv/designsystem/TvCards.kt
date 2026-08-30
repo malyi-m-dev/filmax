@@ -26,7 +26,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import java.util.Locale
 
 /**
  * Размер карточки 16:9. Оба варианта — одна и та же карточка, разной ширины: «продолжить»
@@ -214,25 +213,3 @@ private fun TvCardCaption(title: String, meta: String?, focused: Boolean) {
         )
     }
 }
-
-/** Собирает мету постера `тип · год`, пропуская пустые части. */
-fun posterMeta(type: String?, year: Int): String? {
-    val parts = buildList {
-        if (!type.isNullOrBlank()) add(type)
-        if (year > 0) add(year.toString())
-    }
-    return parts.joinToString(" · ").ifBlank { null }
-}
-
-/**
- * Оценка для пилюли и меты: в домене это строка вида «8.312», на экране нужен один знак.
- *
- * Ноль — это «оценки нет», а не «ноль баллов»: kino.pub отдаёт `0` для тайтлов без рейтинга,
- * и печатать «0.0 КП» под постером — врать зрителю. Такие карточки остаются без пилюли.
- */
-fun ratingLabel(raw: String?): String? = ratingLabel(raw?.toDoubleOrNull())
-
-/** То же для уже разобранной оценки (`rating.external` — усреднённая IMDb+КП). */
-fun ratingLabel(value: Double?): String? =
-    value?.takeIf { it > 0 }
-        ?.let { String.format(Locale.US, "%.1f", it) }

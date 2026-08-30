@@ -33,13 +33,13 @@ import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
-import com.filmax.core.tv.designsystem.posterMeta
-import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
-import com.filmax.feature.search.common.itemTypeLabel
 import org.koin.androidx.compose.koinViewModel
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ложатся между safe area, как в TV-Каталоге. */
@@ -144,7 +144,7 @@ private fun FilmographyPoster(
 ) {
     TvPosterCard(
         title = item.title,
-        meta = posterMeta(itemTypeLabel(item.type), item.year),
+        meta = posterMeta(typeLabel(item.type), item.year),
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         onClick = onClick,
         modifier = modifier,

@@ -9,6 +9,9 @@ android { namespace = "com.filmax.core.tv.designsystem" }
 
 dependencies {
     api(project(":core:designsystem"))
+    // Форматтеры подписей (ratingLabel, posterMeta, typeLabel, continueMeta) и PosterImage —
+    // общие с телефоном: их место одно на приложение, а не по копии на платформу.
+    api(project(":core:ui"))
     api(libs.tv.material)
 
     val bom = platform(libs.compose.bom)

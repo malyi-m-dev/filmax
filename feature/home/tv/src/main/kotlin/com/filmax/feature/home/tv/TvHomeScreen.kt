@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvAccent
@@ -52,14 +51,15 @@ import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
-import com.filmax.core.tv.designsystem.posterMeta
-import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.appErrorText
 import com.filmax.core.ui.components.continueMeta
 import com.filmax.core.ui.components.durationLabel
+import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.posterUrl
+import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
@@ -398,7 +398,7 @@ private fun TvHomePosterCard(item: Item, onClick: () -> Unit, modifier: Modifier
     TvPosterCard(
         modifier = modifier,
         title = item.title,
-        meta = posterMeta(type = item.type.label(), year = item.year),
+        meta = posterMeta(type = typeLabel(item.type), year = item.year),
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         rating = ratingLabel(item.rating.kinopoisk),
         onClick = onClick,
@@ -488,12 +488,3 @@ private const val NO_SEASON = -1
 
 /** Больше трёх жанров мета-строка hero не вмещает по ширине [HeroContentWidth]. */
 private const val MAX_HERO_GENRES = 3
-
-/** Русское название типа для меты карточки — [ItemType] хранит только API-значения. */
-private fun ItemType.label(): String = when (this) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
-    ItemType.TV -> "ТВ"
-}

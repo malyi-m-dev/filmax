@@ -58,7 +58,6 @@ import androidx.compose.ui.window.Dialog
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
-import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvButton
@@ -75,10 +74,11 @@ import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
-import com.filmax.core.tv.designsystem.posterMeta
-import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.continueMeta
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.library.common.LibraryEvent
 import com.filmax.feature.library.common.LibraryScreenModel
 import com.filmax.feature.library.common.LibraryState
@@ -542,7 +542,7 @@ private fun ProgressCard(
 ) {
     TvProgressCard(
         title = entry.title,
-        meta = progressMeta(entry.progress),
+        meta = continueMeta(entry.progress),
         // Карточка 16:9 — берём кадр, а не вертикальный постер: тот обрезался бы по центру.
         posterUrl = entry.wideOrPoster,
         progress = entry.progress?.fraction ?: 0f,
@@ -866,20 +866,6 @@ private fun columnsFor(segment: MineSegment, folderOpen: Boolean): Int = when (s
     MineSegment.BOOKMARKS -> if (folderOpen) POSTER_COLUMNS else FOLDER_COLUMNS
 }
 
-/** Мета карточки 16:9: сезон и остаток — то, ради чего на неё вообще смотрят. */
-private fun progressMeta(progress: WatchProgress?): String? {
-    if (progress == null) return null
-    val remaining = (progress.durationSeconds ?: 0) - (progress.timeSeconds ?: 0)
-    val parts = buildList {
-        progress.season?.let { season -> add("Сезон $season") }
-        when {
-            remaining >= SECONDS_IN_MINUTE -> add("Осталось ${remaining / SECONDS_IN_MINUTE} мин")
-            progress.fraction > 0f -> add("Просмотрено")
-        }
-    }
-    return parts.joinToString(" · ").ifBlank { null }
-}
-
 /**
  * Отступы сетки. Боковые поля живут только здесь: на родителе они срезали бы рамку фокуса
  * (карточка при фокусе растёт), а contentPadding сетка не клипает. Сверху и снизу — запас
@@ -906,8 +892,6 @@ private const val FOLDER_COLUMNS = 3
 /** Доля просмотра, при которой тайтл считается начатым, но не досмотренным. */
 private const val CONTINUE_MIN_FRACTION = 0.01f
 private const val CONTINUE_MAX_FRACTION = 0.95f
-
-private const val SECONDS_IN_MINUTE = 60
 
 /** За сколько карточек до конца сетки просить следующую страницу папки (примерно ряд). */
 private const val LOAD_MORE_TAIL = 4

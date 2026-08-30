@@ -23,6 +23,7 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.ShapeCard
 import com.filmax.core.designsystem.ShapePoster
 import com.filmax.core.domain.catalog.model.Collection
+import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.watching.model.WatchProgress
 import java.util.Locale
 
@@ -213,6 +214,18 @@ fun posterMeta(type: String?, year: Int): String? {
 }
 
 /**
+ * Тип тайтла под постером и в мете деталей. `serial`/`docuserial` из API зрителю не
+ * показываем: у kino.pub это технические значения, а не то, как о тайтле говорят.
+ */
+fun typeLabel(type: ItemType): String = when (type) {
+    ItemType.MOVIE -> "Фильм"
+    ItemType.SERIES -> "Сериал"
+    ItemType.ANIME -> "Аниме"
+    ItemType.DOCUMENTARY -> "Документальный"
+    ItemType.TV -> "ТВ"
+}
+
+/**
  * Подпись карточки «продолжить»: «S2 · осталось 18 мин». Одна на телефон и ТВ — раньше жила
  * тремя одинаковыми копиями (обе Главных и «Моё»).
  *
@@ -223,7 +236,13 @@ fun continueMeta(progress: WatchProgress?): String? {
     if (progress == null) return null
     val parts = buildList {
         progress.season?.takeIf { it > 0 }?.let { add("S$it") }
-        remainingMinutes(progress)?.let { add("осталось ${durationLabel(it)}") }
+        val remaining = remainingMinutes(progress)
+        when {
+            remaining != null -> add("осталось ${durationLabel(remaining)}")
+            // Остатка нет, а прогресс есть — досмотрено: иначе карточка молчала бы о том,
+            // почему она вообще в «Продолжить».
+            progress.fraction > 0f -> add("просмотрено")
+        }
     }
     return parts.joinToString(" · ").ifBlank { null }
 }

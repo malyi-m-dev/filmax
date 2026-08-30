@@ -21,14 +21,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
-import com.filmax.core.tv.designsystem.posterMeta
-import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import org.koin.androidx.compose.koinViewModel
 
@@ -105,7 +105,7 @@ fun TvCollectionDetailScreen(
 private fun CollectionPoster(item: Item, modifier: Modifier, onClick: () -> Unit) {
     TvPosterCard(
         title = item.title,
-        meta = posterMeta(item.type.label(), item.year),
+        meta = posterMeta(typeLabel(item.type), item.year),
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         onClick = onClick,
         rating = ratingLabel(item.rating.external),
@@ -120,13 +120,4 @@ private fun CollectionPoster(item: Item, modifier: Modifier, onClick: () -> Unit
             accentColor = TvSurfaceContainer,
         )
     }
-}
-
-/** Подпись типа в мете карточки — та же, что в рядах Главной и в каталоге. */
-private fun ItemType.label(): String = when (this) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
-    ItemType.TV -> "ТВ"
 }

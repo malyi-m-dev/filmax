@@ -106,14 +106,6 @@ fun initials(name: String): String =
         .map { word -> word.first().uppercaseChar() }
         .joinToString("")
 
-fun typeLabel(type: ItemType): String = when (type) {
-    ItemType.MOVIE -> "Фильм"
-    ItemType.SERIES -> "Сериал"
-    ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Док. сериал"
-    ItemType.TV -> "ТВ"
-}
-
 private fun seasonsWord(count: Int): String = when {
     count % PLURAL_MOD_HUNDRED in 11..14 -> "сезонов"
     count % PLURAL_MOD_TEN == 1 -> "сезон"

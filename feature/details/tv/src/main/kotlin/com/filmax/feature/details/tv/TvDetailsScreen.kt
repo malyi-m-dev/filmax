@@ -80,13 +80,14 @@ import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
-import com.filmax.core.tv.designsystem.posterMeta
-import com.filmax.core.tv.designsystem.ratingLabel
 import com.filmax.core.tv.designsystem.rememberDimAlpha
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.ui.components.HeroBackdrop
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
 import com.filmax.feature.details.common.SeriesData
@@ -94,7 +95,6 @@ import com.filmax.feature.details.common.calculateSeriesData
 import com.filmax.feature.details.common.initials
 import com.filmax.feature.details.common.isSeries
 import com.filmax.feature.details.common.resolveCast
-import com.filmax.feature.details.common.typeLabel
 import com.filmax.feature.details.common.volumeLabel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel

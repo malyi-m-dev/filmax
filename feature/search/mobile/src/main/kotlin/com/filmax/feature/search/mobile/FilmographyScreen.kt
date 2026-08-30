@@ -43,9 +43,9 @@ import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
-import com.filmax.feature.search.common.itemTypeLabel
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -188,6 +188,6 @@ private fun FilmographyPoster(item: Item, onClick: () -> Unit) {
         width = FilmaxMetrics.GridPosterWidth,
         height = FilmaxMetrics.GridPosterHeight,
         rating = ratingLabel(item.rating.external),
-        meta = posterMeta(itemTypeLabel(item.type), item.year),
+        meta = posterMeta(typeLabel(item.type), item.year),
     )
 }
