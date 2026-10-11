@@ -13,9 +13,9 @@ import com.filmax.feature.player.tv.TvTrailerScreen
  * истекающим токеном, поэтому играем его как есть штатным контроллером Media3, а «Назад» пульта
  * закрывает экран ([onBack]).
  */
-fun NavGraphBuilder.tvTrailerScreen(onBack: () -> Unit) {
+fun NavGraphBuilder.tvTrailerScreen() {
     composable<TrailerRoute> { entry ->
         val route = entry.toRoute<TrailerRoute>()
-        TvTrailerScreen(url = route.url, title = route.title, onBack = onBack)
+        TvTrailerScreen(url = route.url, title = route.title)
     }
 }

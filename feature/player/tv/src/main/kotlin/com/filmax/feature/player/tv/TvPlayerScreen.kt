@@ -32,6 +32,8 @@ import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.error.AppError
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvSurface
@@ -42,21 +44,28 @@ import com.filmax.feature.player.common.PlayerScreenModel
 import com.filmax.feature.player.common.PlayerState
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * TV-Плеер: видеоповерхность ExoPlayer и оверлей под пульт поверх неё.
  *
- * [onPlayEpisode] задаёт граф навигации: другая серия — это новый экран плеера с новым
+ * Другая серия — это замена экрана через [Navigator]: новый экран плеера с новым
  * [PlayerScreenModel], а не подмена MediaItem (иначе прогресс писался бы в предыдущую серию).
- * null — панели серий и «Следующей серии» не будет.
  */
 @Composable
 fun TvPlayerScreen(
-    onBack: () -> Unit,
+    itemId: Int,
     modifier: Modifier = Modifier,
-    onPlayEpisode: ((season: Int, videoId: Int) -> Unit)? = null,
     screenModel: PlayerScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onBack: () -> Unit = navigator::back
+    // remember: лямбда — ключ remember ниже, новая на каждой рекомпозиции она бы пересобирала панель серий.
+    val onPlayEpisode: (season: Int, videoId: Int) -> Unit = remember(itemId, navigator) {
+        { season, videoId ->
+            navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
+        }
+    }
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
     val ui = remember(screenModel.player) { TvPlayerUiState(screenModel.player) }

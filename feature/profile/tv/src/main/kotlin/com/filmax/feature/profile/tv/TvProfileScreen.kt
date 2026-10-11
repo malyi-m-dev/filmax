@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.UserProfile
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvFocus
@@ -56,6 +58,7 @@ import com.filmax.feature.profile.common.ProfileState
 import com.filmax.feature.profile.common.initialsOrFallback
 import com.filmax.feature.profile.common.label
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Ширина колонки настроек. Читать строку длиной во весь экран с 3 метров невозможно. */
 private val ContentMaxWidth = 640.dp
@@ -80,11 +83,12 @@ private val RowGap = 10.dp
  */
 @Composable
 fun TvProfileScreen(
-    onLogout: () -> Unit,
     onCheckUpdates: () -> Unit,
     modifier: Modifier = Modifier,
     screenModel: ProfileScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onLogout: () -> Unit = { navigator.root(Destination.Onboarding) }
     val state by screenModel.collectAsState()
 
     screenModel.collectSideEffect { effect ->

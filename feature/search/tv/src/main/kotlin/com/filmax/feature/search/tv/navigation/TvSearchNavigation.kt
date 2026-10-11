@@ -12,8 +12,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 object TvSearchRoute
 
-fun NavGraphBuilder.tvSearchScreen(onOpenItem: (Int) -> Unit) {
+fun NavGraphBuilder.tvSearchScreen() {
     composable<TvSearchRoute> {
-        TvCatalogScreen(onOpenItem = onOpenItem)
+        TvCatalogScreen()
     }
 }

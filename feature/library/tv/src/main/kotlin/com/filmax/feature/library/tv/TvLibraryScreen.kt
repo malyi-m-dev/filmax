@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvChip
@@ -65,6 +67,7 @@ import com.filmax.feature.library.common.LibraryScreenModel
 import com.filmax.feature.library.common.LibraryState
 import com.filmax.feature.library.common.OpenBookmarkFolder
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * Сегменты раздела «Моё» — четыре непересекающихся ответа на вопрос «что у меня есть».
@@ -108,10 +111,11 @@ internal class TvBookmarkUi {
  */
 @Composable
 fun TvLibraryScreen(
-    onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: LibraryScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
     val state by screenModel.collectAsState()
     var segment by rememberSaveable { mutableStateOf(MineSegment.CONTINUE) }
     val ui = remember { TvBookmarkUi() }

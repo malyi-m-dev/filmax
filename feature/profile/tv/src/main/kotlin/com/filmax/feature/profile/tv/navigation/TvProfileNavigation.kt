@@ -14,19 +14,17 @@ object TvProfileRoute
 object TvDeviceSettingsRoute
 
 fun NavGraphBuilder.tvProfileScreen(
-    onLogout: () -> Unit,
     onCheckUpdates: () -> Unit,
 ) {
     composable<TvProfileRoute> {
         TvProfileScreen(
-            onLogout = onLogout,
             onCheckUpdates = onCheckUpdates,
         )
     }
 }
 
-fun NavGraphBuilder.tvDeviceSettingsScreen(onBack: () -> Unit) {
+fun NavGraphBuilder.tvDeviceSettingsScreen() {
     composable<TvDeviceSettingsRoute> {
-        TvDeviceSettingsScreen(onBack = onBack)
+        TvDeviceSettingsScreen()
     }
 }

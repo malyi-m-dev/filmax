@@ -21,8 +21,19 @@ import com.filmax.feature.search.mobile.navigation.SearchRoute
 import org.koin.compose.koinInject
 
 /**
- * Исполнитель команд навигации телефонного графа: единственное место, где абстрактный
- * [Destination] превращается в маршрут и в конкретные NavOptions.
+ * Что граф знает о себе: как адрес превращается в маршрут и какой маршрут — корень вкладок.
+ * Телефонный и ТВ-граф различаются только этим; семантика команд у них одна.
+ */
+internal class GraphRoutes(
+    /** Реальный корень вкладок — до него попапят при переключении раздела (не сплэш). */
+    val tabRoot: Any,
+    val toRoute: (Destination) -> Any,
+)
+
+/**
+ * Исполнитель команд навигации: единственное место графа, где абстрактный [Destination]
+ * превращается в маршрут и в конкретные NavOptions. Один на телефон и ТВ — граф отдаёт
+ * [GraphRoutes], а команды разбираются одинаково.
  *
  * Экраны отправляют команды через [Navigator] и не знают ни маршрутов соседних фич, ни того,
  * сколько в приложении графов. Захочется разложить разделы по вложенным графам со своими
@@ -31,28 +42,29 @@ import org.koin.compose.koinInject
 @Composable
 internal fun NavigationCommands(
     navController: NavHostController,
+    routes: GraphRoutes,
     navigator: Navigator = koinInject(),
 ) {
-    LaunchedEffect(navController) {
-        navigator.commands.collect { command -> navController.execute(command) }
+    LaunchedEffect(navController, routes) {
+        navigator.commands.collect { command -> navController.execute(command, routes) }
     }
 }
 
-private fun NavHostController.execute(command: NavCommand) {
+private fun NavHostController.execute(command: NavCommand, routes: GraphRoutes) {
     when (command) {
-        is NavCommand.Open -> open(command.destination)
-        is NavCommand.Replace -> replaceCurrent(command.destination)
-        is NavCommand.Root -> makeRoot(command.destination)
+        is NavCommand.Open -> open(command.destination, routes)
+        is NavCommand.Replace -> replaceCurrent(routes.toRoute(command.destination))
+        is NavCommand.Root -> makeRoot(routes.toRoute(command.destination))
         NavCommand.Back -> popBackStack()
     }
 }
 
-private fun NavHostController.open(destination: Destination) {
+private fun NavHostController.open(destination: Destination, routes: GraphRoutes) {
     if (destination is Destination.Tab) {
-        switchTab(destination)
+        switchTab(routes.toRoute(destination), routes.tabRoot)
         return
     }
-    navigate(destination.toRoute())
+    navigate(routes.toRoute(destination))
 }
 
 /**
@@ -64,12 +76,12 @@ private fun NavHostController.open(destination: Destination) {
  * поэтому и попап, и переход адресуют экраны-корни разделов. С вложенными графами (`popUpTo` до
  * графа, переход на граф) ключи не сходятся, и стек молча не восстанавливается.
  *
- * Попап — до [HomeRoute], реального корня вкладок: стартовый destination графа это сплэш,
+ * Попап — до [tabRoot], реального корня вкладок: стартовый destination графа это сплэш,
  * которого после логина в стеке нет (popUpTo{inclusive}), и попап по нему молча не срабатывал.
  */
-private fun NavHostController.switchTab(tab: Destination.Tab) {
-    navigate(tab.toRoute()) {
-        popUpTo<HomeRoute> { saveState = true }
+private fun NavHostController.switchTab(route: Any, tabRoot: Any) {
+    navigate(route) {
+        popUpTo(tabRoot::class) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }
@@ -80,9 +92,9 @@ private fun NavHostController.switchTab(tab: Destination.Tab) {
  * это тот же `PlayerRoute` с другими аргументами, и снимать надо именно открытую запись, иначе
  * перещёлкивание серий копит стек.
  */
-private fun NavHostController.replaceCurrent(destination: Destination) {
+private fun NavHostController.replaceCurrent(route: Any) {
     val current = currentDestination?.id
-    navigate(destination.toRoute()) {
+    navigate(route) {
         if (current != null) popUpTo(current) { inclusive = true }
         launchSingleTop = true
     }
@@ -92,18 +104,21 @@ private fun NavHostController.replaceCurrent(destination: Destination) {
  * Новый корень: чистим ВЕСЬ стек. При протухании сессии посреди работы онбординг иначе встаёт
  * ПОВЕРХ авторизованных экранов, и «Назад» возвращает на них.
  */
-private fun NavHostController.makeRoot(destination: Destination) {
-    navigate(destination.toRoute()) {
+private fun NavHostController.makeRoot(route: Any) {
+    navigate(route) {
         popUpTo(0) { inclusive = true }
         launchSingleTop = true
     }
 }
 
+/** Маршруты телефонного графа. */
+internal val PhoneRoutes = GraphRoutes(tabRoot = HomeRoute, toRoute = Destination::toPhoneRoute)
+
 /**
  * Адрес → маршрут телефонного графа. `SearchRoute` отдаёт Каталог, `LibraryRoute` — «Моё»:
  * маршруты назывались так до переименования разделов.
  */
-private fun Destination.toRoute(): Any = when (this) {
+private fun Destination.toPhoneRoute(): Any = when (this) {
     Destination.Home -> HomeRoute
     Destination.Catalog -> SearchRoute
     Destination.Mine -> LibraryRoute
