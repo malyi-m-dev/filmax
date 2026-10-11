@@ -35,6 +35,7 @@ import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.serverLocationLabel
 import com.filmax.core.domain.user.model.streamingTypeLabel
 import com.filmax.core.domain.user.model.streamingTypeOptions
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvError
@@ -52,6 +53,7 @@ import com.filmax.feature.profile.common.DeviceSettingsScreenModel
 import com.filmax.feature.profile.common.DeviceSettingsSideEffect
 import com.filmax.feature.profile.common.DeviceSettingsState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Ширина колонки настроек: строку во весь экран с 3 метров читать невозможно. */
 private val ContentMaxWidth = 640.dp
@@ -68,10 +70,11 @@ private val RowGap = 10.dp
  */
 @Composable
 fun TvDeviceSettingsScreen(
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
     screenModel: DeviceSettingsScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onBack: () -> Unit = navigator::back
     val state by screenModel.collectAsState()
 
     screenModel.collectSideEffect { effect ->

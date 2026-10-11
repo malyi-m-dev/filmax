@@ -35,6 +35,8 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
@@ -55,6 +57,7 @@ import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ровно ложатся в 844dp между safe area. */
 private const val GRID_COLUMNS = 4
@@ -83,10 +86,11 @@ internal val SearchBarHeight = 56.dp
  */
 @Composable
 fun TvCatalogScreen(
-    onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: SearchScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
     val state by screenModel.collectAsState()
     val focus = rememberTvScreenFocus(startAt = SEARCH_KEY)
     val listState = rememberLazyListState()

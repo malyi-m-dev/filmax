@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
+import com.filmax.core.navigation.Destination
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -46,8 +47,8 @@ import com.filmax.feature.profile.tv.navigation.TvProfileRoute
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import kotlin.reflect.KClass
 
-/** Вкладка верхнего таб-бара: ярлык + маршрут + проверка активности. */
-private data class TvTab(val label: String, val route: Any, val match: (NavDestination?) -> Boolean)
+/** Вкладка верхнего таб-бара: ярлык + адрес раздела + проверка активности. */
+private data class TvTab(val label: String, val destination: Destination.Tab, val match: (NavDestination?) -> Boolean)
 
 /**
  * Четыре раздела. «Поиск» уехал внутрь «Каталога» (печатать пультом дорого — каталог даёт
@@ -57,10 +58,10 @@ private data class TvTab(val label: String, val route: Any, val match: (NavDesti
  * Маршруты пока прежние: TvSearchRoute отдаёт Каталог, TvLibraryRoute — «Моё».
  */
 private val TABS = listOf(
-    TvTab("Главная", TvHomeRoute) { it?.hasRoute(TvHomeRoute::class) == true },
-    TvTab("Каталог", TvSearchRoute) { it?.hasRoute(TvSearchRoute::class) == true },
-    TvTab("Моё", TvLibraryRoute) { it?.hasRoute(TvLibraryRoute::class) == true },
-    TvTab("Профиль", TvProfileRoute) { it?.hasRoute(TvProfileRoute::class) == true },
+    TvTab("Главная", Destination.Home) { it?.hasRoute(TvHomeRoute::class) == true },
+    TvTab("Каталог", Destination.Catalog) { it?.hasRoute(TvSearchRoute::class) == true },
+    TvTab("Моё", Destination.Mine) { it?.hasRoute(TvLibraryRoute::class) == true },
+    TvTab("Профиль", Destination.Profile) { it?.hasRoute(TvProfileRoute::class) == true },
 )
 
 /** Маршруты, на которых показывается таб-бар. Выводится из [TABS] — один источник правды. */
@@ -88,7 +89,7 @@ internal data class TvTopNavBarFocus(
 @Composable
 internal fun TvTopNavBar(
     currentDestination: NavDestination?,
-    onSelectTab: (route: Any) -> Unit,
+    onSelectTab: (Destination.Tab) -> Unit,
     focus: TvTopNavBarFocus,
     initials: String,
     modifier: Modifier = Modifier,
@@ -117,7 +118,7 @@ internal fun TvTopNavBar(
             contentFocus = focus.content,
             // Раздел открывается сразу по фокусу, без задержек и без OK: на пульте лишнее
             // нажатие на каждый переход — половина всей навигации по приложению.
-            onTabFocused = { index -> if (index != activeIndex) onSelectTab(TABS[index].route) },
+            onTabFocused = { index -> if (index != activeIndex) onSelectTab(TABS[index].destination) },
         )
         Spacer(Modifier.weight(1f))
         TvAvatar(initials = initials)

@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvAccent
 import com.filmax.core.tv.designsystem.TvButton
@@ -66,6 +68,7 @@ import com.filmax.feature.home.common.HomeRowId
 import com.filmax.feature.home.common.HomeScreenModel
 import com.filmax.feature.home.common.HomeState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * TV-Главная: hero «выбор редакции» и горизонтальные ряды. Поверх общего [HomeScreenModel] —
@@ -76,12 +79,17 @@ import org.koin.androidx.compose.koinViewModel
  */
 @Composable
 fun TvHomeScreen(
-    onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
-    onOpenCollection: (id: Int, title: String) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: HomeScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
+    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit = { itemId, season, videoId ->
+        navigator.open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
+    }
+    val onOpenCollection: (id: Int, title: String) -> Unit = { id, title ->
+        navigator.open(Destination.CollectionDetail(collectionId = id, title = title))
+    }
     val state by screenModel.collectAsState()
     val offline by screenModel.collectOfflineBannerAsState()
     val appError by screenModel.collectErrorAsState()

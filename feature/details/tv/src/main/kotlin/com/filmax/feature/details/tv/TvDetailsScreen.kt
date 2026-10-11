@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
@@ -48,6 +50,7 @@ import com.filmax.feature.details.common.resolveCast
 import com.filmax.feature.details.common.volumeLabel
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Ширина текстового блока в hero (макет: 600dp из 960) — правее лежит открытый бэкдроп. */
 internal val HeroTextWidth = 600.dp
@@ -88,9 +91,9 @@ private const val SECONDS_IN_MINUTE = 60
  */
 @Composable
 fun TvDetailsScreen(
-    nav: TvDetailsNav,
     modifier: Modifier = Modifier,
     screenModel: DetailsScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
     val item = state.item
@@ -112,29 +115,20 @@ fun TvDetailsScreen(
                 cast = state.cast,
                 isFav = state.isFav,
                 actions = DetailsActions(
-                    onPlay = { season, videoId -> nav.onPlay(item.id, season, videoId) },
+                    onPlay = { season, videoId ->
+                        navigator.open(Destination.Player(itemId = item.id, videoId = videoId, season = season))
+                    },
                     onToggleFav = { screenModel.dispatch(DetailsEvent.ToggleFav) },
-                    onOpenItem = nav.onOpenItem,
-                    onOpenPerson = nav.onOpenPerson,
-                    onPlayTrailer = nav.onPlayTrailer,
+                    onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
+                    onOpenPerson = { name, isDirector ->
+                        navigator.open(Destination.Filmography(name = name, isDirector = isDirector))
+                    },
+                    onPlayTrailer = { url, title -> navigator.open(Destination.Trailer(url = url, title = title)) },
                 ),
             )
         }
     }
 }
-
-/**
- * Навигация TV-деталей — группой (detekt LongParameterList): входной composable иначе набирает
- * больше шести параметров.
- */
-data class TvDetailsNav(
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
-    val onOpenItem: (Int) -> Unit,
-    /** Тап по актёру/режиссёру -> его фильмография (isDirector различает запрос к API). */
-    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
-    /** Играть трейлер: прямой HLS-url и заголовок. */
-    val onPlayTrailer: (url: String, title: String) -> Unit,
-)
 
 /** Действия экрана — группой, чтобы не раздувать списки параметров у вложенных секций. */
 private data class DetailsActions(

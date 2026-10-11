@@ -12,9 +12,9 @@ import com.filmax.feature.collections.tv.TvCollectionDetailScreen
  * Экрана-списка подборок здесь нет: вкладкой «Подборки» быть перестали и живут содержимым
  * Каталога, откуда и открывается конкретная подборка.
  */
-fun NavGraphBuilder.tvCollectionDetailScreen(onOpenItem: (Int) -> Unit) {
+fun NavGraphBuilder.tvCollectionDetailScreen() {
     composable<CollectionDetailRoute> { entry ->
         val route = entry.toRoute<CollectionDetailRoute>()
-        TvCollectionDetailScreen(title = route.title, onOpenItem = onOpenItem)
+        TvCollectionDetailScreen(title = route.title)
     }
 }

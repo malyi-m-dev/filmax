@@ -12,10 +12,8 @@ object TvLibraryRoute
  * Раздел «Моё». Все карточки — «Продолжить», «История», «Буду смотреть» и содержимое папок —
  * ведут в карточку тайтла: там есть и «Продолжить · SxEy», и выбор серий, и описание.
  */
-fun NavGraphBuilder.tvLibraryScreen(
-    onOpenItem: (Int) -> Unit,
-) {
+fun NavGraphBuilder.tvLibraryScreen() {
     composable<TvLibraryRoute> {
-        TvLibraryScreen(onOpenItem = onOpenItem)
+        TvLibraryScreen()
     }
 }

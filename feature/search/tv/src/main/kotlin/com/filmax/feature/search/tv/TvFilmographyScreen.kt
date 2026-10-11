@@ -26,6 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
@@ -41,6 +43,7 @@ import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ложатся между safe area, как в TV-Каталоге. */
 private const val GRID_COLUMNS = 4
@@ -55,11 +58,12 @@ private const val GRID_COLUMNS = 4
  */
 @Composable
 fun TvFilmographyScreen(
-    onBack: () -> Unit,
-    onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: FilmographyScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onBack: () -> Unit = navigator::back
+    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
     val state by screenModel.collectAsState()
 
     BackHandler { onBack() }

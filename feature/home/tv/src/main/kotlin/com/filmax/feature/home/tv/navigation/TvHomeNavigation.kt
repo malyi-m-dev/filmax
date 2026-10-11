@@ -8,16 +8,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 object TvHomeRoute
 
-fun NavGraphBuilder.tvHomeScreen(
-    onOpenItem: (Int) -> Unit,
-    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
-    onOpenCollection: (id: Int, title: String) -> Unit,
-) {
+fun NavGraphBuilder.tvHomeScreen() {
     composable<TvHomeRoute> {
-        TvHomeScreen(
-            onOpenItem = onOpenItem,
-            onPlay = onPlay,
-            onOpenCollection = onOpenCollection,
-        )
+        TvHomeScreen()
     }
 }

@@ -8,8 +8,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 object TvOnboardingRoute
 
-fun NavGraphBuilder.tvOnboardingScreen(onAuthenticated: () -> Unit) {
+fun NavGraphBuilder.tvOnboardingScreen() {
     composable<TvOnboardingRoute> {
-        TvOnboardingScreen(onAuthenticated = onAuthenticated)
+        TvOnboardingScreen()
     }
 }

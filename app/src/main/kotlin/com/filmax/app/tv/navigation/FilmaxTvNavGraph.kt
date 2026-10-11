@@ -20,37 +20,34 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
-import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filmax.app.navigation.AuthStateNavigation
+import com.filmax.app.navigation.NavigationCommands
 import com.filmax.app.navigation.RootScreenModel
 import com.filmax.app.navigation.navFadeIn
 import com.filmax.app.navigation.navFadeOut
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalTvNavBarFocused
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
-import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
-import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
 import com.filmax.feature.library.tv.navigation.tvLibraryScreen
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
-import com.filmax.feature.player.common.navigation.PlayerRoute
-import com.filmax.feature.player.common.navigation.TrailerRoute
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.player.tv.navigation.tvTrailerScreen
 import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
-import com.filmax.feature.search.common.navigation.FilmographyRoute
 import com.filmax.feature.search.tv.navigation.tvFilmographyScreen
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Serializable
 private object TvSplashRoute
@@ -60,10 +57,13 @@ fun FilmaxTvNavGraph(
     onCheckUpdates: () -> Unit,
     // Переиспользуем общий RootScreenModel (тот же auth.isAuthenticated, что и в телефонном графе).
     rootScreenModel: RootScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val rootState by rootScreenModel.collectAsState()
     val isAuthenticated = rootState.isAuthenticated
     val navController = rememberNavController()
+
+    NavigationCommands(navController, TvRoutes)
 
     AuthStateNavigation(
         isAuthenticated = isAuthenticated,
@@ -91,19 +91,6 @@ fun FilmaxTvNavGraph(
     // через LocalTvScrollToTop и скроллят свой контейнер вверх, чтобы он не «застревал» внизу.
     var scrollToTopSignal by remember { mutableIntStateOf(0) }
 
-    // Переход по вкладкам: единственный экземпляр + сохранение/восстановление состояния.
-    // Попап — до TvHomeRoute, реального корня вкладок: стартовый destination графа — сплэш,
-    // которого после логина нет в стеке (popUpTo{inclusive}), и попап по нему молча не
-    // срабатывал — каждый заход на вкладку создавал свежую энтри, а restoreState не
-    // восстанавливал ни выбранный сегмент, ни скролл.
-    fun navigateTab(route: Any) {
-        navController.navigate(route) {
-            popUpTo<TvHomeRoute> { saveState = true }
-            launchSingleTop = true
-            restoreState = true
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -126,14 +113,14 @@ fun FilmaxTvNavGraph(
                 popEnterTransition = { navFadeIn },
                 popExitTransition = { navFadeOut },
             ) {
-                tvDestinations(navController, onCheckUpdates)
+                tvDestinations(onCheckUpdates)
             }
         }
 
         if (showTopBar) {
             TvTopNavBar(
                 currentDestination = currentDest,
-                onSelectTab = { navigateTab(it) },
+                onSelectTab = navigator::open,
                 focus = TvTopNavBarFocus(navBar = navBarFocus, content = contentFocus),
                 initials = rootState.initials,
                 // Любой заход фокуса в шапку (с контента или стартовый) — повод увести контент вверх.
@@ -148,71 +135,32 @@ fun FilmaxTvNavGraph(
     }
 }
 
-/** Регистрация всех экранов TV-графа: сплэш, онбординг, разделы и детали/плеер. */
-private fun NavGraphBuilder.tvDestinations(
-    navController: NavHostController,
-    onCheckUpdates: () -> Unit,
-) {
+/**
+ * Регистрация всех экранов TV-графа: сплэш, онбординг, разделы и детали/плеер.
+ *
+ * Оглавление, а не логика: экраны колбэков не получают — куда вести, они говорят [Navigator]-у,
+ * а переход по вкладкам, замену серии и выход исполняет [NavigationCommands].
+ */
+private fun NavGraphBuilder.tvDestinations(onCheckUpdates: () -> Unit) {
     composable<TvSplashRoute> { Box(Modifier.fillMaxSize()) }
 
-    tvOnboardingScreen(
-        onAuthenticated = {
-            navController.navigate(TvHomeRoute) { popUpTo(TvOnboardingRoute) { inclusive = true } }
-        },
-    )
+    tvOnboardingScreen()
 
-    tvHomeScreen(
-        onOpenItem = { navController.navigate(DetailsRoute(it)) },
-        onPlay = { itemId, season, videoId ->
-            navController.navigate(PlayerRoute(itemId, videoId, season))
-        },
-        onOpenCollection = { id, title ->
-            navController.navigate(CollectionDetailRoute(collectionId = id, title = title))
-        },
-    )
-    tvSearchScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvHomeScreen()
+    tvSearchScreen()
     // «Подборки» больше не вкладка — это контент внутри Каталога. Экран содержимого
     // подборки остаётся push-экраном: в него ведёт Каталог.
-    tvCollectionDetailScreen(onOpenItem = { navController.navigate(DetailsRoute(it)) })
+    tvCollectionDetailScreen()
     // Все карточки «Моё» ведут в карточку тайтла — играть оттуда: кнопка «Продолжить · SxEy».
-    tvLibraryScreen(
-        onOpenItem = { navController.navigate(DetailsRoute(it)) },
-    )
-    tvProfileScreen(
-        onLogout = {
-            navController.navigate(TvOnboardingRoute) { popUpTo(TvHomeRoute) { inclusive = true } }
-        },
-        onCheckUpdates = onCheckUpdates,
-    )
+    tvLibraryScreen()
+    tvProfileScreen(onCheckUpdates = onCheckUpdates)
     // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
     // device/info и device/settings на бэкенде отвечают 500.
-    tvDeviceSettingsScreen(onBack = { navController.popBackStack() })
+    tvDeviceSettingsScreen()
 
-    tvDetailsScreen(
-        onPlay = { itemId, season, videoId ->
-            navController.navigate(PlayerRoute(itemId, videoId, season))
-        },
-        onOpenItem = { navController.navigate(DetailsRoute(it)) },
-        onOpenPerson = { name, isDirector ->
-            navController.navigate(FilmographyRoute(name = name, isDirector = isDirector))
-        },
-        onPlayTrailer = { url, title -> navController.navigate(TrailerRoute(url = url, title = title)) },
-    )
+    tvDetailsScreen()
     // Фильмография человека — push-экран из деталей (тап по актёру/режиссёру).
-    tvFilmographyScreen(
-        onBack = { navController.popBackStack() },
-        onOpenItem = { navController.navigate(DetailsRoute(it)) },
-    )
-    tvTrailerScreen(onBack = { navController.popBackStack() })
-    tvPlayerScreen(
-        onBack = { navController.popBackStack() },
-        // «Следующая серия» — навигация, а не подмена MediaItem: прогресс пишется в трек,
-        // выбранный при старте плеера, и подмена на месте писала бы позицию новой серии
-        // в запись предыдущей. popUpTo не копит стек при перещёлкивании серий подряд.
-        onPlayEpisode = { itemId, season, videoId ->
-            navController.navigate(PlayerRoute(itemId, videoId, season)) {
-                popUpTo<PlayerRoute> { inclusive = true }
-            }
-        },
-    )
+    tvFilmographyScreen()
+    tvTrailerScreen()
+    tvPlayerScreen()
 }

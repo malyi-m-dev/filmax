@@ -10,8 +10,8 @@ import com.filmax.feature.search.tv.TvFilmographyScreen
  * фича — благодаря этому [com.filmax.feature.search.common.FilmographyScreenModel] получает имя и
  * признак режиссёра из SavedStateHandle.
  */
-fun NavGraphBuilder.tvFilmographyScreen(onBack: () -> Unit, onOpenItem: (Int) -> Unit) {
+fun NavGraphBuilder.tvFilmographyScreen() {
     composable<FilmographyRoute> {
-        TvFilmographyScreen(onBack = onBack, onOpenItem = onOpenItem)
+        TvFilmographyScreen()
     }
 }

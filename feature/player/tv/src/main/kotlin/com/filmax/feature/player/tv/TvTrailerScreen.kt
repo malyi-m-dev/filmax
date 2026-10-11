@@ -20,8 +20,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.ui.components.KeepScreenOn
+import org.koin.compose.koinInject
 
 /**
  * TV-экран трейлера — одноразовый плеер по готовому HLS-URL.
@@ -35,9 +37,10 @@ import com.filmax.core.ui.components.KeepScreenOn
 fun TvTrailerScreen(
     url: String,
     title: String,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    navigator: Navigator = koinInject(),
 ) {
+    val onBack: () -> Unit = navigator::back
     val context = LocalContext.current
     // remember(url) пересоздаёт плеер только при смене трейлера; ключ URL связывает жизненный
     // цикл ExoPlayer с конкретным HLS-адресом.

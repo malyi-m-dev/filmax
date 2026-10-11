@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
@@ -36,6 +38,7 @@ import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** За сколько карточек до конца сетки просим следующую страницу. */
 private const val LOAD_MORE_TAIL = 12
@@ -47,10 +50,11 @@ private const val LOAD_MORE_TAIL = 12
 @Composable
 fun TvCollectionDetailScreen(
     title: String,
-    onOpenItem: (Int) -> Unit,
     modifier: Modifier = Modifier,
     screenModel: CollectionDetailScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
     val state by screenModel.collectAsState()
     val focus = rememberTvScreenFocus()
     val gridState = rememberLazyGridState()

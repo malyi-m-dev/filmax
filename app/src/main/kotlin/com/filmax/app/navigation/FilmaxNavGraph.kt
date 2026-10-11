@@ -77,7 +77,7 @@ fun FilmaxNavGraph(
     val rootState by rootScreenModel.collectAsState()
     val navController = rememberNavController()
 
-    NavigationCommands(navController)
+    NavigationCommands(navController, PhoneRoutes)
 
     AuthStateNavigation(
         isAuthenticated = rootState.isAuthenticated,

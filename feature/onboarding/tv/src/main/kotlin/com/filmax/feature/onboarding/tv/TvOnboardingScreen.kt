@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -51,6 +53,7 @@ import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
 import com.filmax.feature.onboarding.common.OnboardingState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private const val DEFAULT_VERIFICATION_URI = "kinopub.me/device"
 
@@ -67,10 +70,11 @@ private val TextMaxWidth = 460.dp
  */
 @Composable
 fun TvOnboardingScreen(
-    onAuthenticated: () -> Unit,
     modifier: Modifier = Modifier,
     screenModel: OnboardingScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
+    val onAuthenticated: () -> Unit = { navigator.root(Destination.Home) }
     val state by screenModel.collectAsState()
 
     screenModel.collectSideEffect { effect ->
