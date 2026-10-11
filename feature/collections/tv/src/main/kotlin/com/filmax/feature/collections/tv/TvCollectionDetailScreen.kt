@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -29,8 +33,12 @@ import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
+import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import org.koin.androidx.compose.koinViewModel
+
+/** За сколько карточек до конца сетки просим следующую страницу. */
+private const val LOAD_MORE_TAIL = 12
 
 /**
  * TV-экран одной подборки: сетка постеров поверх общего [CollectionDetailScreenModel]
@@ -45,6 +53,18 @@ fun TvCollectionDetailScreen(
 ) {
     val state by screenModel.collectAsState()
     val focus = rememberTvScreenFocus()
+    val gridState = rememberLazyGridState()
+    // Догрузка при подходе к хвосту сетки; повторные вызовы гасит идемпотентность модели.
+    val loadMore by remember {
+        derivedStateOf {
+            val info = gridState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
+        }
+    }
+    LaunchedEffect(loadMore, state.page) {
+        if (loadMore) screenModel.dispatch(CollectionDetailEvent.LoadMore)
+    }
 
     Column(
         modifier = modifier
@@ -77,6 +97,7 @@ fun TvCollectionDetailScreen(
             // растягивало ячейки и рвало ритм сетки.
             else -> LazyVerticalGrid(
                 columns = GridCells.FixedSize(TvMetrics.PosterWidth),
+                state = gridState,
                 modifier = focus.containerModifier,
                 horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
                 verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
