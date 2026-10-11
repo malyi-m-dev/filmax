@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,7 +29,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +48,7 @@ import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
+import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import com.filmax.feature.collections.common.CollectionDetailState
 import org.koin.androidx.compose.koinViewModel
@@ -51,6 +56,9 @@ import org.koin.compose.koinInject
 
 /** Та же сетка 3×98dp постера, что в каталоге и фильмографии: единая раскладка на кадр 360dp. */
 private const val GRID_COLUMNS = 3
+
+/** За сколько карточек до конца сетки просим следующую страницу (три ряда). */
+private const val LOAD_MORE_TAIL = 9
 
 /**
  * Одна подборка — сетка её тайтлов. Раскладка повторяет фильмографию: шапка «назад + заголовок»
@@ -72,6 +80,7 @@ fun CollectionDetailScreen(
             state = state,
             onBack = navigator::back,
             onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
+            onLoadMore = { screenModel.dispatch(CollectionDetailEvent.LoadMore) },
         )
 
         appError?.let { error ->
@@ -90,9 +99,23 @@ private fun CollectionDetailContent(
     state: CollectionDetailState,
     onBack: () -> Unit,
     onOpenItem: (Int) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
+    val gridState = rememberLazyGridState()
+    // Догрузка при подходе к хвосту сетки. derivedStateOf пересчитывается без рекомпозиции;
+    // повторные вызовы гасит идемпотентность модели.
+    val loadMore by remember {
+        derivedStateOf {
+            val info = gridState.layoutInfo
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
+        }
+    }
+    LaunchedEffect(loadMore, state.page) { if (loadMore) onLoadMore() }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
+        state = gridState,
         modifier = Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(
             start = FilmaxMetrics.ScreenPadding,
@@ -109,6 +132,9 @@ private fun CollectionDetailContent(
             CollectionDetailHeader(title = title, onBack = onBack)
         }
         collectionItems(state = state, onOpenItem = onOpenItem)
+        if (state.loadingMore) {
+            item(key = "loading-more", span = { GridItemSpan(maxLineSpan) }) { CollectionLoadingMore() }
+        }
     }
 }
 
@@ -166,6 +192,17 @@ private fun LazyGridScope.collectionItems(state: CollectionDetailState, onOpenIt
     }
     items(state.items, key = { it.id }) { item ->
         CollectionPoster(item = item, onClick = { onOpenItem(item.id) })
+    }
+}
+
+@Composable
+private fun CollectionLoadingMore() {
+    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp),
+            strokeWidth = 2.dp,
+        )
     }
 }
 
