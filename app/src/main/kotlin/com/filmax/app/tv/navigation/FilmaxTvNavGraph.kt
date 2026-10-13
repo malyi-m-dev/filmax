@@ -1,5 +1,6 @@
 package com.filmax.app.tv.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -74,22 +76,26 @@ fun FilmaxTvNavGraph(
 
     val backStack by navController.currentBackStackEntryAsState()
     val currentDest = backStack?.destination
-    val showTopBar = TOP_LEVEL_ROUTES.any { currentDest?.hasRoute(it) == true }
+    val showNav = TOP_LEVEL_ROUTES.any { currentDest?.hasRoute(it) == true }
 
-    // Явная связь фокуса между оверлейной шапкой и контентом: они — соседи в Box, и
-    // D-pad-поиск между ними сам по себе не проходит, поэтому шапка по «вниз» уводит в
-    // [contentFocus], а контент по «вверх» — в шапку.
-    val navBarFocus = remember { FocusRequester() }
+    // Явная связь фокуса между оверлейным меню и контентом: они — соседи в Box, и D-pad-поиск
+    // между ними сам по себе не проходит, поэтому меню по «вправо» уводит в [contentFocus], а
+    // контент по «влево» с левого края — в меню.
+    val navFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
 
-    // Фокус в шапке — единственная причина, по которой экран НЕ забирает стартовый фокус себе
-    // (см. tvScreenFocus): пользователь выбирает вкладки подряд, и подхват фокуса контентом
-    // стоил бы ему лишнего «вверх» на каждый переход.
-    val navBarFocused = remember { mutableStateOf(false) }
+    // Пока фокус в меню, экран не забирает стартовый фокус себе (см. tvScreenFocus).
+    val navFocused = remember { mutableStateOf(false) }
 
-    // Сигнал «контент — в начало»: растёт при каждом заходе фокуса в шапку, экраны слушают его
-    // через LocalTvScrollToTop и скроллят свой контейнер вверх, чтобы он не «застревал» внизу.
+    // Сигнал «контент — в начало»: растёт при повторном выборе открытого раздела, экраны
+    // слушают его через LocalTvScrollToTop и скроллят свой контейнер вверх.
     var scrollToTopSignal by remember { mutableIntStateOf(0) }
+
+    // «Назад» на Главной — в меню: из глубины ленты это быстрее, чем листать к началу. Обработчик
+    // регистрируется раньше всех и поэтому срабатывает последним: «назад» экранов (открытая папка
+    // «Моё», режим поиска) и стек NavHost (из другого раздела — на Главную) идут первыми, а из
+    // самого меню «назад» не перехватывается — выход из приложения.
+    BackHandler(enabled = showNav && !navFocused.value) { navFocus.requestFocus() }
 
     Box(
         modifier = Modifier
@@ -98,40 +104,50 @@ fun FilmaxTvNavGraph(
     ) {
         CompositionLocalProvider(
             LocalTvScrollToTop provides scrollToTopSignal,
-            LocalTvNavBarFocused provides navBarFocused,
+            LocalTvNavBarFocused provides navFocused,
         ) {
-            NavHost(
+            TvNavHost(
                 navController = navController,
-                startDestination = TvSplashRoute,
+                onCheckUpdates = onCheckUpdates,
                 modifier = Modifier
-                    .fillMaxSize()
                     .focusRequester(contentFocus)
-                    .focusProperties { up = navBarFocus }
-                    .focusGroup(),
-                enterTransition = { navFadeIn },
-                exitTransition = { navFadeOut },
-                popEnterTransition = { navFadeIn },
-                popExitTransition = { navFadeOut },
-            ) {
-                tvDestinations(onCheckUpdates)
-            }
-        }
-
-        if (showTopBar) {
-            TvTopNavBar(
-                currentDestination = currentDest,
-                onSelectTab = navigator::open,
-                focus = TvTopNavBarFocus(navBar = navBarFocus, content = contentFocus),
-                initials = rootState.initials,
-                // Любой заход фокуса в шапку (с контента или стартовый) — повод увести контент вверх.
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .onFocusChanged {
-                        navBarFocused.value = it.hasFocus
-                        if (it.hasFocus) scrollToTopSignal++
-                    },
+                    .focusProperties { if (showNav) left = navFocus },
             )
         }
+
+        if (showNav) {
+            TvSideNav(
+                currentDestination = currentDest,
+                // Повторный выбор открытого раздела — в его начало, другой раздел — переход.
+                onSelect = { section, isOpen ->
+                    if (isOpen) scrollToTopSignal++ else navigator.open(section)
+                    contentFocus.requestFocus()
+                },
+                focus = TvSideNavFocus(nav = navFocus, content = contentFocus),
+                initials = rootState.initials,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .onFocusChanged { navFocused.value = it.hasFocus },
+            )
+        }
+    }
+}
+
+/** Контент разделов: NavHost со всеми экранами и общими переходами. */
+@Composable
+private fun TvNavHost(navController: NavHostController, onCheckUpdates: () -> Unit, modifier: Modifier) {
+    NavHost(
+        navController = navController,
+        startDestination = TvSplashRoute,
+        modifier = modifier
+            .fillMaxSize()
+            .focusGroup(),
+        enterTransition = { navFadeIn },
+        exitTransition = { navFadeOut },
+        popEnterTransition = { navFadeIn },
+        popExitTransition = { navFadeOut },
+    ) {
+        tvDestinations(onCheckUpdates)
     }
 }
 

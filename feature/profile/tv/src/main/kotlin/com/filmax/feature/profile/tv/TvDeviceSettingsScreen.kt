@@ -57,7 +57,7 @@ import org.koin.compose.koinInject
 
 /** Ширина колонки настроек: строку во весь экран с 3 метров читать невозможно. */
 private val ContentMaxWidth = 640.dp
-private val ContentTop = 96.dp
+private val ContentTop = TvMetrics.ContentTop + 18.dp
 private val RowHeight = 60.dp
 private val RowGap = 10.dp
 

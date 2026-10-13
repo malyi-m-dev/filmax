@@ -39,7 +39,7 @@ if (isTv) FilmaxTvTheme { FilmaxTvNavGraph() } else FilmaxTheme { FilmaxNavGraph
 | Слой | Модули |
 |------|--------|
 | TV дизайн-система | `:core:tv-designsystem` — `FilmaxTvTheme`, `TvButton`, `TvFocusCard`, focus `#FFD466` |
-| TV-каркас | `:app` → `com.filmax.app.tv.navigation` (`FilmaxTvNavGraph`, `TvTopNavBar`) |
+| TV-каркас | `:app` → `com.filmax.app.tv.navigation` (`FilmaxTvNavGraph`, `TvSideNav`) |
 | Логика/UI фич | `:feature:X` + `:feature:X:{mobile,tv}` |
 
 ## Нативный TV-стек
