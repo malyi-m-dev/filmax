@@ -11,7 +11,7 @@ import com.filmax.feature.player.tv.TvTrailerScreen
  *
  * Отдельного ScreenModel нет: [TrailerRoute.url] — готовый временный HLS-плейлист (.m3u8) с
  * истекающим токеном, поэтому играем его как есть штатным контроллером Media3, а «Назад» пульта
- * закрывает экран ([onBack]).
+ * закрывает экран.
  */
 fun NavGraphBuilder.tvTrailerScreen() {
     composable<TrailerRoute> { entry ->

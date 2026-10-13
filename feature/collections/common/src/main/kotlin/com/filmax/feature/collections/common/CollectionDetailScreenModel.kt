@@ -57,17 +57,17 @@ class CollectionDetailScreenModel(
     private fun loadMore() {
         val current = state
         if (current.loading || current.loadingMore || !current.hasNextPage) return
+        val nextPage = current.page + 1
         screenModelScope { _ ->
             updateState { it.copy(loadingMore = true) }
-            when (val result = catalog.getCollectionItems(route.collectionId, page = current.page + 1)) {
-                is RequestResult.Success -> updateState { s ->
-                    // Дубли гасим по id: LazyGrid падает на неуникальном ключе, а границы
-                    // страниц у kino.pub плывут, если подборку правят во время просмотра.
-                    val seen = s.items.mapTo(HashSet(), Item::id)
-                    s.copy(
+            when (val result = catalog.getCollectionItems(route.collectionId, page = nextPage)) {
+                is RequestResult.Success -> updateState { loaded ->
+                    loaded.copy(
                         loadingMore = false,
-                        items = s.items + result.data.items.filter { it.id !in seen }.distinctBy(Item::id),
-                        page = current.page + 1,
+                        // Дубли гасим по id: LazyGrid падает на неуникальном ключе, а границы
+                        // страниц у kino.pub плывут, если подборку правят во время просмотра.
+                        items = (loaded.items + result.data.items).distinctBy(Item::id),
+                        page = nextPage,
                         hasNextPage = result.data.pagination.hasNextPage,
                     )
                 }

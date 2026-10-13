@@ -61,16 +61,12 @@ fun TvPlayerScreen(
 ) {
     val onBack: () -> Unit = navigator::back
     // remember: лямбда — ключ remember ниже, новая на каждой рекомпозиции она бы пересобирала панель серий.
-    val onPlayEpisode: (season: Int, videoId: Int) -> Unit = remember(itemId, navigator) {
-        { season, videoId ->
-            navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-        }
-    }
+    val onPlayEpisode = remember(itemId, navigator) { playEpisodeAction(navigator, itemId) }
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
     val ui = remember(screenModel.player) { TvPlayerUiState(screenModel.player) }
 
-    // Панель серий есть только у сериала и только когда граф дал навигацию по сериям.
+    // Панель серий есть только у сериала.
     val episodesPanel = remember(state.item, state.track, onPlayEpisode) {
         episodesPanelData(state.item?.tracklist.orEmpty(), state.track, onPlayEpisode)
     }
@@ -92,11 +88,17 @@ fun TvPlayerScreen(
     PlayerContent(ui = ui, state = state, menu = menu, error = appError, modifier = modifier)
 }
 
+/** Другая серия того же тайтла — заменой экрана плеера, а не новым экраном поверх. */
+private fun playEpisodeAction(navigator: Navigator, itemId: Int): (season: Int, videoId: Int) -> Unit =
+    { season, videoId ->
+        navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
+    }
+
 /** Ряд настроек кадра: пункт показываем только там, где реально есть из чего выбрать. */
 private fun playerMenu(
     state: PlayerState,
     episodesPanel: EpisodesPanelData?,
-    onPlayEpisode: ((season: Int, videoId: Int) -> Unit)?,
+    onPlayEpisode: (season: Int, videoId: Int) -> Unit,
     dispatch: (PlayerEvent) -> Unit,
 ): PlayerActions = PlayerActions(
     items = buildList {
@@ -106,27 +108,27 @@ private fun playerMenu(
         // Скорость доступна всегда — набор фиксированный, выбирать есть из чего.
         add(SettingsAction.Speed)
         if (episodesPanel != null) add(SettingsAction.Episodes)
-        if (state.nextTrack != null && onPlayEpisode != null) add(SettingsAction.NextEpisode)
+        if (state.nextTrack != null) add(SettingsAction.NextEpisode)
     },
     options = { action -> action.options(state) },
     selected = { action -> action.selected(state) },
     onSelect = { action, label -> action.toEvent(label)?.let(dispatch) },
     onNextEpisode = {
-        state.nextTrack?.let { next -> onPlayEpisode?.invoke(next.seasonNumber, next.number) }
+        state.nextTrack?.let { next -> onPlayEpisode(next.seasonNumber, next.number) }
     },
     episodes = episodesPanel,
 )
 
 /**
  * Данные панели серий из плейлиста: сезоны отсортированы, стартовый курсор — играющая серия.
- * null — фильм (один трек) или граф не дал [onPlayEpisode].
+ * null — фильм (один трек).
  */
 private fun episodesPanelData(
     tracks: List<MediaTrack>,
     track: MediaTrack?,
-    onPlayEpisode: ((season: Int, videoId: Int) -> Unit)?,
+    onPlayEpisode: (season: Int, videoId: Int) -> Unit,
 ): EpisodesPanelData? {
-    if (tracks.size < 2 || onPlayEpisode == null) return null
+    if (tracks.size < 2) return null
     val seasons = tracks
         .groupBy { it.seasonNumber }
         .toSortedMap()
