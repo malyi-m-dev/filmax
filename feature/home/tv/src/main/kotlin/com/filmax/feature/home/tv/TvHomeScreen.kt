@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,6 +55,7 @@ import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.core.tv.designsystem.scrollToTopOnFocus
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.appErrorText
 import com.filmax.core.ui.components.continueMeta
@@ -133,7 +135,7 @@ fun TvHomeScreen(
 }
 
 /** Действия главной одним объектом — как MovieActions в TV-деталях. */
-private data class TvHomeActions(
+internal data class TvHomeActions(
     val onOpenItem: (Int) -> Unit,
     val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
     val onOpenCollection: (id: Int, title: String) -> Unit,
@@ -142,7 +144,7 @@ private data class TvHomeActions(
 )
 
 @Composable
-private fun TvHomeContent(
+internal fun TvHomeContent(
     state: HomeState,
     offline: Boolean,
     actions: TvHomeActions,
@@ -166,12 +168,14 @@ private fun TvHomeContent(
         }
         state.hero?.let { hero ->
             item(key = "hero") {
+                // Вернулись к баннеру из рядов — лента к началу, иначе он остаётся срезанным сверху.
                 TvHero(
                     item = hero,
                     // Фильм — единственный трек, эпизод выбирать не из чего: PlayerRoute.videoId = -1.
                     onPlay = { actions.onPlay(hero.id, NO_SEASON, NO_VIDEO_ID) },
                     onDetails = { actions.onOpenItem(hero.id) },
                     focus = focus,
+                    modifier = Modifier.scrollToTopOnFocus(listState),
                 )
             }
         }
@@ -305,17 +309,22 @@ private val HeroScrimVertical = Brush.verticalGradient(
     1.00f to TvSurface.copy(alpha = 0.90f),
 )
 
+/** Тег hero для UI-тестов: по нему проверяют, что баннер виден целиком. */
+internal const val HERO_TEST_TAG = "home:hero"
+
 @Composable
 private fun TvHero(
     item: Item,
     onPlay: () -> Unit,
     onDetails: () -> Unit,
     focus: TvScreenFocus,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(TvMetrics.HeroHeight),
+            .height(TvMetrics.HeroHeight)
+            .testTag(HERO_TEST_TAG),
     ) {
         PosterImage(
             url = item.posters.wide ?: item.posters.big,
