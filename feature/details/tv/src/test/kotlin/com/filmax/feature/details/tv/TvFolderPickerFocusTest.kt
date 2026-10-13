@@ -21,6 +21,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
@@ -63,6 +64,9 @@ class TvFolderPickerFocusTest {
 
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val user = FakeUserRepository(backend)

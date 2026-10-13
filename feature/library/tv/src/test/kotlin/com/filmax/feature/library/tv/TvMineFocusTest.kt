@@ -8,6 +8,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFavoritesRepository
@@ -47,6 +48,9 @@ class TvMineFocusTest {
 
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val remote = TvRemote(compose)
     private val calls = mutableListOf<String>()

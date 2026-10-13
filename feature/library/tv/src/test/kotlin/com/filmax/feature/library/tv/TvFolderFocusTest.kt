@@ -7,6 +7,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFolderAppearanceRepository
@@ -42,6 +43,9 @@ class TvFolderFocusTest {
 
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val remote = TvRemote(compose)
     private val calls = mutableListOf<String>()
