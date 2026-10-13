@@ -4,13 +4,15 @@ package com.filmax.core.tv.designsystem
 
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.compose.material3.MaterialTheme as ComposeMaterialTheme
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 
 /**
- * TV-тема Filmax. Строгий монохром: единственный цвет на экране — постер.
+ * TV-тема Filmax: палитра редизайна (по умолчанию «Фиолет», [FxColors]), шрифты [FxType] и
+ * флаг сниженной анимации [LocalReducedMotion].
  *
  * Оборачивает контент в ДВЕ темы:
  *  - `androidx.tv.material3.MaterialTheme` — для TV-компонентов (Surface/Button/Text)
@@ -18,11 +20,10 @@ import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
  *  - `androidx.compose.material3.MaterialTheme` — для компонентов, которых нет в tv-material3
  *    (например, `CircularProgressIndicator`), чтобы и они брали токены темы.
  *
- * Схема своя, а не производная от мобильной: у телефона и телевизора разные поверхности
- * (TV темнее) и разный вторичный текст (TV светлее — дистанция 3 метра съедает контраст).
+ * Схема своя, а не производная от мобильной: у телефона и телевизора разные поверхности.
  *
- * `primary` = [TvAccent] (белый): в монохроме роль «главного действия» несёт белая заливка.
- * `border` = [TvFocus], поэтому стандартная обводка фокуса у TV-Surface — белая.
+ * `primary` = [TvAccent] — цвет главного действия. `border` = [TvFocus], поэтому стандартная
+ * обводка фокуса у TV-Surface — белая.
  */
 @Composable
 fun FilmaxTvTheme(content: @Composable () -> Unit) {
@@ -67,7 +68,11 @@ fun FilmaxTvTheme(content: @Composable () -> Unit) {
         shapes = FilmaxTvShapes,
     ) {
         TvMaterialTheme(colorScheme = tvScheme) {
-            content()
+            CompositionLocalProvider(
+                LocalFxColors provides Violet,
+                LocalReducedMotion provides rememberReducedMotion(),
+                content = content,
+            )
         }
     }
 }

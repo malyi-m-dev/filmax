@@ -122,7 +122,7 @@ fun FilmaxTvNavGraph(
                     contentFocus.requestFocus()
                 },
                 focus = TvSideNavFocus(nav = navFocus, content = contentFocus),
-                initials = rootState.initials,
+                account = rootState.account,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .onFocusChanged { navFocused.value = it.hasFocus },

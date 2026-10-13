@@ -143,19 +143,19 @@ private fun ProfileContent(
         Column(Modifier.widthIn(max = ContentMaxWidth)) {
             ProfileHeader(profile = state.profile)
             Spacer(Modifier.height(32.dp))
-            TvOverline("Просмотр", color = TvOnSurfaceDim)
+            TvOverline("Просмотр", accent = false)
             Spacer(Modifier.height(12.dp))
             PlaybackRows(state = state, actions = actions)
             Spacer(Modifier.height(26.dp))
             // Блока «Устройство» временно нет: device/info и device/settings отвечают 500,
             // и строка вела на нерабочий экран. Вернуть, когда бэкенд починят.
-            TvOverline("Аккаунт", color = TvOnSurfaceDim)
+            TvOverline("Аккаунт", accent = false)
             Spacer(Modifier.height(12.dp))
             AccountRows(state = state, actions = actions)
             Spacer(Modifier.height(26.dp))
             // На телевизоре магазина нет вообще — приложение ставится APK, и ручная проверка
             // здесь нужнее, чем на телефоне.
-            TvOverline("Приложение", color = TvOnSurfaceDim)
+            TvOverline("Приложение", accent = false)
             Spacer(Modifier.height(12.dp))
             SettingRow(
                 spec = SettingRowSpec(label = "Проверить обновления"),

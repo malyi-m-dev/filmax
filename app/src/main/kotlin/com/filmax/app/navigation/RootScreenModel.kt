@@ -5,6 +5,7 @@ import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.feature.profile.common.label
 
 class RootScreenModel(
     private val auth: AuthRepository,
@@ -21,15 +22,24 @@ class RootScreenModel(
         screenModelScope {
             auth.isAuthenticated.collect { value ->
                 updateState { it.copy(isAuthenticated = value) }
-                // Авторизованы — подтягиваем инициалы для аватара (best-effort).
-                if (value == true) fetchUserInitials()
+                // Авторизованы — подтягиваем аккаунт для меню (best-effort).
+                if (value == true) fetchAccount()
             }
         }
     }
 
-    private suspend fun fetchUserInitials() {
+    private suspend fun fetchAccount() {
         (user.getProfile() as? RequestResult.Success)?.let { result ->
-            updateState { it.copy(initials = result.data.initials()) }
+            val profile = result.data
+            updateState {
+                it.copy(
+                    account = AccountSummary(
+                        name = profile.username,
+                        subscription = profile.subscription.label(),
+                        initials = profile.initials(),
+                    ),
+                )
+            }
         }
     }
 }

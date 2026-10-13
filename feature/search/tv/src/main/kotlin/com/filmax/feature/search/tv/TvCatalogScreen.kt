@@ -44,10 +44,8 @@ import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurface
-import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
-import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.VoiceListeningDialog
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
@@ -254,14 +252,5 @@ private fun CatalogPoster(item: Item, modifier: Modifier, onClick: () -> Unit) {
         onClick = onClick,
         modifier = modifier,
         rating = ratingLabel(item.rating.external),
-    ) { url, posterModifier ->
-        PosterImage(
-            url = url,
-            contentDescription = item.title,
-            modifier = posterModifier,
-            shape = TvMetrics.PosterShape,
-            // Плейсхолдер-градиент по умолчанию розовый; в монохроме под постером — поверхность.
-            accentColor = TvSurfaceContainer,
-        )
-    }
+    )
 }

@@ -66,9 +66,6 @@ internal fun ProgressCard(
         // играет ту же серию, но остаётся выбор эпизода, сезонов и описание.
         onClick = { onOpenItem(entry.itemId) },
         modifier = focus.item(returnKey),
-        posterContent = { url, posterModifier ->
-            TvPoster(url, entry.title, posterModifier, TvMetrics.CardShape)
-        },
     )
 }
 
