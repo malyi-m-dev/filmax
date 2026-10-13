@@ -28,8 +28,10 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
 import org.koin.core.logger.Level
+import org.koin.core.module.Module
 
-class FilmaxApplication : Application() {
+// open — ради сборки `mock`: её Application наследует этот и подменяет только data-модули.
+open class FilmaxApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         initErrorReporting()
@@ -40,31 +42,41 @@ class FilmaxApplication : Application() {
             // Ключ TMDB отдаём модулю свойством, а не в коде: секрет живёт в BuildConfig (из
             // local.properties), а data:tmdb читает его через getProperty.
             properties(mapOf(TMDB_API_KEY_PROPERTY to BuildConfig.TMDB_API_KEY))
-            modules(
-                // core / data
-                navigationModule,
-                networkModule,
-                platformNetworkModule,
-                authModule,
-                catalogModule,
-                searchModule,
-                userModule,
-                watchingModule,
-                tmdbModule,
-                // features
-                onboardingModule,
-                homeModule,
-                searchFeatureModule,
-                collectionsModule,
-                libraryModule,
-                profileModule,
-                detailsModule,
-                playerModule,
-                // app
-                appModule,
-            )
+            modules(coreModules() + dataModules() + featureModules())
         }
     }
+
+    private fun coreModules(): List<Module> = listOf(
+        navigationModule,
+        networkModule,
+        platformNetworkModule,
+    )
+
+    /**
+     * Реализации репозиториев. Хук открыт, чтобы сборка `mock` положила фейки ПОВЕРХ настоящих:
+     * Koin перекрывает определение тем модулем, что загружен позже. Main-код о фейках не знает.
+     */
+    protected open fun dataModules(): List<Module> = listOf(
+        authModule,
+        catalogModule,
+        searchModule,
+        userModule,
+        watchingModule,
+        tmdbModule,
+    )
+
+    /** Фичи и app-модуль — после data, как и раньше. */
+    private fun featureModules(): List<Module> = listOf(
+        onboardingModule,
+        homeModule,
+        searchFeatureModule,
+        collectionsModule,
+        libraryModule,
+        profileModule,
+        detailsModule,
+        playerModule,
+        appModule,
+    )
 
     /**
      * Включает телеметрию ошибок. Debug пишет в logcat (Crashlytics в debug — шум разработки);

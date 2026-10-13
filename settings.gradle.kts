@@ -36,6 +36,8 @@ include(":data:search")
 include(":data:user")
 include(":data:watching")
 include(":data:tmdb")
+// Фейковый data-слой без сети: сборка `mock` и юнит-тесты ScreenModel'ей.
+include(":data:fake")
 
 include(":feature:onboarding:common")
 include(":feature:onboarding:mobile")
