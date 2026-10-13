@@ -22,6 +22,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.common.getOrNull
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
@@ -62,6 +63,9 @@ class TvPlayerRemoteTest {
 
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val events = mutableListOf<PlayerEvent>()
     private val calls = mutableListOf<String>()
