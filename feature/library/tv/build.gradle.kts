@@ -22,4 +22,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
+
+    // UI-тесты фокуса берут данные из фейкового бэкенда — тех же, что у mock-сборки.
+    testImplementation(project(":data:fake"))
 }

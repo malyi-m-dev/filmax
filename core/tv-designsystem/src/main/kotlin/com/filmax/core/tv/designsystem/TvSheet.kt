@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.unit.dp
 
 private val SheetWidth = 560.dp
@@ -65,7 +66,7 @@ fun TvSheetHost(
             enter = slideInHorizontally(FxMotion.panelIn()) { it } + fadeIn(FxMotion.fade()),
             exit = slideOutHorizontally(FxMotion.panelOut()) { it } + fadeOut(FxMotion.panelOut()),
         ) {
-            SheetPanel(sheet)
+            SheetPanel(open, sheet)
         }
     }
 }
@@ -87,12 +88,15 @@ private fun ReturnFocusOnClose(open: Boolean, returnFocus: FocusRequester) {
 // focusProperties.exit — ловушка фокуса внутри панели; API помечен экспериментальным.
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun SheetPanel(sheet: @Composable BoxScope.() -> Unit) {
+private fun SheetPanel(open: Boolean, sheet: @Composable BoxScope.() -> Unit) {
     val panelFocus = remember { FocusRequester() }
+    var focusInside by remember { mutableStateOf(false) }
     // Панель уже размещена к следующему кадру после появления — тогда и забираем в неё фокус.
+    // Если содержимое уже поставило его само (список папок — на нужную строку), не трогаем:
+    // запрос фокуса группе увёл бы его на верхний левый элемент панели.
     LaunchedEffect(Unit) {
         withFrameNanos { }
-        panelFocus.requestFocus()
+        if (!focusInside) panelFocus.requestFocus()
     }
     val colors = LocalFxColors.current
     Box(
@@ -103,7 +107,10 @@ private fun SheetPanel(sheet: @Composable BoxScope.() -> Unit) {
             .background(colors.background.copy(alpha = SHEET_ALPHA), TvMetrics.SheetShape)
             .fxGlass(TvMetrics.SheetShape)
             .focusRequester(panelFocus)
-            .focusProperties { exit = { FocusRequester.Cancel } }
+            .onFocusChanged { focusInside = it.hasFocus }
+            // Ловушка только пока панель открыта: отменённый выход отменяет и requestFocus извне,
+            // и закрывающаяся панель не отдала бы фокус элементу, который её открыл.
+            .focusProperties { exit = { if (open) FocusRequester.Cancel else FocusRequester.Default } }
             .focusGroup(),
         content = sheet,
     )

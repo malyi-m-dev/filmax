@@ -131,4 +131,6 @@ private fun Destination.toPhoneRoute(): Any = when (this) {
     is Destination.Trailer -> TrailerRoute(url = url, title = title)
     is Destination.CollectionDetail -> CollectionDetailRoute(collectionId = collectionId, title = title)
     is Destination.Filmography -> FilmographyRoute(name = name, isDirector = isDirector)
+    // Папка на телефоне открывается внутри Библиотеки, отдельного экрана у неё нет.
+    is Destination.BookmarkFolder -> error("BookmarkFolder не существует в телефонном графе")
 }

@@ -38,6 +38,12 @@ sealed interface Destination {
 
     data class CollectionDetail(val collectionId: Int, val title: String) : Destination
 
+    /**
+     * Открытая папка-закладка «Моё». На ТВ — отдельный экран без меню (шапка цвета папки, сетка
+     * тайтлов); на телефоне папка открывается внутри Библиотеки, своего экрана у неё нет.
+     */
+    data class BookmarkFolder(val folderId: Int) : Destination
+
     /** Фильмография человека: тап по актёру или режиссёру в деталях. */
     data class Filmography(val name: String, val isDirector: Boolean) : Destination
 

@@ -9,6 +9,12 @@ data class FavoriteItem(
     val posterSmall: String,
     val year: Int,
     val durationMinutes: Int,
+    /**
+     * Оценка Кинопоиска строкой, как её отдаёт kino.pub («8.3»). Нужна пилюле на постере и
+     * сортировке «Буду смотреть» по рейтингу; null — оценки нет или запись сохранена до того,
+     * как оценку стали хранить.
+     */
+    val rating: String? = null,
 )
 
 /** Конвертация полного [Item] в лёгкую запись избранного. */
@@ -18,4 +24,5 @@ fun Item.toFavoriteItem() = FavoriteItem(
     posterSmall = posters.medium.ifBlank { posters.small },
     year = year,
     durationMinutes = duration.averageMinutes?.toInt() ?: 0,
+    rating = rating.kinopoisk,
 )

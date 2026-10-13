@@ -2,6 +2,7 @@ package com.filmax.data.watching
 
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.favorites.FavoritesRepository
+import com.filmax.core.domain.favorites.WATCHLIST_FOLDER_TITLE
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.favorites.model.toFavoriteItem
 import com.filmax.core.domain.user.UserRepository
@@ -27,7 +28,7 @@ import kotlinx.serialization.json.Json
  * Раньше список жил только локально: не переживал переустановку и не синхронизировался между
  * устройствами (сервер отдаёт лишь тоггл `togglewatchlist` и флаг `in_watchlist`, но НЕ список).
  * У закладок список есть (`bookmarks/{id}`), поэтому «Буду смотреть» держим в выделенной папке
- * [FOLDER_TITLE]: `getBookmarkFolders` → найти/создать, `addToBookmark`/`removeFromBookmark` для
+ * [WATCHLIST_FOLDER_TITLE]: `getBookmarkFolders` → найти/создать, `addToBookmark`/`removeFromBookmark` для
  * тоггла, `getBookmarkItems` для чтения. Итог: список общий между телефоном и ТВ и переживает
  * переустановку.
  *
@@ -105,9 +106,9 @@ internal class FavoritesRepositoryImpl(
     private suspend fun ensureFolderId(): Int? = folderMutex.withLock {
         settings.getIntOrNull(FOLDER_ID_KEY)?.let { return it }
         val folders = userRepository.getBookmarkFolders().getOrNull() ?: return null
-        val existing = folders.firstOrNull { it.title == FOLDER_TITLE }
+        val existing = folders.firstOrNull { it.title == WATCHLIST_FOLDER_TITLE }
         val folderId = existing?.id
-            ?: userRepository.createBookmarkFolder(FOLDER_TITLE).getOrNull()?.id
+            ?: userRepository.createBookmarkFolder(WATCHLIST_FOLDER_TITLE).getOrNull()?.id
             ?: return null
         settings.putInt(FOLDER_ID_KEY, folderId)
         folderId
@@ -161,13 +162,14 @@ internal class FavoritesRepositoryImpl(
         val posterSmall: String,
         val year: Int,
         val durationMinutes: Int,
+        // Оценку стали хранить позже: в старом кэше её нет — отсюда значение по умолчанию.
+        val rating: String? = null,
     )
 
-    private fun FavoriteItem.toStored() = Stored(id, title, posterSmall, year, durationMinutes)
-    private fun Stored.toModel() = FavoriteItem(id, title, posterSmall, year, durationMinutes)
+    private fun FavoriteItem.toStored() = Stored(id, title, posterSmall, year, durationMinutes, rating)
+    private fun Stored.toModel() = FavoriteItem(id, title, posterSmall, year, durationMinutes, rating)
 
     private companion object {
-        const val FOLDER_TITLE = "Буду смотреть"
         const val FOLDER_ID_KEY = "watchlist_folder_id"
         const val CACHE_KEY = "watchlist_cache"
         const val MIGRATED_KEY = "watchlist_migrated"

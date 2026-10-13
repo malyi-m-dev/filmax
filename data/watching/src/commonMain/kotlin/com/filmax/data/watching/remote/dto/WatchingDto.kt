@@ -27,6 +27,8 @@ data class HistoryEntryDto(
     val time: Int = 0,
     val item: HistoryEntryItemDto,
     val media: HistoryMediaDto? = null,
+    /** Когда видео смотрели последний раз, секунды от эпохи. Nullable: поле API не обязано прислать. */
+    @SerialName("last_seen") val lastSeen: Long? = null,
 )
 
 @Serializable

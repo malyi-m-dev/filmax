@@ -26,11 +26,13 @@ internal data class TrackProgress(val seconds: Int, val status: Int)
 
 /**
  * Состояние просмотра. [recent] — по одной записи на тайтл, свежие первыми: ровно так выглядит
- * `api/v1/history` после distinctBy в настоящем репозитории.
+ * `api/v1/history` после distinctBy в настоящем репозитории. [seenAt] — когда тайтл смотрели
+ * последний раз (`last_seen`), мс от эпохи, по id тайтла.
  */
 internal data class WatchSnapshot(
     val progress: Map<TrackKey, TrackProgress>,
     val recent: List<TrackKey>,
+    val seenAt: Map<Int, Long> = emptyMap(),
 )
 
 internal fun MediaTrack.keyIn(itemId: Int): TrackKey = TrackKey(itemId, seasonNumber, number)
@@ -39,13 +41,15 @@ internal fun MediaTrack.keyIn(itemId: Int): TrackKey = TrackKey(itemId, seasonNu
  * Прогресс и история на сессию. Состояние неизменяемое и меняется атомарно через StateFlow:
  * репозитории зовут из разных корутин (FavoritesRepositoryImpl, например, живёт на Default).
  */
-internal class WatchStore(initial: WatchSnapshot) {
+internal class WatchStore(initial: WatchSnapshot, private val clock: () -> Long) {
 
     private val state = MutableStateFlow(initial)
 
     fun recent(): List<TrackKey> = state.value.recent
 
     fun progressOf(key: TrackKey): TrackProgress? = state.value.progress[key]
+
+    fun seenAt(itemId: Int): Long? = state.value.seenAt[itemId]
 
     /** Серии тайтла с прогрессом поверх — так их отдаёт `items/{id}`. */
     fun withProgress(item: Item): List<MediaTrack> {
@@ -65,6 +69,7 @@ internal class WatchStore(initial: WatchSnapshot) {
             snapshot.copy(
                 progress = snapshot.progress + (key to TrackProgress(position, status)),
                 recent = listOf(key) + snapshot.recent.filterNot { it.itemId == key.itemId },
+                seenAt = snapshot.seenAt + (key.itemId to clock()),
             )
         }
     }
@@ -74,7 +79,7 @@ internal class WatchStore(initial: WatchSnapshot) {
         state.update { snapshot ->
             val keys = item.tracklist.map { it.keyIn(item.id) }
             val allWatched = keys.all { snapshot.progress[it]?.status == WATCH_STATUS_FINISHED }
-            if (allWatched) snapshot.without(item.id) else snapshot.withAllWatched(item)
+            if (allWatched) snapshot.without(item.id) else snapshot.withAllWatched(item, clock())
         }
     }
 
@@ -87,9 +92,10 @@ internal class WatchStore(initial: WatchSnapshot) {
 private fun WatchSnapshot.without(itemId: Int): WatchSnapshot = copy(
     progress = progress.filterKeys { it.itemId != itemId },
     recent = recent.filterNot { it.itemId == itemId },
+    seenAt = seenAt - itemId,
 )
 
-private fun WatchSnapshot.withAllWatched(item: Item): WatchSnapshot {
+private fun WatchSnapshot.withAllWatched(item: Item, now: Long): WatchSnapshot {
     val watched = item.tracklist.associate { track ->
         track.keyIn(item.id) to TrackProgress(track.durationSeconds, WATCH_STATUS_FINISHED)
     }
@@ -97,5 +103,6 @@ private fun WatchSnapshot.withAllWatched(item: Item): WatchSnapshot {
     return copy(
         progress = progress + watched,
         recent = listOf(last) + recent.filterNot { it.itemId == item.id },
+        seenAt = seenAt + (item.id to now),
     )
 }

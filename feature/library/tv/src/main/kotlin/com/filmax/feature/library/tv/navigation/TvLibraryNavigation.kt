@@ -2,18 +2,24 @@ package com.filmax.feature.library.tv.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import com.filmax.feature.library.tv.TvLibraryScreen
+import com.filmax.feature.library.common.navigation.FolderRoute
+import com.filmax.feature.library.tv.TvFolderScreen
+import com.filmax.feature.library.tv.TvMineScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
 object TvLibraryRoute
 
-/**
- * Раздел «Моё». Все карточки — «Продолжить», «История», «Буду смотреть» и содержимое папок —
- * ведут в карточку тайтла: там есть и «Продолжить · SxEy», и выбор серий, и описание.
- */
+/** Раздел «Моё»: сегменты «Продолжить · Буду смотреть · Папки · История». */
 fun NavGraphBuilder.tvLibraryScreen() {
     composable<TvLibraryRoute> {
-        TvLibraryScreen()
+        TvMineScreen()
+    }
+}
+
+/** Открытая папка-закладка — push-экран без меню; маршрут общий с моделью (FolderRoute). */
+fun NavGraphBuilder.tvFolderScreen() {
+    composable<FolderRoute> {
+        TvFolderScreen()
     }
 }
