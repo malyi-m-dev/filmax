@@ -84,7 +84,7 @@ class LibraryScreenModel(
     private fun removeFromHistory(itemId: Int) {
         screenModelScope {
             watching.clearHistory(itemId)
-            updateState { s -> s.copy(history = s.history.filter { it.itemId != itemId }) }
+            updateState { current -> current.copy(history = current.history.filter { it.itemId != itemId }) }
         }
     }
 
