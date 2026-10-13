@@ -17,4 +17,9 @@ dependencies {
     // ExoPlayer живёт в ScreenModel
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.exoplayer.hls)
+
+    // ScreenModel тестируется на фейковом data-слое — тот же, что у мок-сборки.
+    testImplementation(project(":data:fake"))
+    // Маршрут из SavedStateHandle (toRoute) и ExoPlayer в модели требуют Android-рантайм.
+    testImplementation(libs.robolectric)
 }

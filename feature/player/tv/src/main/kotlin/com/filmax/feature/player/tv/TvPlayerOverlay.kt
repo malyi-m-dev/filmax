@@ -1,224 +1,204 @@
+// Контролы транспорта поверх кадра: название, полоса перемотки с временем, пауза с перемоткой,
+// плашки текущих дорожек и подсказки пульта. Уходят сами через 5 с бездействия.
 package com.filmax.feature.player.tv
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.RadioButtonChecked
+import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.filmax.core.tv.designsystem.TvAccent
-import com.filmax.core.tv.designsystem.TvFocusHalo
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Text
+import com.filmax.core.tv.designsystem.FxType
+import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.Onest
+import com.filmax.core.tv.designsystem.TvBackHint
+import com.filmax.core.tv.designsystem.TvKeyHint
+import com.filmax.core.tv.designsystem.TvKeyHints
 import com.filmax.core.tv.designsystem.TvMetrics
-import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
-import com.filmax.core.tv.designsystem.TvSurface
-import com.filmax.core.tv.designsystem.TvSurfaceContainer
-import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.core.tv.designsystem.TvPlayPauseButton
+import com.filmax.core.tv.designsystem.TvSeekBar
+import com.filmax.core.tv.designsystem.TvStatusChip
+import com.filmax.core.tv.designsystem.TvTransportGlyph
+import com.filmax.feature.player.common.PlayerState
+import com.filmax.feature.player.common.PlayerTab
+import com.filmax.feature.player.common.formatPlayerTime
+import com.filmax.feature.player.common.panelTabs
+
+/** Появление и уход контролов — 250 мс, как в спецификации плеера. */
+private const val OVERLAY_FADE_MS = 250
+
+private val TitleTop = 30.dp
+private val BackHintTop = 32.dp
+private val BackHintEnd = 40.dp
+private val SeekBarInset = 80.dp
+private val ControlsGap = 22.dp
+
+/** Затемнение кадра под контролами: сверху под названием, снизу под транспортом, середина чистая. */
+private val TransportScrim = Brush.verticalGradient(
+    0f to Color.Black.copy(alpha = 0.75f),
+    0.26f to Color.Transparent,
+    0.5f to Color.Transparent,
+    1f to Color.Black.copy(alpha = 0.88f),
+)
+
+private val TitleStyle = TextStyle(
+    fontFamily = Onest,
+    fontWeight = FontWeight.Bold,
+    fontSize = 24.sp,
+    lineHeight = 28.sp,
+    letterSpacing = (-0.01).em,
+)
+private val TimeStyle = TextStyle(
+    fontFamily = Onest,
+    fontWeight = FontWeight.Medium,
+    fontSize = 13.sp,
+    lineHeight = 17.sp
+)
+
+/** Плашки слева и справа от паузы — как в макете: дорожки слева, качество и серии справа. */
+private val LeftStatus = listOf(PlayerTab.Subtitles, PlayerTab.Audio)
+private val RightStatus = listOf(PlayerTab.Quality, PlayerTab.Episodes)
 
 /**
- * Единый стиль плавающих панелей плеера (поповер, панель серий, плашки): полупрозрачная
- * подложка — кадр просвечивает, но текст остаётся читаемым.
+ * Контролы транспорта. Скрываются прозрачностью, а не уходом из композиции: кнопка паузы держит
+ * фокус и тогда, когда контролов не видно, — пульт работает одинаково при видимых и скрытых.
  */
-internal fun Modifier.playerPanel(): Modifier = this
-    .clip(TvMetrics.PanelShape)
-    .background(TvSurfaceContainer.copy(alpha = PANEL_ALPHA))
-    .border(1.dp, TvSurfaceContainerHighest.copy(alpha = PANEL_ALPHA), TvMetrics.PanelShape)
-
-/** Круг с содержимым по центру — из таких слоёв собраны кнопка паузы и thumb скраббера. */
 @Composable
-internal fun CircleBox(
-    size: Dp,
-    color: Color,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit = {},
+internal fun TransportOverlay(
+    state: PlayerState,
+    transport: TvTransportState,
+    visible: Boolean,
+    pauseModifier: Modifier
 ) {
+    val alpha by animateFloatAsState(if (visible) 1f else 0f, tween(OVERLAY_FADE_MS), label = "transportAlpha")
     Box(
-        modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(color),
-        contentAlignment = Alignment.Center,
-    ) { content() }
-}
-
-/** Слои оверлея: затемнение, шапка, индикатор шага, транспорт снизу и поповер выбора. */
-@Composable
-internal fun PlayerOverlay(
-    ui: TvPlayerUiState,
-    menu: PlayerActions,
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier
+        Modifier
             .fillMaxSize()
-            .background(
-                // Затемнение только там, где лежит текст: сверху под шапкой и снизу под транспортом.
-                Brush.verticalGradient(
-                    0f to TvSurface.copy(alpha = 0.45f),
-                    0.45f to TvSurface.copy(alpha = 0f),
-                    0.70f to TvSurface.copy(alpha = 0.25f),
-                    1f to TvSurface.copy(alpha = 0.85f),
-                )
-            ),
+            .graphicsLayer { this.alpha = alpha }
+            .background(TransportScrim),
     ) {
-        PlayerTopBar(title = title, subtitle = subtitle, modifier = Modifier.align(Alignment.TopStart))
+        PlayerTitle(
+            state.item?.title.orEmpty(),
+            playerSubtitle(state, paused = false),
+            Modifier.align(Alignment.TopStart)
+        )
+        TvBackHint("Назад — выход", Modifier.align(Alignment.TopEnd).padding(top = BackHintTop, end = BackHintEnd))
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(bottom = 4.dp)) {
+            TransportSeekBar(transport)
+            TransportTimes(transport, Modifier.padding(horizontal = SeekBarInset))
+            TransportButtons(state, transport, pauseModifier)
+            TransportHints(transport, Modifier.align(Alignment.CenterHorizontally))
+        }
+    }
+}
 
-        ui.seekLabel?.let { label ->
+/** Название и строка под ним — общие для контролов и открытой панели. */
+@Composable
+internal fun PlayerTitle(title: String, subtitle: String, modifier: Modifier = Modifier) {
+    val colors = LocalFxColors.current
+    Column(modifier.padding(start = TvMetrics.SafeHorizontal, top = TitleTop, end = TvMetrics.SafeHorizontal)) {
+        Text(title, style = TitleStyle, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (subtitle.isNotBlank()) {
             Text(
-                label,
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    // Тень — единственное, что держит белую подпись на светлом кадре.
-                    shadow = Shadow(color = TvFocusHalo, offset = Offset(0f, 2f), blurRadius = 20f),
-                ),
-                color = TvAccent,
-                modifier = Modifier.align(Alignment.Center),
+                subtitle,
+                style = FxType.metaRow,
+                color = colors.textSecondary,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
-
-        PlayerTransport(ui = ui, menu = menu, modifier = Modifier.align(Alignment.BottomCenter))
-
-        // Поповер выбора — по центру кадра: у края он терялся, взгляд при выборе смотрит в центр.
-        ui.submenu?.let { category ->
-            SettingsPopover(
-                action = category,
-                menu = menu,
-                cursor = ui.submenuCursor,
-                modifier = Modifier.align(Alignment.Center),
-            )
-        }
-
-        // Панель серий — ровно по центру экрана, как и поповеры: у края она терялась.
-        if (ui.episodesOpen) {
-            menu.episodes?.let { panel ->
-                EpisodesPanel(
-                    panel = panel,
-                    seasonCursor = ui.episodesSeasonCursor,
-                    episodeCursor = ui.episodesCursor,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(vertical = 20.dp),
-                )
-            }
-        }
     }
 }
 
-/** Плашка «Дальше: серия N» с отсчётом. OK — сразу, «Назад» — отмена (см. onKey/back). */
+/** Полоса перемотки: позиция читается при отрисовке; плашка времени — только пока перематывают. */
 @Composable
-internal fun AutoNextCard(label: String, seconds: Int, modifier: Modifier = Modifier) {
-    Column(
-        modifier
-            .widthIn(max = AutoNextCardMaxWidth)
-            .playerPanel()
-            .padding(horizontal = 18.dp, vertical = 13.dp),
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.titleSmall,
-            color = TvOnSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            "Автостарт через $seconds с · OK — сейчас · «Назад» — отмена",
-            style = MaterialTheme.typography.labelSmall,
-            color = TvOnSurfaceVariant,
-            modifier = Modifier.padding(top = 6.dp),
-        )
+private fun TransportSeekBar(transport: TvTransportState) {
+    TvSeekBar(
+        progress = { fraction(transport.shownPositionMs, transport.durationMs) },
+        buffered = { fraction(transport.bufferedMs, transport.durationMs) },
+        thumbLabel = if (transport.isScrubbing) formatPlayerTime(transport.scrubTargetMs) else null,
+        modifier = Modifier.padding(horizontal = SeekBarInset),
+    )
+}
+
+internal fun fraction(partMs: Long, totalMs: Long): Float =
+    if (totalMs > 0) (partMs.toFloat() / totalMs).coerceIn(0f, 1f) else 0f
+
+/** Время слева и остаток справа — отдельный узел: тик раз в секунду перекомпоновывает только его. */
+@Composable
+internal fun TransportTimes(transport: TvTransportState, modifier: Modifier = Modifier) {
+    val color = LocalFxColors.current.textSecondary
+    val position = transport.shownPositionMs
+    val duration = transport.durationMs
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(formatPlayerTime(position), style = TimeStyle, color = color)
+        Text(remainingLabel(position, duration), style = TimeStyle, color = color)
     }
 }
 
-/** Плашка «нужна подписка»: без неё kino.pub не отдаст поток, и экран остался бы просто чёрным. */
 @Composable
-internal fun SubscriptionCard(modifier: Modifier = Modifier) {
-    Column(
-        modifier
-            .widthIn(max = SubscriptionCardMaxWidth)
-            .playerPanel()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            "Нужна подписка",
-            style = MaterialTheme.typography.titleMedium,
-            color = TvOnSurface,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            "Просмотр доступен только с активной подпиской — оформите её в аккаунте kino.pub",
-            style = MaterialTheme.typography.bodySmall,
-            color = TvOnSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-    }
-}
-
-/** Шапка: название с подстрокой слева, цена выхода справа — «Назад» выходит из плеера сразу. */
-@Composable
-private fun PlayerTopBar(title: String, subtitle: String, modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = TvMetrics.SafeHorizontal)
-            .padding(top = 28.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Top,
-    ) {
-        Column {
-            Text(title, style = MaterialTheme.typography.headlineSmall, color = TvOnSurface)
-            if (subtitle.isNotBlank()) {
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = TvOnSurfaceVariant,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
-            }
-        }
+private fun TransportButtons(state: PlayerState, transport: TvTransportState, pauseModifier: Modifier) {
+    val tabs = state.panelTabs()
+    Box(Modifier.fillMaxWidth().padding(horizontal = TvMetrics.SafeHorizontal)) {
+        StatusChips(state, LeftStatus.filter { it in tabs }, Modifier.align(Alignment.CenterStart))
         Row(
+            Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(ControlsGap),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Box(
-                Modifier
-                    .size(24.dp)
-                    .border(1.dp, TvSurfaceContainerHighest, MaterialTheme.shapes.extraSmall),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("‹", style = MaterialTheme.typography.bodySmall, color = TvOnSurfaceVariant)
-            }
-            Text("Назад — выход", style = MaterialTheme.typography.bodySmall, color = TvOnSurfaceVariant)
+            TvTransportGlyph(Icons.Rounded.Replay10, contentDescription = "Назад на 10 секунд")
+            TvPlayPauseButton(playing = transport.isPlaying, onClick = transport::togglePlay, modifier = pauseModifier)
+            TvTransportGlyph(Icons.Rounded.Forward10, contentDescription = "Вперёд на 10 секунд")
         }
+        StatusChips(state, RightStatus.filter { it in tabs }, Modifier.align(Alignment.CenterEnd))
     }
 }
 
-/** Прозрачность плавающих панелей: кадр просвечивает, текст остаётся читаемым. */
-internal const val PANEL_ALPHA = 0.85f
+@Composable
+private fun StatusChips(state: PlayerState, tabs: List<PlayerTab>, modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        tabs.forEach { tab -> statusLabel(tab, state)?.let { TvStatusChip(it, tab.icon) } }
+    }
+}
 
-private val AutoNextCardMaxWidth = 460.dp
-private val SubscriptionCardMaxWidth = 480.dp
+/** Подсказки пульта; пока видна карточка «Далее» — как её принять или отменить. */
+@Composable
+private fun TransportHints(transport: TvTransportState, modifier: Modifier) {
+    val hints = if (transport.autoNext.visible) {
+        listOf(
+            TvKeyHint(listOf(Icons.Rounded.RadioButtonChecked), "следующая серия"),
+            TvKeyHint(listOf(Icons.AutoMirrored.Rounded.ArrowBack), "остаться"),
+        )
+    } else {
+        listOf(
+            TvKeyHint(listOf(Icons.Rounded.KeyboardArrowDown), "настройки и серии"),
+            TvKeyHint(listOf(Icons.Rounded.KeyboardArrowLeft, Icons.Rounded.KeyboardArrowRight), "перемотка"),
+        )
+    }
+    TvKeyHints(hints, modifier.padding(top = 4.dp))
+}

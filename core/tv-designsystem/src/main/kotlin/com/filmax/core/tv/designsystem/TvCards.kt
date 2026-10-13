@@ -44,7 +44,13 @@ enum class TvCardSize(val width: Dp, val height: Dp) {
 
     /** Новинки: крупный кадр, подпись под ним. */
     Wide(TvMetrics.WideCardWidth, TvMetrics.WideCardHeight),
+
+    /** Серия в нижней панели плеера: панель низкая, а над рядом серий ещё стоят сезоны. */
+    Panel(PanelCardWidth, PanelCardHeight),
 }
+
+private val PanelCardWidth = 196.dp
+private val PanelCardHeight = 110.dp
 
 /** Отступ подписи от постера. */
 private val CaptionGap = 9.dp
