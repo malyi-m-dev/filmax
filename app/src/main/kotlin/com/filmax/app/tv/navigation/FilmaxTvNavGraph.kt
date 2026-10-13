@@ -1,11 +1,9 @@
 package com.filmax.app.tv.navigation
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -29,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.filmax.app.navigation.AuthStateNavigation
 import com.filmax.app.navigation.NavigationCommands
 import com.filmax.app.navigation.RootScreenModel
+import com.filmax.app.perf.ReportScreenForJank
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalTvNavBarFocused
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
@@ -74,6 +73,7 @@ fun FilmaxTvNavGraph(
 
     val backStack by navController.currentBackStackEntryAsState()
     val currentDest = backStack?.destination
+    ReportScreenForJank(currentDest?.route)
     val showNav = TOP_LEVEL_ROUTES.any { currentDest?.hasRoute(it) == true }
 
     // Явная связь фокуса между оверлейным меню и контентом: они — соседи в Box, и D-pad-поиск
@@ -95,11 +95,9 @@ fun FilmaxTvNavGraph(
     // самого меню «назад» не перехватывается — выход из приложения.
     BackHandler(enabled = showNav && !navFocused.value) { navFocus.requestFocus() }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
+    // Без своей заливки: фон — у окна (FilmaxTvTheme), повторная заливка закрашивала бы каждый
+    // пиксель экрана лишний раз.
+    Box(modifier = Modifier.fillMaxSize()) {
         CompositionLocalProvider(
             LocalTvScrollToTop provides scrollToTopSignal,
             LocalTvNavBarFocused provides navFocused,

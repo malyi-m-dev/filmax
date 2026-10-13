@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,12 +30,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
 private val SheetWidth = 560.dp
@@ -48,10 +51,11 @@ private const val SHEET_ALPHA = 0.94f
 private val BackdropColor = Color(0xFF06050C)
 
 /**
- * Хост боковой панели. [content] — экран; пока [open], он размыт (Android 12+, ниже — только
- * затемнение) и затемнён до 0.62, а справа выезжает [sheet] шириной 560dp. Фокус при открытии
- * уходит в панель и выйти из неё стрелками не может; «Назад» зовёт [onClose]. Когда панель
- * закрылась, фокус возвращается на [returnFocus] — элемент, который её открыл.
+ * Хост боковой панели. [content] — экран; пока [open], он размыт (Android 12+, ниже и в
+ * облегчённом режиме — только затемнение) и затемнён до 0.62, а справа выезжает [sheet]
+ * шириной 560dp. Фокус при открытии уходит в панель и выйти из неё стрелками не может;
+ * «Назад» зовёт [onClose]. Когда панель закрылась, фокус возвращается на [returnFocus] —
+ * элемент, который её открыл.
  */
 @Composable
 fun TvSheetHost(
@@ -61,20 +65,30 @@ fun TvSheetHost(
     sheet: @Composable BoxScope.() -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val blur by animateDpAsState(if (open) BackdropBlur else 0.dp, tween(BACKDROP_FADE_MS), label = "sheetBlur")
-    val dim by animateFloatAsState(if (open) BACKDROP_DIM else 0f, tween(BACKDROP_FADE_MS), label = "sheetDim")
+    // Размытие и затемнение читаются при отрисовке: анимация 300 мс не перекомпонует экран под
+    // панелью. Размытие — только не в облегчённом режиме: на слабом GPU оно дороже всего экрана.
+    val blurRadius = if (LocalLightEffects.current) 0.dp else BackdropBlur
+    val blur = animateDpAsState(if (open) blurRadius else 0.dp, tween(BACKDROP_FADE_MS), label = "sheetBlur")
+    val dim = animateFloatAsState(if (open) BACKDROP_DIM else 0f, tween(BACKDROP_FADE_MS), label = "sheetDim")
     BackHandler(enabled = open, onBack = onClose)
     ReturnFocusOnClose(open, returnFocus)
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier
                 .fillMaxSize()
-                .blur(blur)
+                .graphicsLayer {
+                    val radius = blur.value.toPx()
+                    renderEffect = if (radius > 0f) BlurEffect(radius, radius, TileMode.Decal) else null
+                }
                 .drawWithContent {
                     drawContent()
-                    drawRect(BackdropColor.copy(alpha = dim))
+                    drawRect(BackdropColor.copy(alpha = dim.value))
                 },
-        ) { content() }
+        ) {
+            // Под панелью бесконечные анимации экрана на паузе — иначе размытие считалось бы
+            // заново на каждом кадре ken-burns, которого не видно.
+            CompositionLocalProvider(LocalFxPaused provides open, content = content)
+        }
         AnimatedVisibility(
             visible = open,
             modifier = Modifier.align(Alignment.CenterEnd),

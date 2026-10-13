@@ -1,6 +1,5 @@
 package com.filmax.feature.home.tv
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,7 +62,8 @@ fun TvHomeScreen(
         onOpenCatalog = { navigator.open(Destination.Catalog) },
     )
 
-    Box(modifier.fillMaxSize().background(LocalFxColors.current.background)) {
+    // Фон — у окна (FilmaxTvTheme): своя заливка экрана закрашивала бы каждый пиксель лишний раз.
+    Box(modifier.fillMaxSize()) {
         val error = appError
         when {
             state.loading -> CircularProgressIndicator(

@@ -21,6 +21,8 @@ rootProject.name = "filmax"
 include(":detekt-rules")
 
 include(":app")
+// Замеры кадров и генерация Baseline Profile на сборке app `benchmark`.
+include(":benchmark")
 
 include(":core:network")
 include(":core:domain")

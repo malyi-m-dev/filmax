@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -50,6 +49,7 @@ import com.filmax.core.tv.designsystem.TvRatingPill
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.fxEnter
+import com.filmax.core.tv.designsystem.fxStaticOverlay
 import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.ratingLabel
@@ -108,7 +108,7 @@ internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenF
             .onFocusChanged { focused = it.hasFocus }
             .testTag(HERO_TEST_TAG),
     ) {
-        HeroBackdrop(item)
+        HeroBackdrop(item, running = focused)
         HeroText(item, model.inWatchLater, actions, focus)
         if (model.heroes.size > 1) {
             TvPageIndicator(
@@ -120,23 +120,28 @@ internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenF
     }
 }
 
-/** Кадр тайтла: кросс-фейд при смене, ken-burns, подсветка палитры и два затемнения. */
+/**
+ * Кадр тайтла: кросс-фейд при смене, ken-burns, подсветка палитры и два затемнения. Ken-burns
+ * идёт, только пока фокус на hero ([running]): в рядах ниже hero почти не виден, а бесконечная
+ * анимация фона не давала ленте простаивать — каждый кадр перекомпоновывался весь экран.
+ */
 @Composable
-private fun BoxScope.HeroBackdrop(item: Item) {
+private fun BoxScope.HeroBackdrop(item: Item, running: Boolean) {
     Crossfade(targetState = item, animationSpec = tween(BACKDROP_CROSSFADE_MS), label = "heroBackdrop") { shown ->
         PosterImage(
             url = shown.posters.wide ?: shown.posters.big,
             contentDescription = null,
-            modifier = Modifier.fillMaxSize().kenBurns(),
+            modifier = Modifier.fillMaxSize().kenBurns(running),
             shape = RectangleShape,
             accentColor = TvSurfaceContainerHigh,
         )
     }
     val colors = LocalFxColors.current
+    // Подсветка и затемнения неподвижны — готовой текстурой, а не тремя градиентами на кадр.
     Box(
         Modifier
             .matchParentSize()
-            .drawBehind {
+            .fxStaticOverlay {
                 drawRect(
                     Brush.radialGradient(
                         colors = listOf(colors.wash, Color.Transparent),

@@ -33,8 +33,14 @@ fun TvBackdrop(imageUrl: String, modifier: Modifier = Modifier, dim: () -> Float
         modifier
             .fillMaxSize()
             .clipToBounds()
+            // Затемнение прокрутки меняется с каждым шагом — отдельным проходом и только когда оно есть.
             .drawWithContent {
                 drawContent()
+                val alpha = dim().coerceIn(0f, 1f)
+                if (alpha > 0f) drawRect(colors.background.copy(alpha = alpha))
+            }
+            // Неподвижные подсветка и затемнения — готовой текстурой, а не тремя градиентами на кадр.
+            .fxStaticOverlay {
                 drawRect(
                     Brush.radialGradient(
                         colors = listOf(colors.wash, Color.Transparent),
@@ -44,7 +50,6 @@ fun TvBackdrop(imageUrl: String, modifier: Modifier = Modifier, dim: () -> Float
                 )
                 drawRect(Brush.horizontalGradient(LEFT_SOLID to colors.background, LEFT_CLEAR to Color.Transparent))
                 drawRect(Brush.verticalGradient(BOTTOM_CLEAR to Color.Transparent, BOTTOM_SOLID to colors.background))
-                drawRect(colors.background.copy(alpha = dim().coerceIn(0f, 1f)))
             },
     ) {
         PosterImage(

@@ -12,7 +12,7 @@ import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
 
 /**
  * TV-тема Filmax: палитра редизайна (по умолчанию «Фиолет», [FxColors]), шрифты [FxType] и
- * флаг сниженной анимации [LocalReducedMotion].
+ * флаги сниженной анимации [LocalReducedMotion] и облегчённых эффектов [LocalLightEffects].
  *
  * Оборачивает контент в ДВЕ темы:
  *  - `androidx.tv.material3.MaterialTheme` — для TV-компонентов (Surface/Button/Text)
@@ -71,8 +71,11 @@ fun FilmaxTvTheme(content: @Composable () -> Unit) {
             CompositionLocalProvider(
                 LocalFxColors provides Violet,
                 LocalReducedMotion provides rememberReducedMotion(),
-                content = content,
-            )
+                LocalLightEffects provides rememberLightEffects(),
+            ) {
+                FxWindowBackground(LocalFxColors.current.background)
+                content()
+            }
         }
     }
 }

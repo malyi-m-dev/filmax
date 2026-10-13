@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Benchmark-сборка: Application из mock (фейковый data-слой) и profileable — без него
+     Macrobenchmark не снимет трассу с не-debuggable сборки. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".MockFilmaxApplication"
+        tools:replace="android:name">
+        <profileable
+            android:shell="true"
+            tools:targetApi="29" />
+    </application>
+
+</manifest>
