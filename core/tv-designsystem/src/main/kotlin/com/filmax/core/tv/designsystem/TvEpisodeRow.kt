@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -129,23 +130,35 @@ private fun WatchedMark() {
 private val EqualizerPeriods = listOf(420, 560, 490)
 private const val EQUALIZER_MIN = 0.25f
 
-/** Эквалайзер на кадре серии в фокусе: три полосы, «это включится по OK». */
+/** Высоты полос неподвижного эквалайзера — разные, чтобы значок читался как эквалайзер. */
+private val SteadyBars = listOf(0.6f, 1f, 0.4f)
+
+/**
+ * Эквалайзер на кадре серии в фокусе: три полосы, «это включится по OK». В облегчённом режиме и
+ * при сниженной анимации полосы стоят — бесконечная анимация не даёт экрану простаивать.
+ */
 @Composable
 private fun Equalizer(modifier: Modifier) {
+    val steady = LocalReducedMotion.current || LocalLightEffects.current
     val transition = rememberInfiniteTransition(label = "equalizer")
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.Bottom) {
-        EqualizerPeriods.forEach { period ->
-            val scale by transition.animateFloat(
-                initialValue = EQUALIZER_MIN,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(tween(period), RepeatMode.Reverse),
-                label = "equalizerBar",
-            )
+        EqualizerPeriods.forEachIndexed { index, period ->
+            // Высота читается в graphicsLayer: анимация перерисовывает полосу, а не перекомпонует строку.
+            val scale = if (steady) {
+                remember { mutableFloatStateOf(SteadyBars[index]) }
+            } else {
+                transition.animateFloat(
+                    initialValue = EQUALIZER_MIN,
+                    targetValue = 1f,
+                    animationSpec = infiniteRepeatable(tween(period), RepeatMode.Reverse),
+                    label = "equalizerBar",
+                )
+            }
             Box(
                 Modifier
                     .size(width = 3.dp, height = 12.dp)
                     .graphicsLayer {
-                        scaleY = scale
+                        scaleY = scale.value
                         transformOrigin = TransformOrigin(0.5f, 1f)
                     }
                     .background(Color.White),

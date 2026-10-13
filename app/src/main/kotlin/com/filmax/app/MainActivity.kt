@@ -9,6 +9,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.filmax.app.navigation.FilmaxNavGraph
+import com.filmax.app.perf.JankMonitor
 import com.filmax.app.tv.navigation.FilmaxTvNavGraph
 import com.filmax.app.update.AppUpdateEvent
 import com.filmax.app.update.AppUpdatePrompt
@@ -18,6 +19,19 @@ import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
+
+    /** Рывки кадров по экранам — сводкой в logcat (FilmaxJank). */
+    private var jankMonitor: JankMonitor? = null
+
+    override fun onResume() {
+        super.onResume()
+        jankMonitor?.setTracking(true)
+    }
+
+    override fun onPause() {
+        jankMonitor?.setTracking(false)
+        super.onPause()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge(
@@ -29,6 +43,8 @@ class MainActivity : ComponentActivity() {
             window.isStatusBarContrastEnforced = false
             window.isNavigationBarContrastEnforced = false
         }
+
+        jankMonitor = JankMonitor(window)
 
         // Один APK на оба форм-фактора: на Android TV (leanback) — TV-граф, иначе телефонный.
         val isTv = packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)

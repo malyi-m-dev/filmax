@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.filmax.app.BuildConfig
+import com.filmax.app.perf.ReportScreenForJank
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxTab
@@ -88,6 +89,7 @@ fun FilmaxNavGraph(
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = backStackEntry?.destination
+    ReportScreenForJank(currentDest?.route)
     val selectedTab = tabRoots.entries
         .firstOrNull { (_, root) -> currentDest?.hasRoute(root) == true }
         ?.key

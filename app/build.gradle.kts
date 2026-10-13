@@ -31,6 +31,7 @@ if (googleServicesConfig.exists()) {
         "Debug" to "com.filmax.app.debug",
         "Demo" to "com.filmax.app.demo",
         "Mock" to "com.filmax.app.mock",
+        "Benchmark" to "com.filmax.app.bench",
         "Release" to "com.filmax.app",
     )
     val unregisteredVariants = variantPackages.filterValues { it !in registeredPackages }.keys
@@ -164,6 +165,24 @@ android {
             // Библиотечные модули не знают build type `mock` — берём их debug-вариант.
             matchingFallbacks += "debug"
         }
+        // Benchmark-сборка: как release (R8, не debuggable — замеры кадров на debug врут в разы),
+        // но на фейковых данных mock: Macrobenchmark гоняет сценарии пульта без входа и сети, и
+        // каждый прогон видит одну и ту же ленту. Подпись debug — ставится на любой эмулятор.
+        create("benchmark") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".bench"
+            versionNameSuffix = "-bench"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            proguardFiles("benchmark-rules.pro")
+        }
+    }
+
+    // Benchmark берёт подмену Application и строки из mock — фейковый data-слой у них общий.
+    sourceSets.getByName("benchmark") {
+        java.srcDir("src/mock/kotlin")
+        res.srcDir("src/mock/res")
+        manifest.srcFile("src/benchmark/AndroidManifest.xml")
     }
 
     compileOptions {
@@ -204,6 +223,13 @@ dependencies {
     implementation(project(":data:tmdb"))
     // Фейки только в сборке mock: main-код о них не знает, подключает MockFilmaxApplication.
     "mockImplementation"(project(":data:fake"))
+    "benchmarkImplementation"(project(":data:fake"))
+
+    // Baseline Profile ставится и без Google Play: APK раздаётся с GitHub, и без installer'а
+    // профиль из APK так бы и не скомпилировался — первые прокрутки шли бы через JIT с рывками.
+    implementation(libs.profileinstaller)
+    // Рывки кадров по экранам — сводка в logcat (JankMonitor).
+    implementation(libs.metrics.performance)
 
     // Features
     implementation(project(":feature:onboarding:mobile"))
