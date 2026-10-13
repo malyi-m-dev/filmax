@@ -6,7 +6,9 @@ import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
+import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.presentation.BaseScreenModel
@@ -15,17 +17,22 @@ class HomeScreenModel(
     private val getHomeFeed: GetHomeFeedUseCase,
     private val catalog: CatalogRepository,
     private val user: UserRepository,
+    private val favorites: FavoritesRepository,
+    private val toggleWatchLater: ToggleWatchLaterUseCase,
 ) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
 
     init {
         onFetchData()
         fetchUserInitials()
+        observeWatchLater()
     }
 
     override fun dispatch(event: HomeEvent) {
         when (event) {
             HomeEvent.Load -> onFetchData()
             is HomeEvent.LoadMoreRow -> loadMoreRow(event.id)
+            HomeEvent.NextHero -> screenModelScope { _ -> updateState { current -> current.withNextHero() } }
+            is HomeEvent.ToggleWatchLater -> screenModelScope { _ -> toggleWatchLater(event.item) }
         }
     }
 
@@ -36,13 +43,16 @@ class HomeScreenModel(
             updateState { current ->
                 current.copy(
                     loading = false,
-                    hero = feed.hero,
+                    heroes = feed.heroes,
+                    heroIndex = 0,
                     // Состав и порядок ленты — здесь и только здесь.
                     rows = listOf(
                         HomeRow.Continue(feed.continueWatching),
                         HomeRow.Titles(HomeRowId.TRENDING, RowPaging(feed.trending)),
-                        HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
                         HomeRow.Collections(RowPaging(feed.collections)),
+                        HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
+                        // Новинки — сводка двух источников, листать её из каталога нечем.
+                        HomeRow.Titles(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
                     ),
                     error = feed.error,
                 )
@@ -54,6 +64,27 @@ class HomeScreenModel(
                 !feed.hasContent && feed.error != null -> showError(feed.error)
                 // Свежие данные приехали — прячем баннер, если висел.
                 else -> dismissOfflineBanner()
+            }
+            loadCollectionPreviews(feed.collections)
+        }
+    }
+
+    /** Отметки «Буду смотреть» — живой поток: кнопка hero и детали меняют их с разных экранов. */
+    private fun observeWatchLater() {
+        screenModelScope {
+            favorites.favoriteIds.collect { ids -> updateState { it.copy(watchLaterIds = ids) } }
+        }
+    }
+
+    /**
+     * Превью подборок: по первой странице каждой — два постера и, если подборка в одну
+     * страницу, точное число тайтлов. Грузятся параллельно и приходят в ряд по одной.
+     */
+    private fun loadCollectionPreviews(collections: List<Collection>) {
+        collections.take(COLLECTION_PREVIEWS_LIMIT).forEach { collection ->
+            screenModelScope { _ ->
+                val preview = catalog.collectionPreview(collection.id) ?: return@screenModelScope
+                updateRows { row -> row.withPreview(collection.id, preview) }
             }
         }
     }
@@ -81,13 +112,16 @@ class HomeScreenModel(
         if (!row.paging.canLoadMore) return
         val nextPage = row.paging.page + 1
         screenModelScope { _ ->
-            updateTitles(row.id) { it.copy(loadingMore = true) }
-            when (val result = catalog.getItems(source.type, source.sort, nextPage)) {
-                is RequestResult.Success -> updateTitles(row.id) {
-                    it.append(result.data.items, Item::id, result.data.pagination.hasNextPage)
+            updateRows { current -> current.withTitlesPaging(row.id) { paging -> paging.copy(loadingMore = true) } }
+            val result = catalog.getItems(source.type, source.sort, nextPage)
+            updateRows { current ->
+                current.withTitlesPaging(row.id) { paging ->
+                    when (result) {
+                        is RequestResult.Success ->
+                            paging.append(result.data.items, Item::id, result.data.pagination.hasNextPage)
+                        is RequestResult.Error -> paging.copy(loadingMore = false)
+                    }
                 }
-
-                is RequestResult.Error -> updateTitles(row.id) { it.copy(loadingMore = false) }
             }
         }
     }
@@ -100,26 +134,17 @@ class HomeScreenModel(
         if (!row.paging.canLoadMore) return
         val nextPage = row.paging.page + 1
         screenModelScope { _ ->
-            updateCollections { it.copy(loadingMore = true) }
-            when (val result = catalog.getCollections(nextPage)) {
-                is RequestResult.Success -> updateCollections {
-                    it.append(result.data, Collection::id, hasNextPage = result.data.isNotEmpty())
+            updateRows { current -> current.withCollectionsPaging { paging -> paging.copy(loadingMore = true) } }
+            val result = catalog.getCollections(nextPage)
+            updateRows { current ->
+                current.withCollectionsPaging { paging ->
+                    when (result) {
+                        is RequestResult.Success ->
+                            paging.append(result.data, Collection::id, hasNextPage = result.data.isNotEmpty())
+                        is RequestResult.Error -> paging.copy(loadingMore = false)
+                    }
                 }
-
-                is RequestResult.Error -> updateCollections { it.copy(loadingMore = false) }
             }
-        }
-    }
-
-    private suspend fun updateTitles(id: HomeRowId, transform: (RowPaging<Item>) -> RowPaging<Item>) {
-        updateRows { row ->
-            if (row is HomeRow.Titles && row.id == id) row.copy(paging = transform(row.paging)) else row
-        }
-    }
-
-    private suspend fun updateCollections(transform: (RowPaging<Collection>) -> RowPaging<Collection>) {
-        updateRows { row ->
-            if (row is HomeRow.Collections) row.copy(paging = transform(row.paging)) else row
         }
     }
 
@@ -127,6 +152,9 @@ class HomeScreenModel(
         updateState { it.copy(rows = it.rows.map(transform)) }
     }
 }
+
+/** Сколько подборок получают превью — столько видно в ряду до первой прокрутки и чуть дальше. */
+private const val COLLECTION_PREVIEWS_LIMIT = 6
 
 /** Чем наполняется ряд тайтлов при догрузке: фид даёт стартовую горстку, дальше — каталог. */
 private data class TitleSource(val type: ItemType, val sort: CatalogSort)

@@ -31,10 +31,9 @@ import org.robolectric.annotation.Config
 import kotlin.test.assertTrue
 
 /**
- * Баннер «Выбор редакции» на ТВ-Главной не должен оставаться срезанным сверху. Фокус-прокрутка
- * поднимает в кадр только сфокусированную кнопку, а высокий hero над ней уезжал за край экрана,
- * стоило вернуться к нему из рядов: раньше его возвращал в кадр уход фокуса в шапку, а шапки
- * больше нет.
+ * Баннер «Выбор редакции» на ТВ-Главной не должен оставаться срезанным сверху. Ряды встают на
+ * опорную точку, а hero — высокий блок — прижимается к самому верху ([PivotBringIntoViewSpec]):
+ * раньше фокус-прокрутка поднимала в кадр только кнопку, и hero над ней уезжал за край.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-land-xhdpi")
@@ -53,7 +52,7 @@ class TvHomeHeroScrollTest {
     @Test
     fun `hero is fully visible again when focus comes back to it from the rows`() {
         compose.setContent {
-            FilmaxTvTheme { TvHomeContent(state = homeState(), offline = false, actions = NoActions) }
+            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = NoActions) }
         }
         compose.waitForIdle()
 
@@ -62,18 +61,18 @@ class TvHomeHeroScrollTest {
 
         compose.onNode(isFocused()).assertExists()
         val heroTop = heroTop()
-        assertTrue(heroTop >= 0f, "баннер срезан сверху на ${-heroTop}px")
+        assertTrue(heroTop >= -ROUNDING_PX, "баннер срезан сверху на ${-heroTop}px")
     }
 
     @Test
     fun `hero is fully visible on the first open`() {
         compose.setContent {
-            FilmaxTvTheme { TvHomeContent(state = homeState(), offline = false, actions = NoActions) }
+            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = NoActions) }
         }
         compose.waitForIdle()
 
         val heroTop = heroTop()
-        assertTrue(heroTop >= 0f, "баннер срезан сверху на ${-heroTop}px")
+        assertTrue(heroTop >= -ROUNDING_PX, "баннер срезан сверху на ${-heroTop}px")
     }
 
     /**
@@ -89,20 +88,30 @@ class TvHomeHeroScrollTest {
     }
 
     private companion object {
+        /**
+         * Допуск на округление прокрутки до пикселя (параллакс hero добавляет половину). Ловим
+         * срезанный баннер — десятки и сотни пикселей, а не субпиксельный шум.
+         */
+        const val ROUNDING_PX = 1f
+
         /** Сколько рядов вниз уйти от hero: глубже экрана, чтобы лента прокрутилась. */
         const val ROWS_TO_DIVE = 3
 
         val NoActions = TvHomeActions(
-            onOpenItem = {},
-            onPlay = { _, _, _ -> },
-            onOpenCollection = { _, _ -> },
+            hero = HeroActions(onPlay = {}, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
+            rails = RailActions(
+                onOpenItem = {},
+                onPlay = { _, _, _ -> },
+                onOpenCollection = { _, _ -> },
+                onLoadMore = {}
+            ),
             onReload = {},
-            onLoadMoreRow = {},
+            onOpenCatalog = {},
         )
 
         fun homeState() = HomeState(
             loading = false,
-            hero = item(id = 1, title = "Дом на краю карты"),
+            heroes = listOf(item(id = 1, title = "Дом на краю карты")),
             rows = listOf(
                 HomeRow.Continue((40..45).map(::started)),
                 HomeRow.Titles(HomeRowId.TRENDING, RowPaging((10..17).map { item(id = it, title = "Тайтл $it") })),

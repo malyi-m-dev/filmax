@@ -52,6 +52,7 @@ private val HomeRowId.title: String
         // Заголовок честный: forYou — это топ сериалов по рейтингу, персонализации в фиде нет.
         HomeRowId.FOR_YOU -> "Сериалы с высоким рейтингом"
         HomeRowId.COLLECTIONS -> "Подборки"
+        HomeRowId.FRESH -> "Новинки"
     }
 
 private fun LazyListScope.continueRow(

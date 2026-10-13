@@ -58,7 +58,7 @@ fun TvRail(
     var focused by remember { mutableStateOf(false) }
     val pivot = with(LocalDensity.current) { contentStart.toPx() }
     val pivotSpec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
-    Column(modifier) {
+    Column(modifier.bringIntoViewAsWhole()) {
         RailTitle(title, count, subtitle, Modifier.padding(start = contentStart, bottom = 14.dp))
         CompositionLocalProvider(
             LocalRailFocused provides focused,

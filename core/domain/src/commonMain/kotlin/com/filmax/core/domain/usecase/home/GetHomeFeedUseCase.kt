@@ -29,19 +29,27 @@ class GetHomeFeedUseCase(
         val collectionsDeferred = async { catalog.getCollections() }
         val forYouDeferred = async { catalog.getItems(ItemType.SERIES, CatalogSort.RATING) }
         val historyDeferred = async { watching.getHistory() }
+        val freshMoviesDeferred = async { catalog.getNewItems(ItemType.MOVIE) }
+        val freshSeriesDeferred = async { catalog.getNewItems(ItemType.SERIES) }
 
         val hot = hotDeferred.await()
         val trending = trendingDeferred.await()
         val collections = collectionsDeferred.await()
         val forYou = forYouDeferred.await()
         val history = historyDeferred.await()
+        val freshMovies = freshMoviesDeferred.await()
+        val freshSeries = freshSeriesDeferred.await()
 
         val feed = HomeFeed(
-            hero = hot.getOrNull()?.items?.firstOrNull(),
+            heroes = hot.getOrNull()?.items?.take(HERO_LIMIT) ?: emptyList(),
             continueWatching = history.getOrNull()?.take(CONTINUE_WATCHING_LIMIT) ?: emptyList(),
             collections = collections.getOrNull()?.take(COLLECTIONS_LIMIT) ?: emptyList(),
             trending = trending.getOrNull()?.items?.take(ROW_LIMIT) ?: emptyList(),
             forYou = forYou.getOrNull()?.items?.take(ROW_LIMIT) ?: emptyList(),
+            fresh = interleave(
+                freshMovies.getOrNull()?.items.orEmpty(),
+                freshSeries.getOrNull()?.items.orEmpty(),
+            ).take(ROW_LIMIT),
             error = firstErrorMessage(hot, trending, collections, forYou),
         )
 
@@ -58,7 +66,16 @@ class GetHomeFeedUseCase(
         }
     }
 
+    /** Фильмы и сериалы через один: ряд новинок не должен начинаться десятком фильмов подряд. */
+    private fun <T> interleave(first: List<T>, second: List<T>): List<T> =
+        (0 until maxOf(first.size, second.size)).flatMap { index ->
+            listOfNotNull(first.getOrNull(index), second.getOrNull(index))
+        }
+
     private companion object {
+        /** Сколько тайтлов листает карусель «Выбор редакции». */
+        const val HERO_LIMIT = 4
+
         /** Сколько последних тайтлов показать в блоке «Продолжить просмотр». */
         const val CONTINUE_WATCHING_LIMIT = 5
 

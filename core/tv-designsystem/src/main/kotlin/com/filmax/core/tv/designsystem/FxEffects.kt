@@ -17,6 +17,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.relocation.BringIntoViewResponder
+import androidx.compose.foundation.relocation.bringIntoViewResponder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,6 +28,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
@@ -34,8 +37,11 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.toSize
 import kotlinx.coroutines.delay
 
 /** Сдвиг снизу, с которого появляется контент. */
@@ -174,9 +180,37 @@ fun Modifier.fxGlass(shape: Shape, fill: Color = LocalFxColors.current.surface):
     background(fill, shape).border(1.dp, LocalFxColors.current.outline, shape)
 
 /**
- * Прокрутка к «опорной точке»: элемент в фокусе встаёт краем на [pivotPx] от начала контейнера,
- * двигается лента, а не фокус. У краёв списка Lazy-контейнер сам ограничит скролл.
+ * Прокрутка к «опорной точке», как в лентах Google TV: элемент в фокусе встаёт краем на
+ * [pivotPx] от начала контейнера — двигается лента, а не фокус. Высокий блок (больше двух третей
+ * контейнера — hero) прижимается к самому началу: на опорной точке его верх ушёл бы за край.
+ * Ряд постеров с подписями бывает выше половины экрана, поэтому порог — две трети.
+ * У краёв списка Lazy-контейнер сам ограничит скролл.
+ *
+ * Чтобы на опорную точку вставал ряд целиком, а не карточка внутри него, ряд помечается
+ * [bringIntoViewAsWhole].
  */
 class PivotBringIntoViewSpec(private val pivotPx: Float) : BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = offset - pivotPx
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =
+        if (size > containerSize * TALL_BLOCK_FRACTION) offset else offset - pivotPx
+}
+
+private const val TALL_BLOCK_FRACTION = 2f / 3f
+
+/**
+ * Прокрутка к элементу внутри этого блока показывает блок целиком: запрос «покажи карточку»
+ * от вложенного фокуса уходит к родительскому списку как «покажи весь ряд». Так ряд встаёт на
+ * опорную точку заголовком, а не серединой.
+ */
+fun Modifier.bringIntoViewAsWhole(): Modifier = composed {
+    val responder = remember { WholeBlockResponder() }
+    onSizeChanged { responder.size = it }.bringIntoViewResponder(responder)
+}
+
+private class WholeBlockResponder : BringIntoViewResponder {
+    var size: IntSize = IntSize.Zero
+
+    override fun calculateRectForParent(localRect: Rect): Rect = Rect(Offset.Zero, size.toSize())
+
+    // Внутри блока прокручивать нечего — горизонтальный ряд уже показал карточку сам.
+    override suspend fun bringChildIntoView(localRect: () -> Rect?) = Unit
 }

@@ -17,6 +17,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -60,6 +62,9 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     /** Текущий снимок состояния. Доступен подклассам для чтения внутри корутин. */
     protected val state: STATE
         get() = _state.value
+
+    /** Состояние потоком только для чтения — для тестов и подписчиков вне Compose. */
+    val states: StateFlow<STATE> = _state.asStateFlow()
 
     private val updateStateLock = Mutex()
     private val sideEffectLock = Mutex()

@@ -39,6 +39,9 @@ enum class TvPosterSize(val width: Dp, val height: Dp) {
 enum class TvCardSize(val width: Dp, val height: Dp) {
     Continue(TvMetrics.ContinueWidth, TvMetrics.ContinueHeight),
     Episode(TvMetrics.EpisodeWidth, TvMetrics.EpisodeHeight),
+
+    /** Новинки: крупный кадр, подпись под ним. */
+    Wide(TvMetrics.WideCardWidth, TvMetrics.WideCardHeight),
 }
 
 /** Отступ подписи от постера. */
@@ -47,7 +50,8 @@ private val CaptionGap = 9.dp
 /**
  * Карточка-постер 2:3 — ряды Главной, сетки Каталога и подборок. Подпись под постером:
  * название одной строкой (в фокусе — бегущей), мета — только в фокусе, чтобы ряд не рябил.
- * [rating] — готовая строка оценки («8.3»), null — без пилюли.
+ * [rating] — готовая строка оценки («8.3»), null — без пилюли; [ratingHighlighted] красит её вторым
+ * акцентом (высокая оценка). [rank] — крупный номер в углу постера (топ-10 «В тренде»).
  */
 // Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier прямым
 // параметром, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API».
@@ -60,6 +64,8 @@ fun TvPosterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     rating: String? = null,
+    ratingHighlighted: Boolean = false,
+    rank: Int? = null,
     size: TvPosterSize = TvPosterSize.Rail,
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -74,8 +80,9 @@ fun TvPosterCard(
         ) {
             TvCardImage(posterUrl, title, TvMetrics.PosterShape)
             if (rating != null) {
-                TvRatingPill(rating, Modifier.align(Alignment.TopEnd).padding(8.dp))
+                TvRatingPill(rating, Modifier.align(Alignment.TopEnd).padding(8.dp), highlighted = ratingHighlighted)
             }
+            if (rank != null) RankNumeral(rank, Modifier.align(Alignment.BottomStart))
         }
         TvCardTitle(title, focused, Modifier.padding(top = CaptionGap))
         if (focused && !meta.isNullOrBlank()) {
@@ -89,8 +96,8 @@ private val CaptionScrim = Brush.verticalGradient(0.4f to Color.Transparent, 1f 
 
 /**
  * Карточка 16:9 с прогрессом — «Продолжить просмотр», «Моё», серии сезона. [progress] — доля
- * 0..1, полоса акцентом по нижнему краю кадра. [meta] несёт то, ради чего карточка существует:
- * «S4E7 · осталось 41 мин». [badge] — плашка акцентом в углу кадра («S4E7», «Сейчас»).
+ * 0..1, полоса акцентом по нижнему краю кадра; null — без полосы (новинки). [meta] несёт то,
+ * ради чего карточка существует: «S4E7 · осталось 41 мин». [badge] — плашка акцентом в углу кадра («S4E7», «Сейчас»).
  * [fallbackLabel] — крупная подпись вместо кадра, если его нет (номер серии: у kino.pub кадр
  * серии часто пустой, а пустые плитки в ряду не отличить друг от друга).
  */
@@ -101,7 +108,7 @@ fun TvProgressCard(
     title: String,
     meta: String?,
     posterUrl: String,
-    progress: Float,
+    progress: Float?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     size: TvCardSize = TvCardSize.Continue,
@@ -131,7 +138,7 @@ fun TvProgressCard(
             }
             if (captionInside) InsideCaption(title, meta, focused)
             if (badge != null) TvBadge(badge, Modifier.align(Alignment.TopStart).padding(8.dp))
-            TvProgressBar(progress, Modifier.align(Alignment.BottomStart))
+            if (progress != null) TvProgressBar(progress, Modifier.align(Alignment.BottomStart))
         }
         if (!captionInside) BelowCaption(title, meta, focused)
     }
@@ -170,20 +177,28 @@ private fun TvCardImage(url: String, contentDescription: String, shape: Shape) {
 }
 
 /**
- * Пилюля рейтинга поверх постера — второй акцент палитры: оценка заметна в ряду, не споря с
- * главным действием экрана.
+ * Пилюля рейтинга поверх постера. Высокая оценка ([highlighted]) — вторым акцентом палитры:
+ * заметна в ряду, не споря с главным действием экрана; обычная — тёмной подложкой.
  */
 @Composable
-fun TvRatingPill(rating: String, modifier: Modifier = Modifier) {
+fun TvRatingPill(rating: String, modifier: Modifier = Modifier, highlighted: Boolean = true) {
     val colors = LocalFxColors.current
     Text(
         rating,
         style = FxType.pill,
-        color = colors.onAccent2,
+        color = if (highlighted) colors.onAccent2 else Color.White,
         modifier = modifier
-            .background(colors.accent2, RatingPillShape)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .background(if (highlighted) colors.accent2 else PillScrim, RatingPillShape)
+            .padding(horizontal = 7.dp, vertical = 2.dp),
     )
+}
+
+private val PillScrim = Color.Black.copy(alpha = 0.6f)
+
+/** Номер в топе — крупно у нижнего левого угла постера, с тенью, чтобы читался на любом кадре. */
+@Composable
+private fun RankNumeral(rank: Int, modifier: Modifier) {
+    Text("$rank", style = FxType.rank, color = Color.White, modifier = modifier.padding(start = 8.dp, bottom = 4.dp))
 }
 
 private val RatingPillShape = RoundedCornerShape(6.dp)

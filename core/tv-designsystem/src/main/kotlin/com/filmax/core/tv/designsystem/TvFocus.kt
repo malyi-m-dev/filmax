@@ -2,20 +2,26 @@ package com.filmax.core.tv.designsystem
 
 import androidx.compose.foundation.focusGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onPlaced
+import kotlinx.coroutines.flow.filterNotNull
 
 /**
  * Держит ли фокус верхний таб-бар. Экран не отбирает у него фокус: пользователь выбирает
@@ -52,9 +58,10 @@ fun Modifier.tvFocusGroup(): Modifier = focusRestorer().focusGroup()
  * узел сам сообщает, что он размещён.
  *
  * Поставленным фокус считается, только когда запрос прошёл. Самое первое размещение экрана
- * при запуске приложения запрос отклоняет, и без повтора Главная оставалась вовсе без фокуса:
- * первое «вниз» уводило в боковое меню. Повтор — на следующем `onPlaced`, а их, пока экран
- * проявляется после перехода, приходит несколько.
+ * приходит, пока окно ещё в первом проходе раскладки, и Android запрос отклоняет — без повтора
+ * Главная оставалась вовсе без фокуса, и первое «вниз» уводило в боковое меню. Отклонённый
+ * запрос повторяется один раз — после ближайшего кадра, когда раскладка окна уже завершена
+ * ([rememberTvScreenFocus] ждёт его через `withFrameNanos`).
  */
 @Stable
 class TvScreenFocus internal constructor(
@@ -71,6 +78,22 @@ class TvScreenFocus internal constructor(
     /** Фокус уже поставлен — дальше прокрутка и перекомпоновки его не трогают. */
     private var done = false
 
+    /** Запрос, отклонённый до конца раскладки окна, — ждёт повтора после кадра. */
+    internal var pendingRetry: FocusRequester? by mutableStateOf(null)
+        private set
+
+    private fun request(requester: FocusRequester) {
+        done = requester.requestFocus()
+        if (!done) pendingRetry = requester
+    }
+
+    /** Повтор отклонённого запроса — единственный: если окно не берёт фокус и теперь, экран ждёт пульта. */
+    internal fun retryPending() {
+        val requester = pendingRetry ?: return
+        pendingRetry = null
+        if (!done) done = requester.requestFocus()
+    }
+
     /**
      * Модификатор корневого контейнера экрана: `LazyColumn`, сетка, скролл-колонка.
      *
@@ -82,9 +105,7 @@ class TvScreenFocus internal constructor(
         .focusRequester(container)
         .tvFocusGroup()
         .onPlaced {
-            if (!done && returnTo == null && !navBarFocused.value) {
-                done = container.requestFocus()
-            }
+            if (!done && returnTo == null && !navBarFocused.value) request(container)
         }
 
     /**
@@ -113,9 +134,7 @@ class TvScreenFocus internal constructor(
             .focusRequester(requester)
             .onFocusChanged { if (it.isFocused) lastFocused.value = key }
             .onPlaced {
-                if (!done && key == returnTo) {
-                    done = requester.requestFocus()
-                }
+                if (!done && key == returnTo) request(requester)
             }
     }
 }
@@ -132,5 +151,12 @@ class TvScreenFocus internal constructor(
 fun rememberTvScreenFocus(startAt: String? = null): TvScreenFocus {
     val lastFocused = rememberSaveable { mutableStateOf<String?>(null) }
     val navBarFocused = LocalTvNavBarFocused.current
-    return remember { TvScreenFocus(lastFocused, navBarFocused, returnTo = lastFocused.value ?: startAt) }
+    val focus = remember { TvScreenFocus(lastFocused, navBarFocused, returnTo = lastFocused.value ?: startAt) }
+    LaunchedEffect(focus) {
+        snapshotFlow { focus.pendingRetry }.filterNotNull().collect {
+            withFrameNanos { }
+            focus.retryPending()
+        }
+    }
+    return focus
 }
