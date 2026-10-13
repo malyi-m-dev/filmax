@@ -239,4 +239,3 @@ private fun CollectionPoster(item: Item, onClick: () -> Unit) {
         meta = posterMeta(typeLabel(item.type), item.year),
     )
 }
-
