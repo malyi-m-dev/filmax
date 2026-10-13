@@ -22,6 +22,7 @@ firebase-crashlytics-plugin = "3.0.2"
 firebase-bom = "33.7.0"
 junit = "5.10.2"
 junit-platform = "1.10.2"
+robolectric = "4.14.1"
 # KMP
 ktor = "3.0.3"
 multiplatform-settings = "1.2.0"
@@ -45,6 +46,10 @@ junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+# UI-тесты Compose на JVM (Robolectric) — без эмулятора, гоняются в CI вместе с юнит-тестами
+compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 
 # Kotlin
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
