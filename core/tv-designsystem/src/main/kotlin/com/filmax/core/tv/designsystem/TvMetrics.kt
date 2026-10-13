@@ -75,6 +75,9 @@ object TvMetrics {
     val CollectionCardWidth = 260.dp
     val CollectionCardHeight = 140.dp
 
+    /** Стеклянная панель «Эпизоды» справа в деталях сериала. */
+    val EpisodesPanelWidth = 400.dp
+
     /** Эпизод 16:9 — список серий. */
     val EpisodeWidth = 236.dp
     val EpisodeHeight = 133.dp

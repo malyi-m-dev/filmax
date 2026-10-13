@@ -3,6 +3,7 @@ package com.filmax.app
 import android.app.Application
 import android.content.pm.PackageManager
 import com.filmax.app.di.appModule
+import com.filmax.app.di.useCaseModule
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.navigation.di.navigationModule
 import com.filmax.core.network.di.networkModule
@@ -67,6 +68,7 @@ open class FilmaxApplication : Application() {
 
     /** Фичи и app-модуль — после data, как и раньше. */
     private fun featureModules(): List<Module> = listOf(
+        useCaseModule,
         onboardingModule,
         homeModule,
         searchFeatureModule,

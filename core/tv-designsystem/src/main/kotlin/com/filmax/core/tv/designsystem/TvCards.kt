@@ -3,9 +3,11 @@ package com.filmax.core.tv.designsystem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -194,6 +196,32 @@ fun TvRatingPill(rating: String, modifier: Modifier = Modifier, highlighted: Boo
 }
 
 private val PillScrim = Color.Black.copy(alpha = 0.6f)
+
+private val RatingBadgeShape = RoundedCornerShape(9.dp)
+
+/**
+ * Оценка с источником в деталях: «7.9 КиноПоиск», «7.6 IMDb». Главный источник ([highlighted]) —
+ * вторым акцентом, остальные — стеклом.
+ */
+@Composable
+fun TvRatingBadge(value: String, source: String, modifier: Modifier = Modifier, highlighted: Boolean = false) {
+    val colors = LocalFxColors.current
+    Row(
+        modifier
+            .background(if (highlighted) colors.accent2 else colors.surfaceHigh, RatingBadgeShape)
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(value, style = FxType.badgeValue, color = if (highlighted) colors.onAccent2 else colors.text)
+        Text(
+            source,
+            style = FxType.metaOnImage,
+            color = if (highlighted) colors.onAccent2 else colors.textSecondary,
+            modifier = Modifier.padding(bottom = 1.dp),
+        )
+    }
+}
 
 /** Номер в топе — крупно у нижнего левого угла постера, с тенью, чтобы читался на любом кадре. */
 @Composable

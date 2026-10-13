@@ -218,6 +218,12 @@ fun ratingLabel(raw: String?): String? = ratingLabel(raw?.toDoubleOrNull())
 fun ratingLabel(value: Double?): String? =
     value?.takeIf { it > 0 }?.let { String.format(Locale.US, "%.1f", it) }
 
+/** С какой оценки она «высокая» и выделяется цветом. */
+private const val HIGH_RATING = 8.0
+
+/** Высокая ли оценка — такую пилюля выделяет вторым акцентом. */
+fun isHighRating(raw: String?): Boolean = (raw?.toDoubleOrNull() ?: 0.0) >= HIGH_RATING
+
 /** Собирает мету `тип · год`, пропуская пустые части. */
 fun posterMeta(type: String?, year: Int): String? {
     val parts = buildList {

@@ -18,6 +18,7 @@ import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.ui.components.continueMeta
+import com.filmax.core.ui.components.isHighRating
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.posterUrl
 import com.filmax.core.ui.components.ratingLabel

@@ -14,4 +14,9 @@ dependencies {
     implementation(libs.koin.android)
     // toRoute<DetailsRoute>() + SavedStateHandle
     implementation(libs.navigation.compose)
+
+    // ScreenModel тестируется на фейковом data-слое — тот же, что у мок-сборки.
+    testImplementation(project(":data:fake"))
+    // Маршрут из SavedStateHandle (toRoute) читается через Bundle — нужен Android-рантайм.
+    testImplementation(libs.robolectric)
 }
