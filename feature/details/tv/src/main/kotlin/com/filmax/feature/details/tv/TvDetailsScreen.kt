@@ -61,7 +61,10 @@ internal val ReadableTextWidth = 760.dp
 /** Отступ снизу единого полотна: рамке фокуса последнего ряда нужно место. */
 private val ContentBottomPadding = 70.dp
 
-/** Индекс элемента «описание» в полотне: сюда полотно едет, когда фокус уходит с кнопок вниз. */
+/**
+ * Первый элемент полотна под hero (у сериала — эпизоды, у фильма — описание): сюда полотно
+ * едет, когда фокус уходит с кнопок вниз.
+ */
 private const val CONTENT_START_INDEX = 1
 
 /** Сколько кадров пропустить перед прокруткой к стейту (см. [rememberHeroFocusScroller]). */
@@ -83,7 +86,6 @@ private const val MOVIE_VIDEO_ID = -1
 private const val NO_SEASON = -1
 
 private const val MAX_META_GENRES = 2
-private const val SECONDS_IN_MINUTE = 60
 
 /**
  * TV-Детали. Фильм и сериал — один вертикальный поток: hero, описание, эпизоды (сериал),
@@ -278,20 +280,17 @@ private class DetailsSectionsData(
     val selectedSeason: Int,
 )
 
-/** Секции полотна под hero: описание, актёры, режиссёр, эпизоды, «Похожее». */
+/**
+ * Секции полотна под hero. У сериала первыми идут эпизоды: ради них карточку сериала и открывают,
+ * а с пульта до них раньше приходилось спускаться через описание, актёров и режиссёра — как у
+ * Netflix и Apple TV, серии стоят сразу под кнопками. У фильма серий нет — первым описание.
+ */
 private fun LazyListScope.detailsSections(
     data: DetailsSectionsData,
     actions: DetailsActions,
     onSelectSeason: (Int) -> Unit,
     focus: TvScreenFocus,
 ) {
-    item(key = "about") { DetailsAbout(data.item) }
-    if (data.people.isNotEmpty()) {
-        castRail(people = data.people, onOpenPerson = actions.onOpenPerson)
-    }
-    if (data.item.director.isNotBlank()) {
-        directorSection(director = data.item.director, onOpenPerson = actions.onOpenPerson)
-    }
     if (data.episodes.isNotEmpty()) {
         episodesSection(
             EpisodesSection(
@@ -304,6 +303,13 @@ private fun LazyListScope.detailsSections(
                 focus = focus,
             )
         )
+    }
+    item(key = "about") { DetailsAbout(data.item) }
+    if (data.people.isNotEmpty()) {
+        castRail(people = data.people, onOpenPerson = actions.onOpenPerson)
+    }
+    if (data.item.director.isNotBlank()) {
+        directorSection(director = data.item.director, onOpenPerson = actions.onOpenPerson)
     }
     if (data.similar.isNotEmpty()) {
         similarRail(similar = data.similar, onOpenItem = actions.onOpenItem)
@@ -329,9 +335,3 @@ internal fun playLabel(resume: MediaTrack?): String = when {
     resume.seasonNumber > 0 -> "Продолжить · S${resume.seasonNumber}E${resume.number}"
     else -> "Продолжить · Серия ${resume.number}"
 }
-
-/** Мета карточки серии: «Серия 3 · 45 мин». Номер опускаем, если он уже стал заголовком. */
-internal fun episodeMeta(episode: MediaTrack): String? = buildList {
-    if (episode.title.isNotBlank()) add("Серия ${episode.number}")
-    episode.durationSeconds.takeIf { it > 0 }?.let { add("${it / SECONDS_IN_MINUTE} мин") }
-}.joinToString(" · ").ifBlank { null }

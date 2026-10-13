@@ -78,11 +78,18 @@ fun volumeLabel(item: Item, series: SeriesData?): String? = when {
     else -> null
 }
 
-/** «2 ч 46 мин» / «46 мин» — часы опускаем, когда их нет. */
-private fun durationLabel(minutes: Int): String {
+/**
+ * «2 ч 46 мин» / «46 мин» / «2 ч» — пустые часы и минуты опускаем. Так же пишут карточки
+ * (`durationLabel` в core:ui): раньше здесь выходило «2 ч 0 мин».
+ */
+internal fun durationLabel(minutes: Int): String {
     val hours = minutes / MINUTES_IN_HOUR
     val rest = minutes % MINUTES_IN_HOUR
-    return if (hours > 0) "$hours ч $rest мин" else "$rest мин"
+    return when {
+        hours > 0 && rest > 0 -> "$hours ч $rest мин"
+        hours > 0 -> "$hours ч"
+        else -> "$rest мин"
+    }
 }
 
 /**
