@@ -175,8 +175,20 @@ jobs:
               --data-urlencode "text=Сборка готова (${size_mb}MB), но превышает лимит Telegram 50MB. Скачай из GitHub Actions → Artifacts. ($BRANCH, $SHORT_SHA)"
             exit 0
           fi
-          curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+          # Без `-f`: при ошибке Telegram отвечает JSON с причиной (description), а `-f` её глотал,
+          # и в логе оставалось голое «returned error: 400». Сбой уведомления — не сбой сборки:
+          # APK уже лежит в Artifacts, поэтому шаг предупреждает, а не валит проверку PR.
+          # caption — через --form-string: `-F` читает «@…»/«<…» в начале значения как файл.
+          response=$(mktemp)
+          status=$(curl -sS -o "$response" -w '%{http_code}' -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
             -F chat_id="${TELEGRAM_CHAT_ID}" \
             -F document=@"${apk}" \
-            -F caption="$caption"
+            --form-string caption="$caption")
+          if [ "$status" != "200" ]; then
+            # Только description: в остальных полях ответа бывают id чатов, а лог публичный.
+            reason=$(sed -n 's/.*"description":"\([^"]*\)".*/\1/p' "$response")
+            echo "::warning::Telegram ответил ${status}: ${reason:-без описания}. APK доступен в Artifacts."
+            exit 0
+          fi
           echo "APK отправлен в Telegram."
