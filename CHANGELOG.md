@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-10-13
+
 ### Изменено
 - ТВ: начат редизайн «Filmax TV» (план — docs/tv-redesign.md). Монохром сменила яркая палитра
   «Фиолет», заголовки, кнопки и карточки — шрифтом Onest. Фокус пульта теперь везде один:
@@ -342,7 +344,8 @@
   R8 + `shrinkResources`, `versionCode` из числа коммитов и `versionName` из git-тега.
 - CI по тегу `v*`: сборка подписанного APK → GitHub Release (+ Telegram).
 
-[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.0.0
 [1.10.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.10.0
 [1.9.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.9.0
 [1.8.3]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.8.3
