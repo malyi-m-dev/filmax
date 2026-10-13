@@ -220,12 +220,8 @@ private fun DetailsBody(
         modifier = sidePadding.padding(top = 18.dp),
     )
     DetailsAbout(item = item, modifier = sidePadding.padding(top = 18.dp))
-    CastSection(
-        people = people,
-        director = item.director,
-        onOpenPerson = actions.onOpenPerson,
-        modifier = Modifier.padding(top = 22.dp),
-    )
+    // У сериала серии — сразу под описанием, до актёров: ради них карточку сериала и открывают
+    // (порядок тот же, что на ТВ).
     if (series.episodes.isNotEmpty()) {
         EpisodesSection(
             data = EpisodesSectionData(
@@ -239,6 +235,12 @@ private fun DetailsBody(
             modifier = Modifier.padding(top = 24.dp),
         )
     }
+    CastSection(
+        people = people,
+        director = item.director,
+        onOpenPerson = actions.onOpenPerson,
+        modifier = Modifier.padding(top = 22.dp),
+    )
     // «Похожее» — и у фильма, и у сериала: state.similar грузится всегда, а экран его молча
     // выбрасывал.
     if (extras.similar.isNotEmpty()) {
