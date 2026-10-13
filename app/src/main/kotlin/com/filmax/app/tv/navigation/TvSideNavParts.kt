@@ -192,7 +192,9 @@ internal fun NavLogo(visible: Boolean) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(Modifier.size(10.dp).background(LocalFxColors.current.accent, CircleShape))
-            Text("filmax", style = LogoStyle)
+            // Цвет задан явно: вне Surface у tv-material Text цвет по умолчанию тёмный, и логотип
+            // на тёмной панели почти пропадал.
+            Text("filmax", style = LogoStyle, color = LocalFxColors.current.text)
         }
     }
 }
