@@ -3,7 +3,12 @@
 package com.filmax.app.tv.navigation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -16,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -28,6 +34,7 @@ import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,8 +47,11 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination
@@ -53,6 +63,7 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.filmax.core.navigation.Destination
 import com.filmax.core.tv.designsystem.TvAccent
+import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnAccent
 import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceDim
@@ -87,6 +98,9 @@ private val SECTIONS = listOf(
     TvSection("Профиль", Icons.Filled.Person, Destination.Profile) { it?.hasRoute(TvProfileRoute::class) == true },
 )
 
+/** Номер раздела в меню, -1 — экран не раздел. По нему переходы знают, куда двигается меню. */
+internal fun sectionIndexOf(destination: NavDestination?): Int = SECTIONS.indexOfFirst { it.match(destination) }
+
 /** Маршруты, на которых показывается меню. Выводится из [SECTIONS] — один источник правды. */
 val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
     TvHomeRoute::class,
@@ -96,9 +110,9 @@ val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
 )
 
 /**
- * Свёрнутое меню целиком помещается в левое поле экрана ([com.filmax.core.tv.designsystem.TvMetrics.SafeHorizontal]
- * = 58dp): контент разделов не сдвигается, и сетка каталога, свёрстанная впритык на четыре
- * колонки, остаётся как есть.
+ * Свёрнутое меню целиком помещается в левое поле экрана ([TvMetrics.SafeHorizontal] = 58dp):
+ * контент разделов не сдвигается, и сетка каталога, свёрстанная впритык на четыре колонки,
+ * остаётся как есть.
  */
 private val CollapsedWidth = 56.dp
 private val ExpandedWidth = 240.dp
@@ -107,7 +121,17 @@ private val ExpandedWidth = 240.dp
 private val ExpandedScrimWidth = 520.dp
 
 private val ItemHeight = 44.dp
+private val ItemGap = 8.dp
 private val IconSize = 22.dp
+
+/**
+ * Подсветка перетекает с пружиной чуть мягче дефолтной: на шаг между соседями — без отскока,
+ * на прыжок через весь список — с едва заметной инерцией.
+ */
+private val HighlightSpring = spring<Dp>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+
+/** Цвет содержимого пункта меняется за время, пока подсветка доезжает до него. */
+private const val ITEM_COLOR_MS = 180
 
 /** Фокус-реквестеры меню: вход в меню ([nav]) и возврат к контенту раздела ([content]). */
 internal data class TvSideNavFocus(
@@ -133,60 +157,106 @@ internal fun TvSideNav(
     initials: String,
     modifier: Modifier = Modifier,
 ) {
-    val activeIndex = SECTIONS.indexOfFirst { it.match(currentDestination) }.coerceAtLeast(0)
+    val activeIndex = sectionIndexOf(currentDestination).coerceAtLeast(0)
     val itemRequesters = remember { SECTIONS.map { FocusRequester() } }
     var expanded by remember { mutableStateOf(false) }
+    var focusedIndex by remember { mutableIntStateOf(activeIndex) }
     val panelWidth by animateDpAsState(if (expanded) ExpandedWidth else CollapsedWidth, label = "sideNavWidth")
 
     Box(modifier.fillMaxHeight()) {
         NavScrim(expanded = expanded)
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .width(panelWidth)
                 .focusRequester(focus.nav)
-                // Вход в меню — всегда на открытый раздел, выход вправо — обратно в контент.
-                .focusProperties {
-                    enter = { itemRequesters[activeIndex] }
-                    right = focus.content
-                }
+                // Вход в меню — всегда на открытый раздел.
+                .focusProperties { enter = { itemRequesters[activeIndex] } }
                 .onFocusChanged { expanded = it.hasFocus }
                 .focusGroup()
                 .padding(horizontal = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+            contentAlignment = Alignment.CenterStart,
         ) {
-            SECTIONS.forEachIndexed { index, section ->
-                NavItem(
-                    section = section,
-                    look = NavItemLook(active = index == activeIndex, expanded = expanded),
-                    initials = initials.takeIf { section.destination == Destination.Profile },
-                    onClick = { onSelect(section.destination, index == activeIndex) },
-                    modifier = Modifier.focusRequester(itemRequesters[index]),
-                )
+            Box {
+                // Раскрытое меню подсвечивает пункт под фокусом, свёрнутое — открытый раздел.
+                NavHighlight(index = if (expanded) focusedIndex else activeIndex, focused = expanded)
+                Column(verticalArrangement = Arrangement.spacedBy(ItemGap)) {
+                    SECTIONS.forEachIndexed { index, section ->
+                        NavItem(
+                            section = section,
+                            look = NavItemLook(active = index == activeIndex, expanded = expanded),
+                            initials = initials.takeIf { section.destination == Destination.Profile },
+                            onClick = { onSelect(section.destination, index == activeIndex) },
+                            modifier = Modifier
+                                .focusRequester(itemRequesters[index])
+                                .onFocusChanged { if (it.isFocused) focusedIndex = index }
+                                // Выход вправо — обратно в контент. Задаётся на каждом пункте, не на
+                                // группе: направленные свойства Compose берёт только у узла под
+                                // фокусом, а D-pad-поиск в контент не попадает — его группа на весь
+                                // экран и правее меню не лежит.
+                                .focusProperties { right = focus.content },
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 /**
+ * Подсветка пунктов — одна на всё меню, а не заливка у каждого: при ходе пульта она перетекает
+ * от пункта к пункту, а при выборе раздела остаётся на нём и гаснет до тихой подложки открытого
+ * раздела. Так смена раздела читается как движение, а не как мигание двух заливок.
+ */
+@Composable
+private fun NavHighlight(index: Int, focused: Boolean) {
+    val offset by animateDpAsState((ItemHeight + ItemGap) * index, HighlightSpring, label = "sideNavHighlight")
+    val color by animateColorAsState(
+        if (focused) TvAccent else TvOnSurface.copy(alpha = 0.14f),
+        tween(ITEM_COLOR_MS),
+        label = "sideNavHighlightColor",
+    )
+    Box(
+        Modifier
+            .offset { IntOffset(0, offset.roundToPx()) }
+            .fillMaxWidth()
+            .height(ItemHeight)
+            .background(color, CircleShape),
+    )
+}
+
+/**
  * Подложка меню. Свёрнутое лежит поверх полноэкранных бэкдропов Главной, поэтому и ему нужна
- * лёгкая тень слева — иначе белые иконки теряются на светлом кадре. Раскрытое гасит контент
- * сильнее и шире панели. Ноль — TvSurface с нулевой альфой, а не Color.Transparent: тот тянет
+ * лёгкая тень слева — иначе белые иконки теряются на светлом кадре. Тень не шире левого поля
+ * ([TvMetrics.SafeHorizontal]): заходя дальше, она темнила кнопки и карточки экранов. Раскрытое
+ * гасит контент сильнее и шире панели. Ноль — TvSurface с нулевой альфой, а не Color.Transparent: тот тянет
  * RGB к чёрному и даёт грязный хвост.
  */
 @Composable
 private fun NavScrim(expanded: Boolean) {
+    // Раскрытое затемнение проявляется и гаснет вместе с подписями: переключённое разом, оно
+    // исчезало раньше них, и подписи на кадр-другой повисали над светлым контентом.
+    val expandedAlpha by animateFloatAsState(if (expanded) 1f else 0f, tween(SCRIM_FADE_MS), label = "sideNavScrim")
     Box(
         Modifier
             .fillMaxHeight()
-            .width(if (expanded) ExpandedScrimWidth else CollapsedWidth * 2)
-            .background(if (expanded) ExpandedScrim else CollapsedScrim),
+            .width(TvMetrics.SafeHorizontal)
+            .background(CollapsedScrim),
+    )
+    Box(
+        Modifier
+            .fillMaxHeight()
+            .width(ExpandedScrimWidth)
+            .graphicsLayer { alpha = expandedAlpha }
+            .background(ExpandedScrim),
     )
 }
 
+private const val SCRIM_FADE_MS = 250
+
 private val CollapsedScrim = Brush.horizontalGradient(
     0f to TvSurface.copy(alpha = 0.7f),
-    0.6f to TvSurface.copy(alpha = 0.35f),
+    0.75f to TvSurface.copy(alpha = 0.4f),
     1f to TvSurface.copy(alpha = 0f),
 )
 
@@ -201,9 +271,9 @@ private val ExpandedScrim = Brush.horizontalGradient(
 private data class NavItemLook(val active: Boolean, val expanded: Boolean)
 
 /**
- * Пункт меню. В фокусе — белая заливка с тёмным содержимым (как кнопки ТВ), открытый раздел —
- * белая иконка, остальные приглушены. Без увеличения: пункты стоят столбиком вплотную, и
- * раздутый на 8% задевал бы соседей.
+ * Пункт меню. Сам он прозрачный — белую заливку под фокусом рисует общая [NavHighlight], пункт
+ * лишь перекрашивает содержимое в тёмное. Открытый раздел — белая иконка, остальные приглушены.
+ * Без увеличения: пункты стоят столбиком вплотную, и раздутый на 8% задевал бы соседей.
  */
 @Composable
 private fun NavItem(
@@ -213,18 +283,32 @@ private fun NavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val idleColor = if (look.active) TvOnSurface else TvOnSurfaceDim
+    var focused by remember { mutableStateOf(false) }
+    val contentColor by animateColorAsState(
+        when {
+            focused -> TvOnAccent
+            look.active -> TvOnSurface
+            else -> TvOnSurfaceDim
+        },
+        tween(ITEM_COLOR_MS),
+        label = "sideNavItemColor",
+    )
+    val clear = TvSurface.copy(alpha = 0f)
     Surface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(ItemHeight),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(ItemHeight)
+            .onFocusChanged { focused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(CircleShape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = TvSurface.copy(alpha = 0f),
-            focusedContainerColor = TvAccent,
-            pressedContainerColor = TvAccent,
-            contentColor = idleColor,
-            focusedContentColor = TvOnAccent,
+            containerColor = clear,
+            focusedContainerColor = clear,
+            pressedContainerColor = clear,
+            contentColor = contentColor,
+            focusedContentColor = contentColor,
+            pressedContentColor = contentColor,
         ),
     ) {
         Row(
