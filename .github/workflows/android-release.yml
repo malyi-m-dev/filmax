@@ -185,8 +185,17 @@ jobs:
               --data-urlencode "text=Filmax ${VERSION} (release, ${SIZE_MB}MB) — превышает лимит Telegram 50MB. Скачай из GitHub Release: ${release_url}"
             exit 0
           fi
-          curl -sS -f -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+          # Как в android-build.yml: причина ошибки Telegram — в лог, а релиз к этому моменту уже
+          # опубликован, и сбой уведомления не должен красить его прогон.
+          response=$(mktemp)
+          status=$(curl -sS -o "$response" -w '%{http_code}' -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
             -F chat_id="${TELEGRAM_CHAT_ID}" \
             -F document=@"${APK}" \
-            -F caption="$caption"
+            --form-string caption="$caption")
+          if [ "$status" != "200" ]; then
+            reason=$(sed -n 's/.*"description":"\([^"]*\)".*/\1/p' "$response")
+            echo "::warning::Telegram ответил ${status}: ${reason:-без описания}. APK в GitHub Release."
+            exit 0
+          fi
           echo "Release-APK отправлен в Telegram."
