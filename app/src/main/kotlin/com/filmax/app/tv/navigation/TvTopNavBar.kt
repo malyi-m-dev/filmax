@@ -29,6 +29,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +41,7 @@ import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceDim
+import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
@@ -98,32 +100,57 @@ internal fun TvTopNavBar(
     // Стабильный requester на каждую вкладку (не «переезжает» между нодами).
     val tabFocusRequesters = remember { TABS.map { FocusRequester() } }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(TvMetrics.TopBarHeight)
-            .focusRequester(focus.navBar)
-            // Любой вход фокуса в таб-бар уводим на активную вкладку — фокус всегда
-            // совпадает с открытым разделом.
-            .focusProperties { enter = { tabFocusRequesters[activeIndex] } }
-            .focusGroup()
-            .padding(horizontal = TvMetrics.SafeHorizontal),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TvBrandLabel()
-        Spacer(Modifier.weight(1f))
-        TvNavTabs(
-            activeIndex = activeIndex,
-            tabFocusRequesters = tabFocusRequesters,
-            contentFocus = focus.content,
-            // Раздел открывается сразу по фокусу, без задержек и без OK: на пульте лишнее
-            // нажатие на каждый переход — половина всей навигации по приложению.
-            onTabFocused = { index -> if (index != activeIndex) onSelectTab(TABS[index].destination) },
+    Box(modifier.fillMaxWidth()) {
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(TopBarScrimHeight)
+                .background(TopBarScrim),
         )
-        Spacer(Modifier.weight(1f))
-        TvAvatar(initials = initials)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(TvMetrics.TopBarHeight)
+                .focusRequester(focus.navBar)
+                // Любой вход фокуса в таб-бар уводим на активную вкладку — фокус всегда
+                // совпадает с открытым разделом.
+                .focusProperties { enter = { tabFocusRequesters[activeIndex] } }
+                .focusGroup()
+                .padding(horizontal = TvMetrics.SafeHorizontal),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TvBrandLabel()
+            Spacer(Modifier.weight(1f))
+            TvNavTabs(
+                activeIndex = activeIndex,
+                tabFocusRequesters = tabFocusRequesters,
+                contentFocus = focus.content,
+                // Раздел открывается сразу по фокусу, без задержек и без OK: на пульте лишнее
+                // нажатие на каждый переход — половина всей навигации по приложению.
+                onTabFocused = { index -> if (index != activeIndex) onSelectTab(TABS[index].destination) },
+            )
+            Spacer(Modifier.weight(1f))
+            TvAvatar(initials = initials)
+        }
     }
 }
+
+/** Подложка шапки выше самой шапки: ниже вкладок градиент ещё плавно гаснет. */
+private val TopBarScrimHeight = TvMetrics.TopBarHeight + 56.dp
+
+/**
+ * Подложка под таб-баром. Контент разделов прокручивается под шапку, и без неё вкладки ложились
+ * прямо на постеры и чипы — надписи наезжали друг на друга. Сплошная плашка резала бы экран
+ * жёсткой линией, поэтому градиент: под вкладками почти сплошной фон, ниже — плавный уход в ноль.
+ * Стопы с промежуточными точками: в монохроме короткий переход серого в серый полосит. Ноль —
+ * TvSurface с нулевой альфой, а не Color.Transparent: тот тянет RGB к чёрному.
+ */
+private val TopBarScrim = Brush.verticalGradient(
+    0f to TvSurface.copy(alpha = 0.97f),
+    0.45f to TvSurface.copy(alpha = 0.9f),
+    0.75f to TvSurface.copy(alpha = 0.45f),
+    1f to TvSurface.copy(alpha = 0f),
+)
 
 /** Бренд-лейбл. В монохроме — разрядка вместо акцентной точки. */
 @Composable
