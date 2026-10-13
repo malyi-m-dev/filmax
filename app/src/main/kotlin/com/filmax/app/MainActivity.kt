@@ -10,12 +10,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.filmax.app.navigation.FilmaxNavGraph
 import com.filmax.app.perf.JankMonitor
+import com.filmax.app.tv.FilmaxTvPaletteTheme
 import com.filmax.app.tv.navigation.FilmaxTvNavGraph
 import com.filmax.app.update.AppUpdateEvent
 import com.filmax.app.update.AppUpdatePrompt
 import com.filmax.app.update.AppUpdateScreenModel
 import com.filmax.core.designsystem.FilmaxTheme
-import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
@@ -55,7 +55,7 @@ class MainActivity : ComponentActivity() {
             val updateScreenModel: AppUpdateScreenModel = koinViewModel()
             val onCheckUpdates = { updateScreenModel.dispatch(AppUpdateEvent.Check) }
             if (isTv) {
-                FilmaxTvTheme {
+                FilmaxTvPaletteTheme {
                     FilmaxTvNavGraph(onCheckUpdates = onCheckUpdates)
                     AppUpdatePrompt(updateScreenModel)
                 }

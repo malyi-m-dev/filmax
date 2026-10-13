@@ -28,6 +28,7 @@ import com.filmax.app.navigation.AuthStateNavigation
 import com.filmax.app.navigation.NavigationCommands
 import com.filmax.app.navigation.RootScreenModel
 import com.filmax.app.perf.ReportScreenForJank
+import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalTvNavBarFocused
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
@@ -49,8 +50,10 @@ import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
+// internal, а не private: сериализатор маршрута на JVM (UI-тесты оболочки) достаёт объект
+// рефлексией, и к private-классу доступа у него нет.
 @Serializable
-private object TvSplashRoute
+internal object TvSplashRoute
 
 @Composable
 fun FilmaxTvNavGraph(
@@ -96,6 +99,20 @@ fun FilmaxTvNavGraph(
     // самого меню «назад» не перехватывается — выход из приложения.
     BackHandler(enabled = showNav && !navFocused.value) { navFocus.requestFocus() }
 
+    // Выбор в меню. Открытый раздел — в его начало, фокус обратно в контент. Другой — переход, но
+    // фокус в уходящий экран не переводим: экран сейчас снимется, фокус потеряется и откатится в
+    // меню, а экран без стартовой карточки (Профиль) у меню фокус не забирает. Поэтому меню лишь
+    // снимает флаг «фокус у меня» — новый экран заберёт фокус сам, как только разместится.
+    fun selectSection(section: Destination.Tab, isOpen: Boolean) {
+        if (isOpen) {
+            scrollToTopSignal++
+            contentFocus.requestFocus()
+        } else {
+            navFocused.value = false
+            navigator.open(section)
+        }
+    }
+
     // Без своей заливки: фон — у окна (FilmaxTvTheme), повторная заливка закрашивала бы каждый
     // пиксель экрана лишний раз.
     Box(modifier = Modifier.fillMaxSize()) {
@@ -116,10 +133,7 @@ fun FilmaxTvNavGraph(
             TvSideNav(
                 currentDestination = currentDest,
                 // Повторный выбор открытого раздела — в его начало, другой раздел — переход.
-                onSelect = { section, isOpen ->
-                    if (isOpen) scrollToTopSignal++ else navigator.open(section)
-                    contentFocus.requestFocus()
-                },
+                onSelect = { section, isOpen -> selectSection(section, isOpen) },
                 focus = TvSideNavFocus(nav = navFocus, content = contentFocus),
                 account = rootState.account,
                 modifier = Modifier

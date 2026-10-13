@@ -227,7 +227,7 @@ private fun SaveRow(saving: Boolean, error: String?, onSave: () -> Unit) {
 /**
  * Строка настройки: слева ярлык, справа значение. Фокус рисуем вручную (рамка + подъём фона),
  * а не через `TvFocusCard`: `verticalScroll` клипает контент по горизонтали, и масштаб 1.08 на
- * строке 640dp вылезал бы за края — та же причина, что и в [TvProfileScreen].
+ * строке 640dp вылезал бы за края.
  */
 @Composable
 private fun SettingRow(

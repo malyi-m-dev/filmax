@@ -22,19 +22,20 @@ import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
  *
  * Схема своя, а не производная от мобильной: у телефона и телевизора разные поверхности.
  *
- * `primary` = [TvAccent] — цвет главного действия. `border` = [TvFocus], поэтому стандартная
- * обводка фокуса у TV-Surface — белая.
+ * `primary` — акцент палитры [colors]: цвет главного действия. `border` = [TvFocus], поэтому
+ * стандартная обводка фокуса у TV-Surface — белая. Палитру выбирают в Профиле; смена [colors]
+ * перекрашивает весь ТВ-UI сразу — через [LocalFxColors] и Material-схемы.
  */
 @Composable
-fun FilmaxTvTheme(content: @Composable () -> Unit) {
+fun FilmaxTvTheme(colors: FxColors = Violet, content: @Composable () -> Unit) {
     val composeScheme = darkColorScheme(
-        primary = TvAccent,
-        onPrimary = TvOnAccent,
+        primary = colors.accent,
+        onPrimary = colors.onAccent,
         primaryContainer = TvSurfaceContainerHigh,
         onPrimaryContainer = TvOnSurface,
-        surface = TvSurface,
+        surface = colors.background,
         onSurface = TvOnSurface,
-        background = TvSurface,
+        background = colors.background,
         onBackground = TvOnSurface,
         surfaceContainer = TvSurfaceContainer,
         surfaceContainerHigh = TvSurfaceContainerHigh,
@@ -47,15 +48,15 @@ fun FilmaxTvTheme(content: @Composable () -> Unit) {
     )
 
     val tvScheme = tvDarkColorScheme(
-        primary = TvAccent,
-        onPrimary = TvOnAccent,
+        primary = colors.accent,
+        onPrimary = colors.onAccent,
         primaryContainer = TvSurfaceContainerHigh,
         onPrimaryContainer = TvOnSurface,
-        surface = TvSurface,
+        surface = colors.background,
         onSurface = TvOnSurface,
         surfaceVariant = TvSurfaceContainerHigh,
         onSurfaceVariant = TvOnSurfaceVariant,
-        background = TvSurface,
+        background = colors.background,
         onBackground = TvOnSurface,
         border = TvFocus,
         error = TvError,
@@ -69,7 +70,7 @@ fun FilmaxTvTheme(content: @Composable () -> Unit) {
     ) {
         TvMaterialTheme(colorScheme = tvScheme) {
             CompositionLocalProvider(
-                LocalFxColors provides Violet,
+                LocalFxColors provides colors,
                 LocalReducedMotion provides rememberReducedMotion(),
                 LocalLightEffects provides rememberLightEffects(),
             ) {
