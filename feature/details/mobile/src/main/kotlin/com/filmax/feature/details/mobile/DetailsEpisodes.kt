@@ -25,11 +25,11 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxProgressCard
-import com.filmax.core.ui.components.durationLabel
-import com.filmax.feature.details.common.WATCH_STATUS_FINISHED
-import com.filmax.feature.details.common.WATCH_STATUS_IN_PROGRESS
-
-private const val SECONDS_IN_MINUTE = 60
+import com.filmax.feature.details.common.episodeMeta
+import com.filmax.feature.details.common.episodeProgress
+import com.filmax.feature.details.common.episodeTitle
+import com.filmax.feature.details.common.seasonLabel
+import com.filmax.feature.details.common.startEpisodeIndex
 
 private const val EPISODES_TITLE = "Эпизоды"
 
@@ -70,7 +70,7 @@ internal fun EpisodesSection(data: EpisodesSectionData, modifier: Modifier = Mod
         key(data.selectedSeason) {
             EpisodesCarousel(
                 episodes = data.episodes,
-                startIndex = startEpisodeIndex(data.episodes, data.resume),
+                startIndex = startEpisodeIndex(data.episodes, data.resume?.id),
                 onPlayEpisode = data.onPlayEpisode,
                 modifier = Modifier.padding(top = 16.dp),
             )
@@ -134,45 +134,4 @@ private fun EpisodesCarousel(
             )
         }
     }
-}
-
-/**
- * С какой серии открыть карусель: «продолжить», если она в этом сезоне, иначе первая
- * недосмотренная — листать к ней от начала сезона пришлось бы руками.
- */
-private fun startEpisodeIndex(episodes: List<MediaTrack>, resume: MediaTrack?): Int {
-    val resumeIndex = episodes.indexOfFirst { it.id == resume?.id }
-    if (resumeIndex >= 0) return resumeIndex
-    return episodes.indexOfFirst { it.watchStatus != WATCH_STATUS_FINISHED }.coerceAtLeast(0)
-}
-
-/** «Сезон 1»; у тайтла без сезонов (kino.pub отдаёт 0) сезона нет — есть просто серии. */
-private fun seasonLabel(number: Int): String = if (number > 0) "Сезон $number" else "Серии"
-
-/** Название серии, а у безымянной — её номер. */
-private fun episodeTitle(episode: MediaTrack): String = episode.title.ifBlank { "Серия ${episode.number}" }
-
-/** «Серия 3 · осталось 18 мин»: номер (если его нет в заголовке) и где в серии зритель. */
-private fun episodeMeta(episode: MediaTrack): String = buildList {
-    if (episode.title.isNotBlank()) add("Серия ${episode.number}")
-    episodeState(episode)?.let(::add)
-}.joinToString(" · ")
-
-/** Досмотрена, сколько осталось в начатой или длительность нетронутой. */
-private fun episodeState(episode: MediaTrack): String? = when (episode.watchStatus) {
-    WATCH_STATUS_FINISHED -> "просмотрено"
-    WATCH_STATUS_IN_PROGRESS -> remainingLabel(episode) ?: "смотрите"
-    else -> episode.durationSeconds.takeIf { it > 0 }?.let { durationLabel(it / SECONDS_IN_MINUTE) }
-}
-
-private fun remainingLabel(episode: MediaTrack): String? {
-    val remainingMinutes = (episode.durationSeconds - episode.watchedSeconds) / SECONDS_IN_MINUTE
-    return remainingMinutes.takeIf { it > 0 }?.let { "осталось ${durationLabel(it)}" }
-}
-
-/** Досмотренная — полная полоса: так её видно издалека, даже если kino.pub не прислал время. */
-private fun episodeProgress(episode: MediaTrack): Float = when {
-    episode.watchStatus == WATCH_STATUS_FINISHED -> 1f
-    episode.durationSeconds > 0 -> episode.watchedSeconds.toFloat() / episode.durationSeconds
-    else -> 0f
 }
