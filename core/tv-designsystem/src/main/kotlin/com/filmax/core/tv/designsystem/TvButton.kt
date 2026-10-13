@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
@@ -25,8 +26,14 @@ private val PrimaryPadding = 22.dp
 private val SecondaryPadding = 20.dp
 
 /**
- * Кнопка для пульта. [primary] — главное действие экрана: заливка акцентом палитры. Вторичная —
- * стекло поверх кадра. Фокус — общий для всех элементов: рамка, свечение, масштаб
+ * Вид кнопки: [Primary] — главное действие экрана, заливка акцентом палитры; [Secondary] —
+ * стекло поверх кадра; [Light] — белая с тёмным текстом: главное действие на цветной шапке
+ * подборки и папки, где акцентная заливка сливалась бы с фоном.
+ */
+enum class TvButtonStyle { Primary, Secondary, Light }
+
+/**
+ * Кнопка для пульта, вид — [style]. Фокус — общий для всех элементов: рамка, свечение, масштаб
  * ([TvFocusSurface]).
  */
 // Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier — прямой
@@ -37,27 +44,22 @@ fun TvButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    primary: Boolean = true,
+    style: TvButtonStyle = TvButtonStyle.Primary,
     leadingIcon: ImageVector? = null,
     focusRequester: FocusRequester? = null,
 ) {
-    val colors = LocalFxColors.current
     TvFocusSurface(
         onClick = onClick,
         modifier = modifier
             .height(ButtonHeight)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
         style = TvFocusStyle.Button,
-        colors = if (primary) {
-            TvSurfaceColors(container = colors.accent, content = colors.onAccent)
-        } else {
-            TvSurfaceColors(container = colors.surfaceHigh, content = colors.text)
-        },
+        colors = buttonColors(style),
     ) {
         Row(
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(horizontal = if (primary) PrimaryPadding else SecondaryPadding),
+                .padding(horizontal = if (style == TvButtonStyle.Secondary) SecondaryPadding else PrimaryPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -92,5 +94,15 @@ fun TvIconButton(
             contentDescription = contentDescription,
             modifier = Modifier.align(Alignment.Center).size(IconButtonGlyph),
         )
+    }
+}
+
+@Composable
+private fun buttonColors(style: TvButtonStyle): TvSurfaceColors {
+    val colors = LocalFxColors.current
+    return when (style) {
+        TvButtonStyle.Primary -> TvSurfaceColors(container = colors.accent, content = colors.onAccent)
+        TvButtonStyle.Secondary -> TvSurfaceColors(container = colors.surfaceHigh, content = colors.text)
+        TvButtonStyle.Light -> TvSurfaceColors(container = Color.White, content = colors.background)
     }
 }

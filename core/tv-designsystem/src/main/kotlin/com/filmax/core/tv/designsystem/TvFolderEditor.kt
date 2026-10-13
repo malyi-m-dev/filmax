@@ -260,6 +260,6 @@ private fun EditorButtons(state: TvFolderEditorState, actions: TvFolderEditorAct
             leadingIcon = Icons.Rounded.Check,
             modifier = Modifier.alpha(if (state.canConfirm) 1f else DISABLED_ALPHA),
         )
-        TvButton(text = "Отмена", onClick = actions.onCancel, primary = false)
+        TvButton(text = "Отмена", onClick = actions.onCancel, style = TvButtonStyle.Secondary)
     }
 }

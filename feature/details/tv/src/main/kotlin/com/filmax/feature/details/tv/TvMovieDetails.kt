@@ -38,6 +38,7 @@ import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
 import com.filmax.core.tv.designsystem.TvBackHint
 import com.filmax.core.tv.designsystem.TvBackdrop
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvRail
@@ -147,18 +148,18 @@ private fun MovieButtons(
         TvButton(
             if (inWatchLater) "В списке" else "Буду смотреть",
             onClick = actions.onToggleWatchLater,
-            primary = false,
+            style = TvButtonStyle.Secondary,
             leadingIcon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
         )
         TvButton(
             "В папку",
             onClick = { folders.onEvent(FolderPickerEvent.Open) },
-            primary = false,
+            style = TvButtonStyle.Secondary,
             leadingIcon = folderIcon(folders.state.inAnyFolder),
             focusRequester = folders.buttonFocus,
         )
         actions.onTrailer?.let { onTrailer ->
-            TvButton("Трейлер", onClick = onTrailer, primary = false, leadingIcon = Icons.Rounded.Movie)
+            TvButton("Трейлер", onClick = onTrailer, style = TvButtonStyle.Secondary, leadingIcon = Icons.Rounded.Movie)
         }
     }
 }

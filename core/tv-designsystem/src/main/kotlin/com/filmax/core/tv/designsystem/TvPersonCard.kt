@@ -38,7 +38,7 @@ fun TvPersonCard(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     Column(
-        modifier = modifier.width(PersonCardWidth).railDim(focused),
+        modifier = modifier.width(PersonCardWidth).tvNeighborDim(focused),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

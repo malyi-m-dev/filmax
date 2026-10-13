@@ -88,7 +88,7 @@ fun TvPosterCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    Column(modifier.width(size.width).railDim(focused)) {
+    Column(modifier.width(size.width).tvNeighborDim(focused)) {
         TvFocusSurface(
             onClick = onClick,
             onLongClick = onLongClick,
@@ -136,7 +136,7 @@ fun TvProgressCard(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val captionInside = size == TvCardSize.Continue
-    Column(modifier.width(size.width).railDim(focused)) {
+    Column(modifier.width(size.width).tvNeighborDim(focused)) {
         TvFocusSurface(
             onClick = onClick,
             onLongClick = onLongClick,
