@@ -4,12 +4,12 @@ import com.filmax.core.domain.downloads.DownloadsRepository
 import com.filmax.core.domain.downloads.model.DownloadedItem
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.FavoriteItem
-import com.filmax.core.domain.user.FolderAppearanceRepository
-import com.filmax.core.domain.user.model.FolderAppearance
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.domain.settings.ThemeSettingsRepository
+import com.filmax.core.domain.user.FolderAppearanceRepository
+import com.filmax.core.domain.user.model.FolderAppearance
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

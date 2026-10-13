@@ -282,6 +282,7 @@ dependencies {
     testImplementation(bom)
     testImplementation(libs.compose.ui.test.junit4)
     testImplementation(libs.robolectric)
+    testImplementation(project(":core:testing"))
     testImplementation(libs.kotlin.test.junit)
     debugImplementation(libs.compose.ui.test.manifest)
 }

@@ -16,6 +16,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
@@ -51,6 +52,9 @@ class TvProfileFocusTest {
 
     @get:Rule
     val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val playback = FakePlaybackSettingsRepository()
