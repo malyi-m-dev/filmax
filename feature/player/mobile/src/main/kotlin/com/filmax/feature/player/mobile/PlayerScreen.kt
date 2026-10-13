@@ -1,3 +1,7 @@
+// Экран плеера: поверхность ExoPlayer, оверлей контролов, эффекты автоскрытия и сохранения
+// прогресса, плашка «нужна подписка». Композиция экрана цельная намеренно — почему, сказано
+// над PlayerScreen; кнопки и чип качества, из которых собран оверлей, — в PlayerControls.
+
 package com.filmax.feature.player.mobile
 
 import androidx.compose.animation.AnimatedVisibility
@@ -18,12 +22,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClosedCaption
@@ -58,7 +60,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -568,29 +569,5 @@ private fun SubscriptionBanner(modifier: Modifier = Modifier) {
             color = Color.White.copy(alpha = 0.8f),
             fontSize = 12.sp,
         )
-    }
-}
-
-@Composable
-private fun GlassBtn(size: Dp = 52.dp, onClick: () -> Unit, content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier.size(size).clip(CircleShape).background(Color(0x1FFFFFFF)).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { content() }
-}
-
-@Composable
-private fun QualityChip(text: String, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(Color(0x26FFFFFF))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(text, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-        Icon(Icons.Filled.ArrowDropDown, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
     }
 }
