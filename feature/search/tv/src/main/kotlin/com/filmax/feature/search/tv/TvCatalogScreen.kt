@@ -1,86 +1,59 @@
 package com.filmax.feature.search.tv
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SearchOff
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.SortOption
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
-import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
-import com.filmax.core.tv.designsystem.TvMetrics
-import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
-import com.filmax.core.tv.designsystem.TvPosterCard
+import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvScreenFocus
-import com.filmax.core.tv.designsystem.TvSurface
-import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.core.tv.designsystem.TvSheetHost
+import com.filmax.core.tv.designsystem.fxBackdrop
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
-import com.filmax.core.ui.components.VoiceListeningDialog
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.rememberInAppVoiceSearch
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
+import com.filmax.feature.search.common.SearchSideEffect
 import com.filmax.feature.search.common.SearchState
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-/** Сетка постеров: 4×190dp + 3×18dp зазора ровно ложатся в 844dp между safe area. */
-private const val GRID_COLUMNS = 4
+/** Ключ поля поиска — стартовая цель экрана и точка возврата. */
+internal const val SEARCH_KEY = "search"
 
-/** За сколько хвостовых рядов сетки до конца просить следующую страницу витрины. */
-private const val LOAD_MORE_TAIL = 3
-
-/** Ключ фокуса строки поиска — стартовая цель экрана и точка возврата. */
-private const val SEARCH_KEY = "search"
-
-/** Высота строки поиска: одна на кнопку и на поле ввода, чтобы шапка не прыгала. */
-internal val SearchBarHeight = 56.dp
+/** Ключ лучшего совпадения — точка возврата из деталей, открытых из поиска. */
+internal const val BEST_MATCH_KEY = "match"
 
 /**
- * TV-Каталог (экран «Каталог» макета) — витрина, а не строка поиска: сетка постеров живёт по
- * фильтрам тип/жанр/сортировка и наполнена ещё до того, как зритель набрал первую букву.
+ * ТВ-Каталог (макеты S05, S06, S16, S25) — витрина и поиск в одном разделе.
  *
- * Текст набирают системной клавиатурой телевизора: строка поиска — обычное поле ввода, и по
- * «ОК» на нём открывается та же клавиатура, к которой зритель привык в остальных приложениях,
- * с его раскладками, историей и голосовым вводом самой платформы. Своя экранная клавиатура тут
- * была: три раскладки, свой курсор и своя живая выдача рядом — четыреста строк, повторявших
- * платформу хуже неё самой. Выдачу показывает сама сетка: `visibleItems` переключается на
- * результаты, как только в запросе набирается пара символов.
+ * Витрина — сетка постеров по фильтрам тип/жанр/сортировка, наполненная ещё до первой буквы:
+ * поле поиска и чипы живут в той же сетке и уезжают со скроллом. «ОК» на поле открывает поиск —
+ * своя экранная клавиатура слева, «Лучшее совпадение» и остальные результаты справа; «Назад»
+ * возвращает витрину ровно такой, какой она была. Голос — оверлей поверх размытого каталога.
  *
- * Поверх общего [SearchScreenModel] — тот же debounce-поиск, что и на телефоне.
+ * Состояние экрана целиком в [SearchScreenModel] — тот же, что у телефонного каталога; экран
+ * только рисует его и отдаёт события. Своё у экрана — только фокус и распознаватель речи.
  */
 @Composable
 fun TvCatalogScreen(
@@ -88,169 +61,168 @@ fun TvCatalogScreen(
     screenModel: SearchScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
-    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
     val state by screenModel.collectAsState()
-    val focus = rememberTvScreenFocus(startAt = SEARCH_KEY)
-    val listState = rememberLazyListState()
-
-    // Голос слушаем внутри приложения (SpeechRecognizer), без стороннего экрана распознавания.
-    val voice = rememberInAppVoiceSearch { spoken ->
-        screenModel.dispatch(SearchEvent.SubmitQuery(spoken))
+    val catalogFocus = rememberCatalogFocus()
+    val voice = rememberCatalogVoice { spoken ->
+        screenModel.dispatch(SearchEvent.OpenSearch(spoken))
+        catalogFocus.moveTo(CatalogTarget.KEYBOARD)
     }
-    VoiceListeningDialog(voice)
+    val actions = remember(screenModel, navigator, catalogFocus, voice) {
+        catalogActions(screenModel, navigator, catalogFocus, voice)
+    }
 
     // Витрину и жанры тянем только здесь: телефонный поиск с тем же ScreenModel показывает
     // подсказки, и выдача каталога ему не нужна.
     LaunchedEffect(Unit) { screenModel.dispatch(SearchEvent.LoadCatalog) }
-
-    Box(modifier.fillMaxSize().background(TvSurface)) {
-        CatalogContent(
-            state = state,
-            listState = listState,
-            focus = focus,
-            actions = CatalogActions(
-                onOpenItem = onOpenItem,
-                onQuery = { screenModel.dispatch(SearchEvent.QueryChange(it)) },
-                onVoice = voice::start,
-                onEditingFinished = { focus.focusOn(SEARCH_KEY) },
-                onFilter = { screenModel.dispatch(SearchEvent.FilterChange(it)) },
-                onSort = { screenModel.dispatch(SearchEvent.SortChange(it)) },
-                onGenre = { screenModel.dispatch(SearchEvent.GenreChange(it)) },
-                onApplyFilters = { screenModel.dispatch(SearchEvent.ApplyFilters(it)) },
-            ),
-            onLoadMore = { screenModel.dispatch(SearchEvent.LoadMoreCatalog) },
-        )
-    }
-}
-
-/** Действия каталога одним объектом — как TvHomeActions на главной. */
-internal data class CatalogActions(
-    val onOpenItem: (Int) -> Unit,
-    val onQuery: (String) -> Unit,
-    val onVoice: () -> Unit,
-    /** Ввод закончен: фокус возвращаем на строку поиска, уже снова кнопку. */
-    val onEditingFinished: () -> Unit,
-    val onFilter: (ItemType?) -> Unit,
-    val onSort: (SortOption) -> Unit,
-    val onGenre: (Int?) -> Unit,
-    val onApplyFilters: (CatalogFilters) -> Unit,
-)
-
-@Composable
-private fun CatalogContent(
-    state: SearchState,
-    listState: LazyListState,
-    focus: TvScreenFocus,
-    actions: CatalogActions,
-    onLoadMore: () -> Unit,
-) {
-    ScrollToTopOnNavFocus(listState)
-    val gridItems = state.visibleItems
-    // Постеры бьём на ряды по GRID_COLUMNS и кладём в ОБЩИЙ LazyColumn вместе с шапкой — так
-    // скроллится ВЕСЬ экран (шапка уезжает вверх), а не только сетка под фиксированной шапкой,
-    // которая занимала пол-экрана. Фокус ходит одним списком: «вниз» из чипов идёт в постеры,
-    // «вверх» с первого ряда прокручивает шапку обратно и уходит на таб-бар (как на Главной).
-    val rows = remember(gridItems) { gridItems.chunked(GRID_COLUMNS) }
-
-    // Догрузка витрины: фокус/скролл в LOAD_MORE_TAIL хвостовых рядах — просим следующую
-    // страницу. derivedStateOf пересчитывается без рекомпозиции, дёргает её только смена
-    // «пора/не пора»; повторные вызовы гасит идемпотентность модели.
-    val loadMore by remember {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
-            info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            SearchSideEffect.FocusBestMatch -> catalogFocus.moveTo(CatalogTarget.BEST_MATCH)
         }
     }
-    LaunchedEffect(loadMore) { if (loadMore) onLoadMore() }
+    // «Назад» в поиске — к витрине, фокус на поле. Пока слушает голос, «Назад» — его отмена.
+    BackHandler(enabled = state.searchOpen && !voice.controller.active) { actions.onCloseSearch() }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize().then(focus.containerModifier),
-        contentPadding = PaddingValues(
-            top = TvMetrics.ContentTop,
-            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
-        ),
-        verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
+    val screenFocus = rememberTvScreenFocus(startAt = SEARCH_KEY)
+    val focus = remember(screenFocus, catalogFocus) { CatalogScreenFocus(screenFocus, catalogFocus) }
+    TvCatalogContent(state = state, actions = actions, focus = focus, voice = voice, modifier = modifier)
+}
+
+/**
+ * Экран целиком: витрина или поиск, боковые панели над ними и голосовой оверлей поверх всего.
+ * Сетка помнит прокрутку, пока открыт поиск, — состояние списка живёт здесь, над обоими режимами.
+ */
+@Composable
+internal fun TvCatalogContent(
+    state: SearchState,
+    actions: CatalogActions,
+    focus: CatalogScreenFocus,
+    voice: CatalogVoice,
+    modifier: Modifier = Modifier,
+) {
+    val gridState = rememberLazyGridState()
+    val chrome = remember(gridState) { CatalogGridChrome(gridState, SheetOpeners()) }
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(LocalFxColors.current.background)
+            .onPreviewKeyEvent { event ->
+                // Кнопка поиска на пульте — сразу голос: на телевизоре это и есть поиск.
+                val searchKey = event.type == KeyEventType.KeyDown && event.key == Key.Search
+                if (searchKey && !voice.controller.active) actions.onVoice()
+                searchKey
+            },
     ) {
-        item(key = "header") {
-            CatalogHeader(
+        TvSheetHost(
+            open = state.sheetOpen,
+            onClose = { actions.dispatch(SearchEvent.CloseSheet) },
+            returnFocus = chrome.sheetOpeners.of(state.sheet),
+            sheet = { CatalogSheetContent(state, actions.dispatch) },
+        ) {
+            CatalogModes(
                 state = state,
-                searchModifier = focus.item(SEARCH_KEY),
                 actions = actions,
-                modifier = Modifier.fillMaxWidth(),
+                focus = focus,
+                chrome = chrome,
+                modifier = Modifier.fxBackdrop(voice.controller.active, VoiceBackdropBlur),
             )
         }
-        if (gridItems.isEmpty() && !state.loading) {
-            item(key = "empty") { CatalogEmpty() }
-        }
-        itemsIndexed(rows, key = { index, _ -> "row-$index" }) { _, row ->
-            CatalogPosterRow(row = row, onOpenItem = actions.onOpenItem, focus = focus)
-        }
-        if (state.catalogLoadingMore) {
-            item(key = "loading_more") { CatalogLoadingMore() }
+        TvVoiceOverlay(voice, focus.jumps)
+    }
+}
+
+/** Витрина или поиск — по состоянию модели; подсветка палитры сверху — общая для обоих. */
+@Composable
+private fun CatalogModes(
+    state: SearchState,
+    actions: CatalogActions,
+    focus: CatalogScreenFocus,
+    chrome: CatalogGridChrome,
+    modifier: Modifier,
+) {
+    Box(modifier.fillMaxSize().catalogWash().then(focus.screen.containerModifier)) {
+        if (state.searchOpen) {
+            TvSearchPanel(state, actions, focus)
+        } else {
+            TvCatalogGrid(state, actions, focus, chrome)
         }
     }
 }
 
-/** Хвостовой индикатор догрузки страницы — невысокий, чтобы не дёргать сетку. */
+/** Подсветка палитры у верхнего края: эллипс 50% ширины на 260dp, центр — на 80% ширины (как в макете). */
+private val WashHeight = 260.dp
+private const val WASH_CENTER_X = 0.8f
+private const val WASH_HALF_WIDTH = 0.5f
+private const val WASH_FADE = 0.75f
+
 @Composable
-private fun CatalogLoadingMore() {
-    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = TvOnSurfaceVariant, modifier = Modifier.size(28.dp))
+private fun Modifier.catalogWash(): Modifier {
+    val wash = LocalFxColors.current.wash
+    return drawBehind {
+        val radius = WashHeight.toPx()
+        val center = Offset(size.width * WASH_CENTER_X, 0f)
+        // Градиент Compose круглый — эллипс макета получается растяжением круга по ширине.
+        scale(scaleX = size.width * WASH_HALF_WIDTH / radius, scaleY = 1f, pivot = center) {
+            drawCircle(
+                Brush.radialGradient(0f to wash, WASH_FADE to Color.Transparent, center = center, radius = radius),
+                radius = radius,
+                center = center,
+            )
+        }
+    }
+}
+
+/** Фокус экрана: вход и возврат из деталей ([TvScreenFocus]) и переходы на живом экране. */
+@Stable
+internal class CatalogScreenFocus(val screen: TvScreenFocus, val jumps: CatalogFocus)
+
+/** Чипы, открывающие боковые панели: закрытая панель возвращает фокус на свой. */
+@Stable
+internal class SheetOpeners {
+    val sort = FocusRequester()
+    val filters = FocusRequester()
+
+    fun of(sheet: CatalogSheet): FocusRequester = when (sheet) {
+        CatalogSheet.SORT -> sort
+        CatalogSheet.FILTERS -> filters
     }
 }
 
 /**
- * Ряд сетки: до [GRID_COLUMNS] постеров фиксированной ширины с шагом CardGap, по левому краю
- * safe area. Хвостовые пустые ячейки не добираем — последний ряд просто короче.
+ * Действия экрана одним объектом. Почти всё — событие модели как есть ([dispatch]); отдельно —
+ * то, что кроме события двигает фокус или навигацию.
  */
-@Composable
-private fun CatalogPosterRow(row: List<Item>, onOpenItem: (Int) -> Unit, focus: TvScreenFocus) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = TvMetrics.SafeHorizontal),
-        horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
-    ) {
-        row.forEach { item ->
-            CatalogPoster(
-                item = item,
-                modifier = focus.item("grid:${item.id}"),
-                onClick = { onOpenItem(item.id) },
-            )
-        }
-    }
-}
+internal data class CatalogActions(
+    val dispatch: (SearchEvent) -> Unit,
+    /** Карточка витрины — в детали. */
+    val onOpenItem: (Int) -> Unit,
+    /** Результат поиска — в детали; запрос запоминается в недавних. */
+    val onOpenResult: (Int) -> Unit,
+    /** «ОК» на поле поиска: поиск открыт, фокус — на клавиатуре. */
+    val onOpenSearch: () -> Unit,
+    /** «Назад» в поиске: витрина, фокус — на поле. */
+    val onCloseSearch: () -> Unit,
+    val onVoice: () -> Unit,
+)
 
-@Composable
-private fun CatalogEmpty() {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Icon(
-            Icons.Filled.SearchOff,
-            contentDescription = null,
-            tint = TvSurfaceContainerHighest,
-            modifier = Modifier.size(34.dp),
-        )
-        Text("Ничего не найдено", style = MaterialTheme.typography.titleMedium, color = TvOnSurface)
-        Text(
-            "Измените фильтры или запрос",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TvOnSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun CatalogPoster(item: Item, modifier: Modifier, onClick: () -> Unit) {
-    TvPosterCard(
-        title = item.title,
-        meta = posterMeta(typeLabel(item.type), item.year),
-        posterUrl = item.posters.medium.ifEmpty { item.posters.big },
-        onClick = onClick,
-        modifier = modifier,
-        rating = ratingLabel(item.rating.external),
-    )
-}
+private fun catalogActions(
+    screenModel: SearchScreenModel,
+    navigator: Navigator,
+    focus: CatalogFocus,
+    voice: CatalogVoice,
+) = CatalogActions(
+    dispatch = screenModel::dispatch,
+    onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
+    onOpenResult = { itemId ->
+        screenModel.dispatch(SearchEvent.ResultOpened)
+        navigator.open(Destination.Details(itemId))
+    },
+    onOpenSearch = {
+        screenModel.dispatch(SearchEvent.OpenSearch())
+        focus.moveTo(CatalogTarget.KEYBOARD)
+    },
+    onCloseSearch = {
+        screenModel.dispatch(SearchEvent.CloseSearch)
+        focus.moveTo(CatalogTarget.SEARCH_FIELD)
+    },
+    onVoice = voice::start,
+)

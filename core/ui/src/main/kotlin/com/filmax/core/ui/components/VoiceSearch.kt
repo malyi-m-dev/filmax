@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -25,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -39,9 +42,33 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 
 /**
+ * Пауза после речи, после которой фраза считается сказанной. Своя, а не только подсказка
+ * распознавателю: подсказку EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS многие сервисы
+ * распознавания на ТВ игнорируют и ждут по 3–5 секунд.
+ */
+private const val SILENCE_MILLIS = 1_500L
+
+/** Громкость из onRmsChanged, дБ: ниже — тишина комнаты, выше — уверенная речь у пульта. */
+private const val RMS_QUIET_DB = -2f
+private const val RMS_LOUD_DB = 10f
+
+/** Ключ хвоста, который распознаватель Google помечает неустойчивым (нет в публичном API). */
+private const val EXTRA_UNSTABLE_TEXT = "android.speech.extra.UNSTABLE_TEXT"
+
+/** Почему голосовой ввод не состоялся — то, что стоит показать зрителю, а не просто закрыть. */
+enum class VoiceSearchError {
+    /** Нет сети или сервис распознавания не ответил. */
+    NETWORK,
+
+    /** Зритель не дал доступ к микрофону. */
+    PERMISSION,
+}
+
+/**
  * Голосовой ввод БЕЗ стороннего экрана: слушаем микрофон через [SpeechRecognizer] прямо в
- * приложении, состояние (идёт слушание + частичный текст) отдаём Compose-стейтом —
- * его рисует [VoiceListeningDialog]. Финальная фраза уходит в onResult.
+ * приложении и отдаём Compose-стейтом всё, что нужно нарисовать слушание: идёт ли оно, текст по
+ * ходу речи ([transcript]), громкость ([level]) и ошибку ([error]). Телефон рисует его
+ * [VoiceListeningDialog], ТВ — своим оверлеем. Финальная фраза уходит в onResult.
  *
  * Порядок запуска в [start]: нет разрешения на микрофон → системный запрос (после согласия
  * слушание стартует само); сервис распознавания недоступен → фолбэк на внешний
@@ -62,14 +89,31 @@ class VoiceSearchController internal constructor(
     var listening by mutableStateOf(false)
         private set
 
-    /** Частичный распознанный текст — «эхо» того, что уже услышано. */
-    var partialText by mutableStateOf("")
+    /** Текст по ходу речи: подтверждённая часть и гипотеза. */
+    var transcript by mutableStateOf(VoiceTranscript())
         private set
 
+    /** Частичный распознанный текст целиком — «эхо» того, что уже услышано. */
+    val partialText: String get() = transcript.text
+
+    /** Громкость речи 0..1 — для эквалайзера; вне слушания 0. */
+    var level by mutableFloatStateOf(0f)
+        private set
+
+    /** Ошибка, которую стоит показать; тишина и «не расслышал» ошибкой не считаются. */
+    var error by mutableStateOf<VoiceSearchError?>(null)
+        private set
+
+    /** Слушание на экране: идёт или кончилось ошибкой, которую зритель ещё не закрыл. */
+    val active: Boolean get() = listening || error != null
+
     private var recognizer: SpeechRecognizer? = null
+    private val silenceTimer = Handler(Looper.getMainLooper())
+    private val stopOnSilence = Runnable { recognizer?.stopListening() }
 
     /** Точка входа кнопки «Голос». */
     fun start() {
+        error = null
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         when {
@@ -79,9 +123,10 @@ class VoiceSearchController internal constructor(
         }
     }
 
-    /** Останов без результата (закрытие диалога, «Назад»). */
+    /** Останов без результата (закрытие диалога, «Назад»); заодно закрывает показанную ошибку. */
     fun cancel() {
-        listening = false
+        finish()
+        error = null
         recognizer?.cancel()
     }
 
@@ -90,41 +135,78 @@ class VoiceSearchController internal constructor(
             created.setRecognitionListener(this)
             recognizer = created
         }
-        partialText = ""
+        transcript = VoiceTranscript()
+        error = null
         listening = true
         speech.startListening(recognizeIntent())
     }
 
+    /** Зритель отказал в микрофоне — показываем, почему голос не работает, а не молчим. */
+    internal fun permissionDenied() {
+        error = VoiceSearchError.PERMISSION
+    }
+
     internal fun destroy() {
+        silenceTimer.removeCallbacks(stopOnSilence)
         recognizer?.destroy()
         recognizer = null
     }
 
     override fun onPartialResults(partialResults: Bundle?) {
-        bestMatch(partialResults)?.let { partialText = it }
+        val heard = bestMatch(partialResults) ?: return
+        val unstable = partialResults?.getStringArrayList(EXTRA_UNSTABLE_TEXT)?.firstOrNull()
+        val next = nextTranscript(transcript.text, heard, unstable)
+        val changed = next.text != transcript.text
+        transcript = next
+        // Текст изменился — речь идёт; не меняется SILENCE_MILLIS — фраза сказана.
+        if (changed) {
+            silenceTimer.removeCallbacks(stopOnSilence)
+            silenceTimer.postDelayed(stopOnSilence, SILENCE_MILLIS)
+        }
     }
 
     override fun onResults(results: Bundle?) {
-        listening = false
+        finish()
         bestMatch(results)?.takeIf { it.isNotBlank() }?.let(onResult)
     }
 
     override fun onError(error: Int) {
-        // Любая ошибка (тишина, таймаут, сеть) просто закрывает слушание — без модалок:
-        // пользователь видит, что плашка исчезла, и может нажать «Голос» ещё раз.
-        listening = false
+        finish()
+        // Тишина и «не расслышал» просто закрывают слушание — зритель видит, что оверлей исчез, и
+        // может нажать «Голос» ещё раз. Сеть и разрешение — объясняем: повтор тут не поможет.
+        this.error = when (error) {
+            SpeechRecognizer.ERROR_NETWORK,
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT,
+            SpeechRecognizer.ERROR_SERVER,
+            -> VoiceSearchError.NETWORK
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> VoiceSearchError.PERMISSION
+            else -> null
+        }
+    }
+
+    override fun onRmsChanged(rmsdB: Float) {
+        level = voiceLevel(rmsdB)
     }
 
     override fun onReadyForSpeech(params: Bundle?) = Unit
     override fun onBeginningOfSpeech() = Unit
-    override fun onRmsChanged(rmsdB: Float) = Unit
     override fun onBufferReceived(buffer: ByteArray?) = Unit
     override fun onEndOfSpeech() = Unit
     override fun onEvent(eventType: Int, params: Bundle?) = Unit
 
+    private fun finish() {
+        silenceTimer.removeCallbacks(stopOnSilence)
+        listening = false
+        level = 0f
+    }
+
     private fun bestMatch(bundle: Bundle?): String? =
         bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
 }
+
+/** Громкость onRmsChanged (дБ) в долю 0..1 для эквалайзера. */
+internal fun voiceLevel(rmsDb: Float): Float =
+    ((rmsDb - RMS_QUIET_DB) / (RMS_LOUD_DB - RMS_QUIET_DB)).coerceIn(0f, 1f)
 
 /** Создаёт контроллер голосового ввода; жизненный цикл распознавателя привязан к композиции. */
 @Composable
@@ -139,7 +221,7 @@ fun rememberInAppVoiceSearch(onResult: (String) -> Unit): VoiceSearchController 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) holder.value?.startListening()
+        if (granted) holder.value?.startListening() else holder.value?.permissionDenied()
     }
 
     val controller = remember {
@@ -223,4 +305,5 @@ private fun recognizeIntent(): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE
     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
     putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+    putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_MILLIS)
 }

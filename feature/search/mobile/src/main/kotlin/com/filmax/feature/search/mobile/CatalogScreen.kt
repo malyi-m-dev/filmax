@@ -95,7 +95,11 @@ fun CatalogScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
+    val onOpenItem: (Int) -> Unit = { itemId ->
+        // Открытый результат — повод запомнить запрос в недавних (без запроса модель промолчит).
+        screenModel.dispatch(SearchEvent.ResultOpened)
+        navigator.open(Destination.Details(itemId))
+    }
     var searchMode by remember { mutableStateOf(false) }
     var filtersOpen by remember { mutableStateOf(false) }
 

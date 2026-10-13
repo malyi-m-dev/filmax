@@ -4,9 +4,6 @@ package com.filmax.core.tv.designsystem
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -30,25 +27,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 
 private val SheetWidth = 560.dp
 private val SheetMargin = 10.dp
-private val BackdropBlur = 8.dp
-private const val BACKDROP_DIM = 0.62f
-private const val BACKDROP_FADE_MS = 300
 private const val SHEET_ALPHA = 0.94f
-
-/** Цвет затемнения экрана под панелью — глубже фона палитры, чтобы панель отделялась. */
-private val BackdropColor = Color(0xFF06050C)
 
 /**
  * Хост боковой панели. [content] — экран; пока [open], он размыт (Android 12+, ниже и в
@@ -65,26 +51,10 @@ fun TvSheetHost(
     sheet: @Composable BoxScope.() -> Unit,
     content: @Composable () -> Unit,
 ) {
-    // Размытие и затемнение читаются при отрисовке: анимация 300 мс не перекомпонует экран под
-    // панелью. Размытие — только не в облегчённом режиме: на слабом GPU оно дороже всего экрана.
-    val blurRadius = if (LocalLightEffects.current) 0.dp else BackdropBlur
-    val blur = animateDpAsState(if (open) blurRadius else 0.dp, tween(BACKDROP_FADE_MS), label = "sheetBlur")
-    val dim = animateFloatAsState(if (open) BACKDROP_DIM else 0f, tween(BACKDROP_FADE_MS), label = "sheetDim")
     BackHandler(enabled = open, onBack = onClose)
     ReturnFocusOnClose(open, returnFocus)
     Box(Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    val radius = blur.value.toPx()
-                    renderEffect = if (radius > 0f) BlurEffect(radius, radius, TileMode.Decal) else null
-                }
-                .drawWithContent {
-                    drawContent()
-                    drawRect(BackdropColor.copy(alpha = dim.value))
-                },
-        ) {
+        Box(Modifier.fillMaxSize().fxBackdrop(open)) {
             // Под панелью бесконечные анимации экрана на паузе — иначе размытие считалось бы
             // заново на каждом кадре ken-burns, которого не видно.
             CompositionLocalProvider(LocalFxPaused provides open, content = content)
