@@ -11,4 +11,7 @@ dependencies {
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
+
+    // ScreenModel тестируется на фейковом data-слое — том же, что у мок-сборки.
+    testImplementation(project(":data:fake"))
 }

@@ -194,6 +194,8 @@ android {
         compose = true
         buildConfig = true
     }
+    // UI-тесты ТВ-оболочки (меню, переходы) — на Robolectric: без ресурсов тема и шрифты пустые.
+    testOptions { unitTests.isIncludeAndroidResources = true }
 
     lint {
         // AGP 8.7.3 запускает lint-vital при release-сборке, но его детекторы падают
@@ -273,4 +275,13 @@ dependencies {
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
+
+    // UI-тесты ТВ-оболочки на JVM: Robolectric + ui-test, данные — из фейкового бэкенда, как
+    // в мок-сборке.
+    testImplementation(project(":data:fake"))
+    testImplementation(bom)
+    testImplementation(libs.compose.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.kotlin.test.junit)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

@@ -109,54 +109,107 @@ internal fun TvSideNav(
 ) {
     val activeIndex = SECTIONS.indexOfFirst { it.match(currentDestination) }
     val profileActive = isProfile(currentDestination)
-    val itemRequesters = remember { SECTIONS.map { FocusRequester() } }
-    val profileRequester = remember { FocusRequester() }
+    val targets = remember { NavTargets() }
     var expanded by remember { mutableStateOf(false) }
     var focusedIndex by remember { mutableIntStateOf(activeIndex) }
     val geometry = rememberNavGeometry(expanded)
 
     Box(modifier.fillMaxHeight()) {
         NavScrim(expanded)
-        Column(
+        Box(
             modifier = Modifier
-                .padding(PanelMargin)
                 .align(Alignment.CenterStart)
-                .then(if (expanded) Modifier.fillMaxHeight() else Modifier.wrapContentHeight())
-                .width(geometry.width)
-                .fxGlass(RoundedCornerShape(PanelRadius))
+                .navPanel(expanded, geometry.width)
                 .focusRequester(focus.nav)
                 // Вход в меню — всегда на открытый раздел.
-                .focusProperties {
-                    enter = { if (profileActive) profileRequester else itemRequesters[activeIndex.coerceAtLeast(0)] }
-                }
+                .focusProperties { enter = { targets.entry(activeIndex, profileActive) } }
                 .onFocusChanged { expanded = it.hasFocus }
                 .focusGroup()
                 .padding(if (expanded) ExpandedPadding else CollapsedPadding),
-            verticalArrangement = Arrangement.spacedBy(geometry.itemGap),
         ) {
-            NavLogo(visible = expanded)
-            NavSections(
-                state = NavSectionsState(activeIndex, focusedIndex, expanded, geometry),
-                requesters = itemRequesters,
-                onFocused = { index -> focusedIndex = index },
-                onSelect = { index -> onSelect(SECTIONS[index].destination, index == activeIndex) },
-                exitRight = focus.content,
-            )
-            if (expanded) Spacer(Modifier.weight(1f))
-            NavProfile(
+            val state = NavSectionsState(activeIndex, focusedIndex, expanded, geometry)
+            NavDropLayer(targets.anchors, dropTarget(state), Modifier.matchParentSize())
+            NavColumn(
+                state = state,
                 account = account,
-                active = profileActive,
-                expanded = expanded,
-                onClick = { onSelect(Destination.Profile, profileActive) },
-                modifier = Modifier
-                    .focusRequester(profileRequester)
-                    .focusProperties { right = focus.content },
+                targets = targets,
+                actions = NavSectionsActions(
+                    onFocused = { index -> focusedIndex = index },
+                    onSelect = { index -> onSelect(SECTIONS[index].destination, index == activeIndex) },
+                    exitRight = focus.content,
+                ),
+                onProfile = { onSelect(Destination.Profile, profileActive) },
             )
         }
     }
 }
 
-/** Что нужно ряду пунктов, чтобы нарисовать себя и каплю. */
+/** Колонка меню: логотип, пункты разделов, внизу профиль. Границы целей забирает капля. */
+@Composable
+private fun NavColumn(
+    state: NavSectionsState,
+    account: AccountSummary,
+    targets: NavTargets,
+    actions: NavSectionsActions,
+    onProfile: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .then(if (state.expanded) Modifier.fillMaxHeight() else Modifier)
+            .then(targets.anchors.containerModifier),
+        verticalArrangement = Arrangement.spacedBy(state.geometry.itemGap),
+    ) {
+        NavLogo(visible = state.expanded)
+        NavSections(state, targets.items, actions, targets.anchors)
+        if (state.expanded) Spacer(Modifier.weight(1f))
+        NavProfile(
+            account = account,
+            look = NavProfileLook(
+                // Меню видно только на разделах: ни один пункт не открыт — значит, открыт Профиль.
+                active = state.activeIndex < 0,
+                expanded = state.expanded,
+                focused = state.expanded && state.focusedIndex == PROFILE_INDEX,
+            ),
+            onClick = onProfile,
+            modifier = Modifier
+                .then(targets.anchors.target(PROFILE_INDEX))
+                .focusRequester(targets.profile)
+                .focusProperties { right = actions.exitRight }
+                .onFocusChanged { if (it.isFocused) actions.onFocused(PROFILE_INDEX) },
+        )
+    }
+}
+
+/** Фокус-цели меню и их границы для капли. */
+private class NavTargets {
+    val items: List<FocusRequester> = SECTIONS.map { FocusRequester() }
+    val profile = FocusRequester()
+    val anchors = NavDropAnchors()
+
+    /** Вход в меню: открытый раздел — его пункт, открыт Профиль — карточка профиля. */
+    fun entry(activeIndex: Int, profileActive: Boolean): FocusRequester =
+        if (profileActive) profile else items[activeIndex.coerceAtLeast(0)]
+}
+
+/**
+ * На ком капля. Раскрытое меню — на пункте или карточке профиля в фокусе. Свёрнутое — на
+ * открытом разделе; открыт Профиль — капли нет: в колонке он отмечен кольцом вокруг аватара.
+ */
+private fun dropTarget(state: NavSectionsState): NavDropTarget {
+    val index = if (state.expanded) state.focusedIndex else state.activeIndex
+    val visible = index in SECTIONS.indices || (index == PROFILE_INDEX && state.expanded)
+    return NavDropTarget(index, visible, focused = state.expanded)
+}
+
+/** Стеклянная колонка меню: поле от края экрана, высота и ширина по состоянию. */
+@Composable
+private fun Modifier.navPanel(expanded: Boolean, width: Dp): Modifier = this
+    .padding(PanelMargin)
+    .then(if (expanded) Modifier.fillMaxHeight() else Modifier.wrapContentHeight())
+    .width(width)
+    .fxGlass(RoundedCornerShape(PanelRadius))
+
+/** Что нужно пунктам и капле: открытый раздел, фокус, раскрыто ли меню и его геометрия. */
 internal data class NavSectionsState(
     val activeIndex: Int,
     val focusedIndex: Int,

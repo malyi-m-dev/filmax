@@ -6,8 +6,13 @@ import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.user.FolderAppearanceRepository
 import com.filmax.core.domain.user.model.FolderAppearance
+import com.filmax.core.domain.playback.PlaybackSettings
+import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.domain.settings.ThemeSettingsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
@@ -72,5 +77,37 @@ class FakeDownloadsRepository : DownloadsRepository {
 
     override suspend fun remove(id: Int) {
         items.value = items.value.filterNot { it.id == id }
+    }
+}
+
+/** Палитра ТВ в памяти — вместо записи в настройках устройства. */
+class FakeThemeSettingsRepository : ThemeSettingsRepository {
+    private val state = MutableStateFlow(ThemePalette.VIOLET)
+
+    override val palette: StateFlow<ThemePalette> = state
+
+    override suspend fun setPalette(palette: ThemePalette) {
+        state.value = palette
+    }
+}
+
+/** Настройки воспроизведения в памяти — вместо записи в настройках устройства. */
+class FakePlaybackSettingsRepository : PlaybackSettingsRepository {
+    private val state = MutableStateFlow(PlaybackSettings())
+    private val voices = mutableMapOf<Int, String>()
+
+    override val settings: Flow<PlaybackSettings> = state
+
+    override suspend fun setQuality(quality: String) = state.update { it.copy(quality = quality) }
+
+    override suspend fun setAudioLanguage(language: String) = state.update { it.copy(audioLanguage = language) }
+
+    override suspend fun setSubtitleLanguage(language: String) =
+        state.update { it.copy(subtitleLanguage = language) }
+
+    override suspend fun voiceKeyFor(itemId: Int): String? = voices[itemId]
+
+    override suspend fun setVoiceKey(itemId: Int, key: String) {
+        voices[itemId] = key
     }
 }
