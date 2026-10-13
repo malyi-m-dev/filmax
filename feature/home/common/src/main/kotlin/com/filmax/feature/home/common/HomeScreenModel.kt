@@ -33,8 +33,8 @@ class HomeScreenModel(
         screenModelScope { _ ->
             updateState { it.copy(loading = true, error = null) }
             val feed = getHomeFeed()
-            updateState { s ->
-                s.copy(
+            updateState { current ->
+                current.copy(
                     loading = false,
                     hero = feed.hero,
                     // Состав и порядок ленты — здесь и только здесь.

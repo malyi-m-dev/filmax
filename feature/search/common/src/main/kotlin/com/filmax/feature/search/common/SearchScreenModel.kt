@@ -207,15 +207,15 @@ class SearchScreenModel(
         screenModelScope { _ ->
             updateState { it.copy(catalogLoadingMore = true) }
             when (val next = fetchCatalogPage(catalogPage + 1)) {
-                is RequestResult.Success -> updateState { s ->
-                    val seen = s.catalogItems.mapTo(HashSet()) { it.id }
+                is RequestResult.Success -> updateState { loaded ->
+                    val seen = loaded.catalogItems.mapTo(HashSet()) { it.id }
                     // filter гасит id, уже стоящие в сетке; distinctById — дубли внутри самой
                     // страницы (склейка типов) и гонку с параллельным reload по фильтру/сортировке:
                     // без этого две карточки с одним id роняют LazyGrid по неуникальному ключу.
-                    val merged = (s.catalogItems + next.data.filter { it.id !in seen }).distinctById()
-                    s.copy(
+                    val merged = (loaded.catalogItems + next.data.filter { it.id !in seen }).distinctById()
+                    loaded.copy(
                         catalogLoadingMore = false,
-                        catalogItems = sortLocally(merged, s.sort),
+                        catalogItems = sortLocally(merged, loaded.sort),
                         catalogEndReached = activeTypes.all { type -> type in exhaustedTypes },
                     )
                 }

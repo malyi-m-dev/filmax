@@ -30,9 +30,9 @@ data class WatchProgress(
 ) {
     val fraction: Float
         get() {
-            val t = timeSeconds ?: return 0f
-            val d = durationSeconds?.takeIf { it > 0 } ?: return 0f
-            return (t.toFloat() / d).coerceIn(0f, 1f)
+            val watched = timeSeconds ?: return 0f
+            val duration = durationSeconds?.takeIf { it > 0 } ?: return 0f
+            return (watched.toFloat() / duration).coerceIn(0f, 1f)
         }
 }
 

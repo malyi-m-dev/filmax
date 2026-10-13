@@ -39,16 +39,16 @@ class OnboardingScreenModel(
         screenModelScope { snapshot ->
             when (val result = auth.requestDeviceCode()) {
                 is RequestResult.Success -> {
-                    val dc = result.data
+                    val deviceAuth = result.data
                     updateState {
                         it.copy(
-                            deviceCode = dc.code,
-                            userCode = dc.userCode,
-                            verificationUri = dc.verificationUri,
+                            deviceCode = deviceAuth.code,
+                            userCode = deviceAuth.userCode,
+                            verificationUri = deviceAuth.verificationUri,
                             polling = true,
                         )
                     }
-                    pollForToken(dc.code, dc.interval, dc.expiresIn)
+                    pollForToken(deviceAuth.code, deviceAuth.interval, deviceAuth.expiresIn)
                 }
 
                 is RequestResult.Error -> updateState { it.copy(error = result.message) }
