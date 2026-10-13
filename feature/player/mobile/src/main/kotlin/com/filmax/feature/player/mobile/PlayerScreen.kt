@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -141,6 +142,7 @@ fun PlayerScreen(
     }
     KeepScreenOn(enabled = playing)
     PlayerFullscreenEffects()
+    val metrics = overlayMetrics()
 
     // Auto-hide controls (но не во время скраббинга — таймер стартует заново после жеста).
     LaunchedEffect(controlsVisible, isScrubbing) {
@@ -327,11 +329,11 @@ fun PlayerScreen(
 
                 // Center: rewind / play / forward
                 Row(
-                    modifier = Modifier.align(Alignment.Center),
+                    modifier = Modifier.align(Alignment.Center).offset(y = -metrics.centerLift),
                     horizontalArrangement = Arrangement.spacedBy(32.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GlassButton(size = 64.dp, onClick = { screenModel.player.seekBack() }) {
+                    GlassButton(size = metrics.seekSize, onClick = { screenModel.player.seekBack() }) {
                         Icon(
                             Icons.Filled.Replay10,
                             contentDescription = "Назад 10 сек",
@@ -340,7 +342,7 @@ fun PlayerScreen(
                         )
                     }
                     Surface(
-                        modifier = Modifier.size(88.dp),
+                        modifier = Modifier.size(metrics.playSize),
                         shape = RoundedCornerShape(28.dp),
                         color = MaterialTheme.colorScheme.primaryContainer,
                         onClick = {
@@ -360,7 +362,7 @@ fun PlayerScreen(
                             )
                         }
                     }
-                    GlassButton(size = 64.dp, onClick = { screenModel.player.seekForward() }) {
+                    GlassButton(size = metrics.seekSize, onClick = { screenModel.player.seekForward() }) {
                         Icon(
                             Icons.Filled.Forward10,
                             contentDescription = "Вперёд 10 сек",
@@ -375,7 +377,7 @@ fun PlayerScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .windowInsetsPadding(OverlayBottomInsets)
-                        .padding(horizontal = 20.dp, vertical = 24.dp),
+                        .padding(horizontal = 20.dp, vertical = metrics.bottomPadding),
                 ) {
                     val durationMs = screenModel.player.duration.takeIf { it > 0 } ?: 0L
                     val targetMs = (progress * durationMs).toLong()
@@ -430,7 +432,7 @@ fun PlayerScreen(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(metrics.controlsGap))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
