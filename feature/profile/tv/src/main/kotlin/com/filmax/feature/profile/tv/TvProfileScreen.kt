@@ -63,8 +63,8 @@ import org.koin.compose.koinInject
 /** Ширина колонки настроек. Читать строку длиной во весь экран с 3 метров невозможно. */
 private val ContentMaxWidth = 640.dp
 
-/** Отступ сверху: шапка профиля не под таб-баром, а заметно ниже — это первый экран раздела. */
-private val ContentTop = 96.dp
+/** Отступ сверху: шапка профиля чуть ниже общего поля — это первый экран раздела. */
+private val ContentTop = TvMetrics.ContentTop + 18.dp
 
 private val AvatarSize = 76.dp
 
