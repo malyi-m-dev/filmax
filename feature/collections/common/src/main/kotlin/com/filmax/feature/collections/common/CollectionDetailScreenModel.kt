@@ -3,6 +3,7 @@ package com.filmax.feature.collections.common
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.presentation.BaseScreenModel
@@ -24,7 +25,14 @@ class CollectionDetailScreenModel(
     override fun dispatch(event: CollectionDetailEvent) {
         when (event) {
             CollectionDetailEvent.LoadMore -> loadMore()
+            is CollectionDetailEvent.FocusRow -> focusRow(event.row)
         }
+    }
+
+    /** Повтор той же строки — не событие: фокус ходит по ней влево-вправо, шапка от этого не меняется. */
+    private fun focusRow(row: Int?) {
+        if (row == state.focusedRow) return
+        screenModelScope { _ -> updateState { it.copy(focusedRow = row) } }
     }
 
     override fun onFetchData() {
@@ -39,6 +47,7 @@ class CollectionDetailScreenModel(
                             page = 1,
                             hasNextPage = result.data.pagination.hasNextPage,
                             loadingMore = false,
+                            cover = result.data.collection?.coverUrl(),
                         )
                     }
 
@@ -78,3 +87,11 @@ class CollectionDetailScreenModel(
         }
     }
 }
+
+/**
+ * Кадр для шапки подборки: широкий, если kino.pub его прислал, иначе большой постер. Пустая строка —
+ * не картинка: kino.pub отдаёт поле, даже когда файла нет.
+ */
+private fun Collection.coverUrl(): String? = posters?.let { posters ->
+    posters.wide?.takeIf { it.isNotBlank() } ?: posters.big.ifBlank { posters.medium }
+}?.takeIf { it.isNotBlank() }
