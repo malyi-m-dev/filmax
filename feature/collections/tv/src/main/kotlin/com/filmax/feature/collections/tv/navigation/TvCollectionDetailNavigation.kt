@@ -15,6 +15,6 @@ import com.filmax.feature.collections.tv.TvCollectionDetailScreen
 fun NavGraphBuilder.tvCollectionDetailScreen() {
     composable<CollectionDetailRoute> { entry ->
         val route = entry.toRoute<CollectionDetailRoute>()
-        TvCollectionDetailScreen(title = route.title)
+        TvCollectionDetailScreen(collectionId = route.collectionId, title = route.title)
     }
 }
