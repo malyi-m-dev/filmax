@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -72,8 +73,9 @@ fun TvPosterCard(
         TvFocusCard(
             onClick = onClick,
             shape = TvMetrics.PosterShape,
-            focusRequester = focusRequester,
-            modifier = Modifier.size(width = TvMetrics.PosterWidth, height = TvMetrics.PosterHeight),
+            modifier = Modifier
+                .size(width = TvMetrics.PosterWidth, height = TvMetrics.PosterHeight)
+                .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier),
         ) {
             Box(Modifier.fillMaxSize().clip(TvMetrics.PosterShape)) {
                 posterContent(posterUrl, Modifier.fillMaxSize())
@@ -123,8 +125,9 @@ fun TvProgressCard(
         TvFocusCard(
             onClick = onClick,
             shape = TvMetrics.CardShape,
-            focusRequester = focusRequester,
-            modifier = Modifier.size(width = size.width, height = size.height),
+            modifier = Modifier
+                .size(width = size.width, height = size.height)
+                .then(focusRequester?.let { Modifier.focusRequester(it) } ?: Modifier),
         ) {
             Box(Modifier.fillMaxSize().clip(TvMetrics.CardShape)) {
                 posterContent(posterUrl, Modifier.fillMaxSize())
