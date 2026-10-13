@@ -35,6 +35,7 @@ import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
+import com.filmax.feature.library.tv.navigation.tvFolderScreen
 import com.filmax.feature.library.tv.navigation.tvLibraryScreen
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
@@ -163,8 +164,9 @@ private fun NavGraphBuilder.tvDestinations(onCheckUpdates: () -> Unit) {
     // «Подборки» больше не вкладка — это контент внутри Каталога. Экран содержимого
     // подборки остаётся push-экраном: в него ведёт Каталог.
     tvCollectionDetailScreen()
-    // Все карточки «Моё» ведут в карточку тайтла — играть оттуда: кнопка «Продолжить · SxEy».
+    // «Моё» и экран открытой папки — push-экран без меню, как детали.
     tvLibraryScreen()
+    tvFolderScreen()
     tvProfileScreen(onCheckUpdates = onCheckUpdates)
     // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
     // device/info и device/settings на бэкенде отвечают 500.

@@ -5,6 +5,7 @@ import com.filmax.core.navigation.Destination
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
+import com.filmax.feature.library.common.navigation.FolderRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.player.common.navigation.PlayerRoute
@@ -32,4 +33,5 @@ private fun Destination.toTvRoute(): Any = when (this) {
     is Destination.Trailer -> TrailerRoute(url = url, title = title)
     is Destination.CollectionDetail -> CollectionDetailRoute(collectionId = collectionId, title = title)
     is Destination.Filmography -> FilmographyRoute(name = name, isDirector = isDirector)
+    is Destination.BookmarkFolder -> FolderRoute(folderId)
 }

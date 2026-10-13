@@ -1,5 +1,6 @@
 package com.filmax.data.fake.fixtures
 
+import com.filmax.core.domain.favorites.WATCHLIST_FOLDER_TITLE
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.SERVER_LOCATION_AUTO
 import com.filmax.core.domain.user.model.Subscription
@@ -15,7 +16,6 @@ private const val MILLIS_IN_DAY = 24 * MILLIS_IN_HOUR
 private const val SUBSCRIPTION_DAYS_LEFT = 47
 
 /** Папка «Буду смотреть» — то же название, по которому её ищет FavoritesRepositoryImpl. */
-private const val WATCHLIST_TITLE = "Буду смотреть"
 
 /**
  * Профиль «как от kino.pub»: id пользователя сервер не отдаёт (настоящий репозиторий тоже кладёт 0),
@@ -81,7 +81,7 @@ private val LATER_ITEM_IDS = listOf(
 private val FOLDERS: List<FolderSpec> = listOf(
     FolderSpec(
         id = FakeIds.WATCHLIST_FOLDER,
-        title = WATCHLIST_TITLE,
+        title = WATCHLIST_FOLDER_TITLE,
         itemIds = listOf(1012, 2007, 3003, 1018, 4004, FakeIds.HERO_MOVIE),
         daysAgo = 1,
     ),

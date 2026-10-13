@@ -1,5 +1,7 @@
 package com.filmax.app.di
 
+import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
+import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import org.koin.dsl.module
 
@@ -9,4 +11,6 @@ import org.koin.dsl.module
  */
 val useCaseModule = module {
     factory { ToggleWatchLaterUseCase(favorites = get(), watching = get()) }
+    factory { RemoveFromWatchLaterUseCase(favorites = get(), watching = get()) }
+    factory { BookmarkFolders(user = get(), appearance = get()) }
 }

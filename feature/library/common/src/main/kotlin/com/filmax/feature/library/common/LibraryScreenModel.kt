@@ -54,7 +54,6 @@ class LibraryScreenModel(
             is LibraryEvent.OpenFolder -> openFolder(event.folder)
             LibraryEvent.CloseFolder -> closeFolder()
             LibraryEvent.LoadMoreFolderItems -> loadMoreFolderItems()
-            LibraryEvent.ToggleHistoryHidden -> toggleHistoryHidden()
             is LibraryEvent.CreateFolder -> createFolder(event.title)
             is LibraryEvent.DeleteFolder -> deleteFolder(event.folderId)
             is LibraryEvent.RemoveItemFromFolder ->
@@ -200,10 +199,6 @@ class LibraryScreenModel(
     private suspend fun reloadFolders() {
         val folders = user.getBookmarkFolders().getOrNull() ?: return
         updateState { it.copy(lists = folders) }
-    }
-
-    private fun toggleHistoryHidden() {
-        screenModelScope { _ -> updateState { it.copy(historyHidden = !it.historyHidden) } }
     }
 
     private companion object {

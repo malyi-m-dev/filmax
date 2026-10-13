@@ -27,12 +27,12 @@ import com.filmax.data.fake.store.paginationOf
  */
 class FakeBackend(
     internal val latency: FakeLatency = FakeLatency.Realistic,
-    clock: () -> Long = ::currentEpochMillis,
+    private val clock: () -> Long = ::currentEpochMillis,
     authenticated: Boolean = true,
 ) {
     internal val catalog: FakeCatalog = buildFixtureCatalog()
     internal val library: LibraryStore = LibraryStore(initialFolders(now = clock()), clock)
-    internal val watch: WatchStore = WatchStore(initialWatchSnapshot(catalog))
+    internal val watch: WatchStore = WatchStore(initialWatchSnapshot(catalog, now = clock()), clock)
     internal val auth: AuthStore = AuthStore(authenticated)
     internal val account: AccountStore = AccountStore(clock)
 

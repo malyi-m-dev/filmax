@@ -1,0 +1,128 @@
+package com.filmax.feature.library.tv
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.TvConfirmDialog
+import com.filmax.core.tv.designsystem.TvConfirmSpec
+import com.filmax.core.tv.designsystem.TvFolderEditor
+import com.filmax.core.tv.designsystem.TvFolderEditorActions
+import com.filmax.core.tv.designsystem.TvSheetHost
+import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.core.tv.designsystem.tvSectionBackground
+import com.filmax.feature.library.common.MineEvent
+import com.filmax.feature.library.common.MineScreenModel
+import com.filmax.feature.library.common.MineState
+import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+
+/**
+ * ТВ-раздел «Моё» (экраны 08, 08a–08d): сегменты «Продолжить · Буду смотреть · Папки · История».
+ * Логика и состояние — в [MineScreenModel]; экран рисует и отдаёт события. Вернулись на экран
+ * (из папки, деталей, плеера) — модель перечитывает историю и папки: там могло поменяться всё.
+ */
+@Composable
+fun TvMineScreen(
+    modifier: Modifier = Modifier,
+    screenModel: MineScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
+    val state by screenModel.collectAsState()
+    LifecycleResumeEffect(screenModel) {
+        screenModel.dispatch(MineEvent.Refresh)
+        onPauseOrDispose { }
+    }
+    MineContent(
+        state = state,
+        actions = MineActions(
+            onEvent = screenModel::dispatch,
+            onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
+            onPlay = { itemId, season, videoId ->
+                navigator.open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
+            },
+            onOpenFolder = { folderId -> navigator.open(Destination.BookmarkFolder(folderId)) },
+        ),
+        modifier = modifier,
+    )
+}
+
+/** Действия экрана: события модели и переходы, которые исполняет навигатор. */
+internal data class MineActions(
+    val onEvent: (MineEvent) -> Unit,
+    val onOpenItem: (Int) -> Unit,
+    /** Серия «продолжить»: [season] ≤ 0 — фильм; номер серии уникален только внутри сезона. */
+    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    val onOpenFolder: (Int) -> Unit,
+)
+
+/**
+ * Фокус-цели, к которым он возвращается после панели и диалога: «Создать папку» (закрыли
+ * создание) и действие сегмента («Очистить историю»).
+ */
+internal data class MineFocus(val createFolder: FocusRequester, val segmentAction: FocusRequester)
+
+/** Экран из состояния — без Koin и навигатора: так его собирают UI-тесты фокуса. */
+@Composable
+internal fun MineContent(state: MineState, actions: MineActions, modifier: Modifier = Modifier) {
+    val focus = remember { MineFocus(createFolder = FocusRequester(), segmentAction = FocusRequester()) }
+    Box(modifier.fillMaxSize().tvSectionBackground()) {
+        TvSheetHost(
+            open = state.draft != null,
+            onClose = { actions.onEvent(MineEvent.CancelFolder) },
+            returnFocus = focus.createFolder,
+            sheet = { state.draft?.let { draft -> TvFolderEditor(draft.toEditorState(), editorActions(actions)) } },
+        ) {
+            if (state.loading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = LocalFxColors.current.accent)
+                }
+            } else {
+                MineBody(state, actions, focus)
+            }
+        }
+        TvConfirmDialog(
+            spec = ClearHistorySpec.takeIf { state.confirmClearHistory },
+            onConfirm = { actions.onEvent(MineEvent.ConfirmClearHistory) },
+            onDismiss = { actions.onEvent(MineEvent.DismissClearHistory) },
+            returnFocus = focus.segmentAction,
+        )
+    }
+}
+
+/**
+ * Шапка и сетка — один контейнер фокуса: первый вход — на первую карточку сегмента, а в пустом
+ * сегменте — на сами сегменты; возврат из деталей или плеера — на ту карточку, с которой ушли.
+ * Память фокуса создаётся после загрузки, когда уже известно, какая карточка первая.
+ */
+@Composable
+private fun MineBody(state: MineState, actions: MineActions, focus: MineFocus) {
+    val screenFocus = rememberTvScreenFocus(startAt = startKey(state))
+    Column(Modifier.fillMaxSize().then(screenFocus.containerModifier)) {
+        MineHeader(state, actions, focus)
+        MineSegmentContent(state, actions, focus, screenFocus)
+    }
+}
+
+private val ClearHistorySpec = TvConfirmSpec(
+    title = "Очистить историю?",
+    message = "Вся история просмотров и места, где вы остановились, удалятся на всех устройствах.",
+    confirmLabel = "Очистить",
+)
+
+/** Редактор создаёт папку в «Моё»: «Создать» и «Отмена» — события этой модели. */
+private fun editorActions(actions: MineActions): TvFolderEditorActions = folderEditorActions(
+    edit = { input -> actions.onEvent(MineEvent.EditFolder(input)) },
+    onConfirm = { actions.onEvent(MineEvent.SubmitFolder) },
+    onCancel = { actions.onEvent(MineEvent.CancelFolder) },
+)

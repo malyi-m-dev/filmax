@@ -7,9 +7,8 @@ import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.watching.model.WatchHistory
 
 /**
- * Вкладки мобильной Библиотеки. TV-раздел «Моё» этим перечислением не пользуется: там свои
- * сегменты (см. `MineSegment` в :feature:library:tv), и они не совпадают с телефонными —
- * «Загрузки» на TV не показываем, «Избранное» называется «Буду смотреть».
+ * Вкладки мобильной Библиотеки. ТВ-раздел «Моё» живёт на своей модели ([MineScreenModel]) и своих
+ * сегментах ([MineSegment]): «Загрузки» на ТВ не показываем, «Избранное» называется «Буду смотреть».
  */
 enum class LibraryTab(val label: String) {
     FAVORITES("Избранное"),
@@ -42,12 +41,6 @@ data class LibraryState(
     val lists: List<BookmarkFolder> = emptyList(),
     /** Папка-закладка, в которую провалились; null — показываем список папок. */
     val openFolder: OpenBookmarkFolder? = null,
-    /**
-     * Скрыть историю просмотров на экране. Телевизор — общий экран в доме, и «что я смотрел»
-     * там видно всем. Флаг живёт только пока жив процесс: постоянного хранилища настроек в
-     * домене нет, поэтому UI честно говорит, что скрытие — до перезапуска.
-     */
-    val historyHidden: Boolean = false,
     val loading: Boolean = true,
     val error: String? = null,
 )
@@ -59,7 +52,6 @@ sealed interface LibraryEvent {
     data class OpenFolder(val folder: BookmarkFolder) : LibraryEvent
     data object CloseFolder : LibraryEvent
     data object LoadMoreFolderItems : LibraryEvent
-    data object ToggleHistoryHidden : LibraryEvent
 
     /** Создать новую папку-закладку с этим названием. */
     data class CreateFolder(val title: String) : LibraryEvent

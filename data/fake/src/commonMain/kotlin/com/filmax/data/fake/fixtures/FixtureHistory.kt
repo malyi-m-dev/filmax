@@ -38,25 +38,62 @@ private val STARTED: List<StartedTrack> = listOf(
     StartedTrack(TrackKey(itemId = FakeIds.DOCUMENTARY_SERIES, season = 1, number = 2), seconds = 150),
 )
 
+/** Запись истории и сколько минут назад её смотрели (`last_seen`). */
+private data class RecentTrack(val key: TrackKey, val minutesAgo: Long)
+
 /**
  * История — по треку на тайтл, свежие первыми. Первые пять уходят в «Продолжить» на главной:
  * сериал на середине серии, фильм, веб-сериал, аниме и сериал, где последняя серия досмотрена.
+ * Время просмотра разложено на «сегодня» (до четырёх часов назад), «вчера» и дальше — по нему
+ * «Моё» группирует историю по дням.
  */
-private val RECENT: List<TrackKey> = listOf(
-    TrackKey(itemId = FakeIds.LONG_SERIES, season = 4, number = 7),
-    TrackKey(itemId = FakeIds.MOVIE_IN_PROGRESS, season = MOVIE_SEASON, number = 1),
-    TrackKey(itemId = FakeIds.SHORT_SERIES, season = 1, number = 3),
-    TrackKey(itemId = FakeIds.ANIME_SERIES, season = 1, number = 6),
-    TrackKey(itemId = FakeIds.MEDIUM_SERIES, season = 2, number = 4),
-    TrackKey(itemId = FakeIds.DOCUMENTARY_SERIES, season = 1, number = 2),
-    TrackKey(itemId = FakeIds.WATCHED_MOVIE, season = MOVIE_SEASON, number = 1),
+private val RECENT: List<RecentTrack> = listOf(
+    RecentTrack(
+        TrackKey(itemId = FakeIds.LONG_SERIES, season = 4, number = 7),
+        minutesAgo = 20,
+    ),
+    RecentTrack(
+        TrackKey(itemId = FakeIds.MOVIE_IN_PROGRESS, season = MOVIE_SEASON, number = 1),
+        minutesAgo = 95,
+    ),
+    RecentTrack(
+        TrackKey(itemId = FakeIds.SHORT_SERIES, season = 1, number = 3),
+        minutesAgo = 230,
+    ),
+    RecentTrack(
+        TrackKey(itemId = FakeIds.ANIME_SERIES, season = 1, number = 6),
+        minutesAgo = 26 * MINUTES_IN_HOUR,
+    ),
+    RecentTrack(
+        TrackKey(itemId = FakeIds.MEDIUM_SERIES, season = 2, number = 4),
+        minutesAgo = 29 * MINUTES_IN_HOUR,
+    ),
+    RecentTrack(
+        TrackKey(itemId = FakeIds.DOCUMENTARY_SERIES, season = 1, number = 2),
+        minutesAgo = 3 * MINUTES_IN_DAY,
+    ),
+    RecentTrack(
+        TrackKey(itemId = FakeIds.WATCHED_MOVIE, season = MOVIE_SEASON, number = 1),
+        minutesAgo = 9 * MINUTES_IN_DAY,
+    ),
 )
 
-/** Прогресс и история на старт сессии; длительности досмотренных серий берутся из каталога. */
-internal fun initialWatchSnapshot(catalog: FakeCatalog): WatchSnapshot {
+private const val MINUTES_IN_HOUR = 60L
+private const val MINUTES_IN_DAY = 24 * MINUTES_IN_HOUR
+private const val MILLIS_IN_MINUTE = 60_000L
+
+/**
+ * Прогресс и история на старт сессии; длительности досмотренных серий берутся из каталога,
+ * время просмотра отсчитывается от [now].
+ */
+internal fun initialWatchSnapshot(catalog: FakeCatalog, now: Long): WatchSnapshot {
     val watched = WATCHED_THROUGH.flatMap { last -> watchedUpTo(catalog, last) }
     val started = STARTED.map { it.key to TrackProgress(it.seconds, WATCH_STATUS_IN_PROGRESS) }
-    return WatchSnapshot(progress = (watched + started).toMap(), recent = RECENT)
+    return WatchSnapshot(
+        progress = (watched + started).toMap(),
+        recent = RECENT.map { it.key },
+        seenAt = RECENT.associate { it.key.itemId to now - it.minutesAgo * MILLIS_IN_MINUTE },
+    )
 }
 
 /** Все треки тайтла до [last] включительно — досмотрены до конца. */

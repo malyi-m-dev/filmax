@@ -28,7 +28,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
@@ -51,6 +50,7 @@ import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.DetailsFact
 import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.detailsFacts
 
 /** Ключ кнопки «Смотреть» — стартовая цель фокуса деталей. */
@@ -70,7 +70,7 @@ internal fun TvMovieDetails(
     state: DetailsState,
     item: Item,
     actions: DetailsActions,
-    descriptionFocus: FocusRequester
+    sheets: DetailsSheetFocus,
 ) {
     val listState = rememberLazyListState()
     val focus = rememberTvScreenFocus(startAt = PLAY_KEY)
@@ -86,7 +86,7 @@ internal fun TvMovieDetails(
                 contentPadding = PaddingValues(bottom = TvMetrics.SafeVertical),
                 verticalArrangement = Arrangement.spacedBy(TvMetrics.RowGap - TvMetrics.FocusInset),
             ) {
-                item(key = "heading") { MovieHeading(state, item, actions, descriptionFocus, focus) }
+                item(key = "heading") { MovieHeading(state, item, actions, sheets, focus) }
                 movieSections(state, item, actions, focus)
             }
         }
@@ -109,7 +109,7 @@ private fun MovieHeading(
     state: DetailsState,
     item: Item,
     actions: DetailsActions,
-    descriptionFocus: FocusRequester,
+    sheets: DetailsSheetFocus,
     focus: TvScreenFocus,
 ) {
     Column(
@@ -121,16 +121,21 @@ private fun MovieHeading(
             item,
             null,
             actions.onOpenDescription,
-            descriptionFocus,
+            sheets.description,
             Modifier.width(HeadingWidth).padding(top = 18.dp)
         )
-        MovieButtons(state.isFav, actions, focus)
+        MovieButtons(state.isFav, actions, sheets.folders, focus)
     }
 }
 
-/** «Смотреть», «Буду смотреть» / «В списке», «Трейлер» — если он есть. */
+/** «Смотреть», «Буду смотреть» / «В списке», «В папку», «Трейлер» — если он есть. */
 @Composable
-private fun MovieButtons(inWatchLater: Boolean, actions: DetailsActions, focus: TvScreenFocus) {
+private fun MovieButtons(
+    inWatchLater: Boolean,
+    actions: DetailsActions,
+    folders: DetailsFolders,
+    focus: TvScreenFocus
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TvButton(
             "Смотреть",
@@ -144,6 +149,13 @@ private fun MovieButtons(inWatchLater: Boolean, actions: DetailsActions, focus: 
             onClick = actions.onToggleWatchLater,
             primary = false,
             leadingIcon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+        )
+        TvButton(
+            "В папку",
+            onClick = { folders.onEvent(FolderPickerEvent.Open) },
+            primary = false,
+            leadingIcon = folderIcon(folders.state.inAnyFolder),
+            focusRequester = folders.buttonFocus,
         )
         actions.onTrailer?.let { onTrailer ->
             TvButton("Трейлер", onClick = onTrailer, primary = false, leadingIcon = Icons.Rounded.Movie)

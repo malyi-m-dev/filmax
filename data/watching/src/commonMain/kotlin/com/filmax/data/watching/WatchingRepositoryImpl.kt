@@ -32,8 +32,12 @@ private fun HistoryEntryDto.toDomain(): WatchHistory {
             videoId = media?.number,
             season = media?.snumber?.takeIf { it > 0 },
         ),
+        lastSeenAt = lastSeen?.takeIf { it > 0 }?.times(MILLIS_PER_SECOND),
     )
 }
+
+/** kino.pub отдаёт время в секундах, домен хранит миллисекунды. */
+private const val MILLIS_PER_SECOND = 1000L
 
 internal class WatchingRepositoryImpl(
     private val api: WatchingApi,
@@ -87,7 +91,7 @@ internal class WatchingRepositoryImpl(
                 id = dto.id,
                 title = dto.title,
                 text = dto.text,
-                createdAt = dto.createdAt?.toLong()?.times(MILLIS_IN_SECOND),
+                createdAt = dto.createdAt?.toLong()?.times(MILLIS_PER_SECOND),
                 read = dto.read,
                 itemId = dto.itemId,
             )
@@ -99,9 +103,4 @@ internal class WatchingRepositoryImpl(
 
     override suspend fun markAllNotificationsRead(): RequestResult<Unit> =
         safeRequest { api.markAllNotificationsRead() }
-
-    private companion object {
-        // kino.pub отдаёт временные метки в секундах — переводим в миллисекунды.
-        const val MILLIS_IN_SECOND = 1000
-    }
 }

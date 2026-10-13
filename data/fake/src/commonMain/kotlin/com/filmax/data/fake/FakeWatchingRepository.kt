@@ -90,5 +90,6 @@ private fun FakeBackend.historyEntry(key: TrackKey): WatchHistory? {
         ),
         posterWide = item.posters.wide,
         episodeThumbnail = track.thumbnail,
+        lastSeenAt = watch.seenAt(item.id),
     )
 }

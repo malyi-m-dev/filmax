@@ -50,6 +50,12 @@ enum class TvCardSize(val width: Dp, val height: Dp) {
 
     /** Серия в нижней панели плеера: панель низкая, а над рядом серий ещё стоят сезоны. */
     Panel(PanelCardWidth, PanelCardHeight),
+
+    /** Сетка «Продолжить» в «Моё»: три колонки по 264dp, подпись под кадром. */
+    Grid(264.dp, 148.dp),
+
+    /** История в «Моё»: четыре колонки по 195dp — день просмотров помещается в ряд. */
+    Small(195.dp, 110.dp),
 }
 
 private val PanelCardWidth = 196.dp

@@ -35,6 +35,7 @@ import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.resolveCast
 
 private val InfoTop = 24.dp
@@ -53,7 +54,7 @@ internal fun TvSeriesDetails(
     state: DetailsState,
     item: Item,
     actions: DetailsActions,
-    descriptionFocus: FocusRequester
+    sheets: DetailsSheetFocus,
 ) {
     val resume = state.series?.resume
     val startAt = resume?.takeIf { episode -> state.seasonEpisodes.any { it.id == episode.id } }?.let(::episodeKey)
@@ -62,7 +63,7 @@ internal fun TvSeriesDetails(
     Box(Modifier.fillMaxSize()) {
         TvBackdrop(item.posters.wide ?: item.posters.big)
         Row(Modifier.fillMaxSize().then(focus.containerModifier)) {
-            SeriesInfo(state, item, actions, SeriesFocus(focus, playFocus, descriptionFocus), Modifier.weight(1f))
+            SeriesInfo(state, item, actions, SeriesFocus(focus, playFocus, sheets), Modifier.weight(1f))
             TvEpisodesPanel(
                 state = state,
                 actions = actions,
@@ -79,9 +80,9 @@ internal fun episodeKey(episode: MediaTrack): String = "episode:${episode.id}"
 
 /**
  * Фокус экрана сериала: память экрана, главная кнопка (на неё «←» возвращает из панели серий) и
- * описание (на него фокус возвращается, когда закрылась панель полного текста).
+ * панели — описание и «В папку» (на них фокус возвращается, когда панель закрылась).
  */
-private data class SeriesFocus(val screen: TvScreenFocus, val play: FocusRequester, val description: FocusRequester)
+private data class SeriesFocus(val screen: TvScreenFocus, val play: FocusRequester, val sheets: DetailsSheetFocus)
 
 @Composable
 private fun SeriesInfo(
@@ -96,7 +97,13 @@ private fun SeriesInfo(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         TvBackHint("Назад")
-        DetailsHeading(item, state.series, actions.onOpenDescription, focus.description, Modifier.padding(top = 18.dp))
+        DetailsHeading(
+            item,
+            state.series,
+            actions.onOpenDescription,
+            focus.sheets.description,
+            Modifier.padding(top = 18.dp)
+        )
         CastLine(state, item)
         SeriesButtons(state, actions, focus)
     }
@@ -116,7 +123,7 @@ private fun CastLine(state: DetailsState, item: Item) {
     )
 }
 
-/** «Продолжить · S4E7» и круглые «В список» / «Трейлер»: место в колонке занимают серии. */
+/** «Продолжить · S4E7» и круглые «В список» / «В папку» / «Трейлер»: место в колонке занимают серии. */
 @Composable
 private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: SeriesFocus) {
     val resume = state.series?.resume
@@ -133,6 +140,13 @@ private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: S
             icon = if (state.isFav) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
             contentDescription = if (state.isFav) "В списке" else "Буду смотреть",
             onClick = actions.onToggleWatchLater,
+        )
+        val folders = focus.sheets.folders
+        TvIconButton(
+            icon = folderIcon(folders.state.inAnyFolder),
+            contentDescription = "В папку",
+            onClick = { folders.onEvent(FolderPickerEvent.Open) },
+            modifier = Modifier.focusRequester(folders.buttonFocus),
         )
         actions.onTrailer?.let { onTrailer ->
             TvIconButton(icon = Icons.Rounded.Movie, contentDescription = "Трейлер", onClick = onTrailer)
