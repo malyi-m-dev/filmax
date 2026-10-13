@@ -44,6 +44,7 @@ private const val TEXT_FADE_SHARE = 0.3f
  * отрисовки: анимация шапки двигает кнопку, не перекомпоновывая её на каждом кадре.
  *
  * Фокус — общий для всех элементов ([TvFocusSurface]); схлопнутая кнопка остаётся фокусируемой.
+ * [style] — вид, как у [TvButton]: на цветной шапке подборки — белая ([TvButtonStyle.Light]).
  */
 // Компонент дизайн-системы: параметры — его публичный API (подпись, иконка, действие, доля
 // схлопывания и modifier), как у TvButton.
@@ -55,15 +56,15 @@ fun TvCollapsibleButton(
     onClick: () -> Unit,
     collapse: () -> Float,
     modifier: Modifier = Modifier,
+    style: TvButtonStyle = TvButtonStyle.Primary,
 ) {
-    val colors = LocalFxColors.current
     val shape = remember(collapse) { CollapsingShape(collapse) }
-    val style = remember(shape) { TvFocusStyle(shape, ExpandedRadius, TvMetrics.FocusScale) }
+    val focusStyle = remember(shape) { TvFocusStyle(shape, ExpandedRadius, TvMetrics.FocusScale) }
     TvFocusSurface(
         onClick = onClick,
         modifier = modifier.collapsingSize(collapse),
-        style = style,
-        colors = TvSurfaceColors(container = colors.accent, content = colors.onAccent),
+        style = focusStyle,
+        colors = buttonColors(style),
     ) {
         Row(
             modifier = Modifier

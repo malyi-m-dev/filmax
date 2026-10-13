@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 
-private const val SEARCH_DEBOUNCE_MILLIS = 400L
+private const val SEARCH_DEBOUNCE_MILLIS = 300L
 private const val PER_PAGE = 20
 private const val RECENT_LIMIT = 8
 

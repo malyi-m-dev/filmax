@@ -52,6 +52,20 @@ fun ProfileState.valueOf(setting: ProfileSetting): String = when (setting) {
     ProfileSetting.PALETTE -> palette.label
 }
 
+/** Субтитры включены — выбран любой язык, кроме «Выкл». */
+val ProfileState.subtitlesEnabled: Boolean
+    get() = playback.subtitleLanguage != PlaybackSettings.SubtitleOff
+
+/**
+ * Язык субтитров для переключателя: включённые — первый язык из вариантов (русский), выключенные —
+ * «Выкл». Другой язык выбирают в плеере, и он запоминается для всего сериала.
+ */
+fun subtitleLanguageFor(enabled: Boolean): String = if (enabled) {
+    PlaybackSettings.subtitleOptions.first { it != PlaybackSettings.SubtitleOff }
+} else {
+    PlaybackSettings.SubtitleOff
+}
+
 /** «47 дней», «1 день», «3 дня» — крупная цифра на карточке подписки. */
 fun daysLabel(days: Int): String {
     val lastTwo = days % HUNDRED

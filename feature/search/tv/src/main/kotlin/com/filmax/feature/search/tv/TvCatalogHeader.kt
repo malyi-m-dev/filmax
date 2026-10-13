@@ -2,6 +2,8 @@
 // чипы жанров и сводка выборки. Строка поиска общая с режимом поиска.
 package com.filmax.feature.search.tv
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.SwapVert
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.runtime.Composable
@@ -30,13 +33,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Genre
+import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvChipStyle
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvMicButton
 import com.filmax.core.tv.designsystem.TvSearchField
+import com.filmax.core.tv.designsystem.TvSearchFieldMode
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
@@ -87,12 +93,19 @@ internal fun CatalogHeader(
                 modifier = Modifier.padding(top = TypesToGenres).focusRequester(genreRow),
             )
         }
-        Text(
-            catalogSummary(state),
-            style = FxType.meta,
-            color = LocalFxColors.current.textDim,
-            modifier = Modifier.padding(top = GenresToSummary),
-        )
+        CatalogSummary(catalogSummary(state), Modifier.padding(top = GenresToSummary))
+    }
+}
+
+/**
+ * Сводка выборки «Фантастика · 42 результата». Меняется вместе с выдачей при смене фильтра —
+ * кроссфейдом, в том же темпе, в каком старая сетка гаснет, а новая появляется.
+ */
+@Composable
+private fun CatalogSummary(summary: String, modifier: Modifier) {
+    val reduced = LocalReducedMotion.current
+    Crossfade(summary, modifier, animationSpec = if (reduced) snap() else FxMotion.fade(), label = "summary") { text ->
+        Text(text, style = FxType.meta, color = LocalFxColors.current.textDim)
     }
 }
 
@@ -113,7 +126,7 @@ internal fun CatalogSearchBar(
             query = query,
             placeholder = SEARCH_PLACEHOLDER,
             onClick = actions.onOpenSearch,
-            active = active,
+            mode = if (active) TvSearchFieldMode.Typing else TvSearchFieldMode.Button,
             modifier = fieldModifier.weight(1f),
         )
         TvMicButton(onClick = actions.onVoice, modifier = Modifier.catalogTarget(focus.jumps, CatalogTarget.MIC))
@@ -155,6 +168,7 @@ private fun TypeRow(
             selected = false,
             onClick = { dispatch(SearchEvent.OpenSheet(CatalogSheet.SORT)) },
             leadingIcon = Icons.Rounded.SwapVert,
+            trailingIcon = Icons.Rounded.ExpandMore,
             modifier = chip.focusRequester(openers.sort),
         )
         TvChip(

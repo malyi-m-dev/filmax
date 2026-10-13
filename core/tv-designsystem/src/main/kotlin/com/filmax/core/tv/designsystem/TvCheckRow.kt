@@ -24,7 +24,13 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,7 +40,8 @@ import androidx.tv.material3.Text
 
 private val RowHeight = 56.dp
 private val TileSize = 34.dp
-private val TileShape = RoundedCornerShape(10.dp)
+private val TileRadius = 10.dp
+private val TileShape = RoundedCornerShape(TileRadius)
 private val BoxSize = 24.dp
 private val BoxShape = RoundedCornerShape(7.dp)
 
@@ -42,6 +49,14 @@ private val BoxShape = RoundedCornerShape(7.dp)
 private const val ROW_ALPHA = 0.05f
 private const val ROW_FOCUSED_ALPHA = 0.14f
 private const val BOX_BORDER_ALPHA = 0.28f
+
+/** Подпись строки («6 фильмов») — 55%: тише названия, но читается с дивана. */
+private const val SUBTITLE_ALPHA = 0.55f
+
+/** Пунктир плитки «Создать»: штрих 2dp, 4 через 3 — на плитке 34dp это читается как пунктир, а не рамка. */
+private val DashWidth = 2.dp
+private val DashOn = 4.dp
+private val DashOff = 3.dp
 
 /** Что показывает строка: название, подпись под ним, иконка на плитке цвета [tile]. */
 @Immutable
@@ -60,7 +75,11 @@ fun TvCheckRow(spec: TvCheckRowSpec, checked: Boolean, onClick: () -> Unit, modi
         Column(Modifier.weight(1f)) {
             Text(spec.title, style = FxType.titleOnImage, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (spec.subtitle != null) {
-                Text(spec.subtitle, style = FxType.metaOnImage, color = LocalFxColors.current.textSecondary)
+                Text(
+                    spec.subtitle,
+                    style = FxType.metaOnImage,
+                    color = LocalFxColors.current.text.copy(alpha = SUBTITLE_ALPHA),
+                )
             }
         }
         CheckBox(checked)
@@ -107,7 +126,7 @@ fun TvAddRow(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
     val colors = LocalFxColors.current
     PanelRow(onClick, modifier) {
         Box(
-            Modifier.size(TileSize).border(2.dp, colors.accentText, TileShape),
+            Modifier.size(TileSize).dashedTile(colors.accentText),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -119,6 +138,21 @@ fun TvAddRow(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) 
         }
         Text(label, style = FxType.titleOnImage, color = colors.accentText)
     }
+}
+
+/** Пунктирная рамка плитки по её скруглению — плитка «Создать» ещё пуста, как и папка, которой нет. */
+private fun Modifier.dashedTile(color: Color): Modifier = drawBehind {
+    val stroke = DashWidth.toPx()
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(stroke / 2, stroke / 2),
+        size = Size(size.width - stroke, size.height - stroke),
+        cornerRadius = CornerRadius(TileRadius.toPx() - stroke / 2),
+        style = Stroke(
+            width = stroke,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(DashOn.toPx(), DashOff.toPx())),
+        ),
+    )
 }
 
 @Composable

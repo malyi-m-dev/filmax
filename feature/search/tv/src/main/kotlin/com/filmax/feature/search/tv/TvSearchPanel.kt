@@ -2,6 +2,12 @@
 // крупной карточкой и остальные результаты постерами справа.
 package com.filmax.feature.search.tv
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +30,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvKeyboard
 import com.filmax.core.tv.designsystem.TvKeyboardActions
 import com.filmax.core.tv.designsystem.TvKeyboardLayouts
@@ -33,16 +41,13 @@ import com.filmax.core.tv.designsystem.TvKeyboardWidth
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvPosterCard
+import com.filmax.core.tv.designsystem.TvPosterDetails
 import com.filmax.core.tv.designsystem.TvPosterSize
 import com.filmax.core.tv.designsystem.TvSpotlightCard
 import com.filmax.core.tv.designsystem.TvTextRow
 import com.filmax.core.tv.designsystem.TvTextRowInset
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.tvFocusGroup
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.KeyboardLayoutLabels
 import com.filmax.feature.search.common.SPACE_KEY
 import com.filmax.feature.search.common.SearchEvent
@@ -53,11 +58,18 @@ import com.filmax.feature.search.common.keyboardRows
 private const val RESULT_COLUMNS = 4
 private val ResultGap = 16.dp
 
+/** По вертикали — 12dp от надзаголовка до карточек; между лучшим совпадением и «Ещё» — 22dp. */
+private val ResultRowGap = 12.dp
+private val MoreResultsTop = 10.dp
+
 /** Отступы S06: строка поиска → колонки 26dp, клавиатура → результаты 40dp. */
 private val BarToColumns = 26.dp
 private val ColumnsGap = 40.dp
 private val KeyboardToLayouts = 16.dp
-private val LayoutsToRecent = 26.dp
+private val LayoutsToRecent = 22.dp
+
+/** Надзаголовок «Недавние» → первая строка: 10dp до текста, из них 3dp — поле плотной строки. */
+private val RecentTitleGap = 7.dp
 
 @Composable
 internal fun TvSearchPanel(state: SearchState, actions: CatalogActions, focus: CatalogScreenFocus) {
@@ -125,17 +137,21 @@ private fun KeyboardColumn(
 @Composable
 private fun RecentQueries(queries: List<String>, dispatch: (SearchEvent) -> Unit, modifier: Modifier) {
     Column(modifier) {
-        TvOverline("Недавние", Modifier.padding(bottom = 6.dp), accent = false)
+        TvOverline("Недавние", Modifier.padding(bottom = RecentTitleGap), accent = false)
         // Текст строк — по линии заголовка, подложка фокуса выступает влево.
         Column(Modifier.offset(x = -TvTextRowInset).tvFocusGroup()) {
             queries.forEach { query ->
-                TvTextRow(text = query, onClick = { dispatch(SearchEvent.OpenSearch(query)) })
+                TvTextRow(text = query, onClick = { dispatch(SearchEvent.OpenSearch(query)) }, dense = true)
             }
         }
     }
 }
 
-/** Правая колонка: подсказка, пока искать нечего, или лучшее совпадение и остальные результаты. */
+/**
+ * Правая колонка. Новая выдача сменяет прежнюю кроссфейдом 200 мс без изменения размеров: при
+ * наборе по букве результаты не мигают. Пока набирают, фокус на клавиатуре, а лучшее совпадение
+ * после голоса берёт фокус заявкой — новая выдача уже на экране, когда она исполняется.
+ */
 @Composable
 private fun SearchResults(
     state: SearchState,
@@ -144,22 +160,49 @@ private fun SearchResults(
     bestMatch: FocusRequester,
     modifier: Modifier,
 ) {
+    val reduced = LocalReducedMotion.current
+    AnimatedContent(
+        targetState = state,
+        modifier = modifier.fillMaxSize(),
+        contentKey = { it.results },
+        transitionSpec = { resultsTransition(reduced) },
+        label = "searchResults",
+    ) { shown ->
+        ResultsContent(shown, actions, focus, bestMatch)
+    }
+}
+
+private fun resultsTransition(reduced: Boolean): ContentTransform =
+    if (reduced) {
+        ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+    } else {
+        ContentTransform(fadeIn(FxMotion.fade()), fadeOut(FxMotion.fade()), sizeTransform = null)
+    }
+
+/** Подсказка, пока искать нечего, или лучшее совпадение и остальные результаты. */
+@Composable
+private fun ResultsContent(
+    state: SearchState,
+    actions: CatalogActions,
+    focus: CatalogScreenFocus,
+    bestMatch: FocusRequester,
+) {
     val match = state.bestMatch
     if (match == null) {
-        SearchHint(searchHint(state), modifier)
+        SearchHint(searchHint(state), Modifier)
         return
     }
     val highlight = LocalFxColors.current.accentText
     // Сетка поднята на запас под фокус: увеличенная карточка и свечение не срезаются верхним краем.
     LazyVerticalGrid(
         columns = GridCells.Fixed(RESULT_COLUMNS),
-        modifier = modifier.fillMaxSize().offset(y = -TvMetrics.FocusInset),
+        modifier = Modifier.fillMaxSize().offset(y = -TvMetrics.FocusInset),
         contentPadding = PaddingValues(
             top = TvMetrics.FocusInset,
             bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset
         ),
         horizontalArrangement = Arrangement.spacedBy(ResultGap),
-        verticalArrangement = Arrangement.spacedBy(ResultGap),
+        verticalArrangement = Arrangement.spacedBy(ResultRowGap),
     ) {
         fullWidth("match-title") { TvOverline("Лучшее совпадение", accent = false) }
         fullWidth("match") {
@@ -178,17 +221,20 @@ private fun SearchResults(
 
 private fun LazyGridScope.otherResults(items: List<Item>, actions: CatalogActions, focus: CatalogScreenFocus) {
     if (items.isEmpty()) return
-    fullWidth("more-title") { TvOverline(moreResultsLabel(items.size), Modifier.padding(top = 6.dp), accent = false) }
+    fullWidth("more-title") {
+        TvOverline(moreResultsLabel(items.size), Modifier.padding(top = MoreResultsTop), accent = false)
+    }
+    // Мелкие постеры — чистые, как в макете: подпись и оценка на 106dp не читаются, а тайтл
+    // называет лучшее совпадение над ними и озвучка — по названию на картинке.
     itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
         TvPosterCard(
             title = item.title,
-            meta = posterMeta(typeLabel(item.type), item.year),
+            meta = null,
             posterUrl = posterUrl(item),
             onClick = { actions.onOpenResult(item.id) },
             modifier = Modifier.fxEnter(index % RESULT_COLUMNS).then(focus.screen.item("result:${item.id}")),
-            rating = ratingLabel(item.rating.kinopoisk),
-            ratingHighlighted = isHighRating(item.rating.kinopoisk),
             size = TvPosterSize.Compact,
+            details = TvPosterDetails.None,
         )
     }
 }

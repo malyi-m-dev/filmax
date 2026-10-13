@@ -5,6 +5,10 @@
 
 package com.filmax.core.tv.designsystem
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.keyframes
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
@@ -20,7 +24,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -28,7 +31,9 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,9 +41,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +62,7 @@ private val FieldTileShape = RoundedCornerShape(8.dp)
 private val SwatchSize = 30.dp
 private val CaretWidth = 2.dp
 private val CaretHeight = 22.dp
+private val CaretGap = 4.dp
 private val FieldText = TextStyle(fontFamily = Onest, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
 
 /** Поле — стекло 8%: заметнее панели, но тише клавиш. */
@@ -117,10 +125,11 @@ fun BoxScope.TvFolderEditor(state: TvFolderEditorState, actions: TvFolderEditorA
         TvKeyboard(
             rows = state.keyboardRows,
             actions = actions.keyboard,
+            style = TvKeyboardStyle.Panel,
             firstKey = firstKey,
             modifier = Modifier.padding(top = 16.dp),
         )
-        EditorButtons(state, actions, Modifier.padding(top = 18.dp))
+        EditorButtons(state, actions, Modifier.padding(top = 16.dp))
     }
 }
 
@@ -176,9 +185,10 @@ private fun TitleField(state: TvFolderEditorState, modifier: Modifier) {
         ) {
             Icon(Icons.Rounded.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(17.dp))
         }
-        FieldText(state.title, Modifier.weight(1f, fill = false))
-        Box(Modifier.width(CaretWidth).height(CaretHeight).background(colors.accent))
-        Spacer(Modifier.weight(1f))
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            FieldText(state.title, Modifier.weight(1f, fill = false))
+            FieldCaret(Modifier.padding(start = CaretGap))
+        }
         Text(
             "${state.title.length} / ${state.maxLength}",
             style = FxType.metaOnImage,
@@ -200,6 +210,41 @@ private fun FieldText(title: String, modifier: Modifier) {
         modifier = modifier,
     )
 }
+
+/**
+ * Каретка после набранного: мигает раз в секунду, как курсор поля ввода, — видно, куда ляжет
+ * следующая буква. Прозрачность читается в слое: мигание не перекомпонует поле. В облегчённом
+ * режиме и при сниженной анимации горит ровно.
+ */
+@Composable
+private fun FieldCaret(modifier: Modifier) {
+    val steady = LocalReducedMotion.current || LocalLightEffects.current
+    val visibility = if (steady) remember { mutableFloatStateOf(1f) } else rememberBlink()
+    Box(
+        modifier
+            .width(CaretWidth)
+            .height(CaretHeight)
+            .graphicsLayer { alpha = visibility.value }
+            .background(LocalFxColors.current.accent),
+    )
+}
+
+/** Половину периода каретка видна, половину — нет; переключается скачком, без затухания. */
+@Composable
+private fun rememberBlink(): State<Float> = rememberInfiniteTransition(label = "caretBlink").animateFloat(
+    initialValue = 1f,
+    targetValue = 0f,
+    animationSpec = infiniteRepeatable(
+        keyframes {
+            durationMillis = CARET_BLINK_MS
+            1f at CARET_BLINK_MS / 2 - 1
+            0f at CARET_BLINK_MS / 2
+        },
+    ),
+    label = "caretAlpha",
+)
+
+private const val CARET_BLINK_MS = 1_000
 
 /** «ЦВЕТ» и шесть кружков слева, переключатель раскладок справа — одним рядом, чтобы влезла клавиатура. */
 @Composable
@@ -228,20 +273,19 @@ private fun TintAndLayoutRow(state: TvFolderEditorState, actions: TvFolderEditor
     }
 }
 
-/** Кружок цвета; выбранный — с галочкой и белым кольцом через зазор цвета фона. */
+/** Кружок цвета; выбранный — с галочкой и белым кольцом снаружи, через зазор цвета фона. */
 @Composable
 private fun Swatch(color: Color, selected: Boolean, onClick: () -> Unit) {
-    val colors = LocalFxColors.current
+    val background = LocalFxColors.current.background
     TvFocusSurface(
         onClick = onClick,
         modifier = Modifier
-            .size(SwatchSize)
-            .then(if (selected) Modifier.border(2.dp, Color.White, CircleShape) else Modifier),
+            .then(if (selected) Modifier.selectedRing(background) else Modifier)
+            .size(SwatchSize),
         style = TvFocusStyle.Circle,
         colors = TvSurfaceColors(container = color, content = Color.White),
     ) {
         if (selected) {
-            Box(Modifier.align(Alignment.Center).size(SwatchSize - 6.dp).border(2.dp, colors.background, CircleShape))
             Icon(
                 Icons.Rounded.Check,
                 contentDescription = "Выбран",
@@ -250,6 +294,16 @@ private fun Swatch(color: Color, selected: Boolean, onClick: () -> Unit) {
         }
     }
 }
+
+/** Кольцо выбранного цвета за краем кружка: зазор [RingGap] цвета [gap] и белое кольцо [RingWidth]. */
+private fun Modifier.selectedRing(gap: Color): Modifier = drawBehind {
+    val radius = size.minDimension / 2
+    drawCircle(Color.White, radius = radius + (RingGap + RingWidth).toPx())
+    drawCircle(gap, radius = radius + RingGap.toPx())
+}
+
+private val RingGap = 2.dp
+private val RingWidth = 2.dp
 
 @Composable
 private fun EditorButtons(state: TvFolderEditorState, actions: TvFolderEditorActions, modifier: Modifier) {

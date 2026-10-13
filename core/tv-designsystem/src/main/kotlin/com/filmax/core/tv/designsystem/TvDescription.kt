@@ -20,13 +20,17 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 
-/** Поле между текстом и рамкой фокуса — снаружи его вычитают, чтобы текст стоял в линию с соседями. */
-val TvDescriptionInset = 10.dp
+/** Поле между текстом и рамкой фокуса. */
+private val DescriptionInset = 10.dp
 
 private const val COLLAPSED_LINES = 3
 
@@ -37,15 +41,19 @@ private const val FADE_FROM = 0.55f
  * Описание тайтла: три строки с затуханием и «Читать полностью ›» — [onOpen] открывает полный
  * текст в боковой панели ([TvSheetHost]). Фокусируется, только если текст правда не влез: иначе
  * это лишняя остановка пульта по дороге к кнопкам. Фокус — рамка и свечение без увеличения.
+ *
+ * Поле под рамку фокуса выступает за границы описания: в колонке оно занимает ровно место
+ * текста — стоит в линию с названием и не раздвигает соседей. [style] — кегль текста: у фильма
+ * описание крупнее, у сериала колонка уже.
  */
 @Composable
-fun TvDescription(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
+fun TvDescription(text: String, onOpen: () -> Unit, modifier: Modifier = Modifier, style: TextStyle = FxType.body) {
     var overflows by remember(text) { mutableStateOf(false) }
     val body: @Composable () -> Unit = {
-        Column(Modifier.padding(TvDescriptionInset), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.padding(DescriptionInset), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text,
-                style = FxType.body,
+                style = style,
                 color = LocalFxColors.current.textSecondary,
                 maxLines = COLLAPSED_LINES,
                 overflow = TextOverflow.Clip,
@@ -55,10 +63,11 @@ fun TvDescription(text: String, onOpen: () -> Unit, modifier: Modifier = Modifie
             if (overflows) ReadMore()
         }
     }
+    val outset = modifier.outset(DescriptionInset)
     if (overflows) {
-        TvFocusSurface(onClick = onOpen, modifier = modifier, style = TvFocusStyle.Text) { body() }
+        TvFocusSurface(onClick = onOpen, modifier = outset, style = TvFocusStyle.Text) { body() }
     } else {
-        Column(modifier) { body() }
+        Column(outset) { body() }
     }
 }
 
@@ -74,6 +83,18 @@ private fun ReadMore() {
             modifier = Modifier.size(18.dp),
         )
     }
+}
+
+/**
+ * Содержимое шире и выше раскладки на [inset] с каждой стороны: родитель видит размер без поля,
+ * а поле с рамкой фокуса рисуется поверх соседних отступов.
+ */
+private fun Modifier.outset(inset: Dp): Modifier = layout { measurable, constraints ->
+    val insetPx = inset.roundToPx()
+    val placeable = measurable.measure(constraints.offset(horizontal = insetPx * 2, vertical = insetPx * 2))
+    val width = (placeable.width - insetPx * 2).coerceAtLeast(0)
+    val height = (placeable.height - insetPx * 2).coerceAtLeast(0)
+    layout(width, height) { placeable.place(-insetPx, -insetPx) }
 }
 
 /** Затухание нижних строк: обрезанный текст уходит в фон, а не обрывается на полуслове. */

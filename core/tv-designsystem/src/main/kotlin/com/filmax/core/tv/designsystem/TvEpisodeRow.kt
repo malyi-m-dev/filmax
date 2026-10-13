@@ -2,6 +2,7 @@ package com.filmax.core.tv.designsystem
 
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
@@ -26,7 +27,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,6 +40,9 @@ private val ThumbWidth = 112.dp
 private val ThumbHeight = 63.dp
 private val ThumbShape = RoundedCornerShape(9.dp)
 private const val WATCHED_ALPHA = 0.6f
+
+/** Серия без фокуса чуть приглушена — строка в фокусе читается сразу, как в рядах. */
+private const val IDLE_ALPHA = 0.75f
 
 /** Что строка серии знает о серии — готовые строки и доли, считает их вызывающий. */
 data class TvEpisodeRowModel(
@@ -63,9 +66,19 @@ fun TvEpisodeRow(model: TvEpisodeRowModel, onClick: () -> Unit, modifier: Modifi
     val colors = LocalFxColors.current
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val alpha by animateFloatAsState(
+        targetValue = when {
+            focused -> 1f
+            model.watched -> WATCHED_ALPHA
+            else -> IDLE_ALPHA
+        },
+        animationSpec = FxMotion.focus(),
+        label = "episodeAlpha",
+    )
     TvFocusSurface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().alpha(if (model.watched && !focused) WATCHED_ALPHA else 1f),
+        // Прозрачность читается в слое: смена фокуса в списке не перекомпонует строки.
+        modifier = modifier.fillMaxWidth().graphicsLayer { this.alpha = alpha },
         style = TvFocusStyle.Row,
         colors = TvSurfaceColors(
             container = Color.Transparent,

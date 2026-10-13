@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -27,7 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.tv.designsystem.FxType
@@ -38,6 +41,7 @@ import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvClock
 import com.filmax.core.tv.designsystem.TvMetrics
+import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.feature.home.common.HomeState
@@ -45,32 +49,39 @@ import com.filmax.feature.home.common.HomeState
 /** Ряд с фокусом встаёт заголовком на эту высоту от верха экрана. */
 private val RowPivot = 78.dp
 
-/** Hero уезжает вдвое медленнее ленты и гаснет на первых 300dp прокрутки. */
+/** Hero уезжает вдвое медленнее ленты. */
 private const val HERO_PARALLAX = 0.5f
-private val HeroFadeDistance = 300.dp
 
 /** Между рядами ~36dp: 16 — поле фокуса снизу ряда, остальное — отступ ленты. */
 private val RowSpacing = TvMetrics.RowGap - TvMetrics.FocusInset
 
 /**
+ * Первый ряд встаёт заголовком на нижний край hero, кадр hero уходит под него — ряд
+ * «Продолжить» виден с первого экрана целиком, с подписями.
+ */
+private val FirstRailTop = TvMetrics.HeroHeight
+
+/** Финал ленты — тише рядов: это подпись, а не контент. */
+private const val FEED_END_TEXT_ALPHA = 0.55f
+
+/**
  * Лента Главной — LazyColumn: hero, ряды, финал. Ряд с фокусом встаёт на опорную точку
  * [RowPivot], hero при фокусе — к самому верху ([PivotBringIntoViewSpec]); фокус экрана
- * помнит, с какой карточки ушли в детали ([rememberTvScreenFocus]). Часы — вне скролла.
+ * помнит, с какой карточки ушли в детали ([rememberTvScreenFocus]). Когда hero уехал, сверху
+ * проявляются подсветка и затухание, ряды над фокусом приглушены, справа — индикатор
+ * прокрутки. Часы — вне скролла.
  */
 @Composable
 internal fun TvHomeFeed(state: HomeState, offline: Boolean, actions: TvHomeActions) {
     val listState = rememberLazyListState()
     ScrollToTopOnNavFocus(listState)
     val focus = rememberTvScreenFocus()
+    val feedFocus = remember { FeedFocus() }
+    val scrolled = rememberScrolledShare(listState)
     val pivot = with(LocalDensity.current) { RowPivot.toPx() }
     val spec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
-    val hero = HeroModel(
-        heroes = state.heroes,
-        index = state.heroIndex,
-        inWatchLater = state.hero?.id in state.watchLaterIds,
-    )
-
     Box(Modifier.fillMaxSize()) {
+        ScrolledWash(scrolled)
         CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
             LazyColumn(
                 state = listState,
@@ -80,17 +91,58 @@ internal fun TvHomeFeed(state: HomeState, offline: Boolean, actions: TvHomeActio
             ) {
                 // Офлайн-деградация (issue #42): кэшированный контент + баннер «нет сети» вместо ошибки.
                 if (offline) item(key = "offline") { OfflineBanner(actions.onReload) }
-                if (hero.current != null) {
-                    item(key = "hero") {
-                        TvHomeHero(hero, actions.hero, focus, Modifier.heroParallax(listState).bringIntoViewAsWhole())
-                    }
+                heroItem(state, listState, actions.hero, FeedItemFocus(focus, feedFocus))
+                homeRails(state.rows, actions.rails, FeedItemFocus(focus, feedFocus))
+                item(key = "end") {
+                    FeedEnd(actions.onOpenCatalog, Modifier.feedRow(state.rows.size + 1, feedFocus))
                 }
-                homeRails(state.rows, actions.rails, focus)
-                item(key = "end") { FeedEnd(actions.onOpenCatalog) }
             }
         }
+        ScrolledTopFade(scrolled)
+        FeedScrollBar(listState)
         TvClock(Modifier.align(Alignment.TopEnd).padding(top = 22.dp, end = TvMetrics.SectionEnd))
     }
+}
+
+/** Фокус элемента ленты: память экрана и номер ряда в фокусе — для приглушения рядов над ним. */
+internal class FeedItemFocus(val screen: TvScreenFocus, val feed: FeedFocus)
+
+/** Номер hero среди рядов ленты: ряды считаются с 1. */
+private const val HERO_ROW = 0
+
+private fun LazyListScope.heroItem(
+    state: HomeState,
+    listState: LazyListState,
+    actions: HeroActions,
+    focus: FeedItemFocus,
+) {
+    val hero = HeroModel(
+        heroes = state.heroes,
+        index = state.heroIndex,
+        inWatchLater = state.hero?.id in state.watchLaterIds
+    )
+    if (hero.current == null) return
+    item(key = "hero") {
+        TvHomeHero(
+            hero,
+            actions,
+            focus.screen,
+            Modifier
+                .heroFootprint(FirstRailTop - RowSpacing)
+                .trackFeedRow(HERO_ROW, focus.feed)
+                .heroParallax(listState)
+                .bringIntoViewAsWhole(),
+        )
+    }
+}
+
+/**
+ * Hero занимает в ленте [height] — меньше, чем рисует: низ кадра уходит под первый ряд, как в
+ * макете. Ленивый список рисует следующие элементы поверх предыдущих, поэтому ряд лежит на кадре.
+ */
+private fun Modifier.heroFootprint(height: Dp): Modifier = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    layout(placeable.width, minOf(height.roundToPx(), placeable.height)) { placeable.place(0, 0) }
 }
 
 /** Пока hero первый в ленте, он уезжает с параллаксом и гаснет — кадр не обрывается краем. */
@@ -122,9 +174,9 @@ private fun OfflineBanner(onReload: () -> Unit) {
 
 /** Финал ленты: дальше — каталог. Без него лента обрывается, и непонятно, всё ли это. */
 @Composable
-private fun FeedEnd(onOpenCatalog: () -> Unit) {
+private fun FeedEnd(onOpenCatalog: () -> Unit, modifier: Modifier) {
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .padding(start = TvMetrics.SectionStart, end = TvMetrics.SectionEnd, top = 12.dp)
             .topDivider()
@@ -135,7 +187,7 @@ private fun FeedEnd(onOpenCatalog: () -> Unit) {
         Text(
             "Это всё на сегодня — остальное в каталоге",
             style = FxType.metaRow,
-            color = LocalFxColors.current.textSecondary
+            color = LocalFxColors.current.text.copy(alpha = FEED_END_TEXT_ALPHA),
         )
         TvButton("Открыть каталог", onClick = onOpenCatalog, style = TvButtonStyle.Secondary)
     }

@@ -76,18 +76,17 @@ internal val PlayerTab.moveHint: String
  */
 internal fun statusLabel(tab: PlayerTab, state: PlayerState): String? = when (tab) {
     PlayerTab.Episodes -> tab.label
-    PlayerTab.Audio -> listOfNotNull(tab.label, tabValue(tab, state)).joinToString(" · ")
+    PlayerTab.Audio -> listOfNotNull(tab.label, state.selectedAudio?.languageCode?.let(::languageShort))
+        .joinToString(" · ")
     PlayerTab.Subtitles -> tab.label
     PlayerTab.Quality -> state.currentQuality
     PlayerTab.Speed -> null
 }
 
-/** Текущее значение рядом с подписью вкладки: «RU», «Выкл», «1080p», «1×». */
+/** Текущее значение рядом с подписью вкладки: «RU · 5.1», «Выкл», «1080p», «1×». */
 internal fun tabValue(tab: PlayerTab, state: PlayerState): String? = when (tab) {
     PlayerTab.Episodes -> null
-    PlayerTab.Audio -> state.audioTracks.firstOrNull { it.label == state.currentAudio }?.languageCode?.let(
-        ::languageShort
-    )
+    PlayerTab.Audio -> state.selectedAudio?.let(::audioValue)
     PlayerTab.Subtitles -> subtitleValue(state.subtitles.firstOrNull { it.label == state.currentSubtitle })
     PlayerTab.Quality -> state.currentQuality
     PlayerTab.Speed -> speedValue(state.currentSpeed)

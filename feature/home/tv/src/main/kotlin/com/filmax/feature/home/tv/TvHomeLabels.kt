@@ -48,6 +48,25 @@ private const val TEN = 10
 private val TEENS = 11..14
 private val FEW = 2..4
 
+/** Бегунок индикатора прокрутки: начало и длина в долях дорожки. */
+internal data class ScrollThumb(val start: Float, val length: Float) {
+    companion object {
+        /** Всё помещается — бегунок во всю дорожку. */
+        val Whole = ScrollThumb(start = 0f, length = 1f)
+    }
+}
+
+/**
+ * Бегунок ленты из элементов разной высоты. [position] — номер первого видимого элемента с
+ * дробной частью — сколько его уже уехало; длина — доля видимых элементов. Точной высоты
+ * всей ленты ленивый список не знает, а для подсказки «где я» хватает и такой оценки.
+ */
+internal fun scrollThumb(position: Float, visibleCount: Int, total: Int): ScrollThumb {
+    if (total <= 0 || visibleCount >= total) return ScrollThumb.Whole
+    val hidden = (total - visibleCount).toFloat()
+    return ScrollThumb(start = (position / hidden).coerceIn(0f, 1f), length = visibleCount.toFloat() / total)
+}
+
 /** Больше трёх жанров мета-строка hero не вмещает по ширине текстового блока. */
 private const val MAX_HERO_GENRES = 3
 

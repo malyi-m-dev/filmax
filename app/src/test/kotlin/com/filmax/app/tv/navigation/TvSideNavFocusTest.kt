@@ -32,7 +32,8 @@ import kotlin.test.assertTrue
 
 /**
  * ТВ-оболочка целиком — меню и разделы на мок-данных: выбор раздела в меню уводит фокус в раздел,
- * капля фокуса перетекает с пунктов и на карточку профиля внизу меню.
+ * капля фокуса перетекает с пунктов и на карточку профиля внизу меню, «Назад» закрывает меню, а
+ * выход — только вторым «Назад» с Главной.
  */
 @RunWith(RobolectricTestRunner::class)
 // Своё Application: приложение поднимает Koin в onCreate, а тест — свой граф с фейками.
@@ -80,6 +81,36 @@ class TvSideNavFocusTest {
 
         assertDropOver("Демо Зритель")
     }
+
+    @Test
+    fun `back in the menu opened by arrow closes it and keeps the app`() {
+        showShell()
+        openMenu()
+
+        pressBack()
+
+        assertTrue(!focusedHas("Главная"), "«Назад» не закрыл меню: ${focusedTexts()}")
+        assertTrue(!isFinishing(), "«Назад» в открытом меню закрыл приложение")
+    }
+
+    @Test
+    fun `second back on home leaves the app`() {
+        showShell()
+
+        pressBack()
+        assertFocusedHas("Главная")
+        assertTrue(!isFinishing(), "первое «Назад» на Главной закрыло приложение, а не открыло меню")
+
+        pressBack()
+        assertTrue(isFinishing(), "второе «Назад» на Главной не закрыло приложение")
+    }
+
+    private fun pressBack() {
+        compose.runOnUiThread { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        compose.waitForIdle()
+    }
+
+    private fun isFinishing(): Boolean = compose.activity.isFinishing
 
     /** Капля встала ровно на элемент в фокусе: её верх и низ совпадают с его границами. */
     private fun assertDropOver(text: String) {

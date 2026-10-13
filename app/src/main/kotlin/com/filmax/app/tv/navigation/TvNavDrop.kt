@@ -8,9 +8,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +24,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
@@ -33,6 +36,7 @@ import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvMetrics
+import com.filmax.core.tv.designsystem.fxGlowPulse
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -65,14 +69,20 @@ internal class NavDropAnchors {
 
 /**
  * На ком капля: номер цели, видна ли она и в фокусе ли (в раскрытом меню капля — фокус: белая
- * рамка поверх заливки).
+ * рамка поверх заливки). [glowing] — под каплей горит пульсирующее свечение фокуса; только когда
+ * меню раскрылось до конца — пока панель растёт, у цели меняется размер, а свечение пришлось бы
+ * заново размывать на каждом кадре.
  */
-internal data class NavDropTarget(val index: Int, val visible: Boolean, val focused: Boolean)
+internal data class NavDropTarget(val index: Int, val visible: Boolean, val focused: Boolean, val glowing: Boolean)
+
+/** Масштаб пункта меню в фокусе — мягче карточек: пункт во всю ширину панели. */
+internal const val NAV_FOCUS_SCALE = 1.03f
 
 /**
  * Капля: край со стороны движения быстро тянется к новой цели, хвост догоняет мягче и чуть
  * покачивается. Пока хвост в пути, капля вытянута на обе цели — так же она перетекает и на
- * карточку профиля внизу. Рисуется слоем во всю колонку под целями.
+ * карточку профиля внизу. Рисуется слоем во всю колонку под целями; в фокусе — чуть крупнее
+ * ([NAV_FOCUS_SCALE]) и со свечением, как фокус остального интерфейса.
  */
 @Composable
 internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifier: Modifier) {
@@ -83,29 +93,65 @@ internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifi
         animationSpec = FxMotion.focus(),
         label = "dropAlpha",
     )
+    val focusScale = animateFloatAsState(
+        targetValue = if (target.focused) NAV_FOCUS_SCALE else 1f,
+        animationSpec = FxMotion.focus(),
+        label = "dropScale",
+    )
+    Box(modifier.graphicsLayer { this.alpha = alpha }) {
+        if (target.glowing && bounds != null) DropGlow(bounds, focusScale)
+        Box(
+            Modifier
+                .matchParentSize()
+                .layout { measurable, constraints ->
+                    val height = (drop.bottom.value - drop.top.value).roundToInt().coerceAtLeast(0)
+                    val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+                    layout(constraints.maxWidth, constraints.maxHeight) {
+                        placeable.place(0, drop.top.value.roundToInt())
+                    }
+                }
+                .testTag(NAV_DROP_TAG)
+                .dropShape(target.focused, focusScale),
+        )
+    }
+}
+
+/**
+ * Свечение под каплей — на самой цели, а не на перетекающей капле: размер цели постоянен, и
+ * размытая текстура свечения считается один раз ([fxGlowPulse]), а не на каждом кадре перетекания.
+ */
+@Composable
+private fun BoxScope.DropGlow(bounds: Rect, focusScale: State<Float>) {
     Box(
-        modifier
-            .graphicsLayer { this.alpha = alpha }
+        Modifier
+            .matchParentSize()
             .layout { measurable, constraints ->
-                val height = (drop.bottom.value - drop.top.value).roundToInt().coerceAtLeast(0)
-                val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
+                val placeable = measurable.measure(
+                    Constraints.fixed(bounds.width.roundToInt(), bounds.height.roundToInt()),
+                )
                 layout(constraints.maxWidth, constraints.maxHeight) {
-                    placeable.place(0, drop.top.value.roundToInt())
+                    placeable.place(bounds.left.roundToInt(), bounds.top.roundToInt())
                 }
             }
-            .testTag(NAV_DROP_TAG)
-            .dropShape(target.focused),
+            .graphicsLayer {
+                scaleX = focusScale.value
+                scaleY = focusScale.value
+            }
+            .fxGlowPulse(active = true, cornerRadius = DropRadius),
     )
 }
 
+/** Заливка и рамка капли. Масштаб — при отрисовке: границы капли остаются границами цели. */
 @Composable
-private fun Modifier.dropShape(focused: Boolean): Modifier {
+private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>): Modifier {
     val colors = LocalFxColors.current
     return drawBehind {
         val radius = CornerRadius(minOf(DropRadius.toPx(), size.height / 2, size.width / 2))
-        drawRoundRect(colors.accent, Offset.Zero, size, radius)
-        if (focused) {
-            drawRoundRect(TvFocus, Offset.Zero, size, radius, style = Stroke(TvMetrics.FocusBorderWidth.toPx()))
+        scale(focusScale.value) {
+            drawRoundRect(colors.accent, Offset.Zero, size, radius)
+            if (focused) {
+                drawRoundRect(TvFocus, Offset.Zero, size, radius, style = Stroke(TvMetrics.FocusBorderWidth.toPx()))
+            }
         }
     }
 }

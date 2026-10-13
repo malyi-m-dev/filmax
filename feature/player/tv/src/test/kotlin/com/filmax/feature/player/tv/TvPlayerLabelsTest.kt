@@ -113,4 +113,23 @@ class TvPlayerLabelsTest {
         assertEquals("быстро", speedCaption(2f))
         assertNull(speedCaption(1.25f))
     }
+
+    @Test
+    fun `audio tab names surround channels but not plain stereo`() {
+        val surround = PlayerState(
+            audioTracks = listOf(AudioOption("1. Русский", 0, "rus", channels = 6)),
+            currentAudio = "1. Русский",
+        )
+        val stereo = surround.copy(audioTracks = listOf(AudioOption("1. Русский", 0, "rus", channels = 2)))
+
+        assertEquals("RU · 5.1", tabValue(PlayerTab.Audio, surround))
+        assertEquals("RU", tabValue(PlayerTab.Audio, stereo))
+        // Плашка транспорта — только язык, как в макете: «Аудио · RU».
+        assertEquals("Аудио · RU", statusLabel(PlayerTab.Audio, surround))
+    }
+
+    @Test
+    fun `tv speeds are six tiles from half to double`() {
+        assertEquals(listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f), TvPlaybackSpeeds)
+    }
 }

@@ -1,7 +1,7 @@
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
@@ -38,10 +38,11 @@ class TvScrollFades internal constructor(private val top: State<Float>, private 
 
 /**
  * Затухание у края, за которым есть ещё элементы: список прокручен вниз — гаснет верх, ниже
- * есть ещё — низ; у края, где ничего не осталось, затухание уходит.
+ * есть ещё — низ; у края, где ничего не осталось, затухание уходит. [state] — любой
+ * прокручиваемый контейнер: список, сетка.
  */
 @Composable
-fun rememberTvScrollFades(state: LazyListState): TvScrollFades {
+fun rememberTvScrollFades(state: ScrollableState): TvScrollFades {
     val top = animateFloatAsState(if (state.canScrollBackward) 1f else 0f, FxMotion.fade(), label = "topFade")
     val bottom = animateFloatAsState(if (state.canScrollForward) 1f else 0f, FxMotion.fade(), label = "bottomFade")
     return remember(top, bottom) { TvScrollFades(top, bottom) }

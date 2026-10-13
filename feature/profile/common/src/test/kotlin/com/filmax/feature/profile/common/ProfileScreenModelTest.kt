@@ -1,5 +1,6 @@
 package com.filmax.feature.profile.common
 
+import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
@@ -84,6 +85,23 @@ class ProfileScreenModelTest {
         assertEquals(ThemePalette.CORAL, theme.palette.value)
         assertEquals(ThemePalette.CORAL, model.states.value.palette)
         assertEquals("Коралл", model.states.value.valueOf(ProfileSetting.PALETTE))
+    }
+
+    @Test
+    fun `subtitles switch turns on the default language and off again`() = runTest(dispatcher) {
+        val model = model()
+        advanceUntilIdle()
+        assertFalse(model.states.value.subtitlesEnabled)
+
+        model.dispatch(ProfileEvent.SetSubtitlesEnabled(true))
+        advanceUntilIdle()
+        assertTrue(model.states.value.subtitlesEnabled)
+        assertEquals("Русский", playback.settings.first().subtitleLanguage)
+
+        model.dispatch(ProfileEvent.SetSubtitlesEnabled(false))
+        advanceUntilIdle()
+        assertFalse(model.states.value.subtitlesEnabled)
+        assertEquals(PlaybackSettings.SubtitleOff, playback.settings.first().subtitleLanguage)
     }
 
     @Test

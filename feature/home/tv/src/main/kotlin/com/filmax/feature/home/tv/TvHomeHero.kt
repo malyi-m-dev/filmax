@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BookmarkAdd
-import androidx.compose.material.icons.rounded.BookmarkAdded
+import androidx.compose.material.icons.rounded.Bookmark
+import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.FxType
@@ -81,6 +82,16 @@ private const val HERO_WATCH_LATER_KEY = "hero:watchLater"
 private const val AUTO_ADVANCE_MS = 8_000L
 private const val BACKDROP_CROSSFADE_MS = 600
 
+/**
+ * Кадр hero чуть выше места, которое hero занимает в ленте (там — [TvMetrics.HeroHeight]):
+ * нижняя кромка кадра уходит под заголовок первого ряда, и между ними нет шва.
+ */
+private val HeroImageOverhang = 6.dp
+private val HeroImageHeight = TvMetrics.HeroHeight + HeroImageOverhang
+
+/** Описание — 14/1.45: на ступень мельче описания деталей, hero делит экран с рядом. */
+private val DescriptionStyle = FxType.body.copy(fontSize = 14.sp, lineHeight = 20.3.sp)
+
 private val TextBlockWidth = 480.dp
 private val DescriptionWidth = 420.dp
 private val TextBlockTop = 72.dp
@@ -104,7 +115,7 @@ internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenF
     Box(
         modifier
             .fillMaxWidth()
-            .height(TvMetrics.HeroHeight)
+            .height(HeroImageHeight)
             .clipToBounds()
             .onFocusChanged { focused = it.hasFocus }
             .testTag(HERO_TEST_TAG),
@@ -196,7 +207,7 @@ private fun HeroText(item: Item, inWatchLater: Boolean, actions: HeroActions, fo
             if (item.plot.isNotBlank()) {
                 Text(
                     item.plot,
-                    style = FxType.body,
+                    style = DescriptionStyle,
                     color = colors.textSecondary,
                     maxLines = DESCRIPTION_LINES,
                     overflow = TextOverflow.Ellipsis,
@@ -241,7 +252,7 @@ private fun HeroButtons(
             modifier = focus.item(HERO_DETAILS_KEY)
         )
         TvIconButton(
-            icon = if (inWatchLater) Icons.Rounded.BookmarkAdded else Icons.Rounded.BookmarkAdd,
+            icon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
             contentDescription = if (inWatchLater) "Убрать из «Буду смотреть»" else "Буду смотреть",
             onClick = { actions.onToggleWatchLater(item) },
             modifier = focus.item(HERO_WATCH_LATER_KEY),

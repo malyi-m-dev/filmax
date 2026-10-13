@@ -29,12 +29,14 @@ import androidx.tv.material3.Surface
 /**
  * Как элемент выглядит в фокусе: форма (по ней идут рамка и свечение) и масштаб.
  * [glowRadius] — скругление свечения; для круга — половина размера, свечение само его ограничит.
+ * [pop] — масштаб с лёгким перелётом ([FxMotion.pop]), как у карточек; без него — ровный
+ * [FxMotion.focus], как у кнопок, чипов и строк: перелёт на мелком элементе читается как дрожь.
  */
 @Immutable
-data class TvFocusStyle(val shape: Shape, val glowRadius: Dp, val focusedScale: Float) {
+data class TvFocusStyle(val shape: Shape, val glowRadius: Dp, val focusedScale: Float, val pop: Boolean = false) {
     companion object {
         /** Постер, карточка 16:9, плитка. */
-        val Card = TvFocusStyle(TvMetrics.CardShape, CARD_RADIUS, TvMetrics.FocusScale)
+        val Card = TvFocusStyle(TvMetrics.CardShape, CARD_RADIUS, TvMetrics.FocusScale, pop = true)
         val Button = TvFocusStyle(TvMetrics.ButtonShape, CARD_RADIUS, TvMetrics.FocusScale)
         val Chip = TvFocusStyle(TvMetrics.ChipShape, CHIP_RADIUS, TvMetrics.FocusScale)
 
@@ -73,8 +75,9 @@ data class TvSurfaceColors(
  * строк, пунктов меню. Фокус описан здесь один раз и выглядит везде одинаково:
  *
  * - белая рамка 3dp — штатная рамка tv-material `Surface`;
- * - масштаб с лёгким перелётом ([FxMotion.pop]) — свой, через graphicsLayer: штатная анимация
- *   масштаба tv-material без настройки пружины;
+ * - масштаб — свой, через graphicsLayer: у карточек с лёгким перелётом ([FxMotion.pop]), у
+ *   кнопок, чипов и строк ровным [FxMotion.focus] ([TvFocusStyle.pop]); штатная анимация
+ *   масштаба tv-material не настраивается;
  * - цветное свечение палитры, пульсирующее ([fxGlowPulse]), — внутри того же слоя, поэтому
  *   растёт вместе с элементом.
  *
@@ -98,7 +101,11 @@ fun TvFocusSurface(
     val reduced = LocalReducedMotion.current
     val scale by animateFloatAsState(
         targetValue = if (focused) style.focusedScale else 1f,
-        animationSpec = if (reduced) snap() else FxMotion.pop(),
+        animationSpec = when {
+            reduced -> snap()
+            style.pop -> FxMotion.pop()
+            else -> FxMotion.focus()
+        },
         label = "focusScale",
     )
     Surface(

@@ -30,6 +30,9 @@ import androidx.tv.material3.Text
 val TvTextRowInset = 12.dp
 
 private val RowPadding = PaddingValues(horizontal = TvTextRowInset, vertical = 8.dp)
+
+/** Плотная строка — шаг 24dp: недавние запросы под клавиатурой, где места по высоте мало. */
+private val DenseRowPadding = PaddingValues(horizontal = TvTextRowInset, vertical = 3.dp)
 private val RowTextStyle = TextStyle(fontSize = 14.sp, lineHeight = 18.sp)
 private val CheckSize = 18.dp
 private const val IDLE_TEXT_ALPHA = 0.75f
@@ -37,10 +40,16 @@ private const val IDLE_TEXT_ALPHA = 0.75f
 /**
  * Строка-текст во всю ширину списка: недавний запрос, вариант сортировки. Без фокуса — просто
  * текст, в фокусе — стеклянная подложка с рамкой. [selected] — выбранный вариант: акцентом и с
- * галочкой справа.
+ * галочкой справа. [dense] — плотный шаг строк (недавние запросы поиска).
  */
 @Composable
-fun TvTextRow(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false) {
+fun TvTextRow(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    dense: Boolean = false,
+) {
     val colors = LocalFxColors.current
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
@@ -58,7 +67,7 @@ fun TvTextRow(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, 
         interactionSource = interaction,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(RowPadding),
+            Modifier.fillMaxWidth().padding(if (dense) DenseRowPadding else RowPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {

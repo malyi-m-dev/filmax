@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -29,20 +31,32 @@ import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvBackHint
 import com.filmax.core.tv.designsystem.TvBackdrop
+import com.filmax.core.tv.designsystem.TvBackdropStyle
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvIconButton
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvScreenFocus
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.resolveCast
 
 private val InfoTop = 24.dp
-private val InfoEndGap = 24.dp
+private val InfoWidth = 430.dp
+private val HeadingTop = 18.dp
+private val CastGap = 12.dp
+private val ButtonGap = 10.dp
+
+/** Строка состава — подпись, а не текст: тише описания. */
+private const val CAST_LINE_ALPHA = 0.55f
 
 /** Сколько актёров в строке «В ролях» у сериала — дальше строка уходит за край колонки. */
 private const val CAST_LINE_NAMES = 3
+
+/** Строка состава и кнопки появляются следом за шапкой (у неё fxEnter 0–3). */
+private const val CAST_ENTER_INDEX = 4
+private const val BUTTONS_ENTER_INDEX = 5
 
 /**
  * Сериал. Открывается фокусом на серии «продолжить» (её сезон выбран моделью), иначе на
@@ -61,7 +75,7 @@ internal fun TvSeriesDetails(
     val focus = rememberTvScreenFocus(startAt = startAt ?: PLAY_KEY)
     val playFocus = remember { FocusRequester() }
     Box(Modifier.fillMaxSize()) {
-        TvBackdrop(item.posters.wide ?: item.posters.big)
+        TvBackdrop(item.posters.wide ?: item.posters.big, style = TvBackdropStyle.Split)
         Row(Modifier.fillMaxSize().then(focus.containerModifier)) {
             SeriesInfo(state, item, actions, SeriesFocus(focus, playFocus, sheets), Modifier.weight(1f))
             TvEpisodesPanel(
@@ -69,7 +83,7 @@ internal fun TvSeriesDetails(
                 actions = actions,
                 focus = focus,
                 exitLeft = playFocus,
-                modifier = Modifier.width(TvMetrics.EpisodesPanelWidth).fillMaxHeight(),
+                modifier = Modifier.fillMaxHeight(),
             )
         }
     }
@@ -84,6 +98,7 @@ internal fun episodeKey(episode: MediaTrack): String = "episode:${episode.id}"
  */
 private data class SeriesFocus(val screen: TvScreenFocus, val play: FocusRequester, val sheets: DetailsSheetFocus)
 
+/** Колонка информации — фиксированной ширины: длинное описание не растягивает её до панели. */
 @Composable
 private fun SeriesInfo(
     state: DetailsState,
@@ -93,43 +108,48 @@ private fun SeriesInfo(
     modifier: Modifier,
 ) {
     Column(
-        modifier.padding(start = TvMetrics.SafeHorizontal, top = InfoTop, end = InfoEndGap),
+        modifier
+            .padding(start = TvMetrics.SafeHorizontal, top = InfoTop)
+            .wrapContentWidth(Alignment.Start)
+            .width(InfoWidth),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         TvBackHint("Назад")
-        DetailsHeading(
-            item,
-            state.series,
-            actions.onOpenDescription,
-            focus.sheets.description,
-            Modifier.padding(top = 18.dp)
-        )
-        CastLine(state, item)
-        SeriesButtons(state, actions, focus)
+        Column(Modifier.padding(top = HeadingTop), verticalArrangement = Arrangement.spacedBy(CastGap)) {
+            DetailsHeading(
+                item = item,
+                series = state.series,
+                description = HeadingDescription(actions.onOpenDescription, focus.sheets.description),
+                style = SeriesHeadingStyle,
+            )
+            CastLine(state, item, Modifier.fxEnter(CAST_ENTER_INDEX))
+        }
+        SeriesButtons(state, actions, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
     }
 }
 
 /** «В ролях: Анна Лунд, Эрик Сунд, Мия Хольм» — у сериала состав строкой, место занимают серии. */
 @Composable
-private fun CastLine(state: DetailsState, item: Item) {
+private fun CastLine(state: DetailsState, item: Item, modifier: Modifier) {
     val names = resolveCast(state.cast, item.cast).take(CAST_LINE_NAMES).joinToString(", ") { it.name }
     if (names.isBlank()) return
     Text(
         "В ролях: $names",
-        style = FxType.metaRow,
-        color = LocalFxColors.current.textSecondary,
+        style = FxType.meta,
+        color = LocalFxColors.current.text.copy(alpha = CAST_LINE_ALPHA),
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
     )
 }
 
 /** «Продолжить · S4E7» и круглые «В список» / «В папку» / «Трейлер»: место в колонке занимают серии. */
 @Composable
-private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: SeriesFocus) {
+private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: SeriesFocus, modifier: Modifier) {
     val resume = state.series?.resume
     // Кнопка играет серию «продолжить», иначе первую серию выбранного сезона.
     val target = resume ?: state.seasonEpisodes.firstOrNull()
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(ButtonGap)) {
         TvButton(
             playLabel(resume),
             onClick = { target?.let { actions.onPlay(it.seasonNumber, it.number) } },

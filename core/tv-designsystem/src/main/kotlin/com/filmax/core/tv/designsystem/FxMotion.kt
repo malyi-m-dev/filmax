@@ -28,7 +28,7 @@ object FxMotion {
     /** Фокус на карточке — scale с лёгким перелётом. */
     fun <T> pop(): FiniteAnimationSpec<T> = spring(dampingRatio = POP_DAMPING, stiffness = POP_STIFFNESS)
 
-    /** Прокрутка рядов и страниц к элементу в фокусе. */
+    /** Прокрутка по шагу: текст панели описания по стрелке (к фокусу списки едут сами, см. PivotBringIntoViewSpec). */
     fun <T> scroll(): AnimationSpec<T> = tween(SCROLL_MS, easing = FxEasing.Standard)
 
     /** Сворачивание шапки подборки. */
@@ -41,6 +41,12 @@ object FxMotion {
 
     fun <T> fade(): FiniteAnimationSpec<T> = tween(FADE_MS)
 
+    /** Проявление нового экрана при переходе вперёд — половина длительности появления контента. */
+    fun <T> screenIn(): FiniteAnimationSpec<T> = tween(ENTER_MS / 2)
+
+    /** Рост полосы прогресса при появлении карточки. */
+    fun <T> grow(): FiniteAnimationSpec<T> = tween(GROW_MS, delayMillis = GROW_DELAY_MS, easing = FxEasing.Standard)
+
     const val FOCUS_MS = 160
     const val SCROLL_MS = 280
     const val COLLAPSE_MS = 320
@@ -51,6 +57,13 @@ object FxMotion {
     const val ENTER_STAGGER_MS = 60
     const val KEN_BURNS_MS = 16_000
     const val PULSE_MS = 1_400
+
+    /** Блик на карточке в фокусе: один проход и задержка перед первым. */
+    const val SWEEP_MS = 2_600
+    const val SWEEP_DELAY_MS = 600
+
+    const val GROW_MS = 1_100
+    const val GROW_DELAY_MS = 200
 
     private const val POP_DAMPING = 0.55f
     private const val POP_STIFFNESS = 420f

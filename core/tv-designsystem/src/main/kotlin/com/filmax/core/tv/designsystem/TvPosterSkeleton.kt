@@ -49,7 +49,7 @@ private val CaptionShape = RoundedCornerShape(6.dp)
 /**
  * Заглушка постера, пока страница догружается: прямоугольник [size] и полоска под подпись, по
  * которым проходит блик. Размер — как у [TvPosterCard], поэтому сетка не прыгает, когда вместо
- * заглушек встают карточки. При сниженной анимации — без блика.
+ * заглушек встают карточки. При сниженной анимации и в облегчённом режиме — без блика.
  */
 @Composable
 fun TvPosterSkeleton(modifier: Modifier = Modifier, size: TvPosterSize = TvPosterSize.Grid) {
@@ -58,7 +58,7 @@ fun TvPosterSkeleton(modifier: Modifier = Modifier, size: TvPosterSize = TvPoste
         Box(
             Modifier
                 .size(size.width, size.height)
-                .clip(TvMetrics.PosterShape)
+                .clip(RoundedCornerShape(size.cornerRadius))
                 .background(Color.White.copy(alpha = SKELETON_ALPHA))
                 .shine(shine),
         )
@@ -71,10 +71,10 @@ fun TvPosterSkeleton(modifier: Modifier = Modifier, size: TvPosterSize = TvPoste
     }
 }
 
-/** Фаза блика 0..1; null — блика нет (сниженная анимация). */
+/** Фаза блика 0..1; null — блика нет (сниженная анимация, облегчённый режим). */
 @Composable
 private fun rememberShine(): State<Float>? {
-    if (LocalReducedMotion.current) return null
+    if (LocalReducedMotion.current || LocalLightEffects.current) return null
     val transition = rememberInfiniteTransition(label = "skeletonShine")
     return transition.animateFloat(
         initialValue = 0f,

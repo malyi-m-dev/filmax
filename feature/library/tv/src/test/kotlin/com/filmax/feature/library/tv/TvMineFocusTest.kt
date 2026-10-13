@@ -131,7 +131,7 @@ class TvMineFocusTest {
 
         // «ОК» на первой клавише — первая буква названия, заглавная.
         remote.press(Key.DirectionCenter)
-        assertEquals("А", model.states.value.draft?.title)
+        assertEquals("Й", model.states.value.draft?.title)
 
         remote.back()
         assertNull(model.states.value.draft, "«Назад» не закрыл панель")
@@ -199,7 +199,7 @@ class TvMineFocusTest {
         const val FIRST_POSTER = "Первый отложенный"
         const val SECOND_POSTER_ID = 2007
         const val SECOND_POSTER = "Второй отложенный"
-        const val FIRST_KEY = "а"
+        const val FIRST_KEY = "й"
         const val WATCHLIST_TAB = 1
         const val FOLDERS_TAB = 2
         const val HISTORY_TAB = 3

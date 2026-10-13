@@ -33,11 +33,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.FxMotion
+import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvPosterCard
+import com.filmax.core.tv.designsystem.TvPosterDetails
 import com.filmax.core.tv.designsystem.TvPosterSize
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvScrollBar
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.ui.components.isHighRating
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
@@ -89,37 +92,56 @@ internal fun CollectionGrid(
     LoadMoreNearTail(gridState, items.size, actions.onLoadMore)
     Box(modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalBringIntoViewSpec provides pivotSpec) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(COLLECTION_COLUMNS),
-                state = gridState,
-                modifier = Modifier.fillMaxSize().then(focus.containerModifier),
-                horizontalArrangement = Arrangement.spacedBy(ColumnGap),
-                verticalArrangement = Arrangement.spacedBy(RowGap),
-                contentPadding = PaddingValues(
-                    start = TvMetrics.SafeHorizontal,
-                    end = GridEnd,
-                    top = GridTop,
-                    bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
-                ),
-            ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                    CollectionPoster(
-                        item = item,
-                        onClick = { actions.onOpenItem(item.id) },
-                        modifier = focus.item(posterKey(item.id))
-                            .onFocusChanged { if (it.hasFocus) actions.onFocusRow(gridRow(index)) },
-                    )
-                }
-            }
+            // В сетке только постеры: фокус в ней — всегда на постере, соседи приглушаются.
+            TvDimGroup { PosterGrid(items, gridState, focus, actions) }
         }
         GridScrollBar(gridState, visible = collapsed, Modifier.align(Alignment.TopEnd))
     }
 }
 
+@Composable
+private fun PosterGrid(
+    items: List<Item>,
+    gridState: LazyGridState,
+    focus: TvScreenFocus,
+    actions: CollectionGridActions,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(COLLECTION_COLUMNS),
+        state = gridState,
+        modifier = Modifier.fillMaxSize().then(focus.containerModifier),
+        horizontalArrangement = Arrangement.spacedBy(ColumnGap),
+        verticalArrangement = Arrangement.spacedBy(RowGap),
+        contentPadding = PaddingValues(
+            start = TvMetrics.SafeHorizontal,
+            end = GridEnd,
+            top = GridTop,
+            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
+        ),
+    ) {
+        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+            CollectionPoster(
+                item = item,
+                onClick = { actions.onOpenItem(item.id) },
+                modifier = focus.item(posterKey(item.id))
+                    // Сетка поднимается вслед за шапкой: первая колонка — после её надзаголовка.
+                    .fxEnter(index % COLLECTION_COLUMNS + GRID_ENTER_AFTER_HEADER)
+                    .onFocusChanged { if (it.hasFocus) actions.onFocusRow(gridRow(index)) },
+            )
+        }
+    }
+}
+
+/** Сдвиг появления сетки в шагах fxEnter: первые постеры — через ≈100 мс после шапки. */
+private const val GRID_ENTER_AFTER_HEADER = 2
+
 /** Ключ постера для памяти фокуса: возврат из деталей — на тот же тайтл. */
 internal fun posterKey(itemId: Int): String = "collection:$itemId"
 
-/** Карточка тайтла — общая для всего ТВ-приложения: ряды Главной, каталог, фильмография. */
+/**
+ * Карточка тайтла — общая для всего ТВ-приложения. В подборке без фокуса — чистый постер:
+ * название, мета и оценка только у карточки в фокусе, сетка обложек читается картиной.
+ */
 @Composable
 private fun CollectionPoster(item: Item, onClick: () -> Unit, modifier: Modifier) {
     TvPosterCard(
@@ -130,6 +152,7 @@ private fun CollectionPoster(item: Item, onClick: () -> Unit, modifier: Modifier
         rating = ratingLabel(item.rating.kinopoisk),
         ratingHighlighted = isHighRating(item.rating.kinopoisk),
         size = TvPosterSize.Rail,
+        details = TvPosterDetails.OnFocus,
         modifier = modifier,
     )
 }

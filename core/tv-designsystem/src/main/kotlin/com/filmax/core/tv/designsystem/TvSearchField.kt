@@ -51,14 +51,25 @@ private val PlaceholderStyle = TextStyle(fontSize = 15.sp, lineHeight = 20.sp)
 private val QueryStyle =
     TextStyle(fontFamily = Onest, fontWeight = FontWeight.Medium, fontSize = 17.sp, lineHeight = 22.sp)
 
-private val MicFocus = TvFocusStyle(TvMetrics.PanelShape, glowRadius = 14.dp, focusedScale = TvMetrics.FocusScale)
+private val MicGlowRadius = 14.dp
+private val MicFocus =
+    TvFocusStyle(TvMetrics.PanelShape, glowRadius = MicGlowRadius, focusedScale = TvMetrics.FocusScale)
+
+/** Обводка поля под диктовку — нейтральная: акцент в этот момент у микрофона. */
+private const val DICTATION_BORDER_ALPHA = 0.12f
+
+/**
+ * Режим поля. [Button] — поиск закрыт, поле — кнопка, открывающая его. [Typing] — текст набирают
+ * экранной клавиатурой: обводка акцентом и мигающий курсор показывают, куда идёт набор.
+ * [Dictation] — текст диктуют голосом: нейтральная обводка без курсора, акцент — у микрофона.
+ */
+enum class TvSearchFieldMode { Button, Typing, Dictation }
 
 /**
  * Поле поиска высотой 48dp: лупа, запрос или [placeholder].
  *
- * Пока поиск закрыт, поле — кнопка: фокус как у широких строк, «ОК» ([onClick]) открывает поиск.
- * [active] — поиск открыт и текст набирают экранной клавиатурой: поле само фокус не берёт (ввод —
- * клавиши), обводка акцентом и мигающий курсор показывают, куда идёт набор.
+ * В режиме [TvSearchFieldMode.Button] поле — кнопка: фокус как у широких строк, «ОК» ([onClick])
+ * открывает поиск. В остальных режимах поле само фокус не берёт: ввод идёт клавишами или голосом.
  */
 @Composable
 fun TvSearchField(
@@ -66,10 +77,10 @@ fun TvSearchField(
     placeholder: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    active: Boolean = false,
+    mode: TvSearchFieldMode = TvSearchFieldMode.Button,
 ) {
-    if (active) {
-        ActiveField(query, modifier)
+    if (mode != TvSearchFieldMode.Button) {
+        ActiveField(query, typing = mode == TvSearchFieldMode.Typing, modifier = modifier)
         return
     }
     val colors = LocalFxColors.current
@@ -95,16 +106,17 @@ fun TvSearchField(
     }
 }
 
-/** Поле в режиме набора: не фокусируется, обводка акцентом, запрос с курсором. */
+/** Поле в режиме ввода: не фокусируется; набор [typing] — обводка акцентом и курсор, диктовка — без них. */
 @Composable
-private fun ActiveField(query: String, modifier: Modifier) {
+private fun ActiveField(query: String, typing: Boolean, modifier: Modifier) {
     val colors = LocalFxColors.current
+    val border = if (typing) colors.accent else Color.White.copy(alpha = DICTATION_BORDER_ALPHA)
     Box(
         modifier
             .height(TvSearchBarHeight)
             .background(Color.White.copy(alpha = ACTIVE_FIELD_ALPHA), TvMetrics.PanelShape),
     ) {
-        FieldContent(Modifier.border(1.dp, colors.accent, TvMetrics.PanelShape)) {
+        FieldContent(Modifier.border(1.dp, border, TvMetrics.PanelShape)) {
             Icon(
                 Icons.Rounded.Search,
                 contentDescription = null,
@@ -113,7 +125,7 @@ private fun ActiveField(query: String, modifier: Modifier) {
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(query, style = QueryStyle, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                TvCaret(CaretWidth, CaretHeight)
+                if (typing) TvCaret(CaretWidth, CaretHeight)
             }
         }
     }
@@ -130,14 +142,15 @@ private fun FieldContent(modifier: Modifier, content: @Composable () -> Unit) {
 
 /**
  * Кнопка голосового поиска 48dp рядом с полем. [listening] — идёт слушание: кнопка залита
- * акцентом, как в макете оверлея, и видно, откуда пришёл голос.
+ * акцентом и выглядит как в фокусе (белая рамка, увеличение, пульс свечения), хотя фокус заперт в
+ * оверлее, — видно, откуда пришёл голос.
  */
 @Composable
 fun TvMicButton(onClick: () -> Unit, modifier: Modifier = Modifier, listening: Boolean = false) {
     val colors = LocalFxColors.current
     TvFocusSurface(
         onClick = onClick,
-        modifier = modifier.size(TvSearchBarHeight),
+        modifier = modifier.then(if (listening) Modifier.listeningLook() else Modifier).size(TvSearchBarHeight),
         style = MicFocus,
         colors = if (listening) {
             TvSurfaceColors(container = colors.accent, content = colors.onAccent)
@@ -152,6 +165,18 @@ fun TvMicButton(onClick: () -> Unit, modifier: Modifier = Modifier, listening: B
         )
     }
 }
+
+/**
+ * Слушающая кнопка выглядит как в фокусе ([TvFocusSurface]): рамка, увеличение и пульс свечения.
+ * Пульс — тот же, что у фокуса: в облегчённом режиме и при сниженной анимации он горит ровно.
+ */
+private fun Modifier.listeningLook(): Modifier = this
+    .graphicsLayer {
+        scaleX = TvMetrics.FocusScale
+        scaleY = TvMetrics.FocusScale
+    }
+    .fxGlowPulse(active = true, cornerRadius = MicGlowRadius)
+    .border(TvMetrics.FocusBorderWidth, TvFocus, TvMetrics.PanelShape)
 
 /**
  * Мигающий курсор набора — после запроса в поле и после распознанной речи. При сниженной

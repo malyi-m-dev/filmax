@@ -29,11 +29,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.toRect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -55,10 +62,12 @@ import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvBackHint
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvCollapsibleButton
+import com.filmax.core.tv.designsystem.TvKeyCapSize
 import com.filmax.core.tv.designsystem.TvMetrics
-import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.ui.components.PosterImage
 import kotlin.math.abs
@@ -86,6 +95,15 @@ private const val PREVIOUS_ROW_FADE_SOLID = 0.45f
 /** Название в свёрнутой полосе — 20sp из 42sp: масштабом слоя, без перерасчёта раскладки. */
 private const val TITLE_COLLAPSED_SCALE = 20f / 42f
 private const val COVER_ALPHA = 0.35f
+
+/** Надзаголовок «Подборка» — белым на 80%: на цветной полосе акцентная точка и цвет терялись. */
+private const val OVERLINE_ALPHA = 0.8f
+
+/** Шапка появляется по очереди (шаг fxEnter — 60 мс): надзаголовок, название, подпись, кнопка. */
+private const val OVERLINE_ENTER = 0
+private const val TITLE_ENTER = 1
+private const val CAPTION_ENTER = 2
+private const val ACTIONS_ENTER = 3
 private const val BAND_FADE_START = 0.3f
 
 /** Надзаголовок гаснет за первые 120 мс сворачивания, а возвращается, когда полоса уже раскрылась. */
@@ -137,15 +155,18 @@ internal fun CollectionHeader(
         HeaderBand(model, running = !collapsed, collapse)
         HeaderTexts(model, collapse, overline)
         if (onPlay != null) {
+            // Белая кнопка: акцентная сливалась бы с цветной полосой подборки.
             TvCollapsibleButton(
-                text = "Смотреть",
+                text = "Смотреть подряд",
                 icon = Icons.Rounded.PlayArrow,
                 onClick = onPlay,
                 collapse = collapse,
+                style = TvButtonStyle.Light,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(end = ActionsEnd)
                     .centeredAt { lerp(ActionsExpandedCenter, ActionsCollapsedCenter, collapse()) }
+                    .fxEnter(ACTIONS_ENTER)
                     .onFocusChanged { if (it.hasFocus) onFocused() },
             )
         }
@@ -209,7 +230,7 @@ private fun HeaderBand(model: CollectionHeaderModel, running: Boolean, collapse:
             PosterImage(
                 url = url,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = COVER_ALPHA }.kenBurns(running),
+                modifier = Modifier.fillMaxSize().monochromeCover().kenBurns(running),
                 shape = RectangleShape,
                 accentColor = TvSurfaceContainerHigh,
             )
@@ -231,18 +252,21 @@ private fun HeaderBand(model: CollectionHeaderModel, running: Boolean, collapse:
 @Composable
 private fun BoxScope.HeaderTexts(model: CollectionHeaderModel, collapse: () -> Float, overline: State<Float>) {
     val colors = LocalFxColors.current
-    var backWidth by remember { mutableIntStateOf(0) }
     var titleWidth by remember { mutableIntStateOf(0) }
+    // Подборки на ТВ открываются только с Главной — туда «назад» и ведёт. В свёрнутой полосе
+    // подпись гаснет, остаётся значок, и название встаёт сразу за ним.
     TvBackHint(
-        "Назад",
-        Modifier
-            .padding(start = TvMetrics.SafeHorizontal, top = BackHintTop)
-            .onSizeChanged { backWidth = it.width },
+        "Главная",
+        Modifier.padding(start = TvMetrics.SafeHorizontal, top = BackHintTop),
+        labelAlpha = { 1f - collapse() },
     )
-    TvOverline(
-        "Подборка",
-        Modifier
+    Text(
+        "Подборка".uppercase(),
+        style = FxType.overline,
+        color = Color.White.copy(alpha = OVERLINE_ALPHA),
+        modifier = Modifier
             .padding(start = TvMetrics.SafeHorizontal, top = OverlineTop)
+            .fxEnter(OVERLINE_ENTER)
             .graphicsLayer { alpha = overline.value },
     )
     Text(
@@ -261,12 +285,14 @@ private fun BoxScope.HeaderTexts(model: CollectionHeaderModel, collapse: () -> F
                 scaleX = scale
                 scaleY = scale
                 transformOrigin = TransformOrigin(0f, 0f)
-                translationX = (backWidth + InlineGap.toPx()) * progress
+                translationX = (TvKeyCapSize.Regular.size + InlineGap).toPx() * progress
                 translationY = lerp(TitleExpandedTop, TitleCollapsedTop, progress).toPx()
-            },
+            }
+            .fxEnter(TITLE_ENTER),
     )
     model.caption?.let { caption ->
         HeaderCaption(caption, collapse) { progress ->
+            val backWidth = TvKeyCapSize.Regular.size.roundToPx()
             val collapsedX = backWidth + InlineGap.roundToPx() + (titleWidth * TITLE_COLLAPSED_SCALE).roundToInt()
             val expanded = IntOffset(0, (TitleExpandedTop + TitleStyle.lineHeight.value.dp + CaptionGap).roundToPx())
             val collapsed = IntOffset(collapsedX + InlineGap.roundToPx(), TitleCollapsedTop.roundToPx())
@@ -292,6 +318,7 @@ private fun HeaderCaption(
         modifier = Modifier
             .padding(start = TvMetrics.SafeHorizontal)
             .offset { position(collapse()) }
+            .fxEnter(CAPTION_ENTER)
             .graphicsLayer {
                 val progress = collapse()
                 // 1 → 0 к середине и 0 → 1 после неё: старое место гаснет, новое проявляется.
@@ -299,6 +326,26 @@ private fun HeaderCaption(
             },
     )
 }
+
+/**
+ * Кадр в полосе — монохромом поверх цвета подборки (luminosity в макете): цвет полосы задаёт
+ * подборка, а кадр даёт только светотень. Яркость кадра без цвета смешивается с полосой режимом
+ * Luminosity; где режим не поддерживается (до Android 10), остаётся серый кадр на 35% — близко.
+ */
+private fun Modifier.monochromeCover(): Modifier = drawWithCache {
+    val paint = Paint().apply {
+        alpha = COVER_ALPHA
+        colorFilter = MonochromeFilter
+        blendMode = BlendMode.Luminosity
+    }
+    onDrawWithContent {
+        drawIntoCanvas { canvas -> canvas.saveLayer(size.toRect(), paint) }
+        drawContent()
+        drawIntoCanvas { canvas -> canvas.restore() }
+    }
+}
+
+private val MonochromeFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
 
 /** Высота по доле анимации — в фазе раскладки, без рекомпозиции. */
 private fun Modifier.animatedHeight(height: () -> Dp): Modifier = layout { measurable, constraints ->

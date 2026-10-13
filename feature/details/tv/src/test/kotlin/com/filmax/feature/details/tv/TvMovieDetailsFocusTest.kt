@@ -7,9 +7,12 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
@@ -92,6 +95,20 @@ class TvMovieDetailsFocusTest {
         assertTrue(similar.any { it.id == opened.removePrefix("open ").toInt() }, "открыт не тайтл из «Похожих»")
     }
 
+    @Test
+    fun `back hint keeps its top margin when focus comes back to the heading`() {
+        showMovie()
+
+        // Вниз — к «Похожим», затем вверх до упора: кнопки, описание.
+        repeat(ROWS_TO_DIVE) { pressKey(Key.DirectionDown) }
+        repeat(MAX_PRESSES) { pressKey(Key.DirectionUp) }
+
+        // positionInRoot не режется краем экрана: срезанная подсказка ушла бы в минус или к нулю.
+        val hintTop = compose.onAllNodesWithText("Назад").onFirst().fetchSemanticsNode().positionInRoot.y
+        val margin = with(compose.density) { HINT_TOP_MARGIN.toPx() }
+        assertTrue(hintTop >= margin, "подсказка «Назад» прижата к краю: ${hintTop}px от верха")
+    }
+
     private fun showMovie(): DetailsState {
         val state = runBlocking {
             DetailsState(
@@ -137,5 +154,11 @@ class TvMovieDetailsFocusTest {
     private companion object {
         /** Потолок нажатий «вниз» до «Похожих»: шапка, состав — с запасом. */
         const val MAX_PRESSES = 8
+
+        /** Сколько рядов вниз уйти от шапки: глубже экрана, чтобы лента прокрутилась. */
+        const val ROWS_TO_DIVE = 2
+
+        /** Поле над подсказкой «Назад» — безопасная зона ТВ, без него подсказку режет край. */
+        val HINT_TOP_MARGIN = 20.dp
     }
 }

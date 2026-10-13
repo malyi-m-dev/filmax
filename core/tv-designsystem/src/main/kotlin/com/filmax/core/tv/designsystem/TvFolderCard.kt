@@ -68,7 +68,8 @@ private val FanSlots = listOf(
 /**
  * Карточка папки: плашка цвета [tint] (папке цвет выбирает пользователь), иконка папки и до трёх
  * постеров веером; пустая папка вместо веера говорит «Пусто». Под плашкой — название (в фокусе
- * бегущей строкой) и [caption] — число тайтлов и когда папку меняли. Ширину задаёт сетка.
+ * бегущей строкой) и [caption] — число тайтлов и когда папку меняли. Ширину задаёт сетка; в
+ * группе ([TvDimGroup]) карточка без фокуса приглушается.
  */
 // Компонент дизайн-системы: параметры — его публичный API (содержимое, цвет, onClick, modifier),
 // как у TvCollectionCard; объект-обёртка сломал бы Compose-конвенцию modifier прямым параметром.
@@ -84,7 +85,7 @@ fun TvFolderCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
-    Column(modifier) {
+    Column(modifier.tvNeighborDim(focused)) {
         TvFocusSurface(
             onClick = onClick,
             modifier = Modifier.fillMaxWidth().height(FolderCardHeight),
@@ -162,11 +163,14 @@ private const val ADD_CIRCLE_ALPHA = 0.08f
 @Composable
 fun TvCreateFolderCard(onClick: () -> Unit, modifier: Modifier = Modifier, label: String = "Создать папку") {
     val colors = LocalFxColors.current
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     TvFocusSurface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(FolderCardHeight).dashedOutline(),
+        modifier = modifier.tvNeighborDim(focused).fillMaxWidth().height(FolderCardHeight).dashedOutline(),
         style = FolderFocus,
         colors = TvSurfaceColors(container = Color.Transparent, content = colors.accentText),
+        interactionSource = interaction,
     ) {
         Column(
             Modifier.align(Alignment.Center),

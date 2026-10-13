@@ -40,6 +40,29 @@ internal fun metaLine(item: Item, series: SeriesData?): String = listOfNotNull(
     if (series == null) volumeLabel(item, null) else null,
 ).joinToString(" · ")
 
+/**
+ * Мета в панели полного описания: «2022 · Норвегия, Дания · 2 ч 11 мин» /
+ * «2012 · США · 7 сезонов, 68 серий». Жанры и оценки остались в шапке под панелью — здесь
+ * то, чего в шапке нет: все страны и полный объём сериала.
+ */
+internal fun sheetMeta(item: Item, series: SeriesData?): String {
+    // У сериала — «7 сезонов, 68 серий»; в один сезон — только число серий.
+    val volume = if (series == null) {
+        volumeLabel(item, null)
+    } else {
+        val episodes = series.seasons.sumOf { (_, seasonEpisodes) -> seasonEpisodes.size }
+        listOfNotNull(
+            volumeLabel(item, series).takeIf { series.seasons.size > 1 },
+            episodes.takeIf { it > 0 }?.let { "$it ${episodesWord(it)}" },
+        ).joinToString(", ").ifBlank { null }
+    }
+    return listOfNotNull(
+        item.year.takeIf { it > 0 }?.toString(),
+        item.country.trim().takeIf { it.isNotBlank() },
+        volume,
+    ).joinToString(" · ")
+}
+
 /** «Продолжить · S2E5» — у сериала с недосмотренной серией; иначе «Смотреть». */
 internal fun playLabel(resume: MediaTrack?): String = when {
     resume == null -> "Смотреть"

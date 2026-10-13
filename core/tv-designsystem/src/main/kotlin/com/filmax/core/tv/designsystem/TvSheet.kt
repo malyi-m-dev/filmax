@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -27,15 +29,33 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 private val SheetWidth = 560.dp
-private val SheetMargin = 10.dp
-private const val SHEET_ALPHA = 0.94f
+private val SheetMargin = 14.dp
+private const val SHEET_ALPHA = 0.9f
+
+/** Скругление боковой панели — крупнее диалогов ([TvMetrics.SheetShape]): панель во всю высоту. */
+private val SheetPanelShape = RoundedCornerShape(24.dp)
+
+/** Обводка панели — заметнее стекла: панель отделяется от затемнённого экрана под ней. */
+private const val SHEET_OUTLINE_ALPHA = 0.12f
+
+/**
+ * Тень слева от панели (box-shadow −30 0 80 в макете): тёмная полоса, гаснущая от края
+ * панели наружу. Рисуется градиентом — размытая тень на каждом кадре выезда стоила бы дорого.
+ */
+private val SheetShadowWidth = 80.dp
+private const val SHEET_SHADOW_ALPHA = 0.5f
 
 /**
  * Хост боковой панели. [content] — экран; пока [open], он размыт (Android 12+, ниже и в
@@ -104,8 +124,9 @@ private fun SheetPanel(open: Boolean, sheet: @Composable BoxScope.() -> Unit) {
             .padding(SheetMargin)
             .width(SheetWidth)
             .fillMaxHeight()
-            .background(colors.background.copy(alpha = SHEET_ALPHA), TvMetrics.SheetShape)
-            .fxGlass(TvMetrics.SheetShape)
+            .sheetShadow()
+            .background(colors.background.copy(alpha = SHEET_ALPHA), SheetPanelShape)
+            .border(1.dp, Color.White.copy(alpha = SHEET_OUTLINE_ALPHA), SheetPanelShape)
             .focusRequester(panelFocus)
             .onFocusChanged { focusInside = it.hasFocus }
             // Ловушка только пока панель открыта: отменённый выход отменяет и requestFocus извне,
@@ -114,4 +135,16 @@ private fun SheetPanel(open: Boolean, sheet: @Composable BoxScope.() -> Unit) {
             .focusGroup(),
         content = sheet,
     )
+}
+
+/** Тень за левым краем панели. Градиент неподвижен относительно панели — кэшируется один раз. */
+private fun Modifier.sheetShadow(): Modifier = drawWithCache {
+    val width = SheetShadowWidth.toPx()
+    val brush = Brush.horizontalGradient(
+        0f to Color.Transparent,
+        1f to Color.Black.copy(alpha = SHEET_SHADOW_ALPHA),
+        startX = -width,
+        endX = 0f,
+    )
+    onDrawBehind { drawRect(brush, topLeft = Offset(-width, 0f), size = Size(width, size.height)) }
 }

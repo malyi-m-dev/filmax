@@ -26,15 +26,24 @@ fun TvDimGroup(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 }
 
 /**
- * Приглушение карточки, когда фокус у соседа в той же группе ([TvDimGroup], [TvRail]).
- * [focused] — фокус на самой карточке. Прозрачность читается в слое: смена фокуса в группе не
- * перекомпонует карточки.
+ * Группа, где «фокус в группе» решает экран ([focused]). Нужна сетке, у которой шапка — тоже
+ * элемент сетки (каталог): фокус на чипах шапки — внутри сетки, но постеры приглушать не за что.
  */
 @Composable
-fun Modifier.tvNeighborDim(focused: Boolean): Modifier {
+fun TvDimGroup(focused: Boolean, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalRailFocused provides focused, content = content)
+}
+
+/**
+ * Приглушение карточки, когда фокус у соседа в той же группе ([TvDimGroup], [TvRail]).
+ * [focused] — фокус на самой карточке. [dimmedAlpha] — насколько приглушать (играющая серия —
+ * слабее соседей). Прозрачность читается в слое: смена фокуса в группе не перекомпонует карточки.
+ */
+@Composable
+fun Modifier.tvNeighborDim(focused: Boolean, dimmedAlpha: Float = TvMetrics.DimmedAlpha): Modifier {
     val groupFocused = LocalRailFocused.current
     val alpha by animateFloatAsState(
-        targetValue = if (groupFocused && !focused) TvMetrics.DimmedAlpha else 1f,
+        targetValue = if (groupFocused && !focused) dimmedAlpha else 1f,
         animationSpec = FxMotion.focus(),
         label = "neighborDim",
     )

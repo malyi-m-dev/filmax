@@ -2,6 +2,7 @@
 // HomeScreenModel — здесь только то, какой карточкой рисуется каждый тип ряда.
 package com.filmax.feature.home.tv
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
@@ -34,24 +35,26 @@ internal data class RailActions(
     val onLoadMore: (HomeRowId) -> Unit,
 )
 
-/** Ряды ленты по порядку модели; пустой ряд пропускается — заголовок без карточек хуже его отсутствия. */
-internal fun LazyListScope.homeRails(rows: List<HomeRow>, actions: RailActions, focus: TvScreenFocus) {
-    rows.filterNot { it.isEmpty }.forEach { row ->
+/**
+ * Ряды ленты по порядку модели; пустой ряд пропускается — заголовок без карточек хуже его
+ * отсутствия. Номер ряда — его место в модели (с 1, hero — 0): ряды выше ряда в фокусе приглушены.
+ */
+internal fun LazyListScope.homeRails(rows: List<HomeRow>, actions: RailActions, focus: FeedItemFocus) {
+    rows.forEachIndexed { index, row ->
+        if (row.isEmpty) return@forEachIndexed
         item(key = row.id.name, contentType = row::class) {
-            when (row) {
-                is HomeRow.Continue -> ContinueRail(row, actions, focus)
-                is HomeRow.Titles -> if (row.id == HomeRowId.FRESH) {
-                    FreshRail(
-                        row,
-                        actions,
-                        focus
-                    )
-                } else {
-                    PosterRail(row, actions, focus)
-                }
-                is HomeRow.Collections -> CollectionsRail(row, actions, focus)
-            }
+            Box(Modifier.feedRow(index + 1, focus.feed)) { HomeRail(row, actions, focus.screen) }
         }
+    }
+}
+
+@Composable
+private fun HomeRail(row: HomeRow, actions: RailActions, focus: TvScreenFocus) {
+    when {
+        row is HomeRow.Continue -> ContinueRail(row, actions, focus)
+        row is HomeRow.Titles && row.id == HomeRowId.FRESH -> FreshRail(row, actions, focus)
+        row is HomeRow.Titles -> PosterRail(row, actions, focus)
+        row is HomeRow.Collections -> CollectionsRail(row, actions, focus)
     }
 }
 
