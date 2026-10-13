@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [1.10.0] — 2026-10-13
+
 ### Добавлено
 - Описание тайтла свёрнуто до четырёх строк и разворачивается целиком: на телефоне по
   «Подробнее» или тапу по тексту, на ТВ кнопкой «ОК» пульта. Раньше на телефоне длинное описание
@@ -317,7 +319,8 @@
   R8 + `shrinkResources`, `versionCode` из числа коммитов и `versionName` из git-тега.
 - CI по тегу `v*`: сборка подписанного APK → GitHub Release (+ Telegram).
 
-[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.10.0
 [1.9.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.9.0
 [1.8.3]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.8.3
 [1.8.2]: https://github.com/malyi-m-dev/filmax/releases/tag/v1.8.2
