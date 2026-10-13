@@ -16,6 +16,8 @@ import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
+import com.filmax.core.domain.catalog.model.audioLanguageName
+import com.filmax.core.domain.catalog.model.subtitleLanguageName
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
@@ -396,21 +398,9 @@ class PlayerScreenModel(
             else -> null // «Оригинал» / неизвестно — пусть плеер выбирает сам
         }
 
-        fun langDisplay(code: String?): String = when (code?.lowercase()) {
-            "rus", "ru" -> "Русский"
-            "eng", "en" -> "English"
-            "ukr", "uk" -> "Українська"
-            null, "" -> "Субтитры"
-            else -> code
-        }
+        fun langDisplay(code: String?): String = subtitleLanguageName(code)
 
-        fun audioDisplay(code: String?): String = when (code?.lowercase()) {
-            "rus", "ru" -> "Русский"
-            "eng", "en" -> "English"
-            "ukr", "uk" -> "Українська"
-            null, "" -> "Оригинал"
-            else -> code
-        }
+        fun audioDisplay(code: String?): String = audioLanguageName(code)
 
         /**
          * Подпись дорожки: «2. Русский · Многоголосый · BaibaKo» — как в оригинальном клиенте

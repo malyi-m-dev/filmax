@@ -26,12 +26,6 @@ internal val HomeRowId.heading: RailHeading
 /** Сколько первых тайтлов «В тренде» несут номер: топ-10, дальше номер теряет смысл. */
 internal const val RANKED_COUNT = 10
 
-/** С какой оценки пилюля рейтинга красится вторым акцентом. */
-private const val HIGH_RATING = 8.0
-
-/** Высокая ли оценка Кинопоиска — такая выделяется цветом. */
-internal fun isHighRating(kinopoisk: String?): Boolean = (kinopoisk?.toDoubleOrNull() ?: 0.0) >= HIGH_RATING
-
 /** Плашка на карточке новинки: фильм — премьера, сериал — новинка каталога. */
 internal fun freshBadge(type: ItemType): String = if (type == ItemType.MOVIE) "Премьера" else "Новинка"
 

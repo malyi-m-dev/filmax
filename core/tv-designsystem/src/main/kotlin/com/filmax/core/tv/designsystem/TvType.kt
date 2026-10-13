@@ -64,6 +64,9 @@ object FxType {
     /** Часы в углу Главной. */
     val clock = TextStyle(fontFamily = Onest, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 18.sp)
 
+    /** Значение оценки в бейдже деталей. */
+    val badgeValue = TextStyle(fontFamily = Onest, fontWeight = FontWeight.Bold, fontSize = 15.sp, lineHeight = 18.sp)
+
     /** Пилюля рейтинга. */
     val pill = TextStyle(fontFamily = Onest, fontWeight = FontWeight.Bold, fontSize = 12.sp, lineHeight = 16.sp)
 

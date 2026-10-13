@@ -13,6 +13,8 @@ dependencies {
     // общие с телефоном: их место одно на приложение, а не по копии на платформу.
     api(project(":core:ui"))
     api(libs.tv.material)
+    // BackHandler боковой панели (TvSheetHost): «Назад» закрывает панель, а не экран.
+    implementation(libs.activity.compose)
 
     val bom = platform(libs.compose.bom)
     implementation(bom)

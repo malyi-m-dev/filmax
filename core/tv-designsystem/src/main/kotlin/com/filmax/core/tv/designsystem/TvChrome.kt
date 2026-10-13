@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -64,4 +66,13 @@ fun TvPageIndicator(count: Int, current: Int, modifier: Modifier = Modifier) {
             Box(Modifier.width(width).height(DotSize).background(color, CircleShape))
         }
     }
+}
+
+/**
+ * Подсказка «назад» в левом верхнем углу экранов без меню (детали, подборка): клавиша-значок и
+ * куда она ведёт.
+ */
+@Composable
+fun TvBackHint(label: String, modifier: Modifier = Modifier) {
+    TvKeyHints(listOf(TvKeyHint(listOf(Icons.AutoMirrored.Rounded.ArrowBack), label)), modifier)
 }

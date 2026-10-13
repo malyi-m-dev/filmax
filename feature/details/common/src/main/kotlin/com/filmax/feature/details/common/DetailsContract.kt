@@ -1,6 +1,7 @@
 package com.filmax.feature.details.common
 
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
 
 data class DetailsState(
@@ -15,11 +16,30 @@ data class DetailsState(
     val isFav: Boolean = false,
     val isDownloaded: Boolean = false,
     val error: String? = null,
-)
+    /** Сезоны и точка «продолжить» — только у сериала, у фильма null. */
+    val series: SeriesData? = null,
+    /** Номер сезона, чьи серии на экране. Стартует с сезона серии «продолжить». */
+    val selectedSeason: Int? = null,
+    /** Открыта боковая панель с полным описанием. */
+    val descriptionOpen: Boolean = false,
+) {
+    /** Серии выбранного сезона; у фильма — пусто. */
+    val seasonEpisodes: List<MediaTrack>
+        get() = series?.seasons?.firstOrNull { it.first == selectedSeason }?.second.orEmpty()
+}
 
 sealed interface DetailsEvent {
     data object ToggleFav : DetailsEvent
     data object ToggleDownload : DetailsEvent
+
+    /**
+     * Сезон в фокусе. На ТВ сезон меняется фокусом на чипе, без «ОК», — модель выжидает 250 мс,
+     * чтобы быстрое пролистывание чипов не перерисовывало каждый сезон по пути.
+     */
+    data class SelectSeason(val number: Int) : DetailsEvent
+
+    data object OpenDescription : DetailsEvent
+    data object CloseDescription : DetailsEvent
 }
 
 sealed interface DetailsSideEffect
