@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.getOrNull
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
@@ -56,6 +57,9 @@ class TvCollectionFocusTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val calls = mutableListOf<String>()
     private lateinit var items: List<Item>
