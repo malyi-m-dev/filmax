@@ -17,6 +17,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import org.junit.Rule
 import org.junit.Test
@@ -42,7 +43,7 @@ class TvSideNavFocusTest {
     private val compose = createAndroidComposeRule<ComponentActivity>()
 
     @get:Rule
-    val rules: RuleChain = RuleChain.outerRule(TvShellTestRule()).around(compose)
+    val rules: RuleChain = RuleChain.outerRule(TvShellTestRule()).around(FakeImagesRule()).around(compose)
 
     @Test
     fun `profile chosen in the menu takes the focus`() {

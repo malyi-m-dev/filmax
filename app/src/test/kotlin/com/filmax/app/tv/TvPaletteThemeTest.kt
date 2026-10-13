@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.Coral
 import com.filmax.core.tv.designsystem.FxColors
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -30,6 +31,9 @@ class TvPaletteThemeTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val settings = FakeThemeSettingsRepository()
     private var palette: FxColors? = null
