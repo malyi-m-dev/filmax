@@ -50,6 +50,11 @@ fun Modifier.tvFocusGroup(): Modifier = focusRestorer().focusGroup()
  * Фокус ставится по `onPlaced` — это единственный честный момент: ленивые списки компонуют
  * элементы в фазе измерения, и до неё запрашивать фокус не на чем. Никаких ретраев по кадрам:
  * узел сам сообщает, что он размещён.
+ *
+ * Поставленным фокус считается, только когда запрос прошёл. Самое первое размещение экрана
+ * при запуске приложения запрос отклоняет, и без повтора Главная оставалась вовсе без фокуса:
+ * первое «вниз» уводило в боковое меню. Повтор — на следующем `onPlaced`, а их, пока экран
+ * проявляется после перехода, приходит несколько.
  */
 @Stable
 class TvScreenFocus internal constructor(
@@ -78,8 +83,7 @@ class TvScreenFocus internal constructor(
         .tvFocusGroup()
         .onPlaced {
             if (!done && returnTo == null && !navBarFocused.value) {
-                done = true
-                container.requestFocus()
+                done = container.requestFocus()
             }
         }
 
@@ -110,8 +114,7 @@ class TvScreenFocus internal constructor(
             .onFocusChanged { if (it.isFocused) lastFocused.value = key }
             .onPlaced {
                 if (!done && key == returnTo) {
-                    done = true
-                    requester.requestFocus()
+                    done = requester.requestFocus()
                 }
             }
     }
