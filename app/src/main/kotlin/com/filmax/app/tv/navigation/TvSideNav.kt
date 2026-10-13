@@ -4,7 +4,10 @@ package com.filmax.app.tv.navigation
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -21,7 +24,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,6 +35,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,16 +45,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavDestination
@@ -73,6 +79,7 @@ import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
 import com.filmax.feature.profile.tv.navigation.TvProfileRoute
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
+import kotlinx.coroutines.launch
 import kotlin.reflect.KClass
 
 /** Раздел бокового меню: подпись, иконка, адрес и проверка активности. */
@@ -125,10 +132,14 @@ private val ItemGap = 8.dp
 private val IconSize = 22.dp
 
 /**
- * Подсветка перетекает с пружиной чуть мягче дефолтной: на шаг между соседями — без отскока,
- * на прыжок через весь список — с едва заметной инерцией.
+ * Подсветка перетекает, как капля: передний край быстро и без отскока тянется к новому пункту,
+ * задний догоняет мягче и чуть покачивается, пока не встанет.
  */
-private val HighlightSpring = spring<Dp>(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+private val LeadingEdgeSpring = spring<Dp>(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)
+private val TrailingEdgeSpring = spring<Dp>(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow)
+
+/** Насколько худеет вытянутая капля с каждого бока — объём «сохраняется», и она читается живой. */
+private val MaxDropSqueeze = 4.dp
 
 /** Цвет содержимого пункта меняется за время, пока подсветка доезжает до него. */
 private const val ITEM_COLOR_MS = 180
@@ -179,7 +190,11 @@ internal fun TvSideNav(
         ) {
             Box {
                 // Раскрытое меню подсвечивает пункт под фокусом, свёрнутое — открытый раздел.
-                NavHighlight(index = if (expanded) focusedIndex else activeIndex, focused = expanded)
+                NavHighlight(
+                    index = if (expanded) focusedIndex else activeIndex,
+                    focused = expanded,
+                    modifier = Modifier.matchParentSize(),
+                )
                 Column(verticalArrangement = Arrangement.spacedBy(ItemGap)) {
                     SECTIONS.forEachIndexed { index, section ->
                         NavItem(
@@ -209,20 +224,54 @@ internal fun TvSideNav(
  * раздела. Так смена раздела читается как движение, а не как мигание двух заливок.
  */
 @Composable
-private fun NavHighlight(index: Int, focused: Boolean) {
-    val offset by animateDpAsState((ItemHeight + ItemGap) * index, HighlightSpring, label = "sideNavHighlight")
+private fun NavHighlight(index: Int, focused: Boolean, modifier: Modifier) {
+    val drop = rememberLiquidDrop(top = (ItemHeight + ItemGap) * index)
     val color by animateColorAsState(
         if (focused) TvAccent else TvOnSurface.copy(alpha = 0.14f),
         tween(ITEM_COLOR_MS),
         label = "sideNavHighlightColor",
     )
+    // Рисуется в draw-фазе: края капли меняются каждый кадр, и перемерять ради них лейаут незачем.
     Box(
-        Modifier
-            .offset { IntOffset(0, offset.roundToPx()) }
-            .fillMaxWidth()
-            .height(ItemHeight)
-            .background(color, CircleShape),
+        modifier.drawBehind {
+            val top = drop.top.value.toPx()
+            val height = drop.bottom.value.toPx() - top
+            val stretch = (height / ItemHeight.toPx() - 1f).coerceIn(0f, 1f)
+            val squeeze = MaxDropSqueeze.toPx() * stretch
+            val width = size.width - squeeze * 2
+            drawRoundRect(
+                color = color,
+                topLeft = Offset(squeeze, top),
+                size = Size(width, height),
+                cornerRadius = CornerRadius(minOf(width, height) / 2),
+            )
+        },
     )
+}
+
+/** Верхний и нижний края капли — каждый на своей пружине. */
+private class LiquidDrop(val top: Animatable<Dp, AnimationVector1D>, val bottom: Animatable<Dp, AnimationVector1D>)
+
+/**
+ * Капля, которая перетекает к пункту с верхом [top]. Ведёт край со стороны движения: вниз —
+ * нижний, вверх — верхний. Пока хвост догоняет, капля вытянута на оба пункта сразу — это и
+ * даёт ощущение текущей воды, а не съезжающей плашки. Новая цель посреди перетекания
+ * подхватывается с текущих краёв, без рывка.
+ */
+@Composable
+private fun rememberLiquidDrop(top: Dp): LiquidDrop {
+    val drop = remember {
+        LiquidDrop(
+            top = Animatable(top, Dp.VectorConverter),
+            bottom = Animatable(top + ItemHeight, Dp.VectorConverter),
+        )
+    }
+    LaunchedEffect(top) {
+        val movingDown = top > drop.top.value
+        launch { drop.top.animateTo(top, if (movingDown) TrailingEdgeSpring else LeadingEdgeSpring) }
+        launch { drop.bottom.animateTo(top + ItemHeight, if (movingDown) LeadingEdgeSpring else TrailingEdgeSpring) }
+    }
+    return drop
 }
 
 /**
