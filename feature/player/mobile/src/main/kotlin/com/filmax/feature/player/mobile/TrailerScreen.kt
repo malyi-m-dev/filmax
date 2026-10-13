@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -34,6 +34,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.ui.components.HideSystemBars
 import com.filmax.core.ui.components.KeepScreenOn
 import org.koin.compose.koinInject
 
@@ -69,6 +70,8 @@ fun TrailerScreen(
 
     // Трейлер короткий — держим экран, пока он на экране, без слежения за паузой.
     KeepScreenOn()
+    // Трейлер — то же полноэкранное видео, что и плеер: системные панели прячем и здесь.
+    HideSystemBars()
 
     Box(
         modifier = modifier
@@ -97,7 +100,7 @@ private fun TrailerTopBar(title: String, onBack: () -> Unit, modifier: Modifier 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
+            .windowInsetsPadding(OverlayTopInsets)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

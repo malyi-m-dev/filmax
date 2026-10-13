@@ -18,19 +18,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClosedCaption
 import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
@@ -143,6 +140,7 @@ fun PlayerScreen(
         onStopOrDispose { screenModel.player.pause() }
     }
     KeepScreenOn(enabled = playing)
+    PlayerFullscreenEffects()
 
     // Auto-hide controls (но не во время скраббинга — таймер стартует заново после жеста).
     LaunchedEffect(controlsVisible, isScrubbing) {
@@ -174,8 +172,8 @@ fun PlayerScreen(
     ) {
         // ── ExoPlayer surface ─────────────────────────────────────────────────
         AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).also { view ->
+            factory = { viewContext ->
+                PlayerView(viewContext).also { view ->
                     view.player = screenModel.player
                     view.useController = false
                 }
@@ -208,7 +206,7 @@ fun PlayerScreen(
             SubscriptionBanner(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .statusBarsPadding()
+                    .windowInsetsPadding(OverlayTopInsets)
                     .padding(top = SubscriptionBannerTop),
             )
         }
@@ -231,12 +229,12 @@ fun PlayerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
+                        .windowInsetsPadding(OverlayTopInsets)
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    GlassBtn(size = 44.dp, onClick = onBack) {
+                    GlassButton(size = 44.dp, onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
@@ -263,7 +261,7 @@ fun PlayerScreen(
                     // Озвучка: показываем только когда есть из чего выбрать (>1 дорожки), как на TV.
                     if (state.audioTracks.size > 1) {
                         Box {
-                            GlassBtn(size = 44.dp, onClick = { audioMenu = true }) {
+                            GlassButton(size = 44.dp, onClick = { audioMenu = true }) {
                                 Icon(
                                     Icons.Filled.Audiotrack,
                                     contentDescription = "Озвучка",
@@ -295,7 +293,7 @@ fun PlayerScreen(
                     }
                     if (state.subtitles.size > 1) {
                         Box {
-                            GlassBtn(size = 44.dp, onClick = { subtitleMenu = true }) {
+                            GlassButton(size = 44.dp, onClick = { subtitleMenu = true }) {
                                 Icon(
                                     Icons.Filled.ClosedCaption,
                                     contentDescription = "Субтитры",
@@ -333,7 +331,7 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.spacedBy(32.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    GlassBtn(size = 64.dp, onClick = { screenModel.player.seekBack() }) {
+                    GlassButton(size = 64.dp, onClick = { screenModel.player.seekBack() }) {
                         Icon(
                             Icons.Filled.Replay10,
                             contentDescription = "Назад 10 сек",
@@ -362,7 +360,7 @@ fun PlayerScreen(
                             )
                         }
                     }
-                    GlassBtn(size = 64.dp, onClick = { screenModel.player.seekForward() }) {
+                    GlassButton(size = 64.dp, onClick = { screenModel.player.seekForward() }) {
                         Icon(
                             Icons.Filled.Forward10,
                             contentDescription = "Вперёд 10 сек",
@@ -376,7 +374,7 @@ fun PlayerScreen(
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
+                        .windowInsetsPadding(OverlayBottomInsets)
                         .padding(horizontal = 20.dp, vertical = 24.dp),
                 ) {
                     val durationMs = screenModel.player.duration.takeIf { it > 0 } ?: 0L
@@ -448,17 +446,17 @@ fun PlayerScreen(
                                     expanded = qualityMenu,
                                     onDismissRequest = { qualityMenu = false },
                                 ) {
-                                    state.qualities.forEach { q ->
-                                        val isCurrent = q.label == state.currentQuality
+                                    state.qualities.forEach { quality ->
+                                        val isCurrent = quality.label == state.currentQuality
                                         DropdownMenuItem(
                                             text = {
                                                 Text(
-                                                    q.label,
+                                                    quality.label,
                                                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                                 )
                                             },
                                             onClick = {
-                                                screenModel.dispatch(PlayerEvent.SelectQuality(q.label))
+                                                screenModel.dispatch(PlayerEvent.SelectQuality(quality.label))
                                                 qualityMenu = false
                                             },
                                         )
@@ -471,7 +469,7 @@ fun PlayerScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             // Скорость воспроизведения: галочка отмечает текущую (сессионная, дефолт 1.0).
                             Box {
-                                GlassBtn(size = 44.dp, onClick = { speedMenu = true }) {
+                                GlassButton(size = 44.dp, onClick = { speedMenu = true }) {
                                     Icon(
                                         Icons.Filled.Speed,
                                         contentDescription = "Скорость",
@@ -511,17 +509,10 @@ fun PlayerScreen(
                                     }
                                 }
                             }
-                            GlassBtn(size = 44.dp, onClick = {}) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.VolumeUp,
-                                    contentDescription = "Громкость",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            MuteButton(player = screenModel.player)
                             // «Следующая серия» — только у сериала не на последней серии.
                             playNext?.let { next ->
-                                GlassBtn(size = 44.dp, onClick = next) {
+                                GlassButton(size = 44.dp, onClick = next) {
                                     Icon(
                                         Icons.Filled.SkipNext,
                                         contentDescription = "Следующая серия",
@@ -530,14 +521,7 @@ fun PlayerScreen(
                                     )
                                 }
                             }
-                            GlassBtn(size = 44.dp, onClick = {}) {
-                                Icon(
-                                    Icons.Filled.Fullscreen,
-                                    contentDescription = "На весь экран",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            FullscreenButton()
                         }
                     }
                 }
