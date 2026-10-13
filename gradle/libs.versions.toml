@@ -22,7 +22,7 @@ firebase-crashlytics-plugin = "3.0.2"
 firebase-bom = "33.7.0"
 junit = "5.10.2"
 junit-platform = "1.10.2"
-robolectric = "4.14.1"
+robolectric = "4.16"
 # KMP
 ktor = "3.0.3"
 multiplatform-settings = "1.2.0"
