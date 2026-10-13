@@ -104,7 +104,12 @@ internal fun CatalogSearchBar(
 /** Строка в состоянии навигации: показывает запрос и по «ОК» уступает место полю ввода. */
 @Composable
 private fun SearchButton(query: String, onClick: () -> Unit, modifier: Modifier) {
-    TvFocusCard(onClick = onClick, shape = TvMetrics.PanelShape, modifier = modifier) {
+    TvFocusCard(
+        onClick = onClick,
+        shape = TvMetrics.PanelShape,
+        focusedScale = TvMetrics.WideFocusScale,
+        modifier = modifier,
+    ) {
         SearchBarSurface {
             Text(
                 text = query.ifEmpty { "Название фильма или сериала" },

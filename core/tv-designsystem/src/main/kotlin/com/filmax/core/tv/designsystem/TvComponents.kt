@@ -112,13 +112,15 @@ fun TvButton(
  *
  * Рамка рисуется поверх контента (постер на `fillMaxSize` перекрыл бы обводку самого Surface)
  * и внутри Surface — чтобы масштаб фокуса применился и к ней.
+ *
+ * [focusedScale] меняют только широкие элементы — для них есть [TvMetrics.WideFocusScale].
  */
 @Composable
 fun TvFocusCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     shape: Shape = TvMetrics.CardShape,
-    focusRequester: FocusRequester? = null,
+    focusedScale: Float = TvMetrics.FocusScale,
     content: @Composable () -> Unit,
 ) {
     // focused держим в обычном State и читаем ТОЛЬКО внутри draw-лямбды ниже, поэтому смена
@@ -129,7 +131,7 @@ fun TvFocusCard(
     Surface(
         onClick = onClick,
         shape = ClickableSurfaceDefaults.shape(shape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = TvMetrics.FocusScale),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent,
@@ -137,9 +139,7 @@ fun TvFocusCard(
             contentColor = TvOnSurface,
             focusedContentColor = TvOnSurface,
         ),
-        modifier = modifier
-            .onFocusChanged { focused.value = it.isFocused }
-            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+        modifier = modifier.onFocusChanged { focused.value = it.isFocused },
     ) {
         Box(
             Modifier.drawWithContent {
