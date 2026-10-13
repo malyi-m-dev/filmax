@@ -67,12 +67,20 @@ object TvMetrics {
     val ContinueWidth = 230.dp
     val ContinueHeight = 130.dp
 
+    /** Широкая карточка 16:9 — новинки. */
+    val WideCardWidth = 300.dp
+    val WideCardHeight = 169.dp
+
+    /** Карточка подборки: цветная плашка с веером постеров. */
+    val CollectionCardWidth = 260.dp
+    val CollectionCardHeight = 140.dp
+
     /** Эпизод 16:9 — список серий. */
     val EpisodeWidth = 236.dp
     val EpisodeHeight = 133.dp
 
     /** Высота hero на главной и в деталях. */
-    val HeroHeight = 326.dp
+    val HeroHeight = 384.dp
     val DetailsHeroHeight = 346.dp
 
     // ── Формы: только скруглённый прямоугольник и круг ──────────────────────

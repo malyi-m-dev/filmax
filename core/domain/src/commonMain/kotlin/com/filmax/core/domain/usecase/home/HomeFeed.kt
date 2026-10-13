@@ -10,11 +10,14 @@ import com.filmax.core.domain.watching.model.WatchHistory
  * (частичная выдача сохраняется, как в текущем поведении Android).
  */
 data class HomeFeed(
-    val hero: Item?,
+    /** «Выбор редакции» — несколько тайтлов для карусели hero; первый — главный. */
+    val heroes: List<Item>,
     val continueWatching: List<WatchHistory>,
     val collections: List<Collection>,
     val trending: List<Item>,
     val forYou: List<Item>,
+    /** Новинки: свежие фильмы и сериалы вперемешку. */
+    val fresh: List<Item> = emptyList(),
     val error: String?,
     /**
      * true — данные отданы из кэша при недоступной сети (issue #42): показываем ранее
@@ -22,11 +25,16 @@ data class HomeFeed(
      */
     val fromCache: Boolean = false,
 ) {
+    /** Главный тайтл ленты — первый из [heroes]. Телефон и iOS показывают один hero. */
+    val hero: Item?
+        get() = heroes.firstOrNull()
+
     /** Есть ли что показать — хотя бы одна секция непуста (иначе экран считается пустым). */
     val hasContent: Boolean
         get() = hero != null ||
             continueWatching.isNotEmpty() ||
             collections.isNotEmpty() ||
             trending.isNotEmpty() ||
-            forYou.isNotEmpty()
+            forYou.isNotEmpty() ||
+            fresh.isNotEmpty()
 }

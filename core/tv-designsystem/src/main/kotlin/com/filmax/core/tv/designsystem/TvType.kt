@@ -1,6 +1,9 @@
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -44,6 +47,22 @@ object FxType {
         TextStyle(fontFamily = Onest, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 17.sp)
     val button = TextStyle(fontFamily = Onest, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 20.sp)
     val chip = TextStyle(fontFamily = Onest, fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 17.sp)
+
+    /** Номер в топе на постере. */
+    val rank = TextStyle(
+        fontFamily = Onest,
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 44.sp,
+        lineHeight = 44.sp,
+        shadow = Shadow(color = Color.Black.copy(alpha = 0.6f), offset = Offset(0f, 2f), blurRadius = 12f),
+    )
+
+    /** Название на карточке подборки. */
+    val collectionTitle =
+        TextStyle(fontFamily = Onest, fontWeight = FontWeight.Bold, fontSize = 17.sp, lineHeight = 20.sp)
+
+    /** Часы в углу Главной. */
+    val clock = TextStyle(fontFamily = Onest, fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 18.sp)
 
     /** Пилюля рейтинга. */
     val pill = TextStyle(fontFamily = Onest, fontWeight = FontWeight.Bold, fontSize = 12.sp, lineHeight = 16.sp)

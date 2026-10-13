@@ -8,7 +8,7 @@ import com.filmax.core.domain.watching.model.WatchHistory
  * Ряды ленты. Идентификатор — единственное, чем экран адресует ряд: по нему просят догрузку
  * и берут заголовок (формулировки у телефона и ТВ свои, поэтому они живут в экранах).
  */
-enum class HomeRowId { CONTINUE, TRENDING, FOR_YOU, COLLECTIONS }
+enum class HomeRowId { CONTINUE, TRENDING, COLLECTIONS, FOR_YOU, FRESH }
 
 /**
  * Срез постранично догружаемого ряда. [page] — последняя загруженная страница каталога
@@ -40,26 +40,48 @@ sealed interface HomeRow {
         override val isEmpty: Boolean get() = entries.isEmpty()
     }
 
-    /** Ряд тайтлов: «В тренде», «Сериалы с высоким рейтингом». Догружается из каталога. */
+    /** Ряд тайтлов: «В тренде», «Сериалы с высоким рейтингом», «Новинки». Догружается из каталога. */
     data class Titles(override val id: HomeRowId, val paging: RowPaging<Item>) : HomeRow {
         override val isEmpty: Boolean get() = paging.items.isEmpty()
     }
 
-    /** «Подборки» — свой источник и своя карточка. */
-    data class Collections(val paging: RowPaging<Collection>) : HomeRow {
+    /**
+     * «Подборки» — свой источник и своя карточка. [previews] — постеры и число тайтлов по id
+     * подборки: догружаются после ленты, до тех пор карточка рисуется без них.
+     */
+    data class Collections(
+        val paging: RowPaging<Collection>,
+        val previews: Map<Int, CollectionPreview> = emptyMap(),
+    ) : HomeRow {
         override val id: HomeRowId get() = HomeRowId.COLLECTIONS
         override val isEmpty: Boolean get() = paging.items.isEmpty()
     }
 }
 
+/**
+ * Превью подборки на карточке: первые постеры и число тайтлов. [count] — только если оно
+ * точное: kino.pub отдаёт число страниц, а не тайтлов, поэтому счёт есть лишь у подборок в одну
+ * страницу.
+ */
+data class CollectionPreview(val posters: List<String>, val count: Int?)
+
 data class HomeState(
     val loading: Boolean = true,
     /** Инициалы текущего пользователя для аватара в шапке (пусто — пока не загружено). */
     val initials: String = "",
-    val hero: Item? = null,
+    /** «Выбор редакции» — тайтлы карусели hero. */
+    val heroes: List<Item> = emptyList(),
+    /** Какой тайтл карусели сейчас на экране. */
+    val heroIndex: Int = 0,
+    /** Тайтлы в «Буду смотреть» — по ним кнопка hero залита или пуста. */
+    val watchLaterIds: Set<Int> = emptySet(),
     val rows: List<HomeRow> = emptyList(),
     val error: String? = null,
 ) {
+    /** Тайтл hero на экране. Телефон показывает только его. */
+    val hero: Item?
+        get() = heroes.getOrNull(heroIndex)
+
     /**
      * Показывать нечего: ни hero, ни одного непустого ряда. Холодный старт без сети выглядит
      * именно так — экран должен объясниться, а не остаться пустым.
@@ -76,6 +98,12 @@ sealed interface HomeEvent {
      * идемпотентность модели, поэтому триггер может быть сколь угодно грубым.
      */
     data class LoadMoreRow(val id: HomeRowId) : HomeEvent
+
+    /** Карусель hero — к следующему тайтлу (по кругу). Экран шлёт, пока hero в фокусе. */
+    data object NextHero : HomeEvent
+
+    /** «Буду смотреть» для тайтла hero. */
+    data class ToggleWatchLater(val item: Item) : HomeEvent
 }
 
 /** Экран пока не порождает одноразовых эффектов — навигацию экраны просят у Navigator сами. */
