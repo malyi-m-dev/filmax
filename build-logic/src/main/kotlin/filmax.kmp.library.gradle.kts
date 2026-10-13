@@ -7,6 +7,8 @@ plugins {
     id("filmax.detekt")
 }
 
+val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
+
 kotlin {
     androidTarget {
         compilerOptions {
@@ -21,6 +23,15 @@ kotlin {
     tvosArm64()
     tvosSimulatorArm64()
     tvosX64()
+
+    // Тесты общего кода — в commonTest: на Android-таргете их гоняет testDebugUnitTest (JVM),
+    // а kotlin("test") сам подбирает раннер под платформу.
+    sourceSets {
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.findLibrary("kotlinx-coroutines-test").get())
+        }
+    }
 }
 
 // Android-конфигурация общая для всех KMP-модулей; namespace задаётся в каждом модуле.

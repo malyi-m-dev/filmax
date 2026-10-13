@@ -56,6 +56,37 @@ jobs:
           path: "**/build/reports/detekt/*.html"
           if-no-files-found: ignore
 
+  # Юнит-тесты: JVM-тесты Android-модулей и commonTest KMP-модулей (на Android-таргете) плюс
+  # тесты кастомных правил detekt. Отдельной задачей — параллельно detekt и сборке APK.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest :detekt-rules:test --stacktrace
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: "**/build/reports/tests/**"
+          if-no-files-found: ignore
+
   build:
     runs-on: ubuntu-latest
     steps:

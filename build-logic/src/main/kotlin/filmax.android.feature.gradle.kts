@@ -1,19 +1,6 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
-
+// UI-модуль фичи (feature:*:mobile / feature:*:tv) — Compose-библиотека. Раньше этот файл
+// повторял filmax.android.compose строка в строку; две копии одной настройки расходятся при
+// первой же правке, поэтому фича просто применяет compose-конвенцию.
 plugins {
-    id("com.android.library")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("filmax.detekt")
-}
-
-android {
-    compileSdk = 35
-    defaultConfig { minSdk = 26 }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions { jvmTarget = JvmTarget.JVM_17.target }
-    buildFeatures { compose = true }
+    id("filmax.android.compose")
 }
