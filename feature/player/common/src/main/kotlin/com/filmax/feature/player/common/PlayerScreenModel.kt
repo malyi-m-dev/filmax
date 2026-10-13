@@ -75,6 +75,9 @@ class PlayerScreenModel(
     /** Индекс текущего варианта доставки в [StreamQuality.urls]; сбрасывается сменой качества. */
     private var streamVariantIndex = 0
 
+    /** Играло ли видео, когда открыли нижнюю панель: закрытие продолжит, только если играло. */
+    private var resumeAfterPanel = false
+
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
@@ -107,7 +110,32 @@ class PlayerScreenModel(
                 player.setPlaybackSpeed(event.speed)
                 screenModelScope { _ -> updateState { it.copy(currentSpeed = event.speed) } }
             }
+            PlayerEvent.OpenPanel -> openPanel()
+            PlayerEvent.ClosePanel -> closePanel()
+            is PlayerEvent.SelectTab -> screenModelScope { _ -> updateState { it.copy(panelTab = event.tab) } }
+            is PlayerEvent.ShowSeason -> screenModelScope { _ -> updateState { it.copy(panelSeason = event.season) } }
         }
+    }
+
+    /**
+     * Панель открывается поверх остановленного кадра: выбирать дорожку или серию, пока фильм идёт
+     * дальше, — значит пропустить кусок. Было ли воспроизведение, запоминаем — закрытие его вернёт.
+     */
+    private fun openPanel() {
+        if (state.panelOpen) return
+        resumeAfterPanel = player.playWhenReady
+        player.pause()
+        screenModelScope { _ ->
+            updateState {
+                it.copy(panelOpen = true, panelTab = it.openingTab(), panelSeason = it.track?.seasonNumber)
+            }
+        }
+    }
+
+    private fun closePanel() {
+        if (!state.panelOpen) return
+        if (resumeAfterPanel) player.play()
+        screenModelScope { _ -> updateState { it.copy(panelOpen = false) } }
     }
 
     /**
@@ -283,9 +311,7 @@ class PlayerScreenModel(
     private fun updateAudioTracks(tracks: Tracks) {
         audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
         val apiAudios = selectedTrack?.audios.orEmpty()
-        val options = audioGroups.mapIndexed { index, group ->
-            AudioOption(label = audioLabel(index, group, apiAudios), groupIndex = index)
-        }
+        val options = audioGroups.mapIndexed { index, group -> audioOption(index, group, apiAudios) }
 
         // Запомненная озвучка тайтла: находим группу с тем же ключом и ставим override —
         // следующая серия стартует с той же студии, а смена качества не сбрасывает выбор.
@@ -418,6 +444,22 @@ class PlayerScreenModel(
                 meta?.voiceAuthor?.let { add(it) }
             }.distinct()
             return "${groupIndex + 1}. ${parts.joinToString(" · ")}"
+        }
+
+        /**
+         * Вариант дорожки для меню: уникальная подпись ([audioLabel]) плюс те же метаданные по
+         * частям — ТВ раскладывает их по строке варианта (язык и тип, студия, каналы).
+         */
+        fun audioOption(groupIndex: Int, group: Tracks.Group, apiAudios: List<AudioTrack>): AudioOption {
+            val meta = apiAudios.firstOrNull { it.index == groupIndex + 1 }
+            return AudioOption(
+                label = audioLabel(groupIndex, group, apiAudios),
+                groupIndex = groupIndex,
+                languageCode = meta?.lang ?: group.getTrackFormat(0).language,
+                voiceType = meta?.voiceType,
+                voiceAuthor = meta?.voiceAuthor,
+                channels = meta?.channels ?: group.getTrackFormat(0).channelCount.coerceAtLeast(0),
+            )
         }
 
         /**

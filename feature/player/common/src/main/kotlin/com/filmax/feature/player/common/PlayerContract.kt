@@ -24,8 +24,19 @@ data class SubtitleOption(val label: String, val lang: String?)
  * Аудиодорожка потока. [groupIndex] — индекс аудиогруппы в Media3 `Tracks`: выбор идёт точечным
  * override, а не «предпочитаемым языком» — у тайтла бывает несколько русских озвучек разных
  * студий, и по языку они неотличимы.
+ *
+ * [label] — уникальная подпись «2. Русский · Многоголосый · LostFilm»: ею дорожка выбирается.
+ * Остальное — те же метаданные `audios[]` по частям, чтобы ТВ разложил их по строке варианта:
+ * [languageCode] — код языка как его прислал kino.pub (или манифест), [channels] — 0, если неизвестно.
  */
-data class AudioOption(val label: String, val groupIndex: Int)
+data class AudioOption(
+    val label: String,
+    val groupIndex: Int,
+    val languageCode: String? = null,
+    val voiceType: String? = null,
+    val voiceAuthor: String? = null,
+    val channels: Int = 0,
+)
 
 /** Вариант скорости воспроизведения: [value] уходит в ExoPlayer, [label] — на экран. */
 data class SpeedOption(val label: String, val value: Float)
@@ -78,6 +89,14 @@ data class PlayerState(
     /** У аккаунта нет активной подписки — поток не отдаётся, плеер объясняет это плашкой. */
     val subscriptionRequired: Boolean = false,
     val error: String? = null,
+    /**
+     * Нижняя панель ТВ-плеера: открыта ли, какая вкладка выбрана и какой сезон листают во вкладке
+     * «Серии». Живёт в модели, а не в разметке: открытие панели ставит видео на паузу, закрытие —
+     * возвращает воспроизведение, и это решение модели, а не экрана.
+     */
+    val panelOpen: Boolean = false,
+    val panelTab: PlayerTab? = null,
+    val panelSeason: Int? = null,
 )
 
 sealed interface PlayerEvent {
@@ -86,6 +105,16 @@ sealed interface PlayerEvent {
     data class SelectAudio(val label: String) : PlayerEvent
     data class SelectSubtitle(val label: String) : PlayerEvent
     data class SetSpeed(val speed: Float) : PlayerEvent
+
+    /** Нижняя панель ТВ: открыть (видео встаёт на паузу) и закрыть (воспроизведение продолжается). */
+    data object OpenPanel : PlayerEvent
+    data object ClosePanel : PlayerEvent
+
+    /** Фокус пришёл на вкладку панели — она и выбрана. */
+    data class SelectTab(val tab: PlayerTab) : PlayerEvent
+
+    /** Во вкладке «Серии» листают сезон [season] — без запуска серии. */
+    data class ShowSeason(val season: Int) : PlayerEvent
 }
 
 sealed interface PlayerSideEffect

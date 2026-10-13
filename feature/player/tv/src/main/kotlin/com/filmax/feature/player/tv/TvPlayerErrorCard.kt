@@ -1,18 +1,9 @@
 package com.filmax.feature.player.tv
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.error.AppError
-import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
+import com.filmax.core.tv.designsystem.TvMessageCard
 import com.filmax.core.ui.components.appErrorText
 
 /**
@@ -22,34 +13,16 @@ import com.filmax.core.ui.components.appErrorText
  */
 @Composable
 internal fun PlayerErrorCard(error: AppError, modifier: Modifier = Modifier) {
-    Column(
-        modifier
-            .widthIn(max = ErrorCardMaxWidth)
-            .playerPanel()
-            .padding(horizontal = 28.dp, vertical = 22.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        val text = appErrorText(error)
-        Text(
-            text.title,
-            style = MaterialTheme.typography.titleMedium,
-            color = TvOnSurface,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text.message,
-            style = MaterialTheme.typography.bodySmall,
-            color = TvOnSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            "«Назад» — выйти из плеера",
-            style = MaterialTheme.typography.labelSmall,
-            color = TvOnSurfaceVariant,
-            modifier = Modifier.padding(top = 14.dp),
-        )
-    }
+    val text = appErrorText(error)
+    TvMessageCard(title = text.title, message = text.message, hint = "«Назад» — выйти из плеера", modifier = modifier)
 }
 
-private val ErrorCardMaxWidth = 520.dp
+/** Плашка «нужна подписка»: без неё kino.pub не отдаст поток, и экран остался бы просто чёрным. */
+@Composable
+internal fun SubscriptionCard(modifier: Modifier = Modifier) {
+    TvMessageCard(
+        title = "Нужна подписка",
+        message = "Просмотр доступен только с активной подпиской — оформите её в аккаунте kino.pub",
+        modifier = modifier,
+    )
+}

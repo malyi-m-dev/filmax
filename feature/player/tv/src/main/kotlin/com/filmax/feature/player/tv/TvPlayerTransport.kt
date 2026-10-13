@@ -1,265 +1,178 @@
-// Транспорт плеера: строка прогресса с перемоткой, кнопка паузы и подсказки D-pad.
-// Верхняя панель, карточки и ряд настроек — в TvPlayerOverlay и TvPlayerSettings.
+// Транспорт ТВ-плеера: что делает клавиша пульта, разгон перемотки, отсчёт «Далее» и состояние
+// оверлея поверх кадра. Решения — чистые функции, класс состояния их только применяет.
 package com.filmax.feature.player.tv
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
-import com.filmax.core.tv.designsystem.TvAccent
-import com.filmax.core.tv.designsystem.TvFocus
-import com.filmax.core.tv.designsystem.TvFocusHalo
-import com.filmax.core.tv.designsystem.TvMetrics
-import com.filmax.core.tv.designsystem.TvOnAccent
-import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceDim
-import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
-import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
-import com.filmax.feature.player.common.formatPlayerTime
-import kotlin.math.roundToInt
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.input.key.Key
+import androidx.media3.common.Player
 
-@Composable
-internal fun PlayerTransport(ui: TvPlayerUiState, menu: PlayerActions, modifier: Modifier = Modifier) {
-    val hint = when {
-        SettingsAction.Episodes in menu.items -> "↓ настройки и серии · ↕ показать прогресс"
-        menu.items.isNotEmpty() -> "↓ настройки · ↕ показать прогресс"
-        else -> "↕ показать прогресс"
-    }
-    Column(
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = TvMetrics.SafeHorizontal)
-            .padding(bottom = 34.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        // Основные контролы (скраббер + пауза/перемотка) прижаты к низу. Ряд настроек — ПОД ними,
-        // за AnimatedVisibility: в транспорте его нет вовсе (место не держит), а по «вниз» он
-        // раскрывается снизу и толкает основные контролы вверх. Так «вниз» открывает настройки, а
-        // не приходится жать «вниз», потом несколько раз «вверх».
-        Scrubber(
-            positionMs = if (ui.isScrubbing) ui.scrubTargetMs else ui.positionMs,
-            durationMs = ui.durationMs,
-            active = ui.isScrubbing,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        TransportHints(
-            isPlaying = ui.isPlaying,
-            // Виртуальный фокус транспорта: пока не перематываем и не в настройках — «работаем»
-            // с кнопкой паузы; при перемотке фокус-кольцо переезжает на thumb скраббера.
-            focused = ui.mode == PlayerMode.Transport && !ui.isScrubbing,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        Text(
-            hint,
-            style = MaterialTheme.typography.labelSmall,
-            color = TvOnSurfaceDim,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        AnimatedVisibility(
-            visible = ui.mode == PlayerMode.Settings,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
-        ) {
-            SettingsBar(
-                ui = ui,
-                menu = menu,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
-    }
-}
+/** Тик прогресса и сохранения позиции (мс). Ровно секунда: на нём же держится SaveProgress и отсчёт «Далее». */
+internal const val PROGRESS_TICK_MS = 1000L
 
-/** Полоса с временем: слева — текущее, справа — длительность; обе цифры табличные, чтобы не дёргались. */
-@Composable
-private fun Scrubber(positionMs: Long, durationMs: Long, active: Boolean, modifier: Modifier = Modifier) {
-    val timeStyle = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum")
-    Row(
-        modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            formatPlayerTime(positionMs),
-            style = timeStyle,
-            color = TvOnSurface,
-            modifier = Modifier.widthIn(min = 56.dp),
-        )
-        ScrubTrack(
-            fraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f,
-            active = active,
-        )
-        Text(
-            formatPlayerTime(durationMs),
-            style = timeStyle,
-            color = TvOnSurfaceVariant,
-            textAlign = TextAlign.End,
-            modifier = Modifier.widthIn(min = 56.dp),
-        )
-    }
+/** Бездействие, после которого контролы уходят с кадра (на паузе не уходят). */
+internal const val OVERLAY_AUTO_HIDE_MS = 5000L
+
+/** Пауза в нажатиях, после которой перемотка подтверждается seekTo: seekTo на каждый шаг рвал бы HLS-буфер. */
+internal const val SCRUB_COMMIT_TIMEOUT_MS = 700L
+
+/** Карточка «Далее» появляется за 30 с до конца серии (прокси «пошли титры» — маркеров у kino.pub нет). */
+internal const val AUTO_NEXT_WINDOW_MS = 30_000L
+
+/** Отсчёт до автостарта следующей серии с момента появления карточки. */
+internal const val AUTO_NEXT_COUNTDOWN_SEC = 15
+
+private const val MILLIS_IN_SECOND = 1000L
+
+/** Шаги разгона перемотки (секунды): каждые [SEEK_ACCELERATION_MS] удержания стрелки — следующий. */
+internal val SEEK_STEPS_SEC = listOf(10, 30, 60)
+internal const val SEEK_ACCELERATION_MS = 2000L
+
+/**
+ * Шаг перемотки при удержании стрелки [heldMs] миллисекунд: 10 → 30 → 60 с каждые 2 с. Отдельные
+ * нажатия — всегда по 10 с: точная подстройка не должна разгоняться сама.
+ */
+internal fun seekStepSeconds(heldMs: Long): Int =
+    SEEK_STEPS_SEC[(heldMs / SEEK_ACCELERATION_MS).toInt().coerceIn(0, SEEK_STEPS_SEC.lastIndex)]
+
+/**
+ * Что транспорт делает по клавише (нижняя панель закрыта). [repeats] — повторять ли команду, пока
+ * клавишу держат: перемотка разгоняется, а пауза и панель срабатывают один раз на нажатие.
+ */
+internal enum class TransportCommand(val repeats: Boolean = false) {
+    SeekBack(repeats = true),
+    SeekForward(repeats = true),
+    TogglePlay,
+    OpenPanel,
+    Peek,
+    PlayNext,
 }
 
 /**
- * Трек, заливка и thumb. Ширина известна только на месте — от неё считается позиция thumb.
- * При скраббинге ([active]) полоса и thumb заметно вырастают: видно, что перемотка «взята в руки».
+ * Раскладка пульта по гайдлайну Google для плеера: ←/→ — перемотка (воспроизведение не
+ * останавливают), OK — пауза, ↓ — панель настроек и серий, ↑ — показать контролы, не трогая
+ * воспроизведение. Пока видна карточка «Далее», OK запускает следующую серию. Чужие клавиши
+ * (громкость, системные) — null: их плеер не трогает.
  */
-@Composable
-private fun RowScope.ScrubTrack(fraction: Float, active: Boolean) {
-    val trackHeight by animateDpAsState(if (active) ScrubTrackHeightActive else ScrubTrackHeight, label = "scrubTrack")
-    val thumbSize by animateDpAsState(if (active) ScrubThumbActive else ScrubThumb, label = "scrubThumb")
-    val haloSize by animateDpAsState(if (active) ScrubThumbHaloActive else ScrubThumbHalo, label = "scrubHalo")
-    BoxWithConstraints(
-        Modifier
-            .weight(1f)
-            .height(ScrubThumbHaloActive),
-    ) {
-        val density = LocalDensity.current
-        val trackPx = with(density) { maxWidth.toPx() }
+internal fun transportCommand(key: Key, nextUpVisible: Boolean): TransportCommand? = when (key) {
+    Key.DirectionLeft, Key.MediaRewind -> TransportCommand.SeekBack
+    Key.DirectionRight, Key.MediaFastForward -> TransportCommand.SeekForward
+    Key.DirectionCenter, Key.Enter, Key.NumPadEnter ->
+        if (nextUpVisible) TransportCommand.PlayNext else TransportCommand.TogglePlay
+    Key.MediaPlayPause -> TransportCommand.TogglePlay
+    Key.DirectionDown -> TransportCommand.OpenPanel
+    Key.DirectionUp -> TransportCommand.Peek
+    else -> null
+}
 
-        Box(
-            Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxWidth()
-                .height(trackHeight)
-                .clip(CircleShape)
-                .background(TvAccent.copy(alpha = 0.2f)),
-        )
-        Box(
-            Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxWidth(fraction)
-                .height(trackHeight)
-                .clip(CircleShape)
-                .background(TvAccent),
-        )
-        // Кольцо фокуса при перемотке, тёмный ореол и сам thumb — тремя концентрическими кругами:
-        // белая точка на светлом кадре без ореола теряется.
-        val ringSize = haloSize + ScrubFocusRingExtra
-        val ringPx = with(density) { ringSize.toPx() }
-        CircleBox(
-            size = ringSize,
-            color = if (active) TvFocus else TvFocus.copy(alpha = 0f),
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset { IntOffset((fraction * trackPx - ringPx / 2f).roundToInt(), 0) },
-        ) {
-            CircleBox(size = haloSize, color = TvFocusHalo) {
-                CircleBox(size = thumbSize, color = TvAccent)
-            }
+/** Карточка «Далее»: видна ли, сколько секунд до автостарта и отменил ли её зритель «Назад». */
+internal data class AutoNext(val visible: Boolean = false, val secondsLeft: Int = 0, val dismissed: Boolean = false) {
+    /** Доля прошедшего отсчёта — полоса на карточке. */
+    val elapsed: Float get() = 1f - secondsLeft.toFloat() / AUTO_NEXT_COUNTDOWN_SEC
+
+    /** Отсчёт дошёл до нуля — пора включать следующую серию. */
+    val expired: Boolean get() = visible && secondsLeft <= 0
+
+    /**
+     * Тик раз в секунду. Карточка появляется в последних [AUTO_NEXT_WINDOW_MS] серии и с этого
+     * момента идёт фиксированный отсчёт: конца титров не ждём. На паузе отсчёт замирает,
+     * перемотка прячет карточку и начинает отсчёт заново. Отменённая «Назад» больше не появляется.
+     * Нижней границы у окна нет: у HLS позиция бывает за заявленной длительностью.
+     */
+    fun tick(remainingMs: Long, enabled: Boolean, playing: Boolean, scrubbing: Boolean): AutoNext {
+        val inWindow = enabled && !dismissed && !scrubbing && remainingMs <= AUTO_NEXT_WINDOW_MS
+        return when {
+            !inWindow -> copy(visible = false)
+            !visible -> copy(visible = true, secondsLeft = AUTO_NEXT_COUNTDOWN_SEC)
+            playing -> copy(secondsLeft = (secondsLeft - 1).coerceAtLeast(0))
+            else -> this
         }
     }
 }
 
 /**
- * Подсказки транспорта. Это именно подсказки, а не кнопки: перемотку и паузу ведёт D-pad,
- * фокусу тут ходить не по чему. [focused] — виртуальный фокус транспорта на кнопке OK:
- * белое кольцо с тёмным зазором (белая рамка на белой кнопке иначе не видна, как у TvButton).
+ * Состояние транспорта поверх кадра: видимость контролов, зеркала плеера (сам Player не
+ * Compose-state), перемотка и карточка «Далее». Позицию читают узко — полоса перемотки в фазе
+ * отрисовки, время — отдельной строкой: тик раз в секунду не перекомпоновывает экран.
  */
-@Composable
-private fun TransportHints(isPlaying: Boolean, focused: Boolean, modifier: Modifier = Modifier) {
-    Row(
-        modifier,
-        horizontalArrangement = Arrangement.spacedBy(26.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        SeekHint(label = "−${SEEK_STEPS_SEC.first()} с")
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            CircleBox(size = PauseFocusOuter, color = if (focused) TvFocus else TvFocus.copy(alpha = 0f)) {
-                CircleBox(size = PauseFocusInner, color = if (focused) TvFocusHalo else TvFocusHalo.copy(alpha = 0f)) {
-                    CircleBox(size = PauseButtonSize, color = TvAccent) {
-                        Icon(
-                            if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = TvOnAccent,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                }
-            }
-            Text(
-                if (isPlaying) "OK — пауза" else "OK — смотреть",
-                style = MaterialTheme.typography.labelSmall,
-                color = TvOnSurfaceVariant,
-            )
+@Stable
+internal class TvTransportState(private val player: Player) {
+
+    var visible by mutableStateOf(true)
+    var isPlaying by mutableStateOf(false)
+    var isBuffering by mutableStateOf(false)
+    var positionMs by mutableLongStateOf(0L)
+    var bufferedMs by mutableLongStateOf(0L)
+    var durationMs by mutableLongStateOf(0L)
+
+    /** Перемотка: позиция, которую двигает пульт до подтверждения seekTo. */
+    var isScrubbing by mutableStateOf(false)
+        private set
+    var scrubTargetMs by mutableLongStateOf(0L)
+        private set
+
+    var autoNext by mutableStateOf(AutoNext())
+
+    /** Счётчик действий пользователя — перезапускает таймер автоскрытия. */
+    var interactionTick by mutableIntStateOf(0)
+        private set
+
+    /** Когда зажали стрелку перемотки — от этого считается разгон. */
+    private var holdStartedAtMs = 0L
+
+    /** Позиция, которую показывает полоса: при перемотке — цель, иначе — плеер. */
+    val shownPositionMs: Long get() = if (isScrubbing) scrubTargetMs else positionMs
+
+    /** Контролы уходят сами, только пока видео идёт и пульт не перематывает. */
+    val idleHides: Boolean get() = visible && isPlaying && !isScrubbing
+
+    /** Было действие пользователя: контролы на экран, таймер автоскрытия — с нуля. */
+    fun touch() {
+        visible = true
+        interactionTick++
+    }
+
+    /**
+     * Шаг перемотки по нажатию стрелки. [repeatCount] и [eventTimeMs] — из события пульта: первое
+     * событие удержания (repeatCount 0) запоминает начало, следующие считают разгон от него.
+     */
+    fun seek(direction: Int, repeatCount: Int, eventTimeMs: Long) {
+        val duration = durationMs
+        if (duration <= 0) return
+        if (repeatCount == 0) holdStartedAtMs = eventTimeMs
+        if (!isScrubbing) {
+            scrubTargetMs = positionMs
+            isScrubbing = true
         }
-        SeekHint(label = "+${SEEK_STEPS_SEC.first()} с")
+        val stepMs = seekStepSeconds(eventTimeMs - holdStartedAtMs) * MILLIS_IN_SECOND
+        scrubTargetMs = (scrubTargetMs + direction * stepMs).coerceIn(0L, duration)
+        touch()
+    }
+
+    /** Подтверждение перемотки: плеер уходит на выбранную позицию. */
+    fun commitScrub() {
+        if (!isScrubbing) return
+        player.seekTo(scrubTargetMs)
+        positionMs = scrubTargetMs
+        isScrubbing = false
+    }
+
+    fun togglePlay() {
+        // Незакоммиченную перемотку не теряем: сначала на выбранную позицию, потом переключаем.
+        commitScrub()
+        if (player.isPlaying) player.pause() else player.play()
+        touch()
+    }
+
+    /** «Назад» при карточке «Далее» — отмена: серия дотечёт до конца и остановится. */
+    fun dismissAutoNext(): Boolean {
+        if (!autoNext.visible) return false
+        autoNext = autoNext.copy(visible = false, dismissed = true)
+        touch()
+        return true
     }
 }
-
-/** Базовый шаг перемотки в кольце: с разгона реальный шаг показывает подпись по центру кадра. */
-@Composable
-private fun SeekHint(label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
-    ) {
-        Box(
-            Modifier
-                .size(34.dp)
-                .border(1.dp, TvSurfaceContainerHighest, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("${SEEK_STEPS_SEC.first()}", style = MaterialTheme.typography.labelLarge, color = TvOnSurface)
-        }
-        Text(label, style = MaterialTheme.typography.bodySmall, color = TvOnSurfaceVariant)
-    }
-}
-
-/**
- * Ряд настроек. Всплывает по «вниз» через AnimatedVisibility над основными контролами; в транспорте
- * его нет вовсе, поэтому место под себя он не держит и низ панели не прыгает.
- *
- * Чипы намеренно не фокусируемые: в плеере фокус никуда не ходит, курсор ведёт обработчик клавиш.
- * Курсор рисуют белая заливка (`selected`) И увеличение — на ярком кадре одной заливки мало, чтобы
- * сразу читалось, что выбрано. `onClick` остаётся настоящим: у TV-Surface он обслуживает
- * accessibility-действие «активировать».
- */
-
-private val ScrubTrackHeight = 6.dp
-private val ScrubTrackHeightActive = 9.dp
-private val ScrubThumb = 15.dp
-private val ScrubThumbActive = 24.dp
-private val ScrubThumbHalo = 24.dp
-private val ScrubThumbHaloActive = 38.dp
-
-/** Насколько кольцо фокуса при перемотке шире тёмного ореола thumb. */
-private val ScrubFocusRingExtra = 6.dp
-
-/** Кнопка OK и кольца её виртуального фокуса: белое снаружи и тёмный зазор вокруг круга кнопки. */
-private val PauseButtonSize = 50.dp
-private val PauseFocusOuter = 62.dp
-private val PauseFocusInner = 56.dp

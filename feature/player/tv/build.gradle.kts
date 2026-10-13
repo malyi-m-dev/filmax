@@ -24,4 +24,7 @@ dependencies {
 
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
+
+    // UI-тест пульта берёт сериал из фейкового бэкенда — тех же данных, что у mock-сборки.
+    testImplementation(project(":data:fake"))
 }
