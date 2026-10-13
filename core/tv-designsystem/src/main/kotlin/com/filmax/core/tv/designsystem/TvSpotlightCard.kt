@@ -31,7 +31,12 @@ private val SpotlightShape = RoundedCornerShape(16.dp)
 
 /** Крупная карточка выделяется сама по себе: увеличение в фокусе скромнее, чем у постера. */
 private const val SPOTLIGHT_FOCUS_SCALE = 1.03f
-private val SpotlightFocus = TvFocusStyle(SpotlightShape, glowRadius = 16.dp, focusedScale = SPOTLIGHT_FOCUS_SCALE)
+private val SpotlightFocus = TvFocusStyle(
+    SpotlightShape,
+    glowRadius = 16.dp,
+    focusedScale = SPOTLIGHT_FOCUS_SCALE,
+    pop = true
+)
 
 private const val META_ALPHA = 0.8f
 private val SpotlightScrim = Brush.verticalGradient(0.35f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.85f))

@@ -26,6 +26,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -55,6 +59,8 @@ import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.Onest
 import com.filmax.core.tv.designsystem.TvFocus
+import com.filmax.core.tv.designsystem.TvKeyHint
+import com.filmax.core.tv.designsystem.TvKeyHints
 
 // ────────────────────────────── Пункты разделов ──────────────────────────────
 
@@ -141,7 +147,10 @@ private fun NavItem(
         ),
     ) {
         Row(
-            Modifier.fillMaxHeight().padding(horizontal = if (look.expanded) 14.dp else 8.dp),
+            Modifier
+                .fillMaxHeight()
+                .navFocusScale(look.focused)
+                .padding(horizontal = if (look.expanded) 14.dp else 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(section.icon, contentDescription = section.label, modifier = Modifier.size(IconSize))
@@ -219,7 +228,7 @@ internal fun NavProfile(account: AccountSummary, look: NavProfileLook, onClick: 
     Surface(
         onClick = onClick,
         modifier = modifier.then(if (look.expanded) Modifier.fillMaxWidth() else Modifier.size(AvatarSize)),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(ItemRadius)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(if (look.expanded) CardRadius else ItemRadius)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = card,
@@ -233,7 +242,7 @@ internal fun NavProfile(account: AccountSummary, look: NavProfileLook, onClick: 
         if (look.expanded) {
             AccountCard(account, focused = look.focused)
         } else {
-            Avatar(account.initials, AvatarSize, ringed = look.active)
+            Avatar(account.initials, AvatarSize, ringed = look.active, style = FxType.pill)
         }
     }
 }
@@ -242,17 +251,17 @@ internal fun NavProfile(account: AccountSummary, look: NavProfileLook, onClick: 
 private fun AccountCard(account: AccountSummary, focused: Boolean) {
     val colors = LocalFxColors.current
     Row(
-        Modifier.padding(12.dp),
+        Modifier.navFocusScale(focused).padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Avatar(account.initials, CardAvatarSize, ringed = false)
-        Column {
-            Text(account.name, style = FxType.button, maxLines = 1)
+        Avatar(account.initials, CardAvatarSize, ringed = false, style = CardInitialsStyle)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(account.name, style = AccountNameStyle, maxLines = 1)
             Text(
                 account.subscription,
                 style = FxType.metaOnImage,
-                color = if (focused) colors.onAccent.copy(alpha = SUBSCRIPTION_ON_DROP_ALPHA) else colors.textSecondary,
+                color = if (focused) colors.onAccent.copy(alpha = SUBSCRIPTION_ON_DROP_ALPHA) else colors.accentText,
                 maxLines = 1,
             )
         }
@@ -263,7 +272,7 @@ private fun AccountCard(account: AccountSummary, focused: Boolean) {
 private const val SUBSCRIPTION_ON_DROP_ALPHA = 0.8f
 
 @Composable
-private fun Avatar(initials: String, size: Dp, ringed: Boolean) {
+private fun Avatar(initials: String, size: Dp, ringed: Boolean, style: TextStyle) {
     val colors = LocalFxColors.current
     Box(
         Modifier
@@ -272,7 +281,42 @@ private fun Avatar(initials: String, size: Dp, ringed: Boolean) {
             .then(if (ringed) Modifier.border(2.dp, TvFocus, CircleShape) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        Text(initials, style = FxType.pill, color = colors.onAccent2)
+        Text(initials, style = style, color = colors.onAccent2)
+    }
+}
+
+/**
+ * Пункт в фокусе чуть крупнее, как и остальные элементы в фокусе. Масштабируется содержимое, а
+ * не сам пункт: по границам пункта стоит капля, и они не должны дрожать вместе с масштабом —
+ * каплю масштабирует её слой ([NavDropLayer]).
+ */
+@Composable
+internal fun Modifier.navFocusScale(focused: Boolean): Modifier {
+    val scale by animateFloatAsState(if (focused) NAV_FOCUS_SCALE else 1f, FxMotion.focus(), label = "navItemScale")
+    return graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+// ────────────────────────────── Подсказки клавиш ──────────────────────────────
+
+/** Подсказки клавиш в правом нижнем углу, пока меню раскрыто: как ходить по меню и закрыть его. */
+@Composable
+internal fun NavKeyHints(visible: Boolean, modifier: Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = fadeIn(FxMotion.panelIn()),
+        exit = fadeOut(FxMotion.panelOut()),
+    ) {
+        TvKeyHints(
+            listOf(
+                TvKeyHint(listOf(Icons.Rounded.KeyboardArrowUp, Icons.Rounded.KeyboardArrowDown), "раздел"),
+                TvKeyHint(emptyList(), "открыть", keyText = "OK"),
+                TvKeyHint(listOf(Icons.AutoMirrored.Rounded.KeyboardArrowRight), "закрыть"),
+            ),
+        )
     }
 }
 
@@ -284,7 +328,11 @@ private fun Avatar(initials: String, size: Dp, ringed: Boolean) {
  */
 @Composable
 internal fun NavScrim(expanded: Boolean) {
-    val alpha by animateFloatAsState(if (expanded) 1f else 0f, FxMotion.panelIn(), label = "navScrim")
+    val alpha by animateFloatAsState(
+        if (expanded) 1f else 0f,
+        if (expanded) FxMotion.panelIn() else FxMotion.panelOut(),
+        label = "navScrim",
+    )
     Box(
         Modifier
             .fillMaxSize()
@@ -307,7 +355,17 @@ private val ExpandedScrim = Brush.horizontalGradient(
     1f to ScrimColor.copy(alpha = 0.6f),
 )
 
+/** Карточка аккаунта в раскрытой панели: имя и инициалы 14, как в макете. */
+private val AccountNameStyle = TextStyle(
+    fontFamily = Onest,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 14.sp,
+    lineHeight = 18.sp,
+)
+private val CardInitialsStyle = FxType.pill.copy(fontSize = 14.sp, lineHeight = 18.sp)
+
 private val ItemRadius = 14.dp
+private val CardRadius = 16.dp
 private val IconSize = 20.dp
 private val AvatarSize = 36.dp
 private val CardAvatarSize = 40.dp

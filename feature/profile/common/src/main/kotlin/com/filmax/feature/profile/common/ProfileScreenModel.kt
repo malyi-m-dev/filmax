@@ -63,6 +63,8 @@ class ProfileScreenModel(
                 screenModelScope { _ -> playbackSettings.setAudioLanguage(event.language) }
             is ProfileEvent.SetSubtitleLanguage ->
                 screenModelScope { _ -> playbackSettings.setSubtitleLanguage(event.language) }
+            is ProfileEvent.SetSubtitlesEnabled ->
+                screenModelScope { _ -> playbackSettings.setSubtitleLanguage(subtitleLanguageFor(event.enabled)) }
             is ProfileEvent.OpenSetting -> update { it.copy(setting = event.setting, settingOpen = true) }
             ProfileEvent.CloseSetting -> update { it.copy(settingOpen = false) }
             is ProfileEvent.ChooseOption -> chooseOption(event.index)

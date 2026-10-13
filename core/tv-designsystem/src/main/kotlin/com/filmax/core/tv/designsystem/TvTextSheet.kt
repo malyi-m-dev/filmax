@@ -1,5 +1,6 @@
 package com.filmax.core.tv.designsystem
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,10 +26,16 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -37,7 +45,10 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
@@ -57,45 +68,29 @@ private val SheetBody = TextStyle(fontSize = 16.sp, lineHeight = 25.6.sp)
 fun BoxScope.TvTextSheet(overline: String, title: String, meta: String?, text: String, onClose: () -> Unit) {
     val colors = LocalFxColors.current
     val scroll = rememberScrollState()
-    val scope = rememberCoroutineScope()
-    val step = with(LocalDensity.current) { ScrollStep.toPx() }
     Column(
         Modifier
             .fillMaxSize()
             .padding(start = 34.dp, end = 40.dp, top = 30.dp, bottom = 70.dp)
-            .onPreviewKeyEvent { event ->
-                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
-                when (event.key) {
-                    Key.DirectionUp -> {
-                        scope.launch { scroll.animateScrollBy(-step) }
-                        true
-                    }
-                    Key.DirectionDown -> {
-                        scope.launch { scroll.animateScrollBy(step) }
-                        true
-                    }
-                    Key.DirectionLeft -> {
-                        onClose()
-                        true
-                    }
-                    else -> false
-                }
-            }
+            .sheetKeys(scroll, onClose)
             .focusable(),
     ) {
-        Text(overline.uppercase(), style = FxType.overline, color = colors.accentText)
-        Text(title, style = SheetTitle, color = colors.text, modifier = Modifier.padding(top = 8.dp))
-        if (meta != null) {
-            Text(meta, style = FxType.meta, color = colors.textSecondary, modifier = Modifier.padding(top = 6.dp))
-        }
+        SheetHeading(overline, title, meta)
         Text(
             text,
             style = SheetBody,
             color = colors.text.copy(alpha = BODY_ALPHA),
-            modifier = Modifier.padding(top = 20.dp).verticalScroll(scroll),
+            modifier = Modifier
+                .padding(top = 20.dp)
+                .sheetEnter(3)
+                .fadeWhileMoreBelow(scroll)
+                .verticalScroll(scroll),
         )
     }
-    ScrollIndicator(scroll, Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 30.dp, bottom = 70.dp))
+    ScrollIndicator(
+        scroll,
+        Modifier.align(Alignment.TopEnd).padding(end = 16.dp, top = 30.dp, bottom = 70.dp).sheetEnter(4),
+    )
     TvKeyHints(
         hints = listOf(
             TvKeyHint(listOf(Icons.Rounded.KeyboardArrowUp, Icons.Rounded.KeyboardArrowDown), "прокрутка"),
@@ -106,6 +101,71 @@ fun BoxScope.TvTextSheet(overline: String, title: String, meta: String?, text: S
 }
 
 private const val BODY_ALPHA = 0.86f
+
+/** ↑↓ — прокрутка текста шагом 80dp, «←» — закрыть панель. */
+@Composable
+private fun Modifier.sheetKeys(scroll: ScrollState, onClose: () -> Unit): Modifier {
+    val scope = rememberCoroutineScope()
+    val step = with(LocalDensity.current) { ScrollStep.toPx() }
+    return onPreviewKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        when (event.key) {
+            Key.DirectionUp -> {
+                scope.launch { scroll.animateScrollBy(-step, FxMotion.scroll()) }
+                true
+            }
+            Key.DirectionDown -> {
+                scope.launch { scroll.animateScrollBy(step, FxMotion.scroll()) }
+                true
+            }
+            Key.DirectionLeft -> {
+                onClose()
+                true
+            }
+            else -> false
+        }
+    }
+}
+
+/** Надзаголовок, название и мета — появляются по очереди вслед за панелью. */
+@Composable
+private fun SheetHeading(overline: String, title: String, meta: String?) {
+    val colors = LocalFxColors.current
+    Text(overline.uppercase(), style = FxType.overline, color = colors.accentText, modifier = Modifier.sheetEnter(0))
+    Text(title, style = SheetTitle, color = colors.text, modifier = Modifier.padding(top = 8.dp).sheetEnter(1))
+    if (meta != null) {
+        Text(
+            meta,
+            style = FxType.meta,
+            color = colors.textSecondary,
+            modifier = Modifier.padding(top = 6.dp).sheetEnter(2)
+        )
+    }
+}
+
+/** Содержимое панели появляется, когда сама панель почти выехала, — не раньше неё. */
+private const val SHEET_ENTER_DELAY_MS = 120
+
+private fun Modifier.sheetEnter(index: Int): Modifier = fxEnter(index, startDelayMillis = SHEET_ENTER_DELAY_MS)
+
+/** Текст гаснет с 80% высоты окна — так видно, что ниже есть продолжение. */
+private const val FADE_FROM = 0.8f
+
+/**
+ * Затухание низа текста, пока ниже есть что читать; докрутили до конца — последние строки
+ * видны целиком. Маска в координатах окна прокрутки, а не текста: стоит на месте, текст под ней
+ * едет. Сила затухания читается при отрисовке — прокрутка не перекомпоновывает панель.
+ */
+@Composable
+private fun Modifier.fadeWhileMoreBelow(scroll: ScrollState): Modifier {
+    val strength by animateFloatAsState(if (scroll.canScrollForward) 1f else 0f, FxMotion.fade(), label = "textFade")
+    return graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val edge = Color.Black.copy(alpha = 1f - strength)
+            drawRect(Brush.verticalGradient(FADE_FROM to Color.Black, 1f to edge), blendMode = BlendMode.DstIn)
+        }
+}
 
 /** Полоса прокрутки — только если тексту есть куда прокручиваться. */
 @Composable
@@ -140,17 +200,30 @@ private fun Modifier.graphicsOffset(fraction: Float): Modifier =
         }
     }
 
-/** Подсказка клавиш внизу панели: значки клавиш и что они делают. */
-data class TvKeyHint(val keys: List<ImageVector>, val label: String)
+/**
+ * Подсказка клавиш внизу панели: значки клавиш и что они делают. [keyText] — клавиша с надписью
+ * вместо значка («OK»): у центральной кнопки пульта значка нет.
+ */
+data class TvKeyHint(val keys: List<ImageVector>, val label: String, val keyText: String? = null)
+
+/**
+ * Размер клавиши-подсказки: обычная 22dp; [Small] — 18dp под транспортом плеера, где подсказки —
+ * второй план и не должны спорить с кнопками.
+ */
+enum class TvKeyCapSize(val size: Dp, val glyph: Dp) {
+    Regular(22.dp, 16.dp),
+    Small(18.dp, 12.dp),
+}
 
 /** Ряд подсказок клавиш: «↑↓ прокрутка  ← закрыть». */
 @Composable
-fun TvKeyHints(hints: List<TvKeyHint>, modifier: Modifier = Modifier) {
+fun TvKeyHints(hints: List<TvKeyHint>, modifier: Modifier = Modifier, keySize: TvKeyCapSize = TvKeyCapSize.Regular) {
     val colors = LocalFxColors.current
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(18.dp), verticalAlignment = Alignment.CenterVertically) {
         hints.forEach { hint ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                hint.keys.forEach { icon -> KeyCap(icon) }
+                hint.keys.forEach { icon -> TvKeyCap(icon, keySize) }
+                hint.keyText?.let { text -> TextKeyCap(text, keySize) }
                 Text(hint.label, style = FxType.metaOnImage, color = colors.textSecondary)
             }
         }
@@ -160,16 +233,34 @@ fun TvKeyHints(hints: List<TvKeyHint>, modifier: Modifier = Modifier) {
 private val KeyCapShape = RoundedCornerShape(6.dp)
 private const val KEYCAP_FILL_ALPHA = 0.12f
 private const val KEYCAP_BORDER_ALPHA = 0.22f
+private val KeyTextPadding = 6.dp
+private val KeyTextStyle =
+    TextStyle(fontFamily = Onest, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 0.04.em)
 
+/** Клавиша-значок подсказки. internal — подсказку «назад» с гаснущей подписью собирает [TvBackHint]. */
 @Composable
-private fun KeyCap(icon: ImageVector) {
-    Box(
-        Modifier
-            .size(22.dp)
-            .background(Color.White.copy(alpha = KEYCAP_FILL_ALPHA), KeyCapShape)
-            .border(1.dp, Color.White.copy(alpha = KEYCAP_BORDER_ALPHA), KeyCapShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = LocalFxColors.current.text, modifier = Modifier.size(16.dp))
+internal fun TvKeyCap(icon: ImageVector, keySize: TvKeyCapSize = TvKeyCapSize.Regular) {
+    Box(Modifier.size(keySize.size).keyCapSurface(), contentAlignment = Alignment.Center) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = LocalFxColors.current.text,
+            modifier = Modifier.size(keySize.glyph)
+        )
     }
 }
+
+/** Клавиша с надписью («OK»): той же высоты, ширина — по надписи. */
+@Composable
+private fun TextKeyCap(text: String, keySize: TvKeyCapSize) {
+    Box(
+        Modifier.height(keySize.size).keyCapSurface().padding(horizontal = KeyTextPadding),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = KeyTextStyle, color = LocalFxColors.current.text)
+    }
+}
+
+private fun Modifier.keyCapSurface(): Modifier = this
+    .background(Color.White.copy(alpha = KEYCAP_FILL_ALPHA), KeyCapShape)
+    .border(1.dp, Color.White.copy(alpha = KEYCAP_BORDER_ALPHA), KeyCapShape)

@@ -1,6 +1,5 @@
 package com.filmax.feature.details.tv
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,7 +38,8 @@ fun TvDetailsScreen(
     val state by screenModel.collectAsState()
     val picker by pickerModel.collectAsState()
     val folderButtonFocus = remember { FocusRequester() }
-    Box(modifier.fillMaxSize().background(LocalFxColors.current.background)) {
+    // Фон — у окна (FilmaxTvTheme): своя заливка экрана закрашивала бы каждый пиксель лишний раз.
+    Box(modifier.fillMaxSize()) {
         val item = state.item
         when {
             state.loading -> CircularProgressIndicator(
@@ -89,7 +89,7 @@ private fun DescriptionSheet(state: DetailsState, item: Item, actions: DetailsAc
             TvTextSheet(
                 overline = "Описание",
                 title = item.title,
-                meta = metaLine(item, state.series).ifBlank { null },
+                meta = sheetMeta(item, state.series).ifBlank { null },
                 text = item.plot,
                 onClose = actions.onCloseDescription,
             )

@@ -57,7 +57,7 @@ fun TvRail(
     val pivot = with(LocalDensity.current) { contentStart.toPx() }
     val pivotSpec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
     Column(modifier.bringIntoViewAsWhole()) {
-        RailTitle(title, count, subtitle, Modifier.padding(start = contentStart, bottom = 14.dp))
+        RailTitle(title, count, subtitle, Modifier.padding(start = contentStart))
         CompositionLocalProvider(
             LocalRailFocused provides focused,
             LocalBringIntoViewSpec provides pivotSpec,
@@ -70,7 +70,7 @@ fun TvRail(
                 contentPadding = PaddingValues(
                     start = contentStart,
                     end = TvMetrics.SectionEnd,
-                    top = TvMetrics.FocusInset,
+                    top = TitleGap,
                     bottom = TvMetrics.FocusInset,
                 ),
                 horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
@@ -79,6 +79,14 @@ fun TvRail(
         }
     }
 }
+
+/**
+ * Заголовок ряда → карточки, как в макете. Это же и запас над карточками под масштаб и свечение
+ * фокуса: отдельный [TvMetrics.FocusInset] сверху раздвигал заголовок и ряд до 30dp. Сверху
+ * его хватает и так — ряд обрезает содержимое только по горизонтали, а по вертикали отпускает
+ * ещё 15dp (`clipScrollableContainer`): 14 + 15 покрывают рост карточки на 6% и свечение.
+ */
+private val TitleGap = 14.dp
 
 @Composable
 private fun RailTitle(title: String, count: Int?, subtitle: String?, modifier: Modifier) {

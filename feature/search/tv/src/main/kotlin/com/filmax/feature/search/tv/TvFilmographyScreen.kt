@@ -1,7 +1,6 @@
 package com.filmax.feature.search.tv
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,11 +27,12 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
-import com.filmax.core.tv.designsystem.TvSurface
+import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.posterMeta
@@ -66,10 +66,10 @@ fun TvFilmographyScreen(
 
     BackHandler { onBack() }
 
+    // Фон — у окна (FilmaxTvTheme): своя сплошная заливка экрана — лишний слой цвета на каждом кадре.
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(TvSurface)
             .padding(top = TvMetrics.SafeVertical),
     ) {
         FilmographyHeading(heading = state.heading)
@@ -115,6 +115,12 @@ private fun FilmographyBody(state: FilmographyState, onOpenItem: (Int) -> Unit) 
 private fun FilmographyGrid(items: List<Item>, onOpenItem: (Int) -> Unit) {
     val focus = rememberTvScreenFocus()
 
+    // В сетке только постеры — фокус в ней всегда на постере, и соседи приглушаются.
+    TvDimGroup { FilmographyPosters(items, focus, onOpenItem) }
+}
+
+@Composable
+private fun FilmographyPosters(items: List<Item>, focus: TvScreenFocus, onOpenItem: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
         modifier = Modifier.fillMaxSize().then(focus.containerModifier),

@@ -147,7 +147,7 @@ class TvFolderFocusTest {
         const val FOLDER_ID = 2
         const val FOLDER_TITLE = "Пересмотреть с семьёй"
         const val FIRST_TITLE = "Дом на краю карты"
-        const val FIRST_KEY = "а"
+        const val FIRST_KEY = "й"
 
         /** Потолок нажатий «вверх» с постера до шапки. */
         const val MAX_PRESSES = 3

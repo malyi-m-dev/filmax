@@ -4,6 +4,7 @@
 
 package com.filmax.feature.search.tv
 
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridItemScope
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -25,10 +27,12 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +44,7 @@ import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvPosterSize
@@ -68,9 +73,23 @@ private const val INITIAL_SKELETONS = CATALOG_COLUMNS * 2
 
 private const val HEADER_KEY = "header"
 
+/** Старая выдача при смене фильтра гаснет быстро — новая уже идёт за ней скелетонами и fxEnter. */
+private const val FILTER_FADE_OUT_MS = 120
+
 /** Прокрутка сетки и чипы панелей — живут над сеткой, чтобы пережить поиск. */
 @Stable
 internal class CatalogGridChrome(val gridState: LazyGridState, val sheetOpeners: SheetOpeners)
+
+/**
+ * Фокус на постерах: внутри сетки, но не в её шапке. Только тогда соседи постера в фокусе
+ * приглушаются — фокус на чипах шапки тоже внутри сетки, а приглушать постеры там не за что.
+ */
+@Stable
+private class PosterFocus {
+    var inGrid by mutableStateOf(false)
+    var inHeader by mutableStateOf(false)
+    val onPosters: Boolean get() = inGrid && !inHeader
+}
 
 /**
  * Витрина: шапка и постеры в одной сетке. Строка в фокусе встаёт на опорную точку [RowPivot];
@@ -94,25 +113,31 @@ internal fun TvCatalogGrid(
             with(density) { (TvMetrics.ContentTop + TvMetrics.GridGap).toPx() } + headerHeight
         }
     }
+    val posterFocus = remember { PosterFocus() }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(CATALOG_COLUMNS),
-            state = gridState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = GridPadding,
-            horizontalArrangement = Arrangement.spacedBy(TvMetrics.GridGap),
-            verticalArrangement = Arrangement.spacedBy(TvMetrics.GridGap),
-        ) {
-            item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
-                CatalogHeader(
-                    state = state,
-                    actions = actions,
-                    focus = focus,
-                    sheetOpeners = chrome.sheetOpeners,
-                    modifier = Modifier.onSizeChanged { headerHeight = it.height }.bringIntoViewAsWhole(),
-                )
+        TvDimGroup(focused = posterFocus.onPosters) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(CATALOG_COLUMNS),
+                state = gridState,
+                modifier = Modifier.fillMaxSize().onFocusChanged { posterFocus.inGrid = it.hasFocus },
+                contentPadding = GridPadding,
+                horizontalArrangement = Arrangement.spacedBy(TvMetrics.GridGap),
+                verticalArrangement = Arrangement.spacedBy(TvMetrics.GridGap),
+            ) {
+                item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
+                    CatalogHeader(
+                        state = state,
+                        actions = actions,
+                        focus = focus,
+                        sheetOpeners = chrome.sheetOpeners,
+                        modifier = Modifier
+                            .onSizeChanged { headerHeight = it.height }
+                            .onFocusChanged { posterFocus.inHeader = it.hasFocus }
+                            .bringIntoViewAsWhole(),
+                    )
+                }
+                catalogCells(state, actions, focus, aboveFirstRow)
             }
-            catalogCells(state, actions, focus, aboveFirstRow)
         }
     }
 }
@@ -161,17 +186,32 @@ private fun LazyGridScope.posters(
             meta = posterMeta(typeLabel(item.type), item.year),
             posterUrl = posterUrl(item),
             onClick = { actions.onOpenItem(item.id) },
-            modifier = reveal.fxEnter(index % CATALOG_COLUMNS).then(focus.screen.item("grid:${item.id}")),
+            modifier = filterChangeFade()
+                .then(reveal)
+                .fxEnter(index % CATALOG_COLUMNS)
+                .then(focus.screen.item("grid:${item.id}")),
             rating = ratingLabel(item.rating.kinopoisk),
             ratingHighlighted = isHighRating(item.rating.kinopoisk),
             size = TvPosterSize.Grid,
+            ratingAlignment = Alignment.TopStart,
         )
     }
 }
 
 private fun LazyGridScope.skeletons(count: Int) {
-    items(count, key = { index -> "skeleton:$index" }) { TvPosterSkeleton(size = TvPosterSize.Grid) }
+    items(count, key = { index -> "skeleton:$index" }) {
+        TvPosterSkeleton(size = TvPosterSize.Grid, modifier = filterChangeFade())
+    }
 }
+
+/**
+ * Смена фильтра: ушедшие из выдачи карточки гаснут за 120 мс на своём месте, новые появляются
+ * через fxEnter. Переход — у карточек, а не у сетки целиком: шапка с чипом, на котором стоит
+ * фокус, остаётся той же, и фокус не теряется. Сдвиг и появление — без анимации: строки сетки
+ * выстраивает опорная точка прокрутки.
+ */
+private fun LazyGridItemScope.filterChangeFade(): Modifier =
+    Modifier.animateItem(fadeInSpec = null, placementSpec = null, fadeOutSpec = tween(FILTER_FADE_OUT_MS))
 
 private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit) {
     item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }

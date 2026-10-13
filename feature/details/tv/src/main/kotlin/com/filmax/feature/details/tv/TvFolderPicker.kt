@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bookmark
@@ -29,7 +29,6 @@ import androidx.compose.material.icons.rounded.CreateNewFolder
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.material.icons.rounded.RadioButtonChecked
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -67,6 +66,7 @@ import com.filmax.core.tv.designsystem.TvFolderEditorState
 import com.filmax.core.tv.designsystem.TvKeyHint
 import com.filmax.core.tv.designsystem.TvKeyHints
 import com.filmax.core.tv.designsystem.TvKeyboardActions
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.tvFolderTint
 import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.details.common.FolderPickerEvent
@@ -78,6 +78,14 @@ private const val ADD_KEY = -1
 /** Смена списка на редактор: сдвиг 24dp и проявление — как в макете. */
 private val EditorShift = 24.dp
 private val PickerTitle = FxType.screenTitle.copy(fontSize = 24.sp, lineHeight = 28.sp)
+
+/**
+ * Шаги появления, как в макете: панель въезжает, затем надзаголовок, название и строки сверху
+ * вниз. Дальние строки ждут не дольше [MAX_ROW_ENTER] шагов.
+ */
+private const val OVERLINE_ENTER = 1
+private const val FIRST_ROW_ENTER = 3
+private const val MAX_ROW_ENTER = 5
 
 /**
  * Панель «В папку» глазами экрана деталей: состояние модели, её события и фокус кнопки
@@ -137,13 +145,13 @@ private fun BoxScope.FolderList(item: Item, folders: DetailsFolders, watchlist: 
             "ДОБАВИТЬ В ПАПКУ",
             style = FxType.overline,
             color = colors.accentText,
-            modifier = Modifier.padding(start = 8.dp)
+            modifier = Modifier.padding(start = 8.dp).fxEnter(OVERLINE_ENTER),
         )
         Text(
             item.title,
             style = PickerTitle,
             color = colors.text,
-            modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+            modifier = Modifier.padding(start = 8.dp, top = 8.dp).fxEnter(OVERLINE_ENTER + 1),
         )
         if (state.loading) {
             CircularProgressIndicator(color = colors.accent, modifier = Modifier.padding(start = 8.dp, top = 24.dp))
@@ -182,9 +190,12 @@ private fun FolderRows(
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
     ) {
         item(key = "watchlist") { WatchlistRow(state.watchlistCount, watchlist) }
-        folderRows(state, onEvent) { folderId ->
+        folderRows(state, onEvent) { index, folderId ->
             val requester = requesters.getOrPut(folderId) { FocusRequester() }
-            Modifier.focusRequester(requester).then(if (folderId == target) placeFocus else Modifier)
+            Modifier
+                .fxEnter(FIRST_ROW_ENTER + 1 + index.coerceAtMost(MAX_ROW_ENTER))
+                .focusRequester(requester)
+                .then(if (folderId == target) placeFocus else Modifier)
         }
         item(key = "add") {
             TvAddRow(
@@ -209,20 +220,21 @@ private fun WatchlistRow(count: Int, watchlist: WatchlistMark) {
         ),
         checked = watchlist.checked,
         onClick = watchlist.onToggle,
+        modifier = Modifier.fxEnter(FIRST_ROW_ENTER),
     )
 }
 
 private fun LazyListScope.folderRows(
     state: FolderPickerState,
     onEvent: (FolderPickerEvent) -> Unit,
-    rowModifier: (Int) -> Modifier,
+    rowModifier: @Composable (index: Int, folderId: Int) -> Modifier,
 ) {
-    items(state.folders, key = { it.id }) { folder ->
+    itemsIndexed(state.folders, key = { _, folder -> folder.id }) { index, folder ->
         TvCheckRow(
             spec = folder.toRowSpec(),
             checked = folder.id in state.memberOf,
             onClick = { onEvent(FolderPickerEvent.Toggle(folder.id)) },
-            modifier = rowModifier(folder.id),
+            modifier = rowModifier(index, folder.id),
         )
     }
 }
@@ -238,7 +250,7 @@ private fun UserFolder.toRowSpec() = TvCheckRowSpec(
 private fun PickerHints(modifier: Modifier) {
     TvKeyHints(
         hints = listOf(
-            TvKeyHint(listOf(Icons.Rounded.RadioButtonChecked), "отметить"),
+            TvKeyHint(keys = emptyList(), label = "отметить", keyText = "OK"),
             TvKeyHint(listOf(Icons.Rounded.KeyboardArrowUp, Icons.Rounded.KeyboardArrowDown), "папки"),
             TvKeyHint(listOf(Icons.AutoMirrored.Rounded.ArrowBack), "готово"),
         ),

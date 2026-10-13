@@ -35,8 +35,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
@@ -46,10 +48,11 @@ import com.filmax.core.tv.designsystem.TvKeyHints
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvMicButton
 import com.filmax.core.tv.designsystem.TvMicPulse
-import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvSearchField
+import com.filmax.core.tv.designsystem.TvSearchFieldMode
 import com.filmax.core.tv.designsystem.TvVoiceLevel
 import com.filmax.core.tv.designsystem.TvVoiceTranscript
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.ui.components.VoiceSearchController
 import com.filmax.core.ui.components.VoiceSearchError
 import com.filmax.core.ui.components.rememberInAppVoiceSearch
@@ -159,7 +162,13 @@ private fun VoiceSearchBar(text: String) {
             .padding(start = TvMetrics.SectionStart, end = TvMetrics.SectionEnd, top = TvMetrics.ContentTop),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TvSearchField(query = text, placeholder = "", onClick = {}, active = true, modifier = Modifier.weight(1f))
+        TvSearchField(
+            query = text,
+            placeholder = "",
+            onClick = {},
+            mode = TvSearchFieldMode.Dictation,
+            modifier = Modifier.weight(1f),
+        )
         // Копия кнопки — показать, откуда пришёл голос; нажимать её незачем, фокус ей не нужен.
         TvMicButton(onClick = {}, listening = true, modifier = Modifier.focusProperties { canFocus = false })
     }
@@ -182,22 +191,39 @@ private fun ListeningColumn(controller: VoiceSearchController, modifier: Modifie
             )
             return@Column
         }
-        TvOverline("Слушаю", Modifier.padding(top = 28.dp), accent = false)
+        // Тексты поднимаются вслед за кругом, по очереди: «Слушаю», речь, подсказка.
+        Text(
+            "Слушаю".uppercase(),
+            style = FxType.overline.copy(fontSize = ListeningFontSize),
+            color = colors.accentText,
+            modifier = Modifier.padding(top = 28.dp).fxEnter(LISTENING_ENTER),
+        )
         TvVoiceLevel(level = { controller.level }, modifier = Modifier.padding(top = 12.dp))
         TvVoiceTranscript(
             confirmed = controller.transcript.confirmed,
             hypothesis = controller.transcript.hypothesis,
-            modifier = Modifier.padding(top = 16.dp),
+            modifier = Modifier.padding(top = 16.dp).fxEnter(TRANSCRIPT_ENTER),
         )
+        // Поиск ищет по названию — и подсказка просит название, а не жанр или актёра.
         Text(
             "Скажите название фильма или сериала — например, «Хроники Пограничья»",
-            style = FxType.body,
-            color = colors.textSecondary,
+            style = HintStyle,
+            color = colors.text.copy(alpha = HINT_ALPHA),
             textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 10.dp),
+            modifier = Modifier.padding(top = 10.dp).fxEnter(HINT_ENTER),
         )
     }
 }
+
+/** «Слушаю» — надзаголовок чуть крупнее обычного (12sp) и цветом акцента: это состояние, а не раздел. */
+private val ListeningFontSize = 12.sp
+private val HintStyle = TextStyle(fontSize = 14.sp, lineHeight = 20.sp)
+private const val HINT_ALPHA = 0.6f
+
+/** Порядок подъёма текстов (шаг fxEnter — 60 мс): ≈ 100, 200 и 260 мс макета после круга. */
+private const val LISTENING_ENTER = 2
+private const val TRANSCRIPT_ENTER = 3
+private const val HINT_ENTER = 4
 
 /** Подсветка палитры по центру и затемнение — поверх размытого каталога. */
 @Composable

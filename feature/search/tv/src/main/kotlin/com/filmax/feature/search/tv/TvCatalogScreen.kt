@@ -1,7 +1,12 @@
 package com.filmax.feature.search.tv
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -25,7 +30,9 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSheetHost
 import com.filmax.core.tv.designsystem.fxBackdrop
@@ -101,10 +108,11 @@ internal fun TvCatalogContent(
 ) {
     val gridState = rememberLazyGridState()
     val chrome = remember(gridState) { CatalogGridChrome(gridState, SheetOpeners()) }
+    // Своей заливки у экрана нет: фон — у окна (FilmaxTvTheme), второй слой цвета на весь экран —
+    // лишняя работа GPU на каждом кадре.
     Box(
         modifier
             .fillMaxSize()
-            .background(LocalFxColors.current.background)
             .onPreviewKeyEvent { event ->
                 // Кнопка поиска на пульте — сразу голос: на телевизоре это и есть поиск.
                 val searchKey = event.type == KeyEventType.KeyDown && event.key == Key.Search
@@ -130,7 +138,12 @@ internal fun TvCatalogContent(
     }
 }
 
-/** Витрина или поиск — по состоянию модели; подсветка палитры сверху — общая для обоих. */
+/**
+ * Витрина или поиск — по состоянию модели; подсветка палитры сверху — общая для обоих. Смена
+ * режима — кроссфейдом: поле поиска в обоих режимах на одном месте и читается неподвижным, а
+ * остальное сменяется. Фокус переводят заявки [CatalogFocus]: цель в новом режиме берёт его сама,
+ * как только размещена, — уходящий режим за время кроссфейда фокус не удерживает.
+ */
 @Composable
 private fun CatalogModes(
     state: SearchState,
@@ -139,14 +152,29 @@ private fun CatalogModes(
     chrome: CatalogGridChrome,
     modifier: Modifier,
 ) {
-    Box(modifier.fillMaxSize().catalogWash().then(focus.screen.containerModifier)) {
-        if (state.searchOpen) {
+    val reduced = LocalReducedMotion.current
+    AnimatedContent(
+        targetState = state.searchOpen,
+        modifier = modifier.fillMaxSize().catalogWash().then(focus.screen.containerModifier),
+        transitionSpec = { modeTransition(reduced) },
+        label = "catalogMode",
+    ) { searchOpen ->
+        // Режим — из перехода, остальное — свежее состояние: уходящий режим доживает кроссфейд
+        // с актуальными данными.
+        if (searchOpen) {
             TvSearchPanel(state, actions, focus)
         } else {
             TvCatalogGrid(state, actions, focus, chrome)
         }
     }
 }
+
+private fun modeTransition(reduced: Boolean): ContentTransform =
+    if (reduced) {
+        ContentTransform(EnterTransition.None, ExitTransition.None, sizeTransform = null)
+    } else {
+        ContentTransform(fadeIn(FxMotion.fade()), fadeOut(FxMotion.fade()), sizeTransform = null)
+    }
 
 /** Подсветка палитры у верхнего края: эллипс 50% ширины на 260dp, центр — на 80% ширины (как в макете). */
 private val WashHeight = 260.dp

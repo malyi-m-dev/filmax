@@ -13,13 +13,14 @@ enum class KeyboardLayout(val label: String) {
 const val SPACE_KEY = " "
 
 /**
- * Ряды клавиш по восемь — под сетку TvKeyboard. Последний ряд короче: рядом с ним встают
- * широкие «Пробел» и «Стереть».
+ * Ряды клавиш редактора папки — привычные ЙЦУКЕН и QWERTY в одиннадцать колонок панельной
+ * TvKeyboard; «Пробел», «Стереть» и «Голосом» она дописывает отдельным рядом. В ЙЦУКЕН не
+ * помещаются «ъ» и «ё» справа от «х» и слева от «й» — они замыкают короткий нижний ряд.
  */
 fun keyboardRows(layout: KeyboardLayout): List<List<String>> = when (layout) {
-    KeyboardLayout.RU -> listOf("абвгдеёж", "зийклмно", "прстуфхц", "чшщъыьэю", "я")
-    KeyboardLayout.EN -> listOf("abcdefgh", "ijklmnop", "qrstuvwx", "yz")
-    KeyboardLayout.DIGITS -> listOf("12345678", "90")
+    KeyboardLayout.RU -> listOf("йцукенгшщзх", "фывапролджэ", "ячсмитьбюъё")
+    KeyboardLayout.EN -> listOf("qwertyuiop", "asdfghjkl", "zxcvbnm")
+    KeyboardLayout.DIGITS -> listOf("1234567890")
 }.map { row -> row.map(Char::toString) }
 
 /**

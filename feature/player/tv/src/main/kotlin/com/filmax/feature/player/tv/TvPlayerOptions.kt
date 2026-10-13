@@ -23,6 +23,11 @@ internal fun audioOptionText(option: AudioOption): OptionText = OptionText(
 private fun channelsBadge(channels: Int): String? = when (channels) {
     MONO -> "1.0"
     STEREO -> "2.0"
+    else -> surroundBadge(channels)
+}
+
+/** Объёмный звук «5.1» / «7.1»; моно, стерео и неизвестное — null. */
+internal fun surroundBadge(channels: Int): String? = when (channels) {
     SURROUND_5_1 -> "5.1"
     SURROUND_7_1 -> "7.1"
     else -> null
@@ -32,6 +37,19 @@ private const val MONO = 1
 private const val STEREO = 2
 private const val SURROUND_5_1 = 6
 private const val SURROUND_7_1 = 8
+
+/** Выбранная дорожка — свойством: рядом с подписью вкладки и в плашке транспорта. */
+internal val PlayerState.selectedAudio: AudioOption?
+    get() = audioTracks.firstOrNull { it.label == currentAudio }
+
+/**
+ * Язык дорожки и объёмный звук: «RU · 5.1». Стерео не пишем — это норма, а не выбор, и kino.pub
+ * подставляет 2 канала, когда не знает точно.
+ */
+internal fun audioValue(option: AudioOption): String? =
+    listOfNotNull(languageShort(option.languageCode), surroundBadge(option.channels))
+        .joinToString(" · ")
+        .ifEmpty { null }
 
 internal fun subtitleOptionText(option: SubtitleOption): OptionText =
     OptionText(title = if (option.lang == null) "Выключены" else option.label)
@@ -67,9 +85,20 @@ internal fun optionEvent(tab: PlayerTab, key: String): PlayerEvent? = when (tab)
  */
 internal fun tabNote(tab: PlayerTab, series: Boolean): String? = when (tab) {
     PlayerTab.Audio -> if (series) "Выбор запоминается для всего сериала" else "Выбор запоминается для этого фильма"
-    PlayerTab.Speed -> if (series) "Скорость действует до конца серии" else "Скорость действует до выхода из плеера"
+    // Тон сохраняет сам плеер (setPlaybackSpeed меняет только темп) — об этом и говорим.
+    PlayerTab.Speed -> if (series) {
+        "Скорость действует до конца серии, звук без изменения тона"
+    } else {
+        "Скорость действует до выхода из плеера, звук без изменения тона"
+    }
     PlayerTab.Episodes, PlayerTab.Subtitles, PlayerTab.Quality -> null
 }
+
+/**
+ * Скорости на ТВ — шесть плиток от 0.5× до 2×, как в макете: крайние 0.25× и 1.75× на пульте почти
+ * не выбирают, а восемь плиток в ряд панели не помещаются крупно.
+ */
+internal val TvPlaybackSpeeds: List<Float> = listOf(0.5f, 0.75f, PlaybackSpeeds.NormalSpeed, 1.25f, 1.5f, 2f)
 
 /** Значение плитки скорости: «1×» вместо «Обычная» — в ряду чисел слово выбивалось бы. */
 internal fun speedValue(speed: Float): String =

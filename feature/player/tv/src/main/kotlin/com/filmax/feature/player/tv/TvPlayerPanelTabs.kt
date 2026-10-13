@@ -35,12 +35,12 @@ import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvCardSize
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvChipStyle
+import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOptionRow
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvValueTile
 import com.filmax.core.tv.designsystem.tvFocusGroup
-import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerSeason
 import com.filmax.feature.player.common.PlayerState
@@ -116,7 +116,7 @@ private fun SeasonChips(seasons: List<PlayerSeason>, shown: Int, onShow: (Int) -
                     label = "${season.number}",
                     selected = selected,
                     onClick = { onShow(season.number) },
-                    style = TvChipStyle.Compact,
+                    style = TvChipStyle.CompactOutlined,
                     modifier = (if (selected) Modifier.focusRequester(selectedFocus) else Modifier)
                         .onFocusChanged { if (it.isFocused) onShow(season.number) },
                 )
@@ -130,10 +130,16 @@ private class EpisodesContext(val playing: MediaTrack?, val positionMs: Long, va
 
 /**
  * Ряд серий сезона. Фокус-цель — играющая серия, а в другом сезоне — первая. OK на играющей просто
- * закрывает панель; на другой — новый экран плеера с её сезоном и номером.
+ * закрывает панель; на другой — новый экран плеера с её сезоном и номером. Серии без фокуса
+ * приглушены, играющая — слабее остальных: её ищут глазами первой.
  */
 @Composable
 private fun EpisodesRow(season: PlayerSeason, context: EpisodesContext, contentFocus: FocusRequester) {
+    TvDimGroup { EpisodeCards(season, context, contentFocus) }
+}
+
+@Composable
+private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, contentFocus: FocusRequester) {
     val target = season.episodes.indexOfFirst { it.id == context.playing?.id }.coerceAtLeast(0)
     LazyRow(
         state = rememberLazyListState(initialFirstVisibleItemIndex = target),
@@ -158,6 +164,7 @@ private fun EpisodesRow(season: PlayerSeason, context: EpisodesContext, contentF
                 size = TvCardSize.Panel,
                 badge = if (playing) "Сейчас" else null,
                 fallbackLabel = "${episode.number}",
+                current = playing,
                 modifier = if (index == target) Modifier.focusRequester(contentFocus) else Modifier,
             )
         }
@@ -200,13 +207,13 @@ private fun OptionsTab(
 private fun SpeedTab(current: Float, actions: PlayerActions, contentFocus: FocusRequester, note: String?) {
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
         Row(Modifier.fillMaxWidth().tvFocusGroup(contentFocus), horizontalArrangement = Arrangement.spacedBy(TileGap)) {
-            PlaybackSpeeds.options.forEach { option ->
-                val selected = option.value == current
+            TvPlaybackSpeeds.forEach { speed ->
+                val selected = speed == current
                 TvValueTile(
-                    value = speedValue(option.value),
-                    caption = speedCaption(option.value),
+                    value = speedValue(speed),
+                    caption = speedCaption(speed),
                     selected = selected,
-                    onClick = { actions.dispatch(PlayerEvent.SetSpeed(option.value)) },
+                    onClick = { actions.dispatch(PlayerEvent.SetSpeed(speed)) },
                     modifier = Modifier.weight(
                         1f
                     ).then(if (selected) Modifier.focusRequester(contentFocus) else Modifier),

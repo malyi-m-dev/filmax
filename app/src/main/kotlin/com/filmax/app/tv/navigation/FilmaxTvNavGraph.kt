@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -93,11 +94,8 @@ fun FilmaxTvNavGraph(
     // слушают его через LocalTvScrollToTop и скроллят свой контейнер вверх.
     var scrollToTopSignal by remember { mutableIntStateOf(0) }
 
-    // «Назад» на Главной — в меню: из глубины ленты это быстрее, чем листать к началу. Обработчик
-    // регистрируется раньше всех и поэтому срабатывает последним: «назад» экранов (открытая папка
-    // «Моё», режим поиска) и стек NavHost (из другого раздела — на Главную) идут первыми, а из
-    // самого меню «назад» не перехватывается — выход из приложения.
-    BackHandler(enabled = showNav && !navFocused.value) { navFocus.requestFocus() }
+    val menuBack = remember { TvMenuBack(navFocus, contentFocus) }
+    TvMenuBackHandlers(showNav = showNav, menuFocused = navFocused.value, menuBack = menuBack)
 
     // Выбор в меню. Открытый раздел — в его начало, фокус обратно в контент. Другой — переход, но
     // фокус в уходящий экран не переводим: экран сейчас снимется, фокус потеряется и откатится в
@@ -138,10 +136,53 @@ fun FilmaxTvNavGraph(
                 account = rootState.account,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .onFocusChanged { navFocused.value = it.hasFocus },
+                    .onFocusChanged {
+                        navFocused.value = it.hasFocus
+                        menuBack.onMenuFocus(it.hasFocus)
+                    },
             )
         }
     }
+}
+
+/**
+ * «Назад» и боковое меню. «Назад» на Главной открывает меню: из глубины ленты это быстрее, чем
+ * листать к началу. Второе «Назад» — выход из приложения. Меню, открытое стрелкой, «Назад» лишь
+ * закрывает: фокус возвращается в контент, и выйти можно только из закрытого меню Главной.
+ */
+@Stable
+internal class TvMenuBack(private val navFocus: FocusRequester, private val contentFocus: FocusRequester) {
+
+    /** Меню открыто «Назад»-ом с Главной — следующее «Назад» не перехватывается, это выход. */
+    var openedByBack by mutableStateOf(false)
+        private set
+
+    fun openByBack() {
+        openedByBack = true
+        navFocus.requestFocus()
+    }
+
+    fun close() {
+        contentFocus.requestFocus()
+    }
+
+    /** Меню закрылось — чем бы его ни открыли, следующее открытие начнёт с чистого листа. */
+    fun onMenuFocus(hasFocus: Boolean) {
+        if (!hasFocus) openedByBack = false
+    }
+}
+
+/**
+ * Обработчики «Назад» для меню. Открывающий регистрируется раньше всех и срабатывает последним:
+ * «назад» экранов (открытая папка «Моё», режим поиска) и стек NavHost (из другого раздела — на
+ * Главную) идут первыми, и меню по «Назад» открывается только с Главной. Закрывающий, наоборот,
+ * входит в композицию при каждом открытии меню и потому опережает всех: пока фокус в меню,
+ * «Назад» закрывает меню, а не уводит экран под ним.
+ */
+@Composable
+private fun TvMenuBackHandlers(showNav: Boolean, menuFocused: Boolean, menuBack: TvMenuBack) {
+    BackHandler(enabled = showNav && !menuFocused, onBack = menuBack::openByBack)
+    if (showNav && menuFocused && !menuBack.openedByBack) BackHandler(onBack = menuBack::close)
 }
 
 /** Контент разделов: NavHost со всеми экранами и переходами между ними (см. [tvEnterTransition]). */
@@ -155,8 +196,8 @@ private fun TvNavHost(navController: NavHostController, onCheckUpdates: () -> Un
             .focusGroup(),
         enterTransition = { tvEnterTransition() },
         exitTransition = { tvExitTransition() },
-        popEnterTransition = { tvEnterTransition() },
-        popExitTransition = { tvExitTransition() },
+        popEnterTransition = { tvPopEnterTransition() },
+        popExitTransition = { tvPopExitTransition() },
     ) {
         tvDestinations(onCheckUpdates)
     }

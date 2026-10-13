@@ -209,6 +209,8 @@ private fun PanelHints(tab: PlayerTab) {
             listOf(
                 TvKeyHint(listOf(Icons.Rounded.KeyboardArrowLeft, Icons.Rounded.KeyboardArrowRight), tab.moveHint),
                 TvKeyHint(listOf(Icons.Rounded.KeyboardArrowUp, Icons.Rounded.KeyboardArrowDown), "вкладка"),
+                // Выбор применяется по OK, а не фокусом — без подсказки это неочевидно.
+                TvKeyHint(emptyList(), "включить", keyText = "OK"),
             ),
             Modifier.weight(1f),
         )

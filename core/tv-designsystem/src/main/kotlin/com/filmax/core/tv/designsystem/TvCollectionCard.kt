@@ -71,7 +71,7 @@ fun TvCollectionCard(
         modifier = modifier
             .size(TvMetrics.CollectionCardWidth, TvMetrics.CollectionCardHeight)
             .tvNeighborDim(focused),
-        style = TvFocusStyle(CardShape, glowRadius = 14.dp, focusedScale = TvMetrics.FocusScale),
+        style = TvFocusStyle(CardShape, glowRadius = 14.dp, focusedScale = TvMetrics.FocusScale, pop = true),
         colors = TvSurfaceColors(container = tint, content = Color.White),
         interactionSource = interaction,
     ) {

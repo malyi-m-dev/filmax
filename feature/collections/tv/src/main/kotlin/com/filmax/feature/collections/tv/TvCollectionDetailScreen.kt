@@ -51,7 +51,8 @@ fun TvCollectionDetailScreen(
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
     val actions = remember(screenModel, navigator) { collectionActions(screenModel, navigator) }
-    Box(modifier.fillMaxSize().background(LocalFxColors.current.background)) {
+    // Своей заливки нет: фон — у окна (FilmaxTvTheme), под шапкой и сеткой он и так этого цвета.
+    Box(modifier.fillMaxSize()) {
         val error = appError
         when {
             state.loading -> CircularProgressIndicator(

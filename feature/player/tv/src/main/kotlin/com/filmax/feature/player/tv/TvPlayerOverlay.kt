@@ -38,6 +38,7 @@ import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.Onest
 import com.filmax.core.tv.designsystem.TvBackHint
+import com.filmax.core.tv.designsystem.TvKeyCapSize
 import com.filmax.core.tv.designsystem.TvKeyHint
 import com.filmax.core.tv.designsystem.TvKeyHints
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -200,5 +201,6 @@ private fun TransportHints(transport: TvTransportState, modifier: Modifier) {
             TvKeyHint(listOf(Icons.Rounded.KeyboardArrowLeft, Icons.Rounded.KeyboardArrowRight), "перемотка"),
         )
     }
-    TvKeyHints(hints, modifier.padding(top = 4.dp))
+    // Под транспортом подсказки — второй план: клавиши мельче, чем в панелях.
+    TvKeyHints(hints, modifier.padding(top = 4.dp), keySize = TvKeyCapSize.Small)
 }

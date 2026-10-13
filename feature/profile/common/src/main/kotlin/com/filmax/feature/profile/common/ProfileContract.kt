@@ -43,6 +43,9 @@ sealed interface ProfileEvent {
     data class SetAudioLanguage(val language: String) : ProfileEvent
     data class SetSubtitleLanguage(val language: String) : ProfileEvent
 
+    /** Переключатель «Субтитры» на ТВ: включить — язык по умолчанию, выключить — «Выкл». */
+    data class SetSubtitlesEnabled(val enabled: Boolean) : ProfileEvent
+
     /** «ОК» на строке со значением — панель с вариантами этой настройки. */
     data class OpenSetting(val setting: ProfileSetting) : ProfileEvent
     data object CloseSetting : ProfileEvent

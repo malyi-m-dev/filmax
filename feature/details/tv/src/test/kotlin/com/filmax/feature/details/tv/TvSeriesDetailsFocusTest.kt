@@ -101,6 +101,28 @@ class TvSeriesDetailsFocusTest {
     }
 
     @Test
+    fun `after a season change down leads into the new season's episodes`() {
+        val item = longSeries()
+        var state by mutableStateOf(seriesState(item))
+        compose.setContent {
+            FilmaxTvTheme {
+                DetailsWithSheet(state, item, actions(onSeason = { state = state.copy(selectedSeason = it) }))
+            }
+        }
+        compose.waitForIdle()
+
+        // Смена сезона анимирована: старый список гаснет, новый проявляется. Фокус остаётся на
+        // чипе, а «вниз» ведёт уже в серии нового сезона, а не в гаснущий список.
+        repeat(MAX_PRESSES) { if (!focusedHas("Сезон 4")) pressKey(Key.DirectionUp) }
+        pressKey(Key.DirectionRight)
+        assertFocusedHas("Сезон 5")
+        pressKey(Key.DirectionDown)
+        pressKey(Key.DirectionCenter)
+
+        assertTrue(calls.last().startsWith("play 5/"), "запущена не серия пятого сезона: ${calls.last()}")
+    }
+
+    @Test
     fun `description sheet closes on left and gives focus back to the description`() {
         val item = longSeries()
         var state by mutableStateOf(seriesState(item))
@@ -155,7 +177,11 @@ class TvSeriesDetailsFocusTest {
         )
     }
 
-    private fun actions(onOpen: () -> Unit = {}, onClose: () -> Unit = {}) = DetailsActions(
+    private fun actions(
+        onOpen: () -> Unit = {},
+        onClose: () -> Unit = {},
+        onSeason: (Int) -> Unit = {},
+    ) = DetailsActions(
         onPlay = { season, videoId -> calls += "play $season/$videoId" },
         onToggleWatchLater = { calls += "watch later" },
         onTrailer = null,
@@ -163,7 +189,10 @@ class TvSeriesDetailsFocusTest {
         onOpenPerson = { name, _ -> calls += "person $name" },
         onOpenDescription = onOpen,
         onCloseDescription = onClose,
-        onSelectSeason = { number -> calls += "season $number" },
+        onSelectSeason = { number ->
+            calls += "season $number"
+            onSeason(number)
+        },
     )
 
     private fun focusedMatcher(text: String): SemanticsMatcher =

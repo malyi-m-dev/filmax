@@ -16,9 +16,19 @@ import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvPersonCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.initials
 import com.filmax.feature.details.common.resolveCast
+
+/** Состав появляется следом за кнопками шапки (у них fxEnter 4). */
+private const val CAST_ENTER_FROM = 5
+
+/**
+ * Сколько первых карточек ряда появляются по очереди — те, что видны при открытии. Дальние
+ * компонуются, когда до них долистали, и задержка появления там читалась бы как подтормаживание.
+ */
+private const val CAST_ENTER_COUNT = 6
 
 /**
  * «В ролях»: актёры с фото (TMDB, если доехали; иначе — имена из строки kino.pub) и режиссёр
@@ -38,19 +48,23 @@ internal fun LazyListScope.castRail(state: DetailsState, item: Item, actions: De
                     photoUrl = member.photoUrl,
                     initials = initials(member.name),
                     onClick = { actions.onOpenPerson(member.name, false) },
-                    modifier = focus.item("cast:$index"),
+                    modifier = focus.item("cast:$index").castEnter(index),
                 )
             }
             if (director.isNotBlank()) {
-                item(key = "director") { DirectorChip(director, actions, focus) }
+                item(key = "director") { DirectorChip(director, actions, focus, Modifier.castEnter(people.size)) }
             }
         }
     }
 }
 
+/** Появление карточки состава по очереди — только у видимых при открытии. */
+private fun Modifier.castEnter(index: Int): Modifier =
+    if (index < CAST_ENTER_COUNT) fxEnter(CAST_ENTER_FROM + index) else this
+
 @Composable
-private fun DirectorChip(name: String, actions: DetailsActions, focus: TvScreenFocus) {
-    Column(Modifier.padding(start = 24.dp, top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun DirectorChip(name: String, actions: DetailsActions, focus: TvScreenFocus, modifier: Modifier) {
+    Column(modifier.padding(start = 24.dp, top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TvOverline("Режиссёр", accent = false)
         TvChip(
             label = name,

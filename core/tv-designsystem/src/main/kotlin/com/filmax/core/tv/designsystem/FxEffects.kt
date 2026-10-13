@@ -43,16 +43,17 @@ private val EnterOffset = 16.dp
 
 /**
  * Появление по очереди: alpha 0→1 и подъём на 16dp, каждый следующий элемент на 60 мс позже.
- * [index] — порядковый номер элемента в группе (0 — первый).
+ * [index] — порядковый номер элемента в группе (0 — первый). [startDelayMillis] — задержка всей
+ * группы: содержимое панели появляется, когда сама панель уже почти выехала.
  */
-fun Modifier.fxEnter(index: Int): Modifier = composed {
+fun Modifier.fxEnter(index: Int, startDelayMillis: Int = 0): Modifier = composed {
     val progress = remember { Animatable(0f) }
     val reduced = LocalReducedMotion.current
     LaunchedEffect(Unit) {
         if (reduced) {
             progress.snapTo(1f)
         } else {
-            delay(index * FxMotion.ENTER_STAGGER_MS.toLong())
+            delay(startDelayMillis + index * FxMotion.ENTER_STAGGER_MS.toLong())
             progress.animateTo(1f, tween(FxMotion.ENTER_MS, easing = FxEasing.Standard))
         }
     }
@@ -143,6 +144,9 @@ fun Modifier.fxGlass(shape: Shape, fill: Color = LocalFxColors.current.surface):
  *
  * Чтобы на опорную точку вставал ряд целиком, а не карточка внутри него, ряд помечается
  * [bringIntoViewAsWhole].
+ *
+ * Анимацию прокрутки ([FxMotion.scroll], 280 мс) спека задать не может: в foundation 1.8
+ * `scrollAnimationSpec` объявлен устаревшим и списками не читается — они едут на своей пружине.
  */
 class PivotBringIntoViewSpec(private val pivotPx: Float) : BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float =

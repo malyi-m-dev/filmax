@@ -1,6 +1,14 @@
 package com.filmax.feature.details.tv
 
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.common.getOrNull
+import com.filmax.data.fake.FakeBackend
+import com.filmax.data.fake.FakeCatalogRepository
+import com.filmax.data.fake.FakeIds
+import com.filmax.data.fake.FakeLatency
+import com.filmax.feature.details.common.calculateSeriesData
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -48,6 +56,26 @@ class TvDetailsLabelsTest {
         assertEquals("3 серии · ~45 мин", seasonSummary((1..3).map { episode(1, it) }))
         assertEquals("12 серий · ~45 мин", seasonSummary((1..12).map { episode(1, it) }))
         assertNull(seasonSummary(emptyList()))
+    }
+
+    @Test
+    fun `sheet meta names all countries and the full volume`() {
+        val movie = runBlocking { details(FakeIds.HERO_MOVIE) }
+        val movieMeta = sheetMeta(movie, series = null)
+        assertTrue(movieMeta.startsWith("${movie.year} · ${movie.country}"), movieMeta)
+
+        val tracks = (1..2).flatMap { season -> (1..3).map { number -> episode(season, number) } }
+        val series = calculateSeriesData(tracks)
+        val seriesItem = movie.copy(tracklist = tracks)
+        assertTrue(sheetMeta(seriesItem, series).endsWith("2 сезона, 6 серий"), sheetMeta(seriesItem, series))
+
+        val single = calculateSeriesData(tracks.take(1))
+        assertTrue(sheetMeta(seriesItem, single).endsWith(" · 1 серия"), sheetMeta(seriesItem, single))
+    }
+
+    private suspend fun details(id: Int): Item {
+        val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))
+        return checkNotNull(catalog.getItemDetails(id).getOrNull())
     }
 
     private fun episode(

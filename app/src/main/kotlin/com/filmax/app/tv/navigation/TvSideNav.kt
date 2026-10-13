@@ -1,5 +1,7 @@
 package com.filmax.app.tv.navigation
 
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Transition
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.focusGroup
@@ -37,6 +39,7 @@ import androidx.navigation.NavDestination.Companion.hasRoute
 import com.filmax.app.navigation.AccountSummary
 import com.filmax.core.navigation.Destination
 import com.filmax.core.tv.designsystem.FxMotion
+import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.fxGlass
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
@@ -65,12 +68,6 @@ internal val SECTIONS = listOf(
 
 private fun isProfile(destination: NavDestination?): Boolean = destination?.hasRoute(TvProfileRoute::class) == true
 
-/** Номер раздела в меню (Профиль — последним), -1 — экран не раздел. По нему переходы знают направление. */
-internal fun sectionIndexOf(destination: NavDestination?): Int = when {
-    isProfile(destination) -> SECTIONS.size
-    else -> SECTIONS.indexOfFirst { it.match(destination) }
-}
-
 /** Маршруты, на которых показывается меню. */
 val TOP_LEVEL_ROUTES: List<KClass<*>> = listOf(
     TvHomeRoute::class,
@@ -85,8 +82,11 @@ internal data class TvSideNavFocus(
     val content: FocusRequester,
 )
 
-/** Геометрия меню в текущий момент перехода свёрнуто ↔ раскрыто — анимируется целиком. */
-internal data class NavGeometry(val width: Dp, val itemHeight: Dp, val itemGap: Dp)
+/**
+ * Геометрия меню в текущий момент перехода свёрнуто ↔ раскрыто — анимируется целиком.
+ * [opened] — меню раскрылось до конца и размеры пунктов больше не меняются.
+ */
+internal data class NavGeometry(val width: Dp, val itemHeight: Dp, val itemGap: Dp, val opened: Boolean)
 
 /**
  * Боковое меню разделов. Свёрнутое — стеклянная колонка кружков 36dp по центру левого поля:
@@ -141,6 +141,10 @@ internal fun TvSideNav(
                 onProfile = { onSelect(Destination.Profile, profileActive) },
             )
         }
+        NavKeyHints(
+            visible = expanded,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(end = TvMetrics.SectionEnd, bottom = HintsBottom),
+        )
     }
 }
 
@@ -198,7 +202,7 @@ private class NavTargets {
 private fun dropTarget(state: NavSectionsState): NavDropTarget {
     val index = if (state.expanded) state.focusedIndex else state.activeIndex
     val visible = index in SECTIONS.indices || (index == PROFILE_INDEX && state.expanded)
-    return NavDropTarget(index, visible, focused = state.expanded)
+    return NavDropTarget(index, visible, focused = state.expanded, glowing = state.geometry.opened)
 }
 
 /** Стеклянная колонка меню: поле от края экрана, высота и ширина по состоянию. */
@@ -217,19 +221,21 @@ internal data class NavSectionsState(
     val geometry: NavGeometry,
 )
 
+/** Раскрытие — 400 мс по Standard, закрытие быстрее (220 мс по Exit): меню уступает дорогу контенту. */
 @Composable
 private fun rememberNavGeometry(expanded: Boolean): NavGeometry {
     val transition = updateTransition(expanded, label = "sideNav")
-    val width by transition.animateDp(
-        { FxMotion.panelIn() },
-        label = "width"
-    ) { if (it) ExpandedWidth else CollapsedWidth }
-    val itemHeight by transition.animateDp({ FxMotion.panelIn() }, label = "itemHeight") {
+    val width by transition.animateDp({ panelSpec() }, label = "width") { if (it) ExpandedWidth else CollapsedWidth }
+    val itemHeight by transition.animateDp({ panelSpec() }, label = "itemHeight") {
         if (it) ExpandedItemHeight else CollapsedItemHeight
     }
-    val gap by transition.animateDp({ FxMotion.panelIn() }, label = "gap") { if (it) ExpandedGap else CollapsedGap }
-    return NavGeometry(width, itemHeight, gap)
+    val gap by transition.animateDp({ panelSpec() }, label = "gap") { if (it) ExpandedGap else CollapsedGap }
+    val opened = transition.currentState && transition.targetState
+    return NavGeometry(width, itemHeight, gap, opened)
 }
+
+private fun Transition.Segment<Boolean>.panelSpec(): FiniteAnimationSpec<Dp> =
+    if (targetState) FxMotion.panelIn() else FxMotion.panelOut()
 
 /** Колонка 48 = 6 + 36 + 6: целиком в левом поле, контент разделов начинается с 80dp. */
 private val CollapsedWidth = 48.dp
@@ -242,3 +248,4 @@ private val PanelMargin = 14.dp
 private val PanelRadius = 24.dp
 private val CollapsedPadding = 6.dp
 private val ExpandedPadding = 14.dp
+private val HintsBottom = 24.dp

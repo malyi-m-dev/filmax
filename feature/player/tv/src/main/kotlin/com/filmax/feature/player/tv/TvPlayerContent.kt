@@ -4,11 +4,13 @@ package com.filmax.feature.player.tv
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -32,11 +34,15 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.error.AppError
+import com.filmax.core.tv.designsystem.FxEasing
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvNextUpCard
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.KeepScreenOn
@@ -45,6 +51,15 @@ import com.filmax.feature.player.common.PlayerState
 
 private val SubscriptionCardTop = 96.dp
 private val NextUpTop = 220.dp
+
+/** «Далее» въезжает слева на 28dp за 650 мс — медленнее панелей: это предложение, а не ответ на клавишу. */
+private val NextUpSlide = 28.dp
+private const val NEXT_UP_ENTER_MS = 650
+
+private fun nextUpEnter(fromX: Int): EnterTransition {
+    val spec = tween<IntOffset>(NEXT_UP_ENTER_MS, easing = FxEasing.Standard)
+    return fadeIn(tween(NEXT_UP_ENTER_MS, easing = FxEasing.Standard)) + slideInHorizontally(spec) { fromX }
+}
 private val NextUpEnd = 40.dp
 
 /** Ключ кнопки паузы в памяти фокуса экрана: на неё фокус встаёт при входе. */
@@ -187,9 +202,12 @@ private fun BoxScope.PlayerStatus(state: PlayerState, transport: TvTransportStat
 @Composable
 private fun BoxScope.NextUpOverlay(next: MediaTrack?, transport: TvTransportState) {
     val autoNext = transport.autoNext
+    val reduced = LocalReducedMotion.current
+    val slideFrom = with(LocalDensity.current) { -NextUpSlide.roundToPx() }
     AnimatedVisibility(
         visible = autoNext.visible && next != null,
-        enter = fadeIn(FxMotion.panelIn()),
+        // Карточка въезжает слева на 28dp, как в макете; при сниженной анимации — только проявляется.
+        enter = if (reduced) fadeIn(FxMotion.fade()) else nextUpEnter(slideFrom),
         exit = fadeOut(FxMotion.panelOut()),
         modifier = Modifier.align(Alignment.TopEnd).padding(top = NextUpTop, end = NextUpEnd),
     ) {

@@ -30,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.FxType
@@ -44,6 +45,7 @@ import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.isHighRating
 import com.filmax.core.ui.components.posterMeta
@@ -113,21 +115,26 @@ private fun MovieHeading(
     sheets: DetailsSheetFocus,
     focus: TvScreenFocus,
 ) {
+    // Блок показывается целиком вместе с верхним полем: шапка выше двух третей экрана прижимается
+    // к верху, и поле, оставшееся снаружи блока, уехало бы вместе с подсказкой «Назад».
     Column(
-        Modifier.padding(start = TvMetrics.SafeHorizontal, top = HeadingTop).bringIntoViewAsWhole(),
+        Modifier.bringIntoViewAsWhole().padding(start = TvMetrics.SafeHorizontal, top = HeadingTop),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         TvBackHint("Назад")
         DetailsHeading(
-            item,
-            null,
-            actions.onOpenDescription,
-            sheets.description,
-            Modifier.width(HeadingWidth).padding(top = 18.dp)
+            item = item,
+            series = null,
+            description = HeadingDescription(actions.onOpenDescription, sheets.description),
+            style = MovieHeadingStyle,
+            modifier = Modifier.width(HeadingWidth).padding(top = 18.dp),
         )
-        MovieButtons(state.isFav, actions, sheets.folders, focus)
+        MovieButtons(state.isFav, actions, sheets.folders, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
     }
 }
+
+/** Кнопки появляются следом за описанием (fxEnter 0–3 у шапки). */
+private const val BUTTONS_ENTER_INDEX = 4
 
 /** «Смотреть», «Буду смотреть» / «В списке», «В папку», «Трейлер» — если он есть. */
 @Composable
@@ -135,9 +142,10 @@ private fun MovieButtons(
     inWatchLater: Boolean,
     actions: DetailsActions,
     folders: DetailsFolders,
-    focus: TvScreenFocus
+    focus: TvScreenFocus,
+    modifier: Modifier = Modifier,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TvButton(
             "Смотреть",
             // Фильм играется целиком, без выбора дорожки: плееру нужны videoId и сезон = -1.
@@ -197,27 +205,37 @@ private fun SimilarRail(similar: List<Item>, actions: DetailsActions, focus: TvS
 }
 
 private const val FACT_COLUMNS = 3
+private val FactsWidth = 840.dp
+private val FactsTitleGap = 16.dp
+private val FactColumnGap = 32.dp
+private val FactRowGap = 22.dp
+private val FactLabelGap = 6.dp
+
+/** Значение факта — Onest, как названия: факты читаются как короткие ответы, а не как текст. */
+private val FactValueStyle = FxType.chip.copy(fontSize = 15.sp, lineHeight = 20.sp)
 
 /** «О фильме» — факты в три колонки: подпись мелким надзаголовком, значение под ней. */
 @Composable
 private fun FactsGrid(facts: List<DetailsFact>) {
-    val colors = LocalFxColors.current
-    Column(
-        Modifier.padding(start = TvMetrics.SafeHorizontal, end = TvMetrics.SectionEnd),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Text("О фильме", style = FxType.rowTitle, color = colors.text)
-        facts.chunked(FACT_COLUMNS).forEach { row ->
-            Row {
-                row.forEach { fact ->
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(fact.label.uppercase(), style = FxType.overline, color = colors.textDim)
-                        Text(fact.value, style = FxType.metaRow, color = colors.text)
-                    }
+    Column(Modifier.padding(start = TvMetrics.SafeHorizontal).width(FactsWidth)) {
+        Text("О фильме", style = FxType.rowTitle, color = LocalFxColors.current.text)
+        Column(Modifier.padding(top = FactsTitleGap), verticalArrangement = Arrangement.spacedBy(FactRowGap)) {
+            facts.chunked(FACT_COLUMNS).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(FactColumnGap)) {
+                    row.forEach { fact -> FactCell(fact, Modifier.weight(1f)) }
+                    repeat(FACT_COLUMNS - row.size) { Box(Modifier.weight(1f)) }
                 }
-                repeat(FACT_COLUMNS - row.size) { Box(Modifier.weight(1f)) }
             }
         }
+    }
+}
+
+@Composable
+private fun FactCell(fact: DetailsFact, modifier: Modifier) {
+    val colors = LocalFxColors.current
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(FactLabelGap)) {
+        Text(fact.label.uppercase(), style = FxType.overline, color = colors.textDim)
+        Text(fact.value, style = FactValueStyle, color = colors.text)
     }
 }
 

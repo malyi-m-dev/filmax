@@ -21,6 +21,9 @@ private val ButtonIconSize = 20.dp
 private val IconButtonSize = 44.dp
 private val IconButtonGlyph = 22.dp
 
+/** Подложка кнопки удаления — красный на 16%: заметна, но не громче главного действия. */
+private const val DESTRUCTIVE_FILL_ALPHA = 0.16f
+
 /** Отступы по бокам: у главной кнопки шире — она заметнее и в макете крупнее. */
 private val PrimaryPadding = 22.dp
 private val SecondaryPadding = 20.dp
@@ -74,6 +77,7 @@ fun TvButton(
 /**
  * Круглая кнопка-иконка 44dp: вторичные действия рядом с главной («В список», «Трейлер» у
  * сериала), пауза в плеере. [contentDescription] обязателен — подписи у кнопки нет.
+ * [destructive] — удаление: иконка приглушённым красным на его же лёгкой подложке.
  */
 @Composable
 fun TvIconButton(
@@ -81,13 +85,18 @@ fun TvIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    destructive: Boolean = false,
 ) {
     val colors = LocalFxColors.current
     TvFocusSurface(
         onClick = onClick,
         modifier = modifier.size(IconButtonSize),
         style = TvFocusStyle.Circle,
-        colors = TvSurfaceColors(container = colors.surfaceHigh, content = colors.text),
+        colors = if (destructive) {
+            TvSurfaceColors(container = colors.error.copy(alpha = DESTRUCTIVE_FILL_ALPHA), content = colors.error)
+        } else {
+            TvSurfaceColors(container = colors.surfaceHigh, content = colors.text)
+        },
     ) {
         Icon(
             icon,
@@ -97,8 +106,9 @@ fun TvIconButton(
     }
 }
 
+/** Цвета кнопки по виду — общие с кнопкой, схлопывающейся в круг ([TvCollapsibleButton]). */
 @Composable
-private fun buttonColors(style: TvButtonStyle): TvSurfaceColors {
+internal fun buttonColors(style: TvButtonStyle): TvSurfaceColors {
     val colors = LocalFxColors.current
     return when (style) {
         TvButtonStyle.Primary -> TvSurfaceColors(container = colors.accent, content = colors.onAccent)

@@ -112,7 +112,7 @@ class TvFolderPickerFocusTest {
         assertNotNull(picker.states.value.draft, "редактор не открылся")
         assertFocusedHas(FIRST_KEY)
         press(Key.DirectionCenter)
-        assertEquals("А", picker.states.value.draft?.title)
+        assertEquals("Й", picker.states.value.draft?.title)
 
         pressBack()
         assertNull(picker.states.value.draft, "«Назад» не вернул к списку")
@@ -223,7 +223,7 @@ class TvFolderPickerFocusTest {
     private companion object {
         /** Первая папка без «Дома на краю карты» — «Отложено на потом». */
         const val LATER_FOLDER = "Отложено на потом"
-        const val FIRST_KEY = "а"
+        const val FIRST_KEY = "й"
 
         /** Потолок нажатий «вниз» до «Создать папку». */
         const val MAX_PRESSES = 6

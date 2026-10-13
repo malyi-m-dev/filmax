@@ -25,6 +25,7 @@ import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvSegment
 import com.filmax.core.tv.designsystem.TvSegmentedTabs
+import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
@@ -39,9 +40,10 @@ internal fun MineHeader(state: MineState, actions: MineActions, focus: MineFocus
             .fillMaxWidth()
             .padding(start = TvMetrics.SectionStart, end = TvMetrics.SectionEnd, top = HeaderTop),
     ) {
-        Text("Моё", style = FxType.screenTitle, color = LocalFxColors.current.text)
+        // Заголовок и сегменты появляются первыми, карточки сетки — следом (FIRST_CARD_ENTER).
+        Text("Моё", style = FxType.screenTitle, color = LocalFxColors.current.text, modifier = Modifier.fxEnter(0))
         Row(
-            Modifier.fillMaxWidth().padding(top = 18.dp),
+            Modifier.fillMaxWidth().padding(top = 18.dp).fxEnter(1),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {

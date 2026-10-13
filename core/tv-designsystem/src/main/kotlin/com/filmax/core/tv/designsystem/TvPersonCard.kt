@@ -16,11 +16,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.ui.components.PosterImage
 
 private val PersonPhotoSize = 62.dp
 private val PersonCardWidth = 76.dp
+private val NameGap = 6.dp
+
+/** Имя — мельче и тише фото: в ряду читаются лица, имя — подпись к ним. */
+private val NameStyle = FxType.metaOnImage.copy(lineHeight = 14.sp)
+private const val NAME_ALPHA = 0.8f
 
 /**
  * Человек из состава: круглое фото 62dp (или [initials], если фото нет) и имя под ним в две
@@ -40,7 +46,7 @@ fun TvPersonCard(
     Column(
         modifier = modifier.width(PersonCardWidth).tvNeighborDim(focused),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(NameGap),
     ) {
         TvFocusSurface(
             onClick = onClick,
@@ -63,8 +69,8 @@ fun TvPersonCard(
         }
         Text(
             name,
-            style = FxType.meta,
-            color = colors.text,
+            style = NameStyle,
+            color = colors.text.copy(alpha = NAME_ALPHA),
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
