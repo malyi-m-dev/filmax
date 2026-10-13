@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("filmax.detekt")
+    id("filmax.android.unit-test")
 }
 
 android {
