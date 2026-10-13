@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Player
 import com.filmax.core.ui.components.HideSystemBars
@@ -43,6 +44,44 @@ internal val OverlayTopInsets: WindowInsets
 
 internal val OverlayBottomInsets: WindowInsets
     @Composable get() = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+
+/** Ниже этой высоты (альбомная на телефоне) оверлей ужимается — см. [overlayMetrics]. */
+private const val COMPACT_HEIGHT_DP = 480
+
+/** Размеры оверлея, зависящие от высоты экрана. */
+internal class OverlayMetrics(
+    val playSize: Dp,
+    val seekSize: Dp,
+    /** Насколько поднять центральный ряд над серединой экрана — в зазор между шапкой и полосой. */
+    val centerLift: Dp,
+    val bottomPadding: Dp,
+    val controlsGap: Dp,
+)
+
+private val RegularOverlay = OverlayMetrics(
+    playSize = 88.dp,
+    seekSize = 64.dp,
+    centerLift = 0.dp,
+    bottomPadding = 24.dp,
+    controlsGap = 16.dp,
+)
+
+private val CompactOverlay = OverlayMetrics(
+    playSize = 64.dp,
+    seekSize = 52.dp,
+    centerLift = 44.dp,
+    bottomPadding = 8.dp,
+    controlsGap = 4.dp,
+)
+
+/**
+ * В альбомной на телефоне высоты всего ~360dp, и оверлей, рассчитанный на портрет, наезжал
+ * паузой и перемоткой на полосу прогресса. В компактной высоте кнопки меньше, нижний блок
+ * плотнее, а центральный ряд поднят в свободную зону между шапкой и полосой.
+ */
+@Composable
+internal fun overlayMetrics(): OverlayMetrics =
+    if (LocalConfiguration.current.screenHeightDp < COMPACT_HEIGHT_DP) CompactOverlay else RegularOverlay
 
 /**
  * Эффекты полноэкранного плеера на всё время экрана: системные панели скрыты, а поворот,
