@@ -48,6 +48,7 @@ import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvBackHint
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvIconButton
 import com.filmax.core.tv.designsystem.TvKeyHint
 import com.filmax.core.tv.designsystem.TvKeyHints
@@ -215,7 +216,7 @@ private fun String?.withDuration(item: Item): String? {
 private fun EmptyFolder(actions: FolderActions) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         MineEmpty(MineEmptyText.Folder, Icons.Rounded.FolderOpen)
-        TvButton(text = "Перейти в каталог", onClick = actions.onOpenCatalog, primary = false)
+        TvButton(text = "Перейти в каталог", onClick = actions.onOpenCatalog, style = TvButtonStyle.Secondary)
     }
 }
 

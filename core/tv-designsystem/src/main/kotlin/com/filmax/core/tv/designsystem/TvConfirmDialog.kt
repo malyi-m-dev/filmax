@@ -119,7 +119,7 @@ private fun DialogPanel(spec: TvConfirmSpec, trapFocus: Boolean, actions: Dialog
                 TvButton(
                     text = "Отмена",
                     onClick = actions.onDismiss,
-                    primary = false,
+                    style = TvButtonStyle.Secondary,
                     focusRequester = cancelFocus,
                     modifier = Modifier.onPlaced { if (!focused) focused = cancelFocus.requestFocus() },
                 )

@@ -40,6 +40,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvIconButton
 import com.filmax.core.tv.designsystem.TvMetaRow
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -236,7 +237,7 @@ private fun HeroButtons(
         TvButton(
             "Подробнее",
             onClick = { actions.onDetails(item) },
-            primary = false,
+            style = TvButtonStyle.Secondary,
             modifier = focus.item(HERO_DETAILS_KEY)
         )
         TvIconButton(

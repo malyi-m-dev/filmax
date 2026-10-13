@@ -31,6 +31,7 @@ import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvChipStyle
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -127,7 +128,11 @@ private fun FiltersSheet(draft: CatalogFilters, countries: List<Country>, dispat
         }
         Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TvButton(text = "Применить", onClick = { dispatch(SearchEvent.ApplyDraftFilters) })
-            TvButton(text = "Сбросить", onClick = { dispatch(SearchEvent.ResetDraftFilters) }, primary = false)
+            TvButton(
+                text = "Сбросить",
+                onClick = { dispatch(SearchEvent.ResetDraftFilters) },
+                style = TvButtonStyle.Secondary
+            )
         }
     }
 }

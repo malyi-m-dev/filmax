@@ -2,7 +2,6 @@
 
 package com.filmax.core.tv.designsystem
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -90,16 +88,4 @@ private fun RailTitle(title: String, count: Int?, subtitle: String?, modifier: M
         val hint = subtitle ?: count?.toString()
         if (hint != null) Text(hint, style = FxType.meta, color = colors.textDim)
     }
-}
-
-/** Приглушение соседей карточки в фокусе: только пока фокус внутри ряда ([TvRail]). */
-@Composable
-internal fun Modifier.railDim(focused: Boolean): Modifier {
-    val railFocused = LocalRailFocused.current
-    val alpha by animateFloatAsState(
-        targetValue = if (railFocused && !focused) TvMetrics.DimmedAlpha else 1f,
-        animationSpec = FxMotion.focus(),
-        label = "railDim",
-    )
-    return graphicsLayer { this.alpha = alpha }
 }

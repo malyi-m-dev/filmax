@@ -35,6 +35,7 @@ import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvClock
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
@@ -113,7 +114,7 @@ private fun OfflineBanner(onReload: () -> Unit) {
     TvButton(
         text = "Нет сети — показаны сохранённые данные. Нажмите, чтобы повторить",
         onClick = onReload,
-        primary = false,
+        style = TvButtonStyle.Secondary,
         leadingIcon = Icons.Rounded.CloudOff,
         modifier = Modifier.padding(start = TvMetrics.SectionStart, top = TvMetrics.ContentTop),
     )
@@ -136,7 +137,7 @@ private fun FeedEnd(onOpenCatalog: () -> Unit) {
             style = FxType.metaRow,
             color = LocalFxColors.current.textSecondary
         )
-        TvButton("Открыть каталог", onClick = onOpenCatalog, primary = false)
+        TvButton("Открыть каталог", onClick = onOpenCatalog, style = TvButtonStyle.Secondary)
     }
 }
 
