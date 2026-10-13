@@ -156,7 +156,7 @@ fun TvFocusCard(
  * Рисует ореол и рамку фокуса по контуру [shape]. Ореол идёт первым и шире — он ложится
  * под белую рамку тёмной подложкой, поэтому рамку видно и на светлом постере.
  */
-private fun DrawScope.drawFocusRing(shape: Shape) {
+internal fun DrawScope.drawFocusRing(shape: Shape) {
     val halo = Stroke(width = TvMetrics.FocusHaloWidth.toPx())
     val border = Stroke(width = TvMetrics.FocusBorderWidth.toPx())
     when (val outline = shape.createOutline(size, layoutDirection, this)) {
@@ -166,10 +166,10 @@ private fun DrawScope.drawFocusRing(shape: Shape) {
         }
 
         is Outline.Rounded -> {
-            val rr = outline.roundRect
-            val topLeft = Offset(rr.left, rr.top)
-            val rectSize = Size(rr.width, rr.height)
-            val radius = CornerRadius(rr.topLeftCornerRadius.x, rr.topLeftCornerRadius.y)
+            val roundRect = outline.roundRect
+            val topLeft = Offset(roundRect.left, roundRect.top)
+            val rectSize = Size(roundRect.width, roundRect.height)
+            val radius = CornerRadius(roundRect.topLeftCornerRadius.x, roundRect.topLeftCornerRadius.y)
             drawRoundRect(color = TvFocusHalo, topLeft = topLeft, size = rectSize, cornerRadius = radius, style = halo)
             drawRoundRect(color = TvFocus, topLeft = topLeft, size = rectSize, cornerRadius = radius, style = border)
         }

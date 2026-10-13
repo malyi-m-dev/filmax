@@ -31,6 +31,7 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxOnSurfaceDim
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.person.CastMember
+import com.filmax.core.ui.components.FilmaxExpandableText
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.details.common.initials
@@ -39,15 +40,14 @@ import com.filmax.feature.details.common.initials
 private val ActorCardWidth = 88.dp
 private val ActorAvatarSize = 72.dp
 
+/**
+ * Описание свёрнуто до четырёх строк: у сериалов kino.pub оно бывает на полэкрана и уводило
+ * актёров и серии далеко вниз. Целиком — по «Подробнее».
+ */
 @Composable
 internal fun DetailsAbout(item: Item, modifier: Modifier = Modifier) {
     if (item.plot.isNotBlank()) {
-        Text(
-            item.plot,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = modifier,
-        )
+        FilmaxExpandableText(text = item.plot, modifier = modifier)
     }
 }
 
