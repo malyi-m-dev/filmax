@@ -39,6 +39,8 @@ import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
 import com.filmax.core.tv.designsystem.TvCardSize
 import com.filmax.core.tv.designsystem.TvChip
+import com.filmax.core.tv.designsystem.TvExpandableText
+import com.filmax.core.tv.designsystem.TvExpandableTextInset
 import com.filmax.core.tv.designsystem.TvFocusCard
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
@@ -61,21 +63,28 @@ import com.filmax.feature.details.common.initials
 
 // ─────────────────────────── Описание и состав ──────────────────────────────
 
+/**
+ * Описание свёрнуто до четырёх строк, «ОК» разворачивает его целиком. Поле под рамку фокуса
+ * вычтено из отступов: сам текст стоит на одной линии с hero и рядами.
+ */
 @Composable
 internal fun DetailsAbout(item: Item) {
     if (item.plot.isNotBlank()) {
-        Text(
-            item.plot,
-            style = MaterialTheme.typography.bodyLarge,
-            color = TvOnSurfaceVariant,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
+        TvExpandableText(
+            text = item.plot,
             modifier = Modifier
-                .padding(start = TvMetrics.SafeHorizontal, end = TvMetrics.SafeHorizontal, top = 22.dp)
-                .widthIn(max = ReadableTextWidth),
+                .padding(
+                    start = TvMetrics.SafeHorizontal - TvExpandableTextInset,
+                    end = TvMetrics.SafeHorizontal - TvExpandableTextInset,
+                    top = AboutTop - TvExpandableTextInset,
+                )
+                .widthIn(max = ReadableTextWidth + TvExpandableTextInset * 2),
         )
     }
 }
+
+/** Отступ описания от hero — до текста, а не до рамки фокуса. */
+private val AboutTop = 22.dp
 
 // ─────────────────────────────── Актёры и режиссёр ────────────────────────────
 

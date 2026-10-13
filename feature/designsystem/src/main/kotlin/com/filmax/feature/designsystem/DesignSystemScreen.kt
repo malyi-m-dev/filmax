@@ -67,7 +67,9 @@ import com.filmax.core.designsystem.ShapeCard
 import com.filmax.core.designsystem.ShapeFull
 import com.filmax.core.designsystem.ShapePoster
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxEmptyState
+import com.filmax.core.ui.components.FilmaxExpandableText
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxProgressBar
 import com.filmax.core.ui.components.FilmaxProgressCard
@@ -549,13 +551,14 @@ private fun ProgressCardsRow() {
 private fun ComponentsSection() = Section(
     num = "05",
     title = "Компоненты",
-    desc = "Кнопки, чипы и строка настройки пока живут внутри экранов: в core/ui остались их " +
-        "доредизайновые версии (заливка primaryContainer, галочка, цветная плитка-иконка), " +
-        "и показывать их как эталон нельзя. Образцы ниже — тот вид, который ждёт переезда в core/ui.",
+    desc = "Чип и разворачиваемый текст — готовые компоненты core/ui. Кнопки и строка настройки " +
+        "пока живут внутри экранов: образцы ниже — тот вид, который ждёт переезда в core/ui.",
 ) {
     ButtonsBlock()
     Spacer(Modifier.height(24.dp))
     ChipsBlock()
+    Spacer(Modifier.height(24.dp))
+    ExpandableTextBlock()
     Spacer(Modifier.height(24.dp))
     IndicatorsBlock()
     Spacer(Modifier.height(24.dp))
@@ -645,7 +648,7 @@ private fun ChipsBlock() {
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             ChipLabels.forEach { label ->
-                DsChip(label = label, selected = selected == label, onClick = { selected = label })
+                FilmaxChip(label = label, selected = selected == label, onClick = { selected = label })
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -660,33 +663,25 @@ private fun ChipsBlock() {
 private val ChipLabels = listOf("Всё", "Фильмы", "Сериалы", "Аниме")
 
 @Composable
-private fun DsChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .height(FilmaxMetrics.ChipHeight)
-            .clip(ShapeFull)
-            .background(
-                if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
+private fun ExpandableTextBlock() {
+    SubLabel("Разворачиваемый текст")
+    DsCard {
+        FilmaxExpandableText(text = SAMPLE_PLOT)
+        Spacer(Modifier.height(10.dp))
         Text(
-            label,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (selected) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            "«Подробнее» появляется, только если текст не влез в четыре строки; разворачивает тап " +
+                "по всему блоку.",
+            style = MaterialTheme.typography.bodySmall,
+            color = FilmaxOnSurfaceDim,
         )
     }
 }
+
+private const val SAMPLE_PLOT =
+    "Бывший следователь возвращается в родной город на севере, где за одну зиму пропадают трое " +
+        "подростков. Местная полиция списывает всё на побеги из дома, но старые записи отца-" +
+        "участкового говорят о другом: тридцать лет назад здесь случилось то же самое. Чем глубже " +
+        "он копает, тем меньше в городе тех, кто готов говорить, — и тем больше тех, кто помнит."
 
 @Composable
 private fun IndicatorsBlock() {

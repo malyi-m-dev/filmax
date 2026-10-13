@@ -96,6 +96,10 @@ fun FilmaxPosterCard(
 /**
  * Карточка 16:9 с полосой прогресса — второй и последний тип. «Продолжить», история, эпизоды.
  * [meta] несёт то, ради чего карточка существует: «S2 · E5 · осталось 18 мин».
+ *
+ * [placeholder] рисуется вместо кадра, когда ссылки нет вовсе: у kino.pub кадр серии часто
+ * пустой, и ряд одинаковых заглушек со значком «битой картинки» не отличить друг от друга, а
+ * крупный номер серии отличает.
  */
 // Компонент дизайн-системы: параметры — его публичный API (см. FilmaxPosterCard).
 @Suppress("LongParameterList")
@@ -109,6 +113,7 @@ fun FilmaxProgressCard(
     modifier: Modifier = Modifier,
     width: Dp = FilmaxMetrics.ContinueWidth,
     height: Dp = FilmaxMetrics.ContinueHeight,
+    placeholder: String? = null,
 ) {
     Column(
         modifier = modifier
@@ -121,13 +126,22 @@ fun FilmaxProgressCard(
                 .clip(ShapeCard)
                 .background(MaterialTheme.colorScheme.surfaceContainer),
         ) {
-            PosterImage(
-                url = posterUrl,
-                contentDescription = title,
-                modifier = Modifier.fillMaxSize(),
-                shape = ShapeCard,
-                accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            )
+            if (posterUrl.isBlank() && placeholder != null) {
+                Text(
+                    placeholder,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.align(Alignment.Center),
+                )
+            } else {
+                PosterImage(
+                    url = posterUrl,
+                    contentDescription = title,
+                    modifier = Modifier.fillMaxSize(),
+                    shape = ShapeCard,
+                    accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                )
+            }
             FilmaxProgressBar(
                 progress = progress,
                 modifier = Modifier.align(Alignment.BottomStart),

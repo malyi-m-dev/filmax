@@ -232,6 +232,7 @@ private fun DetailsBody(
                 seasons = series.data?.seasons.orEmpty(),
                 episodes = series.episodes,
                 selectedSeason = series.selectedSeason,
+                resume = series.data?.resume,
                 onSelectSeason = series.onSelectSeason,
                 onPlayEpisode = actions.onPlay,
             ),

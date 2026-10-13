@@ -46,10 +46,6 @@ object FilmaxMetrics {
     val MineCardWidth = 150.dp
     val MineCardHeight = 85.dp
 
-    /** Превью серии в списке эпизодов. */
-    val EpisodeThumbWidth = 120.dp
-    val EpisodeThumbHeight = 68.dp
-
     // ── Hero ───────────────────────────────────────────────────────────────
     val HomeHeroHeight = 412.dp
     val DetailsHeroHeight = 340.dp
