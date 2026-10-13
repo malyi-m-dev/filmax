@@ -30,6 +30,7 @@ if (googleServicesConfig.exists()) {
     val variantPackages = mapOf(
         "Debug" to "com.filmax.app.debug",
         "Demo" to "com.filmax.app.demo",
+        "Mock" to "com.filmax.app.mock",
         "Release" to "com.filmax.app",
     )
     val unregisteredVariants = variantPackages.filterValues { it !in registeredPackages }.keys
@@ -152,6 +153,17 @@ android {
             buildConfigField("String", "DEMO_ACCESS_TOKEN", "\"$demoAccessToken\"")
             buildConfigField("String", "DEMO_REFRESH_TOKEN", "\"$demoRefreshToken\"")
         }
+        // Mock-сборка: debug без бэкенда — data-слой подменён фейками (:data:fake, см.
+        // src/mock), вход не нужен, данные выдуманные. Для проверки UI на эмуляторах, куда живой
+        // kino.pub не достаёт или где протухли токены. Свой пакет и метка «Filmax Mock» — ставится
+        // рядом с debug и release, не путаясь с ними.
+        create("mock") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".mock"
+            versionNameSuffix = "-mock"
+            // Библиотечные модули не знают build type `mock` — берём их debug-вариант.
+            matchingFallbacks += "debug"
+        }
     }
 
     compileOptions {
@@ -190,6 +202,8 @@ dependencies {
     implementation(project(":data:user"))
     implementation(project(":data:watching"))
     implementation(project(":data:tmdb"))
+    // Фейки только в сборке mock: main-код о них не знает, подключает MockFilmaxApplication.
+    "mockImplementation"(project(":data:fake"))
 
     // Features
     implementation(project(":feature:onboarding:mobile"))

@@ -130,7 +130,7 @@ core/
 ├─ tv-designsystem/          # FilmaxTvTheme, TvPosterCard, TvFocusCard, TvRail (фокус из коробки)
 └─ ui/                       # переиспользуемые Composable (PosterImage, голосовой ввод, …)
 data/                        # реализации репозиториев + DTO + мапперы
-└─ auth/ catalog/ search/ user/ watching/ tmdb/
+└─ auth/ catalog/ search/ user/ watching/ tmdb/ fake/ (фейки для mock-сборки)
 feature/
 ├─ onboarding/ home/ search/ collections/ library/ profile/ details/ player/
 │     └─ каждая: <feature>(логика) + <feature>:mobile + <feature>:tv
@@ -209,9 +209,20 @@ push-экраны: карточка тайтла, фильмография, со
 # Установить на устройство/эмулятор
 ./gradlew :app:installDebug
 
+# Mock-сборка «Filmax Mock»: без сети kino.pub и без входа, на выдуманных данных
+./gradlew :app:installMock
+
 # Статический анализ
 ./gradlew detekt
 ```
+
+**Mock-сборка** — для проверки интерфейса на эмуляторе, когда живой kino.pub недоступен или
+протухли токены. Data-слой подменён фейками из `:data:fake`: приложение стартует авторизованным,
+каталог (около полусотни тайтлов), подборки, история, закладки и профиль выдуманы, картинки — с
+picsum.photos, видео — публичные тестовые HLS-потоки. Закладки, «Буду смотреть» и прогресс
+меняются по-настоящему, но живут до перезапуска; «Выйти» ведёт на онбординг, где код
+подтверждается сам секунд через пять. Ставится рядом с debug и боевой сборкой (пакет
+`com.filmax.app.mock`).
 
 Опциональные ключи в `local.properties` (не коммитится):
 

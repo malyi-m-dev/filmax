@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Сборка mock подменяет Application: MockFilmaxApplication кладёт фейковый data-слой поверх
+     настоящего. Остальной манифест — из main. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".MockFilmaxApplication"
+        tools:replace="android:name" />
+
+</manifest>
