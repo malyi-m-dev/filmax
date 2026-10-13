@@ -32,6 +32,9 @@ import com.filmax.core.ui.components.PosterImage
 enum class TvPosterSize(val width: Dp, val height: Dp) {
     Rail(TvMetrics.PosterWidth, TvMetrics.PosterHeight),
     Grid(TvMetrics.GridPosterWidth, TvMetrics.GridPosterHeight),
+
+    /** Результаты поиска под «Лучшим совпадением»: четыре в узкой правой колонке. */
+    Compact(106.dp, 160.dp),
 }
 
 /**

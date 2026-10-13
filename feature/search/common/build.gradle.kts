@@ -14,4 +14,7 @@ dependencies {
     implementation(libs.koin.android)
     // toRoute<FilmographyRoute>() + @Serializable-маршрут «Фильмографии»
     implementation(libs.navigation.compose)
+
+    // ScreenModel тестируется на фейковом data-слое — тех же фейках, что у mock-сборки.
+    testImplementation(project(":data:fake"))
 }

@@ -11,9 +11,6 @@ import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.search.SearchRepository
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
@@ -64,12 +61,13 @@ class SearchScreenModel(
 ) : BaseScreenModel<SearchState, SearchSideEffect, SearchEvent>(SearchState()) {
 
     private val queryFlow = MutableStateFlow("")
+    private val pager = CatalogPager(catalog)
 
-    /** Последняя загруженная страница витрины (0 — ещё не грузили). Общая для всех типов. */
-    private var catalogPage = 0
-
-    /** Типы, у которых страницы кончились: их не запрашиваем при догрузке. */
-    private var exhaustedTypes = setOf<ItemType>()
+    /**
+     * Поиск открыт готовым запросом (голос, недавний): как только найдётся лучшее совпадение,
+     * фокус уходит на него. Зритель начал набирать сам — прыгать фокусу уже незачем.
+     */
+    private var focusMatchWhenFound = false
 
     init {
         onFetchData()
@@ -78,22 +76,28 @@ class SearchScreenModel(
     override fun dispatch(event: SearchEvent) {
         when (event) {
             is SearchEvent.QueryChange -> onQueryChange(event.query)
-            is SearchEvent.FilterChange -> updateAndReload { it.copy(filter = event.filter) }
-            is SearchEvent.SortChange -> updateAndReload { it.copy(sort = event.sort) }
-            is SearchEvent.GenreChange -> updateAndReload { it.copy(selectedGenreId = event.genreId) }
-            is SearchEvent.ApplyFilters -> updateAndReload { it.copy(filters = event.filters) }
-            SearchEvent.ResetFilters -> updateAndReload { it.copy(filters = CatalogFilters()) }
+            is SearchEvent.Selection -> updateAndReload { it.withSelection(event) }
+            // Готовый запрос (подсказка, недавний, голос): искать сразу, без debounce, и запомнить.
             is SearchEvent.SubmitQuery -> {
                 onQueryChange(event.query)
-                screenModelScope { _ -> performSearch(event.query) }
+                screenModelScope { _ ->
+                    updateState { it.withRecent(event.query) }
+                    performSearch(event.query)
+                }
             }
 
+            SearchEvent.ResultOpened -> screenModelScope { _ -> updateState { it.withRecent(it.query) } }
             SearchEvent.ClearRecent -> screenModelScope { _ ->
                 updateState { it.copy(recentQueries = emptyList()) }
             }
 
             SearchEvent.LoadCatalog -> onLoadCatalog()
             SearchEvent.LoadMoreCatalog -> onLoadMoreCatalog()
+            SearchEvent.RetryCatalog -> screenModelScope { _ -> loadCatalog() }
+            is SearchEvent.Keyboard -> onKeyboard(event)
+            // Фильтры в панели правятся черновиком — выдачу перезапрашивает только «Применить».
+            SearchEvent.ApplyDraftFilters -> updateAndReload { it.withSheet(SearchEvent.ApplyDraftFilters) }
+            is SearchEvent.Sheet -> screenModelScope { _ -> updateState { it.withSheet(event) } }
         }
     }
 
@@ -123,6 +127,34 @@ class SearchScreenModel(
         }
     }
 
+    /**
+     * Поиск на ТВ: экранная клавиатура набирает запрос посимвольно. Новый запрос считается от
+     * [queryFlow] — он меняется сразу, а состояние экрана догоняет его в корутине, и быстрые
+     * нажатия не теряют букву.
+     */
+    private fun onKeyboard(event: SearchEvent.Keyboard) {
+        // Прыжок фокуса на найденное — только для готового запроса; зритель взялся за клавиатуру
+        // сам — фокус остаётся у него.
+        focusMatchWhenFound = event is SearchEvent.OpenSearch && !event.query.isNullOrBlank()
+        when (event) {
+            is SearchEvent.OpenSearch -> {
+                screenModelScope { _ -> updateState { it.copy(searchOpen = true) } }
+                event.query?.takeIf { it.isNotBlank() }?.let { dispatch(SearchEvent.SubmitQuery(it)) }
+            }
+            // Закрытый поиск возвращает витрину как была: пейджер помнит загруженную выдачу.
+            SearchEvent.CloseSearch -> {
+                onQueryChange("")
+                screenModelScope { _ -> updateState { it.copy(searchOpen = false) } }
+            }
+
+            is SearchEvent.TypeKey -> onQueryChange(typedQuery(queryFlow.value, event.key))
+            SearchEvent.DeleteLast -> onQueryChange(queryFlow.value.dropLast(1))
+            is SearchEvent.SwitchLayout -> screenModelScope { _ ->
+                updateState { it.copy(keyboardLayout = event.layout) }
+            }
+        }
+    }
+
     /** Смена любого фильтра — это всегда «поправь состояние и перезапроси выдачу». */
     private fun updateAndReload(change: (SearchState) -> SearchState) {
         screenModelScope { _ ->
@@ -143,7 +175,7 @@ class SearchScreenModel(
                 ?.filter { it.type in VIDEO_GENRE_TYPES }
                 ?.let { genres -> updateState { it.copy(genres = genres) } }
         }
-        // Страны — тоже отдельно: список нужен только листу фильтров, сетку он не держит.
+        // Страны — тоже отдельно: список нужен только панели фильтров, сетку он не держит.
         screenModelScope { _ ->
             catalog.getCountries().getOrNull()
                 ?.let { countries -> updateState { it.copy(countries = countries) } }
@@ -158,14 +190,13 @@ class SearchScreenModel(
 
     private suspend fun performSearch(query: String) {
         updateState { it.copy(loading = true) }
-        when (val result = search.search(query, state.filter, perPage = PER_PAGE)) {
-            is RequestResult.Success -> updateState { current ->
-                val recent = (listOf(query) + current.recentQueries).distinct().take(RECENT_LIMIT)
-                current.copy(
-                    loading = false,
-                    results = arrange(result.data, current),
-                    recentQueries = recent,
-                )
+        when (val result = search.search(query, state.searchType(), perPage = PER_PAGE)) {
+            is RequestResult.Success -> {
+                updateState { current -> current.copy(loading = false, results = current.arranged(result.data)) }
+                if (focusMatchWhenFound && state.bestMatch != null) {
+                    focusMatchWhenFound = false
+                    postSideEffect(SearchSideEffect.FocusBestMatch)
+                }
             }
 
             is RequestResult.Error -> updateState {
@@ -176,22 +207,32 @@ class SearchScreenModel(
 
     private suspend fun loadCatalog() {
         if (!state.catalogEnabled) return
-        updateState { it.copy(loading = true, catalogLoadingMore = false, catalogEndReached = false) }
-        catalogPage = 0
-        exhaustedTypes = emptySet()
-        when (val first = fetchCatalogPage(1)) {
-            is RequestResult.Success -> updateState {
+        val query = state.catalogQuery()
+        // Та же выдача уже в сетке (закрыли поиск, стёрли запрос) — её не перезагружаем: сбросились
+        // бы прокрутка и догруженные страницы.
+        if (query != pager.loaded) {
+            updateState { it.copy(loading = true, catalogLoadingMore = false, catalogEndReached = false) }
+        }
+        when (val first = pager.first(query)) {
+            is CatalogPage.Loaded -> updateState {
+                // Уникальность по id: это ключ карточки в сетке, повтор роняет её измерение.
+                val items = sortLocally(first.items.distinctBy { item -> item.id }, it.sort)
                 it.copy(
                     loading = false,
-                    catalogItems = sortLocally(first.data.distinctById(), it.sort),
-                    catalogEndReached = activeTypes.all { type -> type in exhaustedTypes },
+                    catalogItems = items,
+                    catalogEndReached = pager.endReached,
+                    catalogCount = pager.count(items.size),
                     error = null,
                 )
             }
 
-            is RequestResult.Error -> updateState {
-                it.copy(loading = false, catalogItems = emptyList(), error = first.message)
+            is CatalogPage.Failed -> updateState {
+                it.copy(loading = false, catalogItems = emptyList(), catalogCount = null, error = first.message)
             }
+
+            CatalogPage.Unchanged -> updateState { it.copy(loading = false) }
+            // Ответ на прежние чипы: состояние ведёт та загрузка, что запущена позже.
+            CatalogPage.Outdated -> Unit
         }
     }
 
@@ -206,85 +247,99 @@ class SearchScreenModel(
         if (!current.catalogEnabled || busy || current.query.length >= MIN_QUERY_LENGTH) return
         screenModelScope { _ ->
             updateState { it.copy(catalogLoadingMore = true) }
-            when (val next = fetchCatalogPage(catalogPage + 1)) {
-                is RequestResult.Success -> updateState { loaded ->
-                    val seen = loaded.catalogItems.mapTo(HashSet()) { it.id }
-                    // filter гасит id, уже стоящие в сетке; distinctById — дубли внутри самой
-                    // страницы (склейка типов) и гонку с параллельным reload по фильтру/сортировке:
-                    // без этого две карточки с одним id роняют LazyGrid по неуникальному ключу.
-                    val merged = (loaded.catalogItems + next.data.filter { it.id !in seen }).distinctById()
-                    loaded.copy(
-                        catalogLoadingMore = false,
-                        catalogItems = sortLocally(merged, loaded.sort),
-                        catalogEndReached = activeTypes.all { type -> type in exhaustedTypes },
-                    )
+            val next = pager.next()
+            updateState { loaded ->
+                when (next) {
+                    is CatalogPage.Loaded -> {
+                        val merged = loaded.catalogItems.mergedWith(next.items, loaded.sort)
+                        loaded.copy(
+                            catalogLoadingMore = false,
+                            catalogItems = merged,
+                            catalogEndReached = pager.endReached,
+                            catalogCount = pager.count(merged.size),
+                        )
+                    }
+                    // Тихий фейл: показанную витрину не рушим, следующий подход к хвосту повторит.
+                    // Устаревшая страница просто не нужна — ту выдачу уже сменили.
+                    else -> loaded.copy(catalogLoadingMore = false)
                 }
-
-                // Тихий фейл: показанную витрину не рушим, следующий подход к хвосту повторит.
-                is RequestResult.Error -> updateState { it.copy(catalogLoadingMore = false) }
             }
         }
     }
-
-    /**
-     * Грузит страницу [page] витрины для всех неисчерпанных типов текущего фильтра, помечает
-     * кончившиеся типы и двигает [catalogPage]. Ошибка — только когда не ответил НИ один тип:
-     * частичная выдача лучше пустой сетки.
-     */
-    private suspend fun fetchCatalogPage(page: Int): RequestResult<List<Item>> {
-        val genreId = if (state.filter == ItemType.ANIME) ANIME_GENRE_ID else state.selectedGenreId
-        val sort = state.sort
-        val filters = state.filters
-        val types = activeTypes.filterNot { it in exhaustedTypes }
-        if (types.isEmpty()) return RequestResult.Success(emptyList())
-        val results = coroutineScope {
-            types.map { type ->
-                async { type to catalog.getItems(type, genreId, filters, sort, page) }
-            }.awaitAll()
-        }
-        val succeeded = results.mapNotNull { (type, result) ->
-            result.getOrNull()?.let { itemPage -> type to itemPage }
-        }
-        return if (succeeded.isEmpty()) {
-            val message = results.firstNotNullOfOrNull { (_, result) ->
-                (result as? RequestResult.Error)?.message
-            }
-            RequestResult.Error(message)
-        } else {
-            catalogPage = page
-            exhaustedTypes = exhaustedTypes + succeeded
-                .filter { (_, itemPage) -> itemPage.items.isEmpty() || !itemPage.pagination.hasNextPage }
-                .map { (type, _) -> type }
-            RequestResult.Success(interleave(succeeded.map { (_, itemPage) -> itemPage.items }))
-        }
-    }
-
-    private val activeTypes: List<ItemType>
-        get() = when (val filter = state.filter) {
-            null -> BrowseTypes
-            ItemType.ANIME -> AnimeTypes
-            else -> listOf(filter)
-        }
 }
+
+/** Выборка после события: тип, сортировка (выбор в панели её закрывает), жанр, фильтры. */
+private fun SearchState.withSelection(event: SearchEvent.Selection): SearchState = when (event) {
+    is SearchEvent.FilterChange -> copy(filter = event.filter)
+    is SearchEvent.SortChange -> copy(sort = event.sort, sheetOpen = false)
+    is SearchEvent.GenreChange -> copy(selectedGenreId = event.genreId)
+    is SearchEvent.ApplyFilters -> copy(filters = event.filters)
+    SearchEvent.ResetFilters -> copy(filters = CatalogFilters())
+}
+
+/**
+ * Боковые панели ТВ. Панель фильтров открывается с черновиком, равным применённым фильтрам: закрытая
+ * без «Применить», она не оставляет следов, а «Применить» переносит черновик в выдачу.
+ */
+private fun SearchState.withSheet(event: SearchEvent.Sheet): SearchState = when (event) {
+    is SearchEvent.OpenSheet -> copy(sheetOpen = true, sheet = event.sheet, filtersDraft = filters)
+    SearchEvent.CloseSheet -> copy(sheetOpen = false)
+    is SearchEvent.EditFilters -> copy(filtersDraft = event.filters)
+    SearchEvent.ResetDraftFilters -> copy(filtersDraft = CatalogFilters())
+    SearchEvent.ApplyDraftFilters -> copy(filters = filtersDraft, sheetOpen = false)
+}
+
+/**
+ * Тип для запроса поиска. На ТВ поиск — отдельный режим без чипов каталога: фильтр, которого
+ * зритель не видит, тихо прятал бы найденное, поэтому там ищем по всему каталогу.
+ */
+private fun SearchState.searchType(): ItemType? = if (searchOpen) null else filter
 
 /**
  * Жанр, диапазонные фильтры и сортировка поверх выдачи поиска: сам `search` ничего из этого не
  * принимает. Страну (по id) и 4K локально не проверить — в [Item] их нет, они остаются серверными
- * и на результаты поиска не влияют.
+ * и на результаты поиска не влияют. На ТВ фильтры к поиску не применяются (см. [searchType]).
  */
-private fun arrange(items: List<Item>, state: SearchState): List<Item> {
-    val genreId = state.selectedGenreId
+private fun SearchState.arranged(items: List<Item>): List<Item> {
+    // distinctBy: поиск умеет вернуть один id дважды — в сетке это дубль ключа и краш.
+    if (searchOpen) return items.distinctBy { it.id }
+    val genreId = selectedGenreId
     val filtered = items.asSequence()
         .filter { item -> genreId == null || item.genres.any { it.id == genreId } }
-        .filter { item -> item.matches(state.filters) }
-        // distinctById: поиск умеет вернуть один id дважды — в сетке это дубль ключа и краш.
+        .filter { item -> item.matches(filters) }
         .distinctBy { it.id }
         .toList()
-    return sortLocally(filtered, state.sort)
+    return sortLocally(filtered, sort)
 }
 
-/** Уникальность по id: ключ карточки в LazyGrid, и повтор роняет измерение сетки. */
-private fun List<Item>.distinctById(): List<Item> = distinctBy { it.id }
+/** Выдача витрины по фильтрам экрана; «Аниме» — жанр поверх фильмов и сериалов. */
+private fun SearchState.catalogQuery(): CatalogQuery = CatalogQuery(
+    types = when (filter) {
+        null -> BrowseTypes
+        ItemType.ANIME -> AnimeTypes
+        else -> listOf(filter)
+    },
+    genreId = if (filter == ItemType.ANIME) ANIME_GENRE_ID else selectedGenreId,
+    filters = filters,
+    sort = sort,
+)
+
+/** Запрос в начало недавних — если он годится для поиска. */
+private fun SearchState.withRecent(query: String): SearchState {
+    val trimmed = query.trim()
+    if (trimmed.length < MIN_QUERY_LENGTH) return this
+    return copy(recentQueries = (listOf(trimmed) + recentQueries).distinct().take(RECENT_LIMIT))
+}
+
+/**
+ * Догруженная страница в хвост витрины. filter гасит id, уже стоящие в сетке; distinctBy —
+ * дубли внутри самой страницы (склейка типов): две карточки с одним id роняют LazyGrid по
+ * неуникальному ключу.
+ */
+private fun List<Item>.mergedWith(page: List<Item>, sort: SortOption): List<Item> {
+    val seen = mapTo(HashSet()) { it.id }
+    return sortLocally((this + page.filter { it.id !in seen }).distinctBy { it.id }, sort)
+}
 
 /** Локальная проверка фильтров по полям, которые есть в [Item] (год, рейтинги, завершённость). */
 private fun Item.matches(filters: CatalogFilters): Boolean {
@@ -321,14 +376,4 @@ private fun sortLocally(items: List<Item>, sort: SortOption): List<Item> {
         else -> return items
     }
     return if (sort.ascending) items.sortedWith(comparator) else items.sortedWith(comparator.reversed())
-}
-
-/**
- * Склейка выдачи нескольких типов по кругу (для чипа «Все»). Простой `flatten()` дал бы
- * 20 фильмов, потом 20 сериалов — до аниме зритель не долистал бы никогда.
- */
-private fun interleave(lists: List<List<Item>>): List<Item> {
-    if (lists.size == 1) return lists.first()
-    val depth = lists.maxOf { it.size }
-    return (0 until depth).flatMap { index -> lists.mapNotNull { it.getOrNull(index) } }
 }
