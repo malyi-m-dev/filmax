@@ -20,3 +20,11 @@ dependencies {
     "debugImplementation"(composeBom)
     "debugImplementation"(libs.findLibrary("compose-ui-test-manifest").get())
 }
+
+// ВРЕМЕННО (диагностика краша на CI): видно, какой тест запущен, когда падает JVM.
+tasks.withType<Test>().configureEach {
+    testLogging {
+        events("started", "passed", "failed")
+        showStandardStreams = true
+    }
+}
