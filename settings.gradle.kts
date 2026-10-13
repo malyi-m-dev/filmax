@@ -29,6 +29,8 @@ include(":core:tv-designsystem")
 include(":core:ui")
 include(":core:presentation")
 include(":core:navigation")
+// Общее для UI-тестов: фейковые картинки и прочие подмены окружения.
+include(":core:testing")
 
 include(":data:auth")
 include(":data:catalog")

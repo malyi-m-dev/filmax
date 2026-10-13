@@ -15,6 +15,7 @@ import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
@@ -41,6 +42,9 @@ class TvHomeHeroScrollTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     /** ТВ-устройство: на нём Compose включает фокус-прокрутку с «опорной точкой», как на боксе. */
     @Before

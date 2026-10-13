@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import com.filmax.core.domain.common.getOrNull
+import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
@@ -41,6 +42,9 @@ class TvMovieDetailsFocusTest {
 
     @get:Rule
     val compose = createComposeRule()
+
+    @get:Rule
+    val images = FakeImagesRule()
 
     private val calls = mutableListOf<String>()
     private val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))

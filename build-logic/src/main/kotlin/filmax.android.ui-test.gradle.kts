@@ -16,6 +16,9 @@ dependencies {
     "testImplementation"(composeBom)
     "testImplementation"(libs.findLibrary("compose-ui-test-junit4").get())
     "testImplementation"(libs.findLibrary("robolectric").get())
+    // Картинки без сети и декодирования (FakeImagesRule): иначе нативная графика Robolectric
+    // на Linux роняет JVM тестов.
+    "testImplementation"(project(":core:testing"))
     // ComponentActivity для createComposeRule — из манифеста debug-варианта.
     "debugImplementation"(composeBom)
     "debugImplementation"(libs.findLibrary("compose-ui-test-manifest").get())
