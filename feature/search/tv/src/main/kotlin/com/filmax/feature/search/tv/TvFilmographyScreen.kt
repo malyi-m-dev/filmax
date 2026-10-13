@@ -33,10 +33,8 @@ import com.filmax.core.tv.designsystem.TvOnSurface
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvSurface
-import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
-import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
@@ -153,16 +151,7 @@ private fun FilmographyPoster(
         onClick = onClick,
         modifier = modifier,
         rating = ratingLabel(item.rating.external),
-    ) { url, posterModifier ->
-        PosterImage(
-            url = url,
-            contentDescription = item.title,
-            modifier = posterModifier,
-            shape = TvMetrics.PosterShape,
-            // Плейсхолдер-градиент по умолчанию цветной; в монохроме под постером — поверхность.
-            accentColor = TvSurfaceContainer,
-        )
-    }
+    )
 }
 
 /** Сбой сети — не «ничего не найдено»: сетка пуста по обеим причинам, а причины разные. */

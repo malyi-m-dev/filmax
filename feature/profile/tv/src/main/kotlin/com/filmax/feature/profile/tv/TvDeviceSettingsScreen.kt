@@ -42,7 +42,6 @@ import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
-import com.filmax.core.tv.designsystem.TvOnSurfaceDim
 import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvSurface
@@ -155,11 +154,11 @@ private fun DeviceSettingsContent(
         Column(Modifier.widthIn(max = ContentMaxWidth)) {
             DeviceSettingsHeader(title = settings.title)
             Spacer(Modifier.height(28.dp))
-            TvOverline("Возможности", color = TvOnSurfaceDim)
+            TvOverline("Возможности", accent = false)
             Spacer(Modifier.height(12.dp))
             ToggleRows(settings = settings, toggles = actions.toggles, firstRow = firstRow)
             Spacer(Modifier.height(26.dp))
-            TvOverline("Поток", color = TvOnSurfaceDim)
+            TvOverline("Поток", accent = false)
             Spacer(Modifier.height(12.dp))
             StreamRows(settings = settings, onCycleStreaming = actions.onCycleStreaming)
             Spacer(Modifier.height(28.dp))

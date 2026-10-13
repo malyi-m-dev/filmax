@@ -419,15 +419,6 @@ private fun TvHomePosterCard(item: Item, onClick: () -> Unit, modifier: Modifier
         posterUrl = item.posters.medium.ifEmpty { item.posters.big },
         rating = ratingLabel(item.rating.kinopoisk),
         onClick = onClick,
-        posterContent = { url, posterModifier ->
-            PosterImage(
-                url = url,
-                contentDescription = item.title,
-                modifier = posterModifier,
-                shape = TvMetrics.PosterShape,
-                accentColor = TvSurfaceContainerHigh,
-            )
-        },
     )
 }
 
@@ -439,15 +430,6 @@ private fun TvCollectionCard(collection: Collection, onClick: () -> Unit, modifi
         meta = null,
         posterUrl = collection.posterUrl().orEmpty(),
         onClick = onClick,
-        posterContent = { url, posterModifier ->
-            PosterImage(
-                url = url,
-                contentDescription = collection.title,
-                modifier = posterModifier,
-                shape = TvMetrics.PosterShape,
-                accentColor = TvSurfaceContainerHigh,
-            )
-        },
     )
 }
 
@@ -461,15 +443,6 @@ private fun TvContinueCard(history: WatchHistory, onClick: () -> Unit, modifier:
         posterUrl = history.wideOrPoster,
         progress = history.progress?.fraction ?: 0f,
         onClick = onClick,
-        posterContent = { url, posterModifier ->
-            PosterImage(
-                url = url,
-                contentDescription = history.title,
-                modifier = posterModifier,
-                shape = TvMetrics.CardShape,
-                accentColor = TvSurfaceContainerHigh,
-            )
-        },
     )
 }
 

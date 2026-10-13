@@ -13,6 +13,9 @@ extensions.configure<DetektExtension> {
     // Берём дефолтный набор правил detekt и накатываем поверх наш detekt.yml.
     buildUponDefaultConfig = true
     parallel = true
+    // `./gradlew detekt -PdetektAutoCorrect` — правит форматирование (ktlint) на месте. CI свойство
+    // не передаёт и только проверяет.
+    autoCorrect = providers.gradleProperty("detektAutoCorrect").isPresent
     // Общий конфиг в корне репозитория — единые правила для всех модулей.
     config.setFrom(rootProject.files("config/detekt/detekt.yml"))
     // Бейзлайн — per-module: существующий код заносится в baseline, новый — проверяется.

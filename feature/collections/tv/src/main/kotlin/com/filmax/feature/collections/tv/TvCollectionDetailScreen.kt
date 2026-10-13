@@ -29,9 +29,7 @@ import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvPosterCard
-import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
-import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
@@ -140,14 +138,5 @@ private fun CollectionPoster(item: Item, modifier: Modifier, onClick: () -> Unit
         onClick = onClick,
         rating = ratingLabel(item.rating.external),
         modifier = modifier,
-    ) { url, posterModifier ->
-        PosterImage(
-            url = url,
-            contentDescription = item.title,
-            modifier = posterModifier,
-            shape = TvMetrics.PosterShape,
-            // Плейсхолдер-градиент по умолчанию цветной; в монохроме под постером — поверхность.
-            accentColor = TvSurfaceContainer,
-        )
-    }
+    )
 }

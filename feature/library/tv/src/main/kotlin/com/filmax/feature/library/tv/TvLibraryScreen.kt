@@ -364,9 +364,6 @@ private fun LazyGridScope.watchlistSegment(
             posterUrl = item.posterSmall,
             onClick = { onOpenItem(item.id) },
             modifier = focus.item("watchlist:${item.id}"),
-            posterContent = { url, posterModifier ->
-                TvPoster(url, item.title, posterModifier, TvMetrics.PosterShape)
-            },
         )
     }
 }
@@ -450,9 +447,6 @@ private fun LazyGridScope.folderPosters(
             },
             modifier = focus.item("folder:${item.id}"),
             rating = ratingLabel(item.rating.external),
-            posterContent = { url, posterModifier ->
-                FolderPoster(url, item.title, posterModifier, removeMode = ui.removeMode)
-            },
         )
     }
     if (openFolder.loadingMore) {

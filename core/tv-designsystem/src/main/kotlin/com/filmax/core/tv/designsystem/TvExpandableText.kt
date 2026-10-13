@@ -1,41 +1,47 @@
-@file:OptIn(ExperimentalTvMaterial3Api::class)
-
 package com.filmax.core.tv.designsystem
 
-import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Surface
+import androidx.tv.material3.Icon
+import androidx.tv.material3.Text
 
 /** Сколько строк видно до разворота: абзац, но не простыня между кнопками и сериями. */
-private const val DEFAULT_COLLAPSED_LINES = 4
+private const val DEFAULT_COLLAPSED_LINES = 3
 
 /** Поле между текстом и рамкой фокуса — текст не должен упираться в обводку. */
 val TvExpandableTextInset = 12.dp
 
+/** С какой доли высоты свёрнутый текст начинает затухать. */
+private const val FADE_FROM = 0.55f
+
 /**
- * Длинный текст под пульт: свёрнут до [collapsedMaxLines] строк, «ОК» разворачивает и сворачивает.
+ * Длинный текст под пульт: свёрнут до [collapsedMaxLines] строк с затуханием снизу, «ОК»
+ * разворачивает и сворачивает.
  *
  * Фокусируется, только если текст правда не влез: иначе это лишняя остановка пульта на пути от
- * кнопок к сериям. Фокус — та же белая рамка с ореолом, что у карточек, но без увеличения:
- * абзац, раздувшийся на 8%, читается как сбой вёрстки, а не как фокус.
+ * кнопок к сериям. Фокус — рамка и свечение без увеличения ([TvFocusStyle.Text]).
  *
  * Внутри — поле [TvExpandableTextInset] под рамку. Снаружи его вычитают из отступа, чтобы сам
  * текст стоял на одной линии с соседними секциями, а рамка выходила за неё.
@@ -52,61 +58,58 @@ fun TvExpandableText(
     val toggleable = expanded || overflows
 
     val body: @Composable () -> Unit = {
-        Column(Modifier.animateContentSize().padding(TvExpandableTextInset)) {
+        Column(Modifier.padding(TvExpandableTextInset)) {
             Text(
                 text,
-                style = MaterialTheme.typography.bodyLarge,
-                color = TvOnSurfaceVariant,
+                style = FxType.body,
+                color = LocalFxColors.current.textSecondary,
                 maxLines = if (expanded) Int.MAX_VALUE else collapsedMaxLines,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.Clip,
                 onTextLayout = { layout -> if (!expanded) overflows = layout.hasVisualOverflow },
+                modifier = if (overflows && !expanded) Modifier.fadeBottom() else Modifier,
             )
-            if (toggleable) {
-                Text(
-                    if (expanded) COLLAPSE_LABEL else EXPAND_LABEL,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = TvOnSurface,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
+            if (toggleable) ToggleLabel(expanded)
         }
     }
     if (toggleable) {
-        ExpandableSurface(onClick = { expanded = !expanded }, modifier = modifier, content = body)
+        TvFocusSurface(onClick = { expanded = !expanded }, modifier = modifier, style = TvFocusStyle.Text) { body() }
     } else {
         Box(modifier) { body() }
     }
 }
 
-/** Фокусируемая подложка текста: рамка и лёгкая заливка при фокусе, без масштаба. */
 @Composable
-private fun ExpandableSurface(onClick: () -> Unit, modifier: Modifier, content: @Composable () -> Unit) {
-    // Как в TvFocusCard: фокус читается только в draw-лямбде — его смена перерисовывает рамку,
-    // не перекомпоновывая текст.
-    val focused = remember { mutableStateOf(false) }
-    Surface(
-        onClick = onClick,
-        shape = ClickableSurfaceDefaults.shape(TvMetrics.CardShape),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = TvSurfaceContainer,
-            pressedContainerColor = TvSurfaceContainer,
-            contentColor = TvOnSurface,
-            focusedContentColor = TvOnSurface,
-        ),
-        modifier = modifier.onFocusChanged { focused.value = it.isFocused },
+private fun ToggleLabel(expanded: Boolean) {
+    Row(
+        Modifier.padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Box(
-            Modifier.drawWithContent {
-                drawContent()
-                if (focused.value) drawFocusRing(TvMetrics.CardShape)
-            },
-        ) {
-            content()
+        Text(
+            if (expanded) COLLAPSE_LABEL else EXPAND_LABEL,
+            style = FxType.chip,
+            color = LocalFxColors.current.text,
+        )
+        if (!expanded) {
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }
 
-private const val EXPAND_LABEL = "Подробнее"
+/** Затухание нижних строк: обрезанный текст уходит в фон, а не обрывается на полуслове. */
+private fun Modifier.fadeBottom(): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            drawRect(
+                brush = Brush.verticalGradient(FADE_FROM to Color.Black, 1f to Color.Transparent),
+                blendMode = BlendMode.DstIn,
+            )
+        }
+
+private const val EXPAND_LABEL = "Читать полностью"
 private const val COLLAPSE_LABEL = "Свернуть"
