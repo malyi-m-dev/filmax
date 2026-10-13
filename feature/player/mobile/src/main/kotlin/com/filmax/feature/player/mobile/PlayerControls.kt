@@ -1,4 +1,5 @@
-// Элементы оверлея плеера: круглая полупрозрачная кнопка и чип качества. Раскладка оверлея,
+// Элементы оверлея плеера: круглая полупрозрачная кнопка и чип качества (полноэкранный режим и
+// звук — в PlayerFullscreen). Раскладка оверлея,
 // меню и состояние — в PlayerScreen.
 
 package com.filmax.feature.player.mobile
@@ -26,7 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-internal fun GlassBtn(size: Dp = 52.dp, onClick: () -> Unit, content: @Composable () -> Unit) {
+internal fun GlassButton(size: Dp = 52.dp, onClick: () -> Unit, content: @Composable () -> Unit) {
     Box(
         modifier = Modifier.size(size).clip(CircleShape).background(Color(0x1FFFFFFF)).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
