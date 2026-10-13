@@ -29,8 +29,6 @@ import androidx.navigation.compose.rememberNavController
 import com.filmax.app.navigation.AuthStateNavigation
 import com.filmax.app.navigation.NavigationCommands
 import com.filmax.app.navigation.RootScreenModel
-import com.filmax.app.navigation.navFadeIn
-import com.filmax.app.navigation.navFadeOut
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalTvNavBarFocused
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
@@ -133,7 +131,7 @@ fun FilmaxTvNavGraph(
     }
 }
 
-/** Контент разделов: NavHost со всеми экранами и общими переходами. */
+/** Контент разделов: NavHost со всеми экранами и переходами между ними (см. [tvEnterTransition]). */
 @Composable
 private fun TvNavHost(navController: NavHostController, onCheckUpdates: () -> Unit, modifier: Modifier) {
     NavHost(
@@ -142,10 +140,10 @@ private fun TvNavHost(navController: NavHostController, onCheckUpdates: () -> Un
         modifier = modifier
             .fillMaxSize()
             .focusGroup(),
-        enterTransition = { navFadeIn },
-        exitTransition = { navFadeOut },
-        popEnterTransition = { navFadeIn },
-        popExitTransition = { navFadeOut },
+        enterTransition = { tvEnterTransition() },
+        exitTransition = { tvExitTransition() },
+        popEnterTransition = { tvEnterTransition() },
+        popExitTransition = { tvExitTransition() },
     ) {
         tvDestinations(onCheckUpdates)
     }
