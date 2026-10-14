@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+## [2.1.2] — 2026-10-14
+
+### Исправлено
+- ТВ: при закрытии бокового меню подсветка больше не перетекает через соседние пункты к
+  открытому разделу, а сразу встаёт на него; логотип «filmax» при этом не ложится на пункты.
+- ТВ: с рядов Главной «вверх» не возвращал на баннер «Выбор редакции» — фокус оставался в ряду.
+  Теперь возвращает, и на ту кнопку баннера, с которой ушли вниз.
+
 ## [2.1.1] — 2026-10-14
 
 ### Исправлено
@@ -435,7 +443,8 @@
   R8 + `shrinkResources`, `versionCode` из числа коммитов и `versionName` из git-тега.
 - CI по тегу `v*`: сборка подписанного APK → GitHub Release (+ Telegram).
 
-[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v2.1.1...HEAD
+[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v2.1.2...HEAD
+[2.1.2]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.1.2
 [2.1.1]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.1.1
 [2.1.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.1.0
 [2.0.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.0.0
