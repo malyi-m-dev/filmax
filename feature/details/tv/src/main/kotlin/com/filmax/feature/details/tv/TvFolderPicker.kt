@@ -124,7 +124,7 @@ internal fun BoxScope.FolderPickerSheet(item: Item, folders: DetailsFolders, wat
     ) { shown ->
         Box(Modifier.fillMaxSize()) {
             if (shown != null) {
-                TvFolderEditor(shown.toEditorState(), editorActions(folders.onEvent))
+                TvFolderEditor(shown.toEditorState(folders.state), editorActions(folders.onEvent))
             } else {
                 FolderList(item, folders, watchlist)
             }
@@ -258,8 +258,11 @@ private fun PickerHints(modifier: Modifier) {
     )
 }
 
-/** Черновик новой папки → то, что рисует редактор. Папка создаётся сразу с этим тайтлом. */
-private fun FolderDraft.toEditorState() = TvFolderEditorState(
+/**
+ * Черновик новой папки → то, что рисует редактор. Папка создаётся сразу с этим тайтлом; пока
+ * идёт запрос, «Создать и добавить» неактивна, а ошибка создания видна в самом редакторе.
+ */
+private fun FolderDraft.toEditorState(picker: FolderPickerState) = TvFolderEditorState(
     heading = "Новая папка",
     title = title,
     maxLength = FOLDER_TITLE_MAX_LENGTH,
@@ -268,7 +271,8 @@ private fun FolderDraft.toEditorState() = TvFolderEditorState(
     layouts = KeyboardLayout.entries.map { it.label },
     layoutIndex = layout.ordinal,
     confirmLabel = "Создать и добавить",
-    canConfirm = canSubmit,
+    canConfirm = canSubmit && !picker.creating,
+    error = picker.error,
 )
 
 private fun editorActions(onEvent: (FolderPickerEvent) -> Unit): TvFolderEditorActions {

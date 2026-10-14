@@ -71,8 +71,19 @@ data class BookmarkFolderDto(
     @SerialName("updated_at") val updatedAt: Int? = null,
 )
 
+/**
+ * Ответ `bookmarks/create`: созданная папка вложена в `folder` — `{"status":200,"folder":{"id":…}}`.
+ * На верхнем уровне id нет: читали его оттуда — папка на сервере создавалась, а клиент считал это
+ * ошибкой и не клал в неё тайтл.
+ */
 @Serializable
 data class FolderStatusDto(
-    val status: Int,
+    val status: Int? = null,
+    val folder: CreatedFolderDto? = null,
+)
+
+@Serializable
+data class CreatedFolderDto(
     val id: Int? = null,
+    val title: String? = null,
 )

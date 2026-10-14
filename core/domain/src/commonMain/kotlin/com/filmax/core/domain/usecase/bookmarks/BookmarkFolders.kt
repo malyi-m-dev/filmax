@@ -65,14 +65,14 @@ class BookmarkFolders(
     }
 
     /**
-     * Создаёт папку с цветом и, если передан [itemId], сразу кладёт в неё тайтл — «Создать и
-     * добавить». Цвет сохраняется только после того, как сервер выдал id папки.
+     * Создаёт папку с цветом. Цвет сохраняется только после того, как сервер выдал id папки.
+     * Тайтл в новую папку («Создать и добавить») кладёт вызывающий: ему нужен итог этого запроса,
+     * чтобы не показать отметку, которой на сервере нет.
      */
-    suspend fun create(title: String, tint: Int, itemId: Int? = null): RequestResult<BookmarkFolder> {
+    suspend fun create(title: String, tint: Int): RequestResult<BookmarkFolder> {
         val created = user.createBookmarkFolder(title)
         val folder = created.getOrNull() ?: return created
         appearance.setTint(folder.id, tint)
-        if (itemId != null) user.addToBookmark(itemId, folder.id)
         return created
     }
 

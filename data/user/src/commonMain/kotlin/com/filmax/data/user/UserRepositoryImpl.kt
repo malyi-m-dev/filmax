@@ -81,10 +81,10 @@ internal class UserRepositoryImpl(
         safeRequest { api.getBookmarkItems(folderId, page).toDomain() }
 
     override suspend fun createBookmarkFolder(title: String): RequestResult<BookmarkFolder> = safeRequest {
-        val result = api.createBookmark(title)
+        val folder = api.createBookmark(title).folder
         BookmarkFolder(
-            id = requireNotNull(result.id),
-            title = title,
+            id = requireNotNull(folder?.id),
+            title = folder?.title ?: title,
             count = 0,
             updatedAt = null,
         )

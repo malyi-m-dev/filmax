@@ -21,6 +21,8 @@ data class FolderPickerState(
     val focusFolderId: Int? = null,
     /** Черновик новой папки; не null — вместо списка открыт редактор. */
     val draft: FolderDraft? = null,
+    /** Папка создаётся: повторное «Создать и добавить» до ответа завело бы вторую такую же. */
+    val creating: Boolean = false,
     /** Последняя ошибка синхронизации — отметка уже откатилась, панель о ней говорит. */
     val error: String? = null,
 ) {

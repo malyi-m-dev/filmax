@@ -43,10 +43,10 @@ class FolderPickerScreenModel(
             FolderPickerEvent.Open -> open()
             FolderPickerEvent.Close -> update { it.copy(open = false, draft = null, error = null) }
             is FolderPickerEvent.Toggle -> toggle(event.folderId)
-            FolderPickerEvent.StartCreate -> update { it.copy(draft = FolderDraft()) }
+            FolderPickerEvent.StartCreate -> update { it.copy(draft = FolderDraft(), error = null) }
             is FolderPickerEvent.Edit -> update { it.copy(draft = it.draft?.apply(event.input)) }
             FolderPickerEvent.Submit -> submit()
-            FolderPickerEvent.CancelCreate -> update { it.copy(draft = null) }
+            FolderPickerEvent.CancelCreate -> update { it.copy(draft = null, error = null) }
         }
     }
 
@@ -93,31 +93,39 @@ class FolderPickerScreenModel(
         }
     }
 
-    /** Создаёт папку уже с тайтлом и возвращает к списку: новая папка наверху, отмечена, в фокусе. */
+    /**
+     * «Создать и добавить»: папка, затем тайтл в неё, и возврат к списку — новая папка наверху и в
+     * фокусе. Не создалась — редактор остаётся с набранным названием и сообщением. Создалась, но
+     * тайтл не лёг — папка в списке без отметки: показать её отмеченной значило бы соврать.
+     */
     private fun submit() {
         screenModelScope { current ->
             // Черновик — на момент выполнения: правки с клавиатуры стоят в очереди раньше.
-            val draft = current.draft?.takeIf { it.canSubmit } ?: return@screenModelScope
-            val created = folders.create(draft.cleanTitle, draft.tint, itemId).getOrNull()
+            val draft = current.draft?.takeIf { it.canSubmit && !current.creating } ?: return@screenModelScope
+            updateState { it.copy(creating = true, error = null) }
+            val created = folders.create(draft.cleanTitle, draft.tint).getOrNull()
             if (created == null) {
-                updateState { it.copy(error = CREATE_ERROR) }
+                updateState { it.copy(creating = false, error = CREATE_ERROR) }
                 return@screenModelScope
             }
+            val added = user.addToBookmark(itemId, created.id) is RequestResult.Success
             // Перечитать список не вышло — новая папка всё равно встаёт наверх, с выбранным цветом.
-            val mine = folders.list().getOrNull()
-                ?.let { listed -> sortedByChange(userFolders(listed, folders.appearances.first())) }
-                ?: (listOf(created.asNewFolder(draft.tint)) + current.folders)
+            val mine = reloadedFolders() ?: (listOf(created.asNewFolder(draft.tint, added)) + current.folders)
             updateState {
                 it.copy(
+                    creating = false,
                     draft = null,
                     folders = mine,
-                    memberOf = it.memberOf + created.id,
+                    memberOf = if (added) it.memberOf + created.id else it.memberOf,
                     focusFolderId = created.id,
-                    error = null,
+                    error = if (added) null else ADD_ERROR,
                 )
             }
         }
     }
+
+    private suspend fun reloadedFolders(): List<UserFolder>? =
+        folders.list().getOrNull()?.let { listed -> sortedByChange(userFolders(listed, folders.appearances.first())) }
 
     private fun update(transform: (FolderPickerState) -> FolderPickerState) {
         screenModelScope { _ -> updateState(transform) }
@@ -126,6 +134,7 @@ class FolderPickerScreenModel(
     private companion object {
         const val SYNC_ERROR = "Не удалось обновить папку — проверьте сеть"
         const val CREATE_ERROR = "Не удалось создать папку — проверьте сеть"
+        const val ADD_ERROR = "Папка создана, но тайтл в неё не добавился — проверьте сеть"
     }
 }
 
@@ -133,11 +142,11 @@ class FolderPickerScreenModel(
 private fun sortedByChange(folders: List<UserFolder>): List<UserFolder> =
     folders.sortedByDescending { it.updatedAt ?: Long.MAX_VALUE }
 
-/** Только что созданная папка с тайтлом: сервер о ней ещё не рассказал, но id и название известны. */
-private fun BookmarkFolder.asNewFolder(tint: Int) = UserFolder(
+/** Только что созданная папка: сервер о ней ещё не рассказал, но id и название известны. */
+private fun BookmarkFolder.asNewFolder(tint: Int, withItem: Boolean) = UserFolder(
     id = id,
     title = title,
-    count = 1,
+    count = if (withItem) 1 else 0,
     updatedAt = null,
     tint = tint
 )
