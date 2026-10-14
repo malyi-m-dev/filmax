@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -53,6 +54,7 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.fxStaticOverlay
 import com.filmax.core.tv.designsystem.kenBurns
+import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.ratingLabel
 import kotlinx.coroutines.delay
@@ -238,11 +240,19 @@ private fun HeroButtons(
     focus: TvScreenFocus,
     modifier: Modifier
 ) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    val play = remember { FocusRequester() }
+    // Группа с памятью: «вверх» из рядов возвращает на ту кнопку, с которой ушли вниз, а не на
+    // ближайшую к карточке; первый вход — на «Смотреть».
+    Row(
+        modifier.tvFocusGroup(fallback = play),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         TvButton(
             "Смотреть",
             onClick = { actions.onPlay(item) },
             leadingIcon = Icons.Rounded.PlayArrow,
+            focusRequester = play,
             modifier = focus.item(HERO_PLAY_KEY),
         )
         TvButton(

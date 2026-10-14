@@ -69,6 +69,24 @@ class TvHomeHeroScrollTest {
     }
 
     @Test
+    fun `up from the first row returns focus to the hero`() {
+        var played = false
+        val actions = NoActions.copy(hero = NoActions.hero.copy(onPlay = { played = true }))
+        compose.setContent {
+            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = actions) }
+        }
+        compose.waitForIdle()
+
+        // «Вверх» с ряда — обратно на ту кнопку hero, с которой ушли, а не на ближайшую к
+        // карточке («Подробнее» под широкой карточкой ближе).
+        pressKey(Key.DirectionDown)
+        pressKey(Key.DirectionUp)
+        pressKey(Key.DirectionCenter)
+
+        assertTrue(played, "«вверх» с первого ряда не вернул фокус на «Смотреть» в hero")
+    }
+
+    @Test
     fun `hero is fully visible on the first open`() {
         compose.setContent {
             FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = NoActions) }

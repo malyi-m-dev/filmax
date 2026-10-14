@@ -5,6 +5,7 @@ package com.filmax.app.tv.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -187,23 +188,34 @@ private fun NavLabel(label: String, look: NavItemLook) {
 
 /**
  * Логотип раскрытой панели: точка акцента и «filmax». Отдельный слой поверх панели, высотой
- * [LogoHeight]: он только проявляется и гаснет и ничего под собой не двигает.
+ * [LogoHeight]: он только проявляется и ничего под собой не двигает. Уходит в тот же кадр, что
+ * закрывается меню, без затухания: место под ним колонка отдаёт сразу, и гаснущая надпись легла
+ * бы на поднявшийся пункт.
  */
 @Composable
 internal fun NavLogo(visible: Boolean, modifier: Modifier) {
-    AnimatedVisibility(visible = visible, modifier = modifier, enter = fadeIn(), exit = fadeOut()) {
-        Row(
-            Modifier.height(LogoHeight).padding(start = 10.dp, top = 8.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(Modifier.size(10.dp).background(LocalFxColors.current.accent, CircleShape))
-            // Цвет задан явно: вне Surface у tv-material Text цвет по умолчанию тёмный, и логотип
-            // на тёмной панели почти пропадал.
-            Text("filmax", style = LogoStyle, color = LocalFxColors.current.text)
-        }
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = if (visible) tween(LOGO_FADE_MS) else snap(),
+        label = "navLogo",
+    )
+    if (!visible) return
+    Row(
+        modifier
+            .height(LogoHeight)
+            .graphicsLayer { this.alpha = alpha }
+            .padding(start = 10.dp, top = 8.dp, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(Modifier.size(10.dp).background(LocalFxColors.current.accent, CircleShape))
+        // Цвет задан явно: вне Surface у tv-material Text цвет по умолчанию тёмный, и логотип
+        // на тёмной панели почти пропадал.
+        Text("filmax", style = LogoStyle, color = LocalFxColors.current.text)
     }
 }
+
+private const val LOGO_FADE_MS = 300
 
 /** Как выглядит профиль: открыт ли Профиль, раскрыто ли меню, стоит ли на нём капля фокуса. */
 internal data class NavProfileLook(val active: Boolean, val expanded: Boolean, val focused: Boolean)
