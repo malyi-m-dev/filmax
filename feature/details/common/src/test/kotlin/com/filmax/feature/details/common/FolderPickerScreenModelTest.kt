@@ -1,9 +1,12 @@
 package com.filmax.feature.details.common
 
 import androidx.lifecycle.SavedStateHandle
+import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
+import com.filmax.core.domain.user.UserRepository
+import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.presentation.folders.FolderInput
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFavoritesRepository
@@ -142,6 +145,38 @@ class FolderPickerScreenModelTest {
     }
 
     @Test
+    fun `failed create keeps the editor with the typed title and says so`() = runTest(dispatcher) {
+        val model = model(FakeIds.UNRATED_MOVIE, server = FailingUser(user, failCreate = true))
+        model.dispatch(FolderPickerEvent.Open)
+        advanceUntilIdle()
+
+        createFolder(model, "дача")
+
+        val state = model.states.value
+        assertEquals("Дача", state.draft?.cleanTitle, "редактор закрылся и потерял название")
+        assertFalse(state.creating)
+        assertNotNull(state.error)
+        assertTrue(state.folders.none { it.title == "Дача" })
+    }
+
+    @Test
+    fun `folder created but title not added stays unmarked and says so`() = runTest(dispatcher) {
+        val model = model(FakeIds.UNRATED_MOVIE, server = FailingUser(user, failAdd = true))
+        model.dispatch(FolderPickerEvent.Open)
+        advanceUntilIdle()
+
+        createFolder(model, "дача")
+
+        val state = model.states.value
+        assertNull(state.draft, "после создания панель не вернулась к списку")
+        val created = state.folders.first()
+        assertEquals("Дача", created.title)
+        assertFalse(created.id in state.memberOf, "отметка без тайтла на сервере")
+        assertEquals(created.id, state.focusFolderId)
+        assertNotNull(state.error)
+    }
+
+    @Test
     fun `cancel in the editor returns to the list and close hides the panel`() = runTest(dispatcher) {
         val model = model(FakeIds.HERO_MOVIE)
         model.dispatch(FolderPickerEvent.Open)
@@ -170,6 +205,13 @@ class FolderPickerScreenModelTest {
         assertEquals(1, model.states.value.watchlistCount)
     }
 
+    private fun TestScope.createFolder(model: FolderPickerScreenModel, title: String) {
+        model.dispatch(FolderPickerEvent.StartCreate)
+        title.forEach { letter -> model.dispatch(FolderPickerEvent.Edit(FolderInput.Key(letter.toString()))) }
+        model.dispatch(FolderPickerEvent.Submit)
+        advanceUntilIdle()
+    }
+
     private suspend fun inFolder(itemId: Int, folderId: Int): Boolean =
         user.getBookmarkItems(folderId).getOrNull()?.items.orEmpty().any { it.id == itemId }
 
@@ -180,13 +222,29 @@ class FolderPickerScreenModelTest {
         return model.states.value
     }
 
-    private fun model(itemId: Int, favorites: FakeFavoritesRepository = FakeFavoritesRepository()) =
-        FolderPickerScreenModel(
-            savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
-            user = user,
-            folders = BookmarkFolders(user, appearance),
-            favorites = favorites,
-        )
+    private fun model(
+        itemId: Int,
+        favorites: FakeFavoritesRepository = FakeFavoritesRepository(),
+        server: UserRepository = user,
+    ) = FolderPickerScreenModel(
+        savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
+        user = server,
+        folders = BookmarkFolders(server, appearance),
+        favorites = favorites,
+    )
+
+    /** Фейковый сервер, у которого отказывает создание папки или добавление в неё. */
+    private class FailingUser(
+        private val origin: UserRepository,
+        private val failCreate: Boolean = false,
+        private val failAdd: Boolean = false,
+    ) : UserRepository by origin {
+        override suspend fun createBookmarkFolder(title: String): RequestResult<BookmarkFolder> =
+            if (failCreate) RequestResult.Error(NO_NETWORK) else origin.createBookmarkFolder(title)
+
+        override suspend fun addToBookmark(itemId: Int, folderId: Int): RequestResult<Unit> =
+            if (failAdd) RequestResult.Error(NO_NETWORK) else origin.addToBookmark(itemId, folderId)
+    }
 
     private companion object {
         /** «Пересмотреть с семьёй» — папка, где «Дом на краю карты» уже лежит. */
@@ -195,5 +253,7 @@ class FolderPickerScreenModelTest {
 
         /** Последний цвет палитры папок — янтарный. */
         const val AMBER = 5
+
+        const val NO_NETWORK = "нет сети"
     }
 }

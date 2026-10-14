@@ -74,7 +74,8 @@ private const val DISABLED_ALPHA = 0.5f
 
 /**
  * Что рисует редактор папки. [tintIndex] — номер цвета в [TvFolderTints]; [layouts] — подписи
- * раскладок клавиатуры, [layoutIndex] — текущая; [canConfirm] — название непустое.
+ * раскладок клавиатуры, [layoutIndex] — текущая; [canConfirm] — название непустое и папка ещё не
+ * создаётся; [error] — почему не вышло, рядом с заголовком: редактор остаётся с набранным.
  */
 @Immutable
 data class TvFolderEditorState(
@@ -87,6 +88,7 @@ data class TvFolderEditorState(
     val layoutIndex: Int,
     val confirmLabel: String,
     val canConfirm: Boolean,
+    val error: String? = null,
 )
 
 /** Нажатия редактора: клавиши, цвет, раскладка, «Создать», «Отмена». */
@@ -119,7 +121,7 @@ fun BoxScope.TvFolderEditor(state: TvFolderEditorState, actions: TvFolderEditorA
                 if (!focusPlaced) focusPlaced = firstKey.requestFocus()
             },
     ) {
-        EditorHeading(state.heading)
+        EditorHeading(state.heading, state.error)
         TitleField(state, Modifier.padding(top = 16.dp))
         TintAndLayoutRow(state, actions, Modifier.padding(top = 14.dp))
         TvKeyboard(
@@ -134,11 +136,21 @@ fun BoxScope.TvFolderEditor(state: TvFolderEditorState, actions: TvFolderEditorA
 }
 
 @Composable
-private fun EditorHeading(heading: String) {
+private fun EditorHeading(heading: String, error: String?) {
     val colors = LocalFxColors.current
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         BackKeyCap()
         Text(heading.uppercase(), style = FxType.overline, color = colors.accentText)
+        error?.let { message ->
+            Text(
+                message,
+                style = FxType.meta,
+                color = colors.error,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+            )
+        }
     }
 }
 
