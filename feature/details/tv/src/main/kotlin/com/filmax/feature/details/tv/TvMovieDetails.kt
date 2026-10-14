@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bookmark
@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +49,7 @@ import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.core.tv.designsystem.tvRailEntry
 import com.filmax.core.ui.components.isHighRating
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
@@ -77,6 +80,7 @@ internal fun TvMovieDetails(
 ) {
     val listState = rememberLazyListState()
     val focus = rememberTvScreenFocus(startAt = PLAY_KEY)
+    val similarRow = remember { FocusRequester() }
     val density = LocalDensity.current
     val spec = remember(density) { PivotBringIntoViewSpec(with(density) { RowPivot.toPx() }) }
     val dimDistance = with(density) { DimDistance.toPx() }
@@ -90,7 +94,7 @@ internal fun TvMovieDetails(
                 verticalArrangement = Arrangement.spacedBy(TvMetrics.RowGap - TvMetrics.FocusInset),
             ) {
                 item(key = "heading") { MovieHeading(state, item, actions, sheets, focus) }
-                movieSections(state, item, actions, focus)
+                movieSections(state, item, actions, focus, similarRow)
             }
         }
     }
@@ -178,19 +182,21 @@ private fun LazyListScope.movieSections(
     item: Item,
     actions: DetailsActions,
     focus: TvScreenFocus,
+    similarRow: FocusRequester,
 ) {
-    castRail(state, item, actions, focus)
+    // «Вниз» с состава — в «Похожие», а их нет — по обычному поиску.
+    castRail(state, item, actions, focus, below = if (state.similar.isEmpty()) FocusRequester.Default else similarRow)
     if (state.similar.isNotEmpty()) {
-        item(key = "similar") { SimilarRail(state.similar, actions, focus) }
+        item(key = "similar") { SimilarRail(state.similar, actions, focus, Modifier.focusRequester(similarRow)) }
     }
     val facts = detailsFacts(item, null)
     if (facts.isNotEmpty()) item(key = "facts") { FactsGrid(facts) }
 }
 
 @Composable
-private fun SimilarRail(similar: List<Item>, actions: DetailsActions, focus: TvScreenFocus) {
-    TvRail(title = "Похожие", count = similar.size, contentStart = TvMetrics.SafeHorizontal) {
-        items(similar, key = { it.id }) { similarItem ->
+private fun SimilarRail(similar: List<Item>, actions: DetailsActions, focus: TvScreenFocus, modifier: Modifier) {
+    TvRail(title = "Похожие", modifier = modifier, count = similar.size, contentStart = TvMetrics.SafeHorizontal) {
+        itemsIndexed(similar, key = { _, similarItem -> similarItem.id }) { index, similarItem ->
             TvPosterCard(
                 title = similarItem.title,
                 meta = posterMeta(typeLabel(similarItem.type), similarItem.year),
@@ -198,7 +204,7 @@ private fun SimilarRail(similar: List<Item>, actions: DetailsActions, focus: TvS
                 onClick = { actions.onOpenItem(similarItem.id) },
                 rating = ratingLabel(similarItem.rating.kinopoisk),
                 ratingHighlighted = isHighRating(similarItem.rating.kinopoisk),
-                modifier = focus.item("similar:${similarItem.id}"),
+                modifier = focus.item("similar:${similarItem.id}").tvRailEntry(index),
             )
         }
     }

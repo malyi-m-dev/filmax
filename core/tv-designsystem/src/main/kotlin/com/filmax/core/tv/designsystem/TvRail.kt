@@ -1,8 +1,10 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+// focusProperties.enter — вход в ряд на запомненную карточку; API помечен экспериментальным.
+@file:OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,13 +17,19 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -36,7 +44,10 @@ internal val LocalRailFocused = compositionLocalOf { false }
  *
  * - карточка в фокусе встаёт к левому полю [contentStart], двигается лента, а не фокус;
  * - пока фокус в ряду, соседи сфокусированной приглушены ([TvMetrics.DimmedAlpha]);
- * - ряд — группа фокуса с памятью ([tvFocusGroup]): возврат в ряд — на ту карточку, с которой ушли.
+ * - ряд — группа фокуса с памятью ([RailMemory]): возврат в ряд — на ту карточку, с которой
+ *   ушли, а первый вход — на первую. Не на ближайшую к той, откуда пришли: иначе «вниз» с третьей
+ *   карточки ряда выше ставил фокус на вторую, и лента прыгала. Карточки отмечаются
+ *   [tvRailEntry].
  *
  * [count] — число рядом с заголовком («Продолжить просмотр 4»), [subtitle] — пояснение
  * («на этой неделе»). [contentStart] — 80dp у разделов с меню, 58dp у деталей и подборки.
@@ -54,6 +65,7 @@ fun TvRail(
     content: LazyListScope.() -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
+    val memory = remember { RailMemory() }
     val pivot = with(LocalDensity.current) { contentStart.toPx() }
     val pivotSpec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
     Column(modifier.bringIntoViewAsWhole()) {
@@ -61,12 +73,14 @@ fun TvRail(
         CompositionLocalProvider(
             LocalRailFocused provides focused,
             LocalBringIntoViewSpec provides pivotSpec,
+            LocalRailMemory provides memory,
         ) {
             LazyRow(
                 state = state,
                 modifier = Modifier
                     .onFocusChanged { focused = it.hasFocus }
-                    .tvFocusGroup(),
+                    .focusProperties { enter = { memory.entry(state) } }
+                    .focusGroup(),
                 contentPadding = PaddingValues(
                     start = contentStart,
                     end = TvMetrics.SectionEnd,
@@ -78,6 +92,47 @@ fun TvRail(
             )
         }
     }
+}
+
+/**
+ * Память ряда: на какой карточке фокус был последним. Своя, а не `focusRestorer`: тот запоминает
+ * карточку только при выходе из ряда обычным поиском, а выход по `focusProperties` (состав в
+ * деталях уводит «вниз» явно) прошёл бы мимо него, и возврат вёл бы на первую карточку.
+ * Номер — обычное поле, не состояние: переход по ряду не должен перекомпоновывать ряд.
+ */
+@Stable
+private class RailMemory {
+    private val cards = mutableMapOf<Int, FocusRequester>()
+    private var lastIndex = 0
+
+    fun card(index: Int): FocusRequester = cards.getOrPut(index) { FocusRequester() }
+
+    fun focused(index: Int) {
+        lastIndex = index
+    }
+
+    /**
+     * Куда войти в ряд: на последнюю карточку в фокусе, а если её уже нет на экране (ряд
+     * перезагрузился, список сменился) — на первую видимую: только видимые размещены и могут
+     * принять фокус.
+     */
+    fun entry(state: LazyListState): FocusRequester {
+        val visible = state.layoutInfo.visibleItemsInfo.map { it.index }
+        val index = if (lastIndex in visible) lastIndex else visible.firstOrNull { it in cards }
+        return index?.let { cards[it] } ?: FocusRequester.Default
+    }
+}
+
+private val LocalRailMemory = staticCompositionLocalOf<RailMemory?> { null }
+
+/**
+ * Отметка карточки ряда [TvRail] с номером [index]: ряд помнит, на какой карточке был фокус, и
+ * при входе возвращает его туда, а в первый раз — на первую. Вне ряда ничего не делает.
+ */
+@Composable
+fun Modifier.tvRailEntry(index: Int): Modifier {
+    val memory = LocalRailMemory.current ?: return this
+    return focusRequester(memory.card(index)).onFocusChanged { if (it.isFocused) memory.focused(index) }
 }
 
 /**

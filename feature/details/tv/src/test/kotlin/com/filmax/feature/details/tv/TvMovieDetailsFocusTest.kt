@@ -96,6 +96,35 @@ class TvMovieDetailsFocusTest {
     }
 
     @Test
+    fun `rows enter on their first card and return to the card focus left from`() {
+        val similar = showMovie().similar
+
+        // Вниз до состава: «ОК» на первой карточке ряда открывает актёра.
+        repeat(MAX_PRESSES) {
+            if (calls.none { it.startsWith("person") }) {
+                pressKey(Key.DirectionDown)
+                pressKey(Key.DirectionCenter)
+            }
+        }
+        val firstActor = checkNotNull(calls.lastOrNull { it.startsWith("person") }) { "до состава не дошли: $calls" }
+        repeat(CAST_STEPS_RIGHT) { pressKey(Key.DirectionRight) }
+        pressKey(Key.DirectionCenter)
+        val thirdActor = calls.last()
+        assertTrue(thirdActor.startsWith("person") && thirdActor != firstActor, "фокус не ушёл вправо по составу")
+
+        // «Вниз» с третьей карточки состава — в «Похожие» впервые: на первую карточку, а не на
+        // ближайшую по горизонтали и не на чип режиссёра в том же ряду.
+        pressKey(Key.DirectionDown)
+        pressKey(Key.DirectionCenter)
+        assertEquals("open ${similar.first().id}", calls.last())
+
+        // «Вверх» — обратно на того актёра, с которого ушли.
+        pressKey(Key.DirectionUp)
+        pressKey(Key.DirectionCenter)
+        assertEquals(thirdActor, calls.last())
+    }
+
+    @Test
     fun `back hint keeps its top margin when focus comes back to the heading`() {
         showMovie()
 
@@ -154,6 +183,9 @@ class TvMovieDetailsFocusTest {
     private companion object {
         /** Потолок нажатий «вниз» до «Похожих»: шапка, состав — с запасом. */
         const val MAX_PRESSES = 8
+
+        /** Сколько шагов вправо по составу: третья карточка — правее первой «Похожей». */
+        const val CAST_STEPS_RIGHT = 2
 
         /** Сколько рядов вниз уйти от шапки: глубже экрана, чтобы лента прокрутилась. */
         const val ROWS_TO_DIVE = 2
