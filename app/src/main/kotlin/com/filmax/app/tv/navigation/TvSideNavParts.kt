@@ -6,10 +6,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -187,16 +185,15 @@ private fun NavLabel(label: String, look: NavItemLook) {
 
 // ────────────────────────────── Логотип и профиль ──────────────────────────────
 
-/** Логотип раскрытой панели: точка акцента и «filmax». */
+/**
+ * Логотип раскрытой панели: точка акцента и «filmax». Отдельный слой поверх панели, высотой
+ * [LogoHeight]: он только проявляется и гаснет и ничего под собой не двигает.
+ */
 @Composable
-internal fun NavLogo(visible: Boolean) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
-    ) {
+internal fun NavLogo(visible: Boolean, modifier: Modifier) {
+    AnimatedVisibility(visible = visible, modifier = modifier, enter = fadeIn(), exit = fadeOut()) {
         Row(
-            Modifier.padding(start = 10.dp, top = 8.dp, bottom = 16.dp),
+            Modifier.height(LogoHeight).padding(start = 10.dp, top = 8.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -340,6 +337,9 @@ internal fun NavScrim(expanded: Boolean) {
             .background(ExpandedScrim),
     )
 }
+
+/** Высота логотипа: поля 8 + 16 и строка «filmax». */
+internal val LogoHeight = 50.dp
 
 private val LogoStyle = TextStyle(
     fontFamily = Onest,

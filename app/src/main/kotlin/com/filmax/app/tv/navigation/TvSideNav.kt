@@ -140,6 +140,7 @@ internal fun TvSideNav(
                 ),
                 onProfile = { onSelect(Destination.Profile, profileActive) },
             )
+            NavLogo(visible = expanded, modifier = Modifier.align(Alignment.TopStart))
         }
         NavKeyHints(
             visible = expanded,
@@ -148,7 +149,11 @@ internal fun TvSideNav(
     }
 }
 
-/** Колонка меню: логотип, пункты разделов, внизу профиль. Границы целей забирает капля. */
+/**
+ * Колонка меню: пункты разделов, внизу профиль. Границы целей забирает капля. Логотип — не в
+ * колонке, а отдельным слоем над ней ([NavLogo]): раньше его появление сдвигало пункты вниз, и
+ * подсветка на раскрытии сначала стояла на «filmax». Колонка лишь оставляет под него место.
+ */
 @Composable
 private fun NavColumn(
     state: NavSectionsState,
@@ -160,10 +165,11 @@ private fun NavColumn(
     Column(
         modifier = Modifier
             .then(if (state.expanded) Modifier.fillMaxHeight() else Modifier)
-            .then(targets.anchors.containerModifier),
+            .then(targets.anchors.containerModifier)
+            // Отступ — внутри границ колонки: от них капля отсчитывает места пунктов.
+            .then(if (state.expanded) Modifier.padding(top = LogoSpace) else Modifier),
         verticalArrangement = Arrangement.spacedBy(state.geometry.itemGap),
     ) {
-        NavLogo(visible = state.expanded)
         NavSections(state, targets.items, actions, targets.anchors)
         if (state.expanded) Spacer(Modifier.weight(1f))
         NavProfile(
@@ -244,6 +250,9 @@ private val CollapsedItemHeight = 36.dp
 private val ExpandedItemHeight = 46.dp
 private val CollapsedGap = 8.dp
 private val ExpandedGap = 6.dp
+
+/** Место над пунктами раскрытого меню под логотип и привычный зазор до первого пункта. */
+private val LogoSpace = LogoHeight + ExpandedGap
 private val PanelMargin = 14.dp
 private val PanelRadius = 24.dp
 private val CollapsedPadding = 6.dp
