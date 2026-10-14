@@ -87,7 +87,7 @@ internal const val NAV_FOCUS_SCALE = 1.03f
 @Composable
 internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifier: Modifier) {
     val bounds = anchors.boundsOf(target.index)
-    val drop = rememberLiquidDrop(top = bounds?.top ?: 0f, bottom = bounds?.bottom ?: 0f)
+    val drop = rememberLiquidDrop(target.index, bounds)
     val alpha by animateFloatAsState(
         targetValue = if (target.visible && bounds != null) 1f else 0f,
         animationSpec = FxMotion.focus(),
@@ -104,10 +104,11 @@ internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifi
             Modifier
                 .matchParentSize()
                 .layout { measurable, constraints ->
-                    val height = (drop.bottom.value - drop.top.value).roundToInt().coerceAtLeast(0)
+                    val edges = drop.edges(anchors.boundsOf(target.index))
+                    val height = (edges.bottom - edges.top).roundToInt().coerceAtLeast(0)
                     val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
                     layout(constraints.maxWidth, constraints.maxHeight) {
-                        placeable.place(0, drop.top.value.roundToInt())
+                        placeable.place(0, edges.top.roundToInt())
                     }
                 }
                 .testTag(NAV_DROP_TAG)
@@ -156,25 +157,54 @@ private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>): Modi
     }
 }
 
-/** Верхний и нижний края капли, пиксели от верха колонки, — каждый на своей пружине. */
+/**
+ * Верхний и нижний края капли, пиксели от верха колонки, — каждый на своей пружине. [index] —
+ * цель, к которой капля шла последней (null — ещё ни к какой); [flowing] — перетекание к ней ещё
+ * не закончилось: прерванное сдвигом цели, оно продолжается к её новому месту.
+ */
 private class LiquidDrop(
     val top: Animatable<Float, AnimationVector1D>,
-    val bottom: Animatable<Float, AnimationVector1D>
-)
+    val bottom: Animatable<Float, AnimationVector1D>,
+) {
+    var index: Int? = null
+    var flowing by mutableStateOf(false)
 
+    /**
+     * Где рисовать каплю. Пока она не перетекает, — прямо по границам цели, прочитанным в фазе
+     * раскладки: раскрытие меню двигает пункты каждый кадр, и капля идёт с ними без отставания.
+     */
+    fun edges(bounds: Rect?): DropEdges =
+        if (flowing || bounds == null) DropEdges(top.value, bottom.value) else DropEdges(bounds.top, bounds.bottom)
+}
+
+/** Верхний и нижний края капли, пиксели от верха колонки. */
+private data class DropEdges(val top: Float, val bottom: Float)
+
+/**
+ * Капля перетекает, только когда меняется цель. Сдвинулась сама цель — меню раскрывается, и над
+ * пунктами вырастает логотип, — капля стоит на ней без пружины: иначе она полсекунды висела бы на
+ * старом месте, то есть на логотипе, и лишь потом стекала на пункт.
+ */
 @Composable
-private fun rememberLiquidDrop(top: Float, bottom: Float): LiquidDrop {
-    val drop = remember { LiquidDrop(Animatable(top), Animatable(bottom)) }
-    LaunchedEffect(top, bottom) {
-        // Первая цель — встать сразу, без перелёта от верха колонки.
-        if (drop.top.value == 0f && drop.bottom.value == 0f) {
-            drop.top.snapTo(top)
-            drop.bottom.snapTo(bottom)
+private fun rememberLiquidDrop(index: Int, bounds: Rect?): LiquidDrop {
+    val drop = remember { LiquidDrop(Animatable(0f), Animatable(0f)) }
+    LaunchedEffect(index, bounds) {
+        val target = bounds ?: return@LaunchedEffect
+        val sameTarget = drop.index == index
+        val first = drop.index == null
+        drop.index = index
+        if (first || (sameTarget && !drop.flowing)) {
+            drop.top.snapTo(target.top)
+            drop.bottom.snapTo(target.bottom)
             return@LaunchedEffect
         }
-        val movingDown = top > drop.top.value
-        launch { drop.top.animateTo(top, if (movingDown) TrailingEdge else LeadingEdge) }
-        launch { drop.bottom.animateTo(bottom, if (movingDown) LeadingEdge else TrailingEdge) }
+        drop.flowing = true
+        val movingDown = target.top > drop.top.value
+        val topEdge = launch { drop.top.animateTo(target.top, if (movingDown) TrailingEdge else LeadingEdge) }
+        val bottomEdge = launch { drop.bottom.animateTo(target.bottom, if (movingDown) LeadingEdge else TrailingEdge) }
+        topEdge.join()
+        bottomEdge.join()
+        drop.flowing = false
     }
     return drop
 }

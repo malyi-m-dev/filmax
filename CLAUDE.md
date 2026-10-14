@@ -55,6 +55,9 @@
 ## ТВ: фокус
 
 - Ряд, сетка, панель чипов — `Modifier.tvFocusGroup()` (штатный `focusRestorer` + `focusGroup`).
+  Исключение — `TvRail`: память у него своя (`focusProperties.enter`), и каждая карточка ряда
+  отмечается `Modifier.tvRailEntry(index)`. Тогда первый вход в ряд — на первую карточку, а
+  возврат — на ту, с которой ушли, даже если ушли явным `focusProperties`.
 - Стартовый фокус экрана и возврат туда, откуда ушли на другой экран, — `rememberTvScreenFocus()`:
   `containerModifier` на корневой контейнер, `focus.item(key)` на каждую карточку. Фокус ставится
   по `onPlaced`, без ожиданий по кадрам.

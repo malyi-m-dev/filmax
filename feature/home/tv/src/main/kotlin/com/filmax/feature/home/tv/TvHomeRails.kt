@@ -18,6 +18,7 @@ import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
+import com.filmax.core.tv.designsystem.tvRailEntry
 import com.filmax.core.ui.components.continueMeta
 import com.filmax.core.ui.components.isHighRating
 import com.filmax.core.ui.components.posterMeta
@@ -61,8 +62,8 @@ private fun HomeRail(row: HomeRow, actions: RailActions, focus: TvScreenFocus) {
 @Composable
 private fun ContinueRail(row: HomeRow.Continue, actions: RailActions, focus: TvScreenFocus) {
     TvRail(title = row.id.heading.title, count = row.entries.size) {
-        itemsIndexed(row.entries, key = { _, entry -> entry.itemId }) { _, entry ->
-            ContinueCard(entry, actions, focus.item(returnKey(row.id, entry.itemId)))
+        itemsIndexed(row.entries, key = { _, entry -> entry.itemId }) { index, entry ->
+            ContinueCard(entry, actions, focus.item(returnKey(row.id, entry.itemId)).tvRailEntry(index))
         }
     }
 }
@@ -98,7 +99,7 @@ private fun PosterRail(row: HomeRow.Titles, actions: RailActions, focus: TvScree
                 rating = ratingLabel(item.rating.kinopoisk),
                 ratingHighlighted = isHighRating(item.rating.kinopoisk),
                 rank = (index + 1).takeIf { ranked && index < RANKED_COUNT },
-                modifier = focus.item(returnKey(row.id, item.id)),
+                modifier = focus.item(returnKey(row.id, item.id)).tvRailEntry(index),
             )
         }
     }
@@ -107,8 +108,8 @@ private fun PosterRail(row: HomeRow.Titles, actions: RailActions, focus: TvScree
 @Composable
 private fun FreshRail(row: HomeRow.Titles, actions: RailActions, focus: TvScreenFocus) {
     TvRail(title = row.id.heading.title) {
-        itemsIndexed(row.paging.items, key = { _, item -> item.id }) { _, item ->
-            FreshCard(item, actions, focus.item(returnKey(row.id, item.id)))
+        itemsIndexed(row.paging.items, key = { _, item -> item.id }) { index, item ->
+            FreshCard(item, actions, focus.item(returnKey(row.id, item.id)).tvRailEntry(index))
         }
     }
 }
@@ -133,7 +134,8 @@ private fun CollectionsRail(row: HomeRow.Collections, actions: RailActions, focu
     TvRail(title = row.id.heading.title, subtitle = row.id.heading.subtitle) {
         itemsIndexed(collections, key = { _, collection -> collection.id }) { index, collection ->
             LoadMoreAt(index, collections.lastIndex) { actions.onLoadMore(row.id) }
-            CollectionCard(collection, row, index, actions, focus.item(returnKey(row.id, collection.id)))
+            val modifier = focus.item(returnKey(row.id, collection.id)).tvRailEntry(index)
+            CollectionCard(collection, row, index, actions, modifier)
         }
     }
 }

@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.TvChip
@@ -17,6 +19,7 @@ import com.filmax.core.tv.designsystem.TvPersonCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.fxEnter
+import com.filmax.core.tv.designsystem.tvRailEntry
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.initials
 import com.filmax.feature.details.common.resolveCast
@@ -34,7 +37,13 @@ private const val CAST_ENTER_COUNT = 6
  * «В ролях»: актёры с фото (TMDB, если доехали; иначе — имена из строки kino.pub) и режиссёр
  * чипом в конце ряда. По «ОК» — фильмография человека.
  */
-internal fun LazyListScope.castRail(state: DetailsState, item: Item, actions: DetailsActions, focus: TvScreenFocus) {
+internal fun LazyListScope.castRail(
+    state: DetailsState,
+    item: Item,
+    actions: DetailsActions,
+    focus: TvScreenFocus,
+    below: FocusRequester,
+) {
     val people = resolveCast(state.cast, item.cast)
     // По запятой — только первый режиссёр: kino.pub ищет фильмографию по одному имени.
     val director = item.director.substringBefore(',').trim()
@@ -48,11 +57,18 @@ internal fun LazyListScope.castRail(state: DetailsState, item: Item, actions: De
                     photoUrl = member.photoUrl,
                     initials = initials(member.name),
                     onClick = { actions.onOpenPerson(member.name, false) },
-                    modifier = focus.item("cast:$index").castEnter(index),
+                    modifier = focus.item("cast:$index")
+                        .tvRailEntry(index)
+                        // Чип режиссёра в том же ряду ниже фото, и штатный поиск счёл бы его
+                        // соседом снизу: «вниз» с актёра вставал на чип, а не уходил в ряд ниже.
+                        .focusProperties { down = below }
+                        .castEnter(index),
                 )
             }
             if (director.isNotBlank()) {
-                item(key = "director") { DirectorChip(director, actions, focus, Modifier.castEnter(people.size)) }
+                item(key = "director") {
+                    DirectorChip(director, actions, focus.item("director").tvRailEntry(people.size), people.size)
+                }
             }
         }
     }
@@ -62,15 +78,19 @@ internal fun LazyListScope.castRail(state: DetailsState, item: Item, actions: De
 private fun Modifier.castEnter(index: Int): Modifier =
     if (index < CAST_ENTER_COUNT) fxEnter(CAST_ENTER_FROM + index) else this
 
+/** Режиссёр после актёров; [chipModifier] — память фокуса экрана и ряда, [index] — место в ряду. */
 @Composable
-private fun DirectorChip(name: String, actions: DetailsActions, focus: TvScreenFocus, modifier: Modifier) {
-    Column(modifier.padding(start = 24.dp, top = 14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun DirectorChip(name: String, actions: DetailsActions, chipModifier: Modifier, index: Int) {
+    Column(
+        Modifier.castEnter(index).padding(start = 24.dp, top = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         TvOverline("Режиссёр", accent = false)
         TvChip(
             label = name,
             selected = false,
             onClick = { actions.onOpenPerson(name, true) },
-            modifier = focus.item("director"),
+            modifier = chipModifier,
         )
     }
 }

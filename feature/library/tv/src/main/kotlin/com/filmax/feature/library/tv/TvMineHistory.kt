@@ -14,7 +14,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -79,15 +82,19 @@ internal fun MineHistory(days: List<HistoryDay>, actions: MineActions, screenFoc
     }
 }
 
-/** День: надзаголовок и ряд карточек — на опорную точку встаёт весь блок, а не карточка. */
+/**
+ * День: надзаголовок и ряд карточек — на опорную точку встаёт весь блок, а не карточка. Первый
+ * вход в ряд — на первую карточку дня, а не на ближайшую к той, с которой пришли.
+ */
 @Composable
 private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, screenFocus: TvScreenFocus) {
+    val firstCard = remember { FocusRequester() }
     Column(Modifier.bringIntoViewAsWhole()) {
         TvOverline(day.label, accent = false, modifier = Modifier.padding(start = TvMetrics.SectionStart))
         PivotScroll(TvMetrics.SectionStart) {
             TvDimGroup {
                 LazyRow(
-                    modifier = Modifier.tvFocusGroup(),
+                    modifier = Modifier.tvFocusGroup(fallback = firstCard),
                     contentPadding = PaddingValues(
                         start = TvMetrics.SectionStart,
                         end = TvMetrics.SectionEnd,
@@ -105,7 +112,8 @@ private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, 
                             size = TvCardSize.Small,
                             modifier = Modifier
                                 .fxEnter(FIRST_CARD_ENTER + enterStep(dayIndex, index))
-                                .then(screenFocus.item(historyKey(entry.itemId))),
+                                .then(screenFocus.item(historyKey(entry.itemId)))
+                                .then(if (index == 0) Modifier.focusRequester(firstCard) else Modifier),
                         )
                     }
                 }
