@@ -26,7 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -145,7 +147,13 @@ private fun Modifier.heroFootprint(height: Dp): Modifier = layout { measurable, 
     layout(placeable.width, minOf(height.roundToPx(), placeable.height)) { placeable.place(0, 0) }
 }
 
-/** Пока hero первый в ленте, он уезжает с параллаксом и гаснет — кадр не обрывается краем. */
+/**
+ * Пока hero первый в ленте, он уезжает с параллаксом и гаснет — кадр не обрывается краем.
+ *
+ * Сдвиг — только при отрисовке, а не `translationY` слоя: поиск фокуса берёт границы с учётом
+ * слоя, и сдвинутые вниз кнопки hero оказывались для него ниже верха первого ряда — «вверх» с
+ * ряда не находил hero вовсе. Для фокуса hero стоит там, где он в ленте, — над рядами.
+ */
 @Composable
 private fun Modifier.heroParallax(listState: LazyListState): Modifier {
     val fadeDistance = with(LocalDensity.current) { HeroFadeDistance.toPx() }
@@ -154,10 +162,12 @@ private fun Modifier.heroParallax(listState: LazyListState): Modifier {
             if (listState.firstVisibleItemIndex == 0) listState.firstVisibleItemScrollOffset else Int.MAX_VALUE
         }
     }
-    return graphicsLayer {
-        translationY = scrolled * HERO_PARALLAX
-        alpha = (1f - scrolled / fadeDistance).coerceIn(0f, 1f)
-    }
+    return graphicsLayer { alpha = (1f - scrolled / fadeDistance).coerceIn(0f, 1f) }
+        .drawWithContent {
+            // За пределами затухания hero не виден, и сдвигать его незачем (Int.MAX_VALUE — уехал).
+            if (scrolled >= fadeDistance) return@drawWithContent
+            translate(top = scrolled * HERO_PARALLAX) { this@drawWithContent.drawContent() }
+        }
 }
 
 /** Баннер «нет сети» над кэшированным контентом; фокус+OK — повторить (issue #42). */

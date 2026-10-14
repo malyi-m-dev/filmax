@@ -19,10 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
@@ -87,7 +88,7 @@ internal const val NAV_FOCUS_SCALE = 1.03f
 @Composable
 internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifier: Modifier) {
     val bounds = anchors.boundsOf(target.index)
-    val drop = rememberLiquidDrop(target.index, bounds)
+    val drop = rememberLiquidDrop(target.index, target.focused, bounds)
     val alpha by animateFloatAsState(
         targetValue = if (target.visible && bounds != null) 1f else 0f,
         animationSpec = FxMotion.focus(),
@@ -98,21 +99,25 @@ internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifi
         animationSpec = FxMotion.focus(),
         label = "dropScale",
     )
-    Box(modifier.graphicsLayer { this.alpha = alpha }) {
+    // Капля рисуется в фазе отрисовки: границы пунктов приходят после раскладки, и капля,
+    // поставленная раскладкой, на кадр отставала бы от пункта, когда меню раскрывается или
+    // закрывается и пункты разом сдвигаются.
+    val edges = { drop.edges(anchors.boundsOf(target.index)) }
+    Box(modifier.graphicsLayer { this.alpha = alpha }.dropShape(target.focused, focusScale, edges)) {
         if (target.glowing && bounds != null) DropGlow(bounds, focusScale)
+        // Узел по границам капли — для UI-теста: по нему видно, на ком она стоит.
         Box(
             Modifier
                 .matchParentSize()
                 .layout { measurable, constraints ->
-                    val edges = drop.edges(anchors.boundsOf(target.index))
-                    val height = (edges.bottom - edges.top).roundToInt().coerceAtLeast(0)
+                    val current = edges()
+                    val height = (current.bottom - current.top).roundToInt().coerceAtLeast(0)
                     val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, height))
                     layout(constraints.maxWidth, constraints.maxHeight) {
-                        placeable.place(0, edges.top.roundToInt())
+                        placeable.place(0, current.top.roundToInt())
                     }
                 }
-                .testTag(NAV_DROP_TAG)
-                .dropShape(target.focused, focusScale),
+                .testTag(NAV_DROP_TAG),
         )
     }
 }
@@ -142,16 +147,23 @@ private fun BoxScope.DropGlow(bounds: Rect, focusScale: State<Float>) {
     )
 }
 
-/** Заливка и рамка капли. Масштаб — при отрисовке: границы капли остаются границами цели. */
+/**
+ * Заливка и рамка капли поверх свечения, по краям [edges], прочитанным при отрисовке. Масштаб —
+ * тоже при отрисовке, вокруг центра капли: границы капли остаются границами цели.
+ */
 @Composable
-private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>): Modifier {
+private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>, edges: () -> DropEdges): Modifier {
     val colors = LocalFxColors.current
-    return drawBehind {
-        val radius = CornerRadius(minOf(DropRadius.toPx(), size.height / 2, size.width / 2))
-        scale(focusScale.value) {
-            drawRoundRect(colors.accent, Offset.Zero, size, radius)
+    return drawWithContent {
+        drawContent()
+        val current = edges()
+        val dropSize = Size(size.width, (current.bottom - current.top).coerceAtLeast(0f))
+        val topLeft = Offset(0f, current.top)
+        val radius = CornerRadius(minOf(DropRadius.toPx(), dropSize.height / 2, dropSize.width / 2))
+        scale(focusScale.value, pivot = topLeft + Offset(dropSize.width / 2, dropSize.height / 2)) {
+            drawRoundRect(colors.accent, topLeft, dropSize, radius)
             if (focused) {
-                drawRoundRect(TvFocus, Offset.Zero, size, radius, style = Stroke(TvMetrics.FocusBorderWidth.toPx()))
+                drawRoundRect(TvFocus, topLeft, dropSize, radius, style = Stroke(TvMetrics.FocusBorderWidth.toPx()))
             }
         }
     }
@@ -159,14 +171,16 @@ private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>): Modi
 
 /**
  * Верхний и нижний края капли, пиксели от верха колонки, — каждый на своей пружине. [index] —
- * цель, к которой капля шла последней (null — ещё ни к какой); [flowing] — перетекание к ней ещё
- * не закончилось: прерванное сдвигом цели, оно продолжается к её новому месту.
+ * цель, к которой капля шла последней (null — ещё ни к какой); [focused] — было ли меню тогда
+ * раскрыто; [flowing] — перетекание к цели ещё не закончилось: прерванное сдвигом цели, оно
+ * продолжается к её новому месту.
  */
 private class LiquidDrop(
     val top: Animatable<Float, AnimationVector1D>,
     val bottom: Animatable<Float, AnimationVector1D>,
 ) {
     var index: Int? = null
+    var focused = false
     var flowing by mutableStateOf(false)
 
     /**
@@ -181,19 +195,22 @@ private class LiquidDrop(
 private data class DropEdges(val top: Float, val bottom: Float)
 
 /**
- * Капля перетекает, только когда меняется цель. Сдвинулась сама цель — меню раскрывается, и над
- * пунктами вырастает логотип, — капля стоит на ней без пружины: иначе она полсекунды висела бы на
- * старом месте, то есть на логотипе, и лишь потом стекала на пункт.
+ * Капля перетекает, только когда пульт ведёт её по раскрытому меню ([focused]) с пункта на пункт.
+ * Раскрытие и закрытие меню её не переносят: закрытое меню отмечает открытый раздел, и капля с
+ * пункта в фокусе сразу встаёт на него, а не течёт через соседей. Сдвинулась сама цель (меню
+ * раскрывается, пункты растут) — капля стоит на ней без пружины.
  */
 @Composable
-private fun rememberLiquidDrop(index: Int, bounds: Rect?): LiquidDrop {
+private fun rememberLiquidDrop(index: Int, focused: Boolean, bounds: Rect?): LiquidDrop {
     val drop = remember { LiquidDrop(Animatable(0f), Animatable(0f)) }
-    LaunchedEffect(index, bounds) {
+    LaunchedEffect(index, focused, bounds) {
         val target = bounds ?: return@LaunchedEffect
         val sameTarget = drop.index == index
-        val first = drop.index == null
+        val movedByRemote = drop.index != null && drop.focused && focused
         drop.index = index
-        if (first || (sameTarget && !drop.flowing)) {
+        drop.focused = focused
+        if (!movedByRemote || (sameTarget && !drop.flowing)) {
+            drop.flowing = false
             drop.top.snapTo(target.top)
             drop.bottom.snapTo(target.bottom)
             return@LaunchedEffect
