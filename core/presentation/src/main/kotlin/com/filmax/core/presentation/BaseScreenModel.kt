@@ -78,7 +78,9 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
      * «создал папку»), а не только сетевые запросы. Разбирает событие экран — в [onEvent].
      */
     fun dispatch(event: EVENT) {
-        ErrorReporting.reporter.log(TelemetryText.line("event: ${this::class.simpleName}.$event"))
+        if (event !is PeriodicEvent) {
+            ErrorReporting.reporter.log(TelemetryText.line("event: ${this::class.simpleName}.$event"))
+        }
         onEvent(event)
     }
 
