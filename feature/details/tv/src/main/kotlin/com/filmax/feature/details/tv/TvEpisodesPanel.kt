@@ -90,8 +90,9 @@ private const val SEASON_EXIT_MS = 120
 /**
  * Стеклянная панель «Эпизоды»: шапка с числом серий, сезоны компактными чипами и серии
  * списком. Сезон выбирается фокусом на чипе — модель выжидает 250 мс, прежде чем его сменить.
- * [exitLeft] — куда уводит «←» из панели (главная кнопка, а не описание). Задаётся на каждом
- * чипе и строке: направленные свойства Compose берёт у узла под фокусом, а не у контейнера.
+ * [exitLeft] — куда уводит «←» из панели (главная кнопка, а не описание). Задаётся на каждой
+ * строке серий и на первом чипе сезонов: направленные свойства Compose берёт у узла под фокусом,
+ * а не у контейнера.
  */
 @Composable
 internal fun TvEpisodesPanel(
@@ -135,6 +136,7 @@ private fun SeasonChips(state: DetailsState, actions: DetailsActions, exit: Modi
     if (seasons.size < 2) return
     // Вход в ряд из серий — на выбранный сезон: ближайший чип переключил бы сезон фокусом.
     val selectedChip = remember { FocusRequester() }
+    val firstSeason = seasons.first().first
     LazyRow(
         modifier = Modifier.tvFocusGroup(fallback = selectedChip),
         contentPadding = PaddingValues(vertical = 12.dp, horizontal = PanelPadding),
@@ -148,7 +150,9 @@ private fun SeasonChips(state: DetailsState, actions: DetailsActions, exit: Modi
                 onClick = { actions.onSelectSeason(number) },
                 style = TvChipStyle.Compact,
                 // Сезон меняется фокусом, без «ОК»: модель гасит быстрое пролистывание задержкой.
-                modifier = exit
+                // «←» уводит на кнопки только с первого чипа — с остальных листает сезоны назад.
+                modifier = Modifier
+                    .then(if (number == firstSeason) exit else Modifier)
                     .then(if (selected) Modifier.focusRequester(selectedChip) else Modifier)
                     .onFocusChanged { if (it.isFocused) actions.onSelectSeason(number) },
             )
