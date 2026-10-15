@@ -2,7 +2,7 @@
 
 Клиент kino.pub для телефона и Android TV: один APK, два графа навигации (`MainActivity` ветвится
 по `FEATURE_LEANBACK`). Data/domain — Kotlin Multiplatform, iOS-презентейшен — SwiftUI в `iosApp/`.
-Архитектура и стек — в [README](README.md), TV — в [docs/TV.md](docs/TV.md), подробный свод
+Архитектура и стек — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), TV — в [docs/TV.md](docs/TV.md), подробный свод
 читаемости — в [docs/refactoring-guidelines.md](docs/refactoring-guidelines.md). Здесь — правила,
 которые нельзя нарушать, и то, как проверять работу.
 
