@@ -82,6 +82,33 @@ class TvSideNavFocusTest {
         assertDropOver("Демо Зритель")
     }
 
+    @OptIn(ExperimentalTestApi::class)
+    @Test
+    fun `drop does not squash while it flows from the profile card up to my stuff`() {
+        showShell()
+        openMenu()
+        repeat(MAX_PRESSES) { if (!focusedHas("Демо Зритель")) press(Key.DirectionDown) }
+        assertDropOver("Демо Зритель")
+
+        // Покадрово: капля не прыгает на «Моё» раньше перетекания, хвост не пролетает цель, и капля
+        // ни на кадре не ниже пункта.
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        val frames = List(FLOW_FRAMES) {
+            compose.mainClock.advanceTimeByFrame()
+            compose.onNodeWithTag(NAV_DROP_TAG).getBoundsInRoot()
+        }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+
+        assertDropOver("Моё")
+        val itemHeight = compose.onNodeWithTag(NAV_DROP_TAG).getBoundsInRoot().let { it.bottom - it.top }
+        val minHeight = frames.minOf { it.bottom - it.top }
+        assertTrue(minHeight >= itemHeight - 1.dp, "капля сплющилась до $minHeight при пункте $itemHeight")
+        val tailBack = frames.zipWithNext().firstOrNull { (before, after) -> after.bottom > before.bottom + 1.dp }
+        assertTrue(tailBack == null, "хвост капли пошёл вниз: $tailBack")
+    }
+
     @Test
     fun `back in the menu opened by arrow closes it and keeps the app`() {
         showShell()
@@ -166,5 +193,8 @@ class TvSideNavFocusTest {
     private companion object {
         /** Потолок нажатий до нужного пункта меню. */
         const val MAX_PRESSES = 6
+
+        /** Кадров на перетекание с профиля на «Моё» — с запасом, хвост идёт мягкой пружиной. */
+        const val FLOW_FRAMES = 90
     }
 }

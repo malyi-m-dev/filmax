@@ -123,6 +123,29 @@ class TvSeriesDetailsFocusTest {
     }
 
     @Test
+    fun `left from the last season chip goes back through the seasons`() {
+        val item = longSeries()
+        var state by mutableStateOf(seriesState(item))
+        compose.setContent {
+            FilmaxTvTheme {
+                DetailsWithSheet(state, item, actions(onSeason = { state = state.copy(selectedSeason = it) }))
+            }
+        }
+        compose.waitForIdle()
+
+        // До последнего сезона и обратно: «←» с чипа листает сезоны, на кнопки уводит только с первого.
+        repeat(MAX_PRESSES) { if (!focusedHas("Сезон 4")) pressKey(Key.DirectionUp) }
+        repeat(LAST_SEASON - RESUME_SEASON) { pressKey(Key.DirectionRight) }
+        assertFocusedHas("Сезон $LAST_SEASON")
+        repeat(LAST_SEASON - 1) { pressKey(Key.DirectionLeft) }
+        assertFocusedHas("Сезон 1")
+
+        pressKey(Key.DirectionLeft)
+
+        assertFocusedHas("Продолжить · S4E7")
+    }
+
+    @Test
     fun `description sheet closes on left and gives focus back to the description`() {
         val item = longSeries()
         var state by mutableStateOf(seriesState(item))
@@ -219,6 +242,10 @@ class TvSeriesDetailsFocusTest {
     private companion object {
         const val RESUME_TITLE = "7. Корона без короля"
         const val READ_MORE = "Читать полностью"
+
+        /** Сезон серии «продолжить» и всего сезонов у «Хроник Пограничья». */
+        const val RESUME_SEASON = 4
+        const val LAST_SEASON = 7
 
         /** Потолок нажатий «вверх» до ряда чипов — с запасом на шесть серий над стартовой. */
         const val MAX_PRESSES = 12

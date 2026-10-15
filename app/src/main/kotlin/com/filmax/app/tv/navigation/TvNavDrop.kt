@@ -80,8 +80,8 @@ internal data class NavDropTarget(val index: Int, val visible: Boolean, val focu
 internal const val NAV_FOCUS_SCALE = 1.03f
 
 /**
- * Капля: край со стороны движения быстро тянется к новой цели, хвост догоняет мягче и чуть
- * покачивается. Пока хвост в пути, капля вытянута на обе цели — так же она перетекает и на
+ * Капля: край со стороны движения быстро тянется к новой цели, хвост догоняет мягче, без
+ * отскока ([TrailingEdge]). Пока хвост в пути, капля вытянута на обе цели — так же она перетекает и на
  * карточку профиля внизу. Рисуется слоем во всю колонку под целями; в фокусе — чуть крупнее
  * ([NAV_FOCUS_SCALE]) и со свечением, как фокус остального интерфейса.
  */
@@ -102,9 +102,9 @@ internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifi
     // Капля рисуется в фазе отрисовки: границы пунктов приходят после раскладки, и капля,
     // поставленная раскладкой, на кадр отставала бы от пункта, когда меню раскрывается или
     // закрывается и пункты разом сдвигаются.
-    val edges = { drop.edges(anchors.boundsOf(target.index)) }
+    val edges = { drop.edges(target.index, target.focused, anchors.boundsOf(target.index)) }
     Box(modifier.graphicsLayer { this.alpha = alpha }.dropShape(target.focused, focusScale, edges)) {
-        if (target.glowing && bounds != null) DropGlow(bounds, focusScale)
+        if (target.glowing && bounds != null) DropGlow(bounds, focusScale, edges)
         // Узел по границам капли — для UI-теста: по нему видно, на ком она стоит.
         Box(
             Modifier
@@ -123,11 +123,13 @@ internal fun NavDropLayer(anchors: NavDropAnchors, target: NavDropTarget, modifi
 }
 
 /**
- * Свечение под каплей — на самой цели, а не на перетекающей капле: размер цели постоянен, и
- * размытая текстура свечения считается один раз ([fxGlowPulse]), а не на каждом кадре перетекания.
+ * Свечение под каплей — размером с цель: размер цели постоянен, и размытая текстура свечения
+ * считается один раз ([fxGlowPulse]), а не на каждом кадре перетекания. Но едет оно за центром
+ * капли ([edges], сдвиг слоя при отрисовке): стоя на цели сразу, оно горело на пункте, до которого
+ * капля ещё не дотекла.
  */
 @Composable
-private fun BoxScope.DropGlow(bounds: Rect, focusScale: State<Float>) {
+private fun BoxScope.DropGlow(bounds: Rect, focusScale: State<Float>, edges: () -> DropEdges) {
     Box(
         Modifier
             .matchParentSize()
@@ -140,6 +142,8 @@ private fun BoxScope.DropGlow(bounds: Rect, focusScale: State<Float>) {
                 }
             }
             .graphicsLayer {
+                val current = edges()
+                translationY = (current.top + current.bottom) / 2 - bounds.center.y
                 scaleX = focusScale.value
                 scaleY = focusScale.value
             }
@@ -184,11 +188,24 @@ private class LiquidDrop(
     var flowing by mutableStateOf(false)
 
     /**
-     * Где рисовать каплю. Пока она не перетекает, — прямо по границам цели, прочитанным в фазе
-     * раскладки: раскрытие меню двигает пункты каждый кадр, и капля идёт с ними без отставания.
+     * Где рисовать каплю. Пока она не перетекает, — прямо по границам цели [index], прочитанным в
+     * фазе раскладки: раскрытие меню двигает пункты каждый кадр, и капля идёт с ними без отставания.
+     * Перетекание, которое ещё не запущено ([willFlow]), — тоже по пружинам: иначе капля на кадр
+     * прыгала на новую цель и возвращалась назад, чтобы оттуда перетечь.
      */
-    fun edges(bounds: Rect?): DropEdges =
-        if (flowing || bounds == null) DropEdges(top.value, bottom.value) else DropEdges(bounds.top, bounds.bottom)
+    fun edges(index: Int, focused: Boolean, bounds: Rect?): DropEdges =
+        if (flowing || bounds == null || willFlow(index, focused)) {
+            DropEdges(top.value, bottom.value)
+        } else {
+            DropEdges(bounds.top, bounds.bottom)
+        }
+
+    /**
+     * Пульт перевёл каплю по раскрытому меню на другую цель. Эффект, который запускает пружины,
+     * стартует уже после первого кадра с новой целью, поэтому решение нужно и при отрисовке.
+     */
+    fun willFlow(index: Int, focused: Boolean): Boolean =
+        this.index != null && this.index != index && this.focused && focused
 }
 
 /** Верхний и нижний края капли, пиксели от верха колонки. */
@@ -205,11 +222,11 @@ private fun rememberLiquidDrop(index: Int, focused: Boolean, bounds: Rect?): Liq
     val drop = remember { LiquidDrop(Animatable(0f), Animatable(0f)) }
     LaunchedEffect(index, focused, bounds) {
         val target = bounds ?: return@LaunchedEffect
-        val sameTarget = drop.index == index
-        val movedByRemote = drop.index != null && drop.focused && focused
+        // Перетекание, прерванное сдвигом цели, продолжается к её новому месту.
+        val flows = drop.willFlow(index, focused) || (drop.flowing && drop.index == index && focused)
         drop.index = index
         drop.focused = focused
-        if (!movedByRemote || (sameTarget && !drop.flowing)) {
+        if (!flows) {
             drop.flowing = false
             drop.top.snapTo(target.top)
             drop.bottom.snapTo(target.bottom)
@@ -227,4 +244,10 @@ private fun rememberLiquidDrop(index: Int, focused: Boolean, bounds: Rect?): Liq
 }
 
 private val LeadingEdge = spring<Float>(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)
-private val TrailingEdge = spring<Float>(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow)
+
+/**
+ * Хвост — без отскока. Пружиной с покачиванием он пролетал цель на долю пути: с профиля на «Моё»
+ * это десятки пикселей, и капля на несколько кадров сплющивалась в полоску над пунктом — на
+ * глаз как подлагивание.
+ */
+private val TrailingEdge = spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow)
