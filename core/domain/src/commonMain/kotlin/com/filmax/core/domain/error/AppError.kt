@@ -61,13 +61,25 @@ enum class AppError {
             }
         }
 
-        /** Нет сети / не удалось установить соединение (по имени исключения или тексту). */
+        /**
+         * Нет сети / соединение не установилось или оборвалось (по имени исключения или тексту).
+         * Обрыв уже открытого соединения («Software caused connection abort», «Connection reset»)
+         * — тоже сеть: ТВ засыпает или теряет Wi-Fi посреди запроса. Раньше он считался ошибкой
+         * сервера и был самым частым non-fatal в Crashlytics.
+         */
         private fun isOffline(causeName: String, text: String): Boolean =
             causeName.contains("UnknownHost") ||
                 causeName.contains("ConnectException") ||
                 causeName.contains("UnresolvedAddress") ||
-                text.contains("Unable to resolve host", ignoreCase = true) ||
-                text.contains("Failed to connect", ignoreCase = true)
+                OFFLINE_TEXTS.any { text.contains(it, ignoreCase = true) }
+
+        private val OFFLINE_TEXTS = listOf(
+            "Unable to resolve host",
+            "Failed to connect",
+            "connection abort",
+            "Connection reset",
+            "Broken pipe",
+        )
 
         /** Сервер не ответил вовремя (timeout / 408). */
         private fun isTimeout(causeName: String, text: String): Boolean =

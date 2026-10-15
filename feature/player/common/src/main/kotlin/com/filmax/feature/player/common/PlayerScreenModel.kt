@@ -98,7 +98,7 @@ class PlayerScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: PlayerEvent) {
+    override fun onEvent(event: PlayerEvent) {
         when (event) {
             is PlayerEvent.SaveProgress -> saveProgress(event.positionMs)
             is PlayerEvent.SelectQuality -> selectQuality(event.label)

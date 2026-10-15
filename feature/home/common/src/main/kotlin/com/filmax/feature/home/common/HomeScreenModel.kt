@@ -27,7 +27,7 @@ class HomeScreenModel(
         observeWatchLater()
     }
 
-    override fun dispatch(event: HomeEvent) {
+    override fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.Load -> onFetchData()
             is HomeEvent.LoadMoreRow -> loadMoreRow(event.id)

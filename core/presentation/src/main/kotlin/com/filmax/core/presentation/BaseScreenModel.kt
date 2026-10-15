@@ -8,9 +8,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.common.TelemetryText
 import com.filmax.core.domain.error.AppError
 import com.filmax.core.domain.error.toAppError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -69,8 +72,18 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     private val updateStateLock = Mutex()
     private val sideEffectLock = Mutex()
 
-    /** Единая точка входа для пользовательских событий экрана. */
-    abstract fun dispatch(event: EVENT)
+    /**
+     * Единая точка входа для пользовательских событий экрана. Каждое событие — хлебная крошка
+     * телеметрии: по отчёту о падении видно, что пользователь делал перед ним («отметил папку»,
+     * «создал папку»), а не только сетевые запросы. Разбирает событие экран — в [onEvent].
+     */
+    fun dispatch(event: EVENT) {
+        ErrorReporting.reporter.log(TelemetryText.line("event: ${this::class.simpleName}.$event"))
+        onEvent(event)
+    }
+
+    /** Обработка события экрана; вызывается только через [dispatch]. */
+    protected abstract fun onEvent(event: EVENT)
 
     /** Первичная загрузка данных экрана. Вызывается подклассом из его `init` после инициализации зависимостей. */
     protected abstract fun onFetchData()
@@ -80,13 +93,18 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
 
     /**
      * Запускает корутину в [screenModelScope] на [dispatcher], предоставляя актуальный снимок [STATE].
-     * Исключения внутри блока изолируются, чтобы один сбой не ронял ScreenModel.
+     * Исключения внутри блока изолируются, чтобы один сбой не ронял ScreenModel, но не теряются:
+     * уходят в телеметрию non-fatal. Раньше они глотались молча, и баг экрана не оставлял следов
+     * ни в Crashlytics, ни в logcat. Сетевые сбои сюда не доходят — их разбирает safeRequest.
      */
     protected fun screenModelScope(
         dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
         call: suspend CoroutineScope.(STATE) -> Unit,
     ): Job = screenModelScope.launch(dispatcher) {
-        runCatching { call(state) }
+        runCatching { call(state) }.onFailure { error ->
+            // Отмена — закрытие экрана, а не сбой.
+            if (error !is CancellationException) ErrorReporting.reporter.report(error)
+        }
     }
 
     /** Отправляет одноразовый side-effect. Если подписчика ещё нет — эффект буферизуется до подписки. */

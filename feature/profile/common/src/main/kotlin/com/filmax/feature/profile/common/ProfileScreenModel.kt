@@ -55,7 +55,7 @@ class ProfileScreenModel(
         }
     }
 
-    override fun dispatch(event: ProfileEvent) {
+    override fun onEvent(event: ProfileEvent) {
         when (event) {
             ProfileEvent.Logout -> logout()
             is ProfileEvent.SetQuality -> screenModelScope { _ -> playbackSettings.setQuality(event.quality) }

@@ -14,7 +14,7 @@ class OnboardingScreenModel(
     private val user: UserRepository,
 ) : BaseScreenModel<OnboardingState, OnboardingSideEffect, OnboardingEvent>(OnboardingState()) {
 
-    override fun dispatch(event: OnboardingEvent) {
+    override fun onEvent(event: OnboardingEvent) {
         when (event) {
             OnboardingEvent.NextStep -> nextStep()
             OnboardingEvent.PrevStep -> screenModelScope { snapshot ->

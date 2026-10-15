@@ -16,7 +16,7 @@ class RootScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: RootEvent) = Unit
+    override fun onEvent(event: RootEvent) = Unit
 
     override fun onFetchData() {
         screenModelScope {

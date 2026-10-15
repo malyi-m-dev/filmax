@@ -16,5 +16,7 @@ internal class CrashlyticsErrorReporter(
 
     override fun log(message: String) = crashlytics.log(message)
 
+    override fun setKey(key: String, value: String) = crashlytics.setCustomKey(key, value)
+
     override fun report(error: Throwable) = crashlytics.recordException(error)
 }

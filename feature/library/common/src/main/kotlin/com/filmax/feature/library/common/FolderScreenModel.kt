@@ -41,7 +41,7 @@ class FolderScreenModel(
         observeFolder()
     }
 
-    override fun dispatch(event: FolderEvent) {
+    override fun onEvent(event: FolderEvent) {
         when (event) {
             FolderEvent.LoadMore -> loadMore()
             is FolderEvent.RemoveItem -> removeItem(event.itemId)

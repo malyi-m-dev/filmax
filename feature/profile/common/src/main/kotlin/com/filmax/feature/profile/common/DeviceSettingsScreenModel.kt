@@ -21,7 +21,7 @@ class DeviceSettingsScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: DeviceSettingsEvent) {
+    override fun onEvent(event: DeviceSettingsEvent) {
         when (event) {
             is DeviceSettingsEvent.SetSsl -> edit { it.copy(supportSsl = event.enabled) }
             is DeviceSettingsEvent.SetHevc -> edit { it.copy(supportHevc = event.enabled) }
