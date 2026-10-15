@@ -40,4 +40,13 @@ interface PlaybackSettingsRepository {
     suspend fun voiceKeyFor(itemId: Int): String?
 
     suspend fun setVoiceKey(itemId: Int, key: String)
+
+    /**
+     * Высота кадра, на которой видеодекодер этого устройства уже не справился (4K на слабой
+     * ТВ-приставке); null — не падал. Выше неё плеер сам не стартует. Свойство устройства, а не
+     * выбор зрителя, поэтому в [PlaybackSettings] и в Профиле её нет.
+     */
+    suspend fun decoderLimit(): Int?
+
+    suspend fun setDecoderLimit(height: Int?)
 }

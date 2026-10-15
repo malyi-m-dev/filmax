@@ -110,4 +110,12 @@ class FakePlaybackSettingsRepository : PlaybackSettingsRepository {
     override suspend fun setVoiceKey(itemId: Int, key: String) {
         voices[itemId] = key
     }
+
+    private var decoderLimit: Int? = null
+
+    override suspend fun decoderLimit(): Int? = decoderLimit
+
+    override suspend fun setDecoderLimit(height: Int?) {
+        decoderLimit = height
+    }
 }

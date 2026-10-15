@@ -31,6 +31,12 @@ internal class PlaybackSettingsRepositoryImpl(
         storage.putString(KEY_VOICE_PREFIX + itemId, key)
     }
 
+    override suspend fun decoderLimit(): Int? = storage.getIntOrNull(KEY_DECODER_LIMIT)
+
+    override suspend fun setDecoderLimit(height: Int?) {
+        if (height == null) storage.remove(KEY_DECODER_LIMIT) else storage.putInt(KEY_DECODER_LIMIT, height)
+    }
+
     private fun update(transform: (PlaybackSettings) -> PlaybackSettings) {
         val updated = transform(state.value)
         storage.putString(KEY_QUALITY, updated.quality)
@@ -50,5 +56,6 @@ internal class PlaybackSettingsRepositoryImpl(
         const val KEY_AUDIO = "playback_audio"
         const val KEY_SUBTITLES = "playback_subtitles"
         const val KEY_VOICE_PREFIX = "playback_voice_"
+        const val KEY_DECODER_LIMIT = "playback_decoder_limit"
     }
 }
