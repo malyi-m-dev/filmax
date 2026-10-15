@@ -88,7 +88,12 @@ fun BoxScope.TvOptionSheet(state: TvOptionSheetState, onSelect: (Int) -> Unit) {
         Column(
             Modifier
                 .padding(top = 18.dp)
-                .focusProperties { enter = { selectedFocus } }
+                // Нет выбранного варианта — нет и узла у selectedFocus: запрос фокуса на нём ронял
+                // бы приложение, поэтому вход тогда штатный.
+                .focusProperties {
+                    val hasSelected = state.selectedIndex in state.options.indices
+                    enter = { if (hasSelected) selectedFocus else FocusRequester.Default }
+                }
                 .focusGroup()
                 .padding(horizontal = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
