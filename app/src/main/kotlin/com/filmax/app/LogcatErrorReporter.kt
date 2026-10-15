@@ -18,6 +18,10 @@ internal class LogcatErrorReporter : ErrorReporter {
         Log.i(TAG, message)
     }
 
+    override fun setKey(key: String, value: String) {
+        Log.i(TAG, "key $key = $value")
+    }
+
     override fun report(error: Throwable) {
         Log.w(TAG, "non-fatal", error)
     }

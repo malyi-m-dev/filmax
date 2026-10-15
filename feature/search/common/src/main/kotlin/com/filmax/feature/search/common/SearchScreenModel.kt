@@ -73,7 +73,7 @@ class SearchScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: SearchEvent) {
+    override fun onEvent(event: SearchEvent) {
         when (event) {
             is SearchEvent.QueryChange -> onQueryChange(event.query)
             is SearchEvent.Selection -> updateAndReload { it.withSelection(event) }

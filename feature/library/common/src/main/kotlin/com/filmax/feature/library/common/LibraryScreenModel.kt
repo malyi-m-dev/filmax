@@ -44,7 +44,7 @@ class LibraryScreenModel(
         }
     }
 
-    override fun dispatch(event: LibraryEvent) {
+    override fun onEvent(event: LibraryEvent) {
         when (event) {
             is LibraryEvent.TabChange -> screenModelScope { _ ->
                 updateState { it.copy(tab = event.tab) }

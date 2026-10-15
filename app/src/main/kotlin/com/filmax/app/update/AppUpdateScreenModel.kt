@@ -28,7 +28,7 @@ class AppUpdateScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: AppUpdateEvent) {
+    override fun onEvent(event: AppUpdateEvent) {
         when (event) {
             AppUpdateEvent.Check -> check()
             AppUpdateEvent.Download -> download()

@@ -47,7 +47,7 @@ class DetailsScreenModel(
         observeSeasonRequests()
     }
 
-    override fun dispatch(event: DetailsEvent) {
+    override fun onEvent(event: DetailsEvent) {
         when (event) {
             DetailsEvent.ToggleFav -> toggleFav()
             DetailsEvent.ToggleDownload -> toggleDownload()

@@ -53,7 +53,7 @@ class MineScreenModel(
         observeFolders()
     }
 
-    override fun dispatch(event: MineEvent) {
+    override fun onEvent(event: MineEvent) {
         when (event) {
             is MineEvent.SelectSegment -> update { it.copy(segment = event.segment) }
             MineEvent.CycleWatchlistSort -> update { it.copy(watchlistSort = it.watchlistSort.next()) }

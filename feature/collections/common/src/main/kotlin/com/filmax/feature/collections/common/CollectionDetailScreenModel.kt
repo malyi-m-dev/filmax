@@ -22,7 +22,7 @@ class CollectionDetailScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: CollectionDetailEvent) {
+    override fun onEvent(event: CollectionDetailEvent) {
         when (event) {
             CollectionDetailEvent.LoadMore -> loadMore()
             is CollectionDetailEvent.FocusRow -> focusRow(event.row)

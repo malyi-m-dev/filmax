@@ -1,5 +1,7 @@
 package com.filmax.core.domain.error
 
+import com.filmax.core.domain.common.TelemetryText
+
 /**
  * Типизированная обёртка сбоя data-слоя для телеметрии (см. `reportRequestFailure`).
  *
@@ -21,8 +23,10 @@ sealed class RequestFailure(message: String, cause: Throwable) : Exception(messa
 
     companion object {
         fun of(kind: AppError, cause: Throwable): RequestFailure {
-            // Сообщения Ktor тащат полный URL с параметрами — в заголовке события хватает начала.
-            val text = "${cause::class.simpleName}: ${cause.message?.take(MAX_CAUSE_LENGTH)}"
+            // Сообщения Ktor тащат полный URL с параметрами — в заголовке события хватает начала,
+            // а секреты из параметров (client_secret запроса входа) в отчёт не уходят вовсе.
+            val message = cause.message?.let(TelemetryText::redact)?.take(MAX_CAUSE_LENGTH)
+            val text = "${cause::class.simpleName}: $message"
             return when (kind) {
                 AppError.Offline -> Offline(text, cause)
                 AppError.Server -> Server(text, cause)

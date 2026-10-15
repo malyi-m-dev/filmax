@@ -1,8 +1,12 @@
 package com.filmax.app.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import com.filmax.core.domain.common.ErrorReporting
+import com.filmax.core.domain.common.TelemetryText
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.NavCommand
 import com.filmax.core.navigation.Navigator
@@ -46,9 +50,34 @@ internal fun NavigationCommands(
     navigator: Navigator = koinInject(),
 ) {
     LaunchedEffect(navController, routes) {
-        navigator.commands.collect { command -> navController.execute(command, routes) }
+        navigator.commands.collect { command ->
+            ErrorReporting.reporter.log(TelemetryText.line("nav: $command"))
+            navController.execute(command, routes)
+        }
+    }
+    ScreenTelemetry(navController)
+}
+
+/**
+ * Экран для телеметрии: ключ [SCREEN_KEY] у каждого отчёта и крошка на каждую смену экрана. Слушатель
+ * графа, а не команды [Navigator]: «Назад» с пульта и системные переходы команд не шлют.
+ */
+@Composable
+private fun ScreenTelemetry(navController: NavHostController) {
+    DisposableEffect(navController) {
+        val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+            // Маршрут — serialName класса с шаблоном аргументов: «…TvDetailsRoute/{itemId}».
+            val screen = destination.route?.substringBefore('/')?.substringAfterLast('.') ?: "-"
+            ErrorReporting.reporter.setKey(SCREEN_KEY, screen)
+            ErrorReporting.reporter.log("screen: $screen")
+        }
+        navController.addOnDestinationChangedListener(listener)
+        onDispose { navController.removeOnDestinationChangedListener(listener) }
     }
 }
+
+/** Ключ отчёта: экран, открытый в момент события. */
+private const val SCREEN_KEY = "screen"
 
 private fun NavHostController.execute(command: NavCommand, routes: GraphRoutes) {
     when (command) {

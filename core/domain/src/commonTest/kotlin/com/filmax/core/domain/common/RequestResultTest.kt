@@ -55,6 +55,24 @@ class RequestResultTest {
     }
 
     @Test
+    fun `dropped connection is a breadcrumb, not an event`() = runTest {
+        safeRequest<Int> { throw IllegalStateException("SocketException: Software caused connection abort") }
+
+        assertTrue(recorder.events.none { it.startsWith("report:") }, "обрыв ушёл событием: ${recorder.events}")
+        assertTrue(recorder.events.any { it.startsWith("log: request failed (Offline)") }, "${recorder.events}")
+    }
+
+    @Test
+    fun `server error event carries the failed request and no secrets`() = runTest {
+        val message = "Client request(POST https://h/api/oauth2/token?client_secret=s3cr3t) invalid: 500"
+        safeRequest<Int> { throw IllegalStateException(message) }
+
+        assertTrue("key: $REQUEST_KEY=POST /api/oauth2/token" in recorder.events, "${recorder.events}")
+        assertTrue(recorder.events.any { it.startsWith("report:") }, "${recorder.events}")
+        assertTrue(recorder.events.none { "s3cr3t" in it }, "секрет утёк: ${recorder.events}")
+    }
+
+    @Test
     fun `safeRequest rethrows cancellation instead of turning it into Error`() = runTest {
         assertFailsWith<CancellationException> {
             safeRequest<Int> { throw CancellationException("экран закрыт") }
@@ -96,6 +114,10 @@ class RequestResultTest {
 
         override fun log(message: String) {
             events += "log: $message"
+        }
+
+        override fun setKey(key: String, value: String) {
+            events += "key: $key=$value"
         }
 
         override fun report(error: Throwable) {

@@ -23,7 +23,7 @@ class FilmographyScreenModel(
         onFetchData()
     }
 
-    override fun dispatch(event: FilmographyEvent) {
+    override fun onEvent(event: FilmographyEvent) {
         when (event) {
             FilmographyEvent.Retry -> onFetchData()
         }

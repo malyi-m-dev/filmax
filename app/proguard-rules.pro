@@ -56,3 +56,8 @@
 # деобфусцирует — имена наших ошибок (UserVisibleError.*) держим читаемыми, иначе
 # в списке issues снова будут «n8.a» вместо понятных типов.
 -keepnames class com.filmax.core.domain.error.**
+
+# Хлебные крошки «event: FolderPickerScreenModel.Toggle(folderId=5)» берут имя экрана из класса
+# в рантайме: без keepnames в отчёте было бы «event: c.Toggle(...)». Сами события — data-классы
+# и data object: их toString R8 не трогает, имя в нём — строка, вписанная компилятором.
+-keepnames class * extends com.filmax.core.presentation.BaseScreenModel

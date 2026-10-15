@@ -38,7 +38,7 @@ class FolderPickerScreenModel(
         observeWatchlistCount()
     }
 
-    override fun dispatch(event: FolderPickerEvent) {
+    override fun onEvent(event: FolderPickerEvent) {
         when (event) {
             FolderPickerEvent.Open -> open()
             FolderPickerEvent.Close -> update { it.copy(open = false, draft = null, error = null) }

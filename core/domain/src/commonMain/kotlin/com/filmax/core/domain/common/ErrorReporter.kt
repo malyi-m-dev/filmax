@@ -17,6 +17,12 @@ interface ErrorReporter {
     /** Хлебная крошка: строка попадает в хронологию ближайшего отчёта, сама по себе не событие. */
     fun log(message: String)
 
+    /**
+     * Ключ, который приложится к каждому следующему отчёту: на каком экране был пользователь, какой
+     * запрос упал. В отличие от крошки, ключ — фильтр в консоли Crashlytics.
+     */
+    fun setKey(key: String, value: String)
+
     /** Non-fatal событие: ошибка запроса/парсинга — всё, что пережил [safeRequest]. */
     fun report(error: Throwable)
 }
@@ -33,6 +39,7 @@ object ErrorReporting {
     private object NoopErrorReporter : ErrorReporter {
         override fun setUser(id: String?) = Unit
         override fun log(message: String) = Unit
+        override fun setKey(key: String, value: String) = Unit
         override fun report(error: Throwable) = Unit
     }
 }
@@ -47,16 +54,25 @@ object ErrorReporting {
  *
  * Событие уходит обёрнутым в [RequestFailure]: тип non-fatal Crashlytics пишет строкой из
  * рантайма и не деобфусцирует — с обёрткой заголовок issue читается («Server», «Empty»),
- * а стек первопричины остаётся в cause.
+ * а стек первопричины остаётся в cause. Какой запрос упал, говорит ключ [REQUEST_KEY]: все
+ * сбои одного класса Crashlytics складывает в один issue, и без ключа их не различить.
+ *
+ * Секретные параметры URL в текст не попадают ([TelemetryText.redact]).
  */
 fun ErrorReporter.reportRequestFailure(error: Throwable) {
     val kind = AppError.resolve(error.message, error)
-    if (kind in REPORTED_ERRORS) {
-        report(RequestFailure.of(kind, error))
-    } else {
-        log("request failed (${kind.name}): ${error::class.simpleName}: ${error.message}")
+    val text = TelemetryText.redact("${error::class.simpleName}: ${error.message}")
+    if (kind !in REPORTED_ERRORS) {
+        log(TelemetryText.line("request failed (${kind.name}): $text"))
+        return
     }
+    setKey(REQUEST_KEY, TelemetryText.requestOf(error.message.orEmpty()) ?: "-")
+    log(TelemetryText.line("request error (${kind.name}): $text"))
+    report(RequestFailure.of(kind, error))
 }
+
+/** Ключ отчёта: метод и путь запроса, который упал последним событием. */
+const val REQUEST_KEY = "request"
 
 /** Классы сбоев, которые едут в телеметрию событием: остальные — крошкой (см. [reportRequestFailure]). */
 private val REPORTED_ERRORS = setOf(AppError.Server, AppError.Empty, AppError.Playback)
