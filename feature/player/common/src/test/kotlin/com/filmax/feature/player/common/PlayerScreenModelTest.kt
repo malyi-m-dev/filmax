@@ -135,12 +135,29 @@ class PlayerScreenModelTest {
         assertEquals(other, model.states.value.currentQuality)
     }
 
-    private fun TestScope.loaded(itemId: Int, season: Int = -1, videoId: Int = -1): PlayerScreenModel {
+    @Test
+    fun `4K title starts in 4K while the decoder has not failed on it`() = runTest(dispatcher) {
+        assertEquals("2160p", loaded(FakeIds.HERO_MOVIE).states.value.currentQuality)
+    }
+
+    @Test
+    fun `device whose decoder failed on 4K starts the next title in 1080p`() = runTest(dispatcher) {
+        val settings = MemoryPlaybackSettings().apply { limit = UHD_HEIGHT }
+
+        assertEquals("1080p", loaded(FakeIds.HERO_MOVIE, settings = settings).states.value.currentQuality)
+    }
+
+    private fun TestScope.loaded(
+        itemId: Int,
+        season: Int = -1,
+        videoId: Int = -1,
+        settings: MemoryPlaybackSettings = MemoryPlaybackSettings(),
+    ): PlayerScreenModel {
         val model = PlayerScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId, "videoId" to videoId, "season" to season)),
             catalog = FakeCatalogRepository(backend),
             watching = FakeWatchingRepository(backend),
-            playbackSettings = MemoryPlaybackSettings(),
+            playbackSettings = settings,
             userRepository = FakeUserRepository(backend),
             context = RuntimeEnvironment.getApplication(),
         )
@@ -172,11 +189,20 @@ class PlayerScreenModelTest {
         override suspend fun setVoiceKey(itemId: Int, key: String) {
             voices[itemId] = key
         }
+
+        var limit: Int? = null
+
+        override suspend fun decoderLimit(): Int? = limit
+
+        override suspend fun setDecoderLimit(height: Int?) {
+            limit = height
+        }
     }
 
     private companion object {
         /** В четвёртом сезоне «Хроник Пограничья» 24 серии. */
         const val LAST_OF_S4 = 24
         const val FAST = 1.5f
+        const val UHD_HEIGHT = 2160
     }
 }
