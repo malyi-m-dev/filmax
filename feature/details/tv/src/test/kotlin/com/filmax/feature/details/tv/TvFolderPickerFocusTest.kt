@@ -91,6 +91,22 @@ class TvFolderPickerFocusTest {
     }
 
     @Test
+    fun `long list with the title in every folder opens on create folder without a crash`() {
+        // Тайтл во всех папках, папок больше, чем влезает: цель — «Создать папку» далеко за краем.
+        // Раньше вход в список вёл на её FocusRequester, ещё не прикреплённый, и приложение падало.
+        runBlocking {
+            repeat(MANY_FOLDERS) { user.createBookmarkFolder("Папка $it") }
+            user.getBookmarkFolders().getOrNull().orEmpty().forEach { user.addToBookmark(FakeIds.HERO_MOVIE, it.id) }
+        }
+        val picker = showMovie()
+
+        openPanel()
+
+        assertTrue(picker.states.value.open)
+        assertFocusedHas("Создать папку")
+    }
+
+    @Test
     fun `ok on a folder marks the title at once`() {
         val picker = showMovie()
         openPanel()
@@ -227,5 +243,8 @@ class TvFolderPickerFocusTest {
 
         /** Потолок нажатий «вниз» до «Создать папку». */
         const val MAX_PRESSES = 6
+
+        /** Сколько папок добавить, чтобы «Создать папку» ушла за нижний край панели. */
+        const val MANY_FOLDERS = 12
     }
 }

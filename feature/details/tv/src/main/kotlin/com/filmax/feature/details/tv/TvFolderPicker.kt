@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Bookmark
@@ -74,6 +76,7 @@ import com.filmax.feature.details.common.FolderPickerState
 
 /** Ключ строки «Создать папку» — цель фокуса, когда все папки уже с тайтлом. */
 private const val ADD_KEY = -1
+private const val ADD_ROW = "add"
 
 /** Смена списка на редактор: сдвиг 24dp и проявление — как в макете. */
 private val EditorShift = 24.dp
@@ -178,13 +181,27 @@ private fun FolderRows(
     modifier: Modifier,
 ) {
     val requesters = remember { mutableMapOf<Int, FocusRequester>() }
-    val target = state.focusFolderId?.takeIf { id -> state.folders.any { it.id == id } } ?: ADD_KEY
+    val targetIndex = state.folders.indexOfFirst { it.id == state.focusFolderId }
+    val target = if (targetIndex >= 0) state.folders[targetIndex].id else ADD_KEY
     val targetFocus = requesters.getOrPut(target) { FocusRequester() }
+    // Список открывается со строкой-целью на экране: при длинном списке «Создать папку» или
+    // первая папка без тайтла были за краем, и ленивый список их не компоновал.
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = if (targetIndex >= 0) targetIndex else state.folders.size,
+    )
     var focusPlaced by remember { mutableStateOf(false) }
     // Строка-цель разместилась — фокус на неё, один раз: дальше пульт ведёт сам.
     val placeFocus = Modifier.onPlaced { if (!focusPlaced) focusPlaced = targetFocus.requestFocus() }
     LazyColumn(
-        modifier = modifier.focusProperties { enter = { targetFocus } }.focusGroup(),
+        state = listState,
+        // Вход в список — на строку-цель, только пока она на экране. Строку за краем список не
+        // компонует, её FocusRequester ни к чему не прикреплён, и запрос фокуса на нём ронял
+        // приложение (IllegalStateException в Compose 1.8) — тогда вход штатный, на ближайшую.
+        modifier = modifier
+            .focusProperties {
+                enter = { if (listState.isShown(rowKey(target))) targetFocus else FocusRequester.Default }
+            }
+            .focusGroup(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         // Поля под увеличение строки в фокусе: список клипает края, а строка растёт на 2%.
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
@@ -197,7 +214,7 @@ private fun FolderRows(
                 .focusRequester(requester)
                 .then(if (folderId == target) placeFocus else Modifier)
         }
-        item(key = "add") {
+        item(key = ADD_ROW) {
             TvAddRow(
                 label = "Создать папку",
                 onClick = { onEvent(FolderPickerEvent.StartCreate) },
@@ -223,6 +240,12 @@ private fun WatchlistRow(count: Int, watchlist: WatchlistMark) {
         modifier = Modifier.fxEnter(FIRST_ROW_ENTER),
     )
 }
+
+/** Ключ строки списка: папка — по id, «Создать папку» — своим. */
+private fun rowKey(target: Int): Any = if (target == ADD_KEY) ADD_ROW else target
+
+/** Строка с ключом [key] сейчас на экране — скомпонована и размещена, на неё можно войти. */
+private fun LazyListState.isShown(key: Any): Boolean = layoutInfo.visibleItemsInfo.any { it.key == key }
 
 private fun LazyListScope.folderRows(
     state: FolderPickerState,
