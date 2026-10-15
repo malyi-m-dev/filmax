@@ -47,6 +47,16 @@ class BaseScreenModelTelemetryTest {
     }
 
     @Test
+    fun `periodic event is handled but not logged`() {
+        val model = SampleScreenModel()
+
+        model.dispatch(SampleEvent.Tick)
+
+        assertTrue(recorder.events.isEmpty(), "тик попал в крошки: ${recorder.events}")
+        assertEquals(listOf<SampleEvent>(SampleEvent.Tick), model.handled)
+    }
+
+    @Test
     fun `failure inside a screen coroutine is reported`() {
         val model = SampleScreenModel()
 
@@ -58,6 +68,7 @@ class BaseScreenModelTelemetryTest {
     private sealed interface SampleEvent {
         data class Toggle(val folderId: Int) : SampleEvent
         data object Fail : SampleEvent
+        data object Tick : SampleEvent, PeriodicEvent
     }
 
     private class SampleScreenModel : BaseScreenModel<Unit, Unit, SampleEvent>(Unit) {

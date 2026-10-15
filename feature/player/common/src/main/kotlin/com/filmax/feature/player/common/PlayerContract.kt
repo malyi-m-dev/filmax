@@ -2,6 +2,7 @@ package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.presentation.PeriodicEvent
 
 /**
  * Доступное качество потока. [urls] — варианты доставки в порядке предпочтения (hls4 → hls → http):
@@ -100,7 +101,8 @@ data class PlayerState(
 )
 
 sealed interface PlayerEvent {
-    data class SaveProgress(val positionMs: Long) : PlayerEvent
+    /** Тик прогресса раз в секунду — не действие зрителя, в крошки телеметрии не идёт. */
+    data class SaveProgress(val positionMs: Long) : PlayerEvent, PeriodicEvent
     data class SelectQuality(val label: String) : PlayerEvent
     data class SelectAudio(val label: String) : PlayerEvent
     data class SelectSubtitle(val label: String) : PlayerEvent
