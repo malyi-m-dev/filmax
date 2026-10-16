@@ -9,11 +9,19 @@ import kotlinx.coroutines.flow.StateFlow
 enum class ThemePalette { VIOLET, CORAL, MINT }
 
 /**
- * Настройки оформления на этом устройстве. [palette] — StateFlow, а не просто поток: тема
- * читает текущее значение сразу, и интерфейс не мигает палитрой по умолчанию при запуске.
+ * Настройки оформления на этом устройстве. Всё — StateFlow, а не просто потоки: тема читает
+ * текущее значение сразу, и интерфейс не мигает значением по умолчанию при запуске.
  */
 interface ThemeSettingsRepository {
     val palette: StateFlow<ThemePalette>
 
+    /**
+     * Фокус без белой обводки и свечения (ТВ, «Настройки UI» в Профиле): элемент в фокусе тогда
+     * выделяют только увеличение и цвет подложки. По умолчанию выключено — обводка и свечение есть.
+     */
+    val plainFocus: StateFlow<Boolean>
+
     suspend fun setPalette(palette: ThemePalette)
+
+    suspend fun setPlainFocus(enabled: Boolean)
 }

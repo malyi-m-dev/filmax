@@ -101,7 +101,8 @@ private fun SettingsColumn(state: ProfileState, actions: ProfileActions, focus: 
         SubtitlesRow(rows, enter = FIRST_ROW_ENTER + 2)
         SettingsGroup("Оформление")
         rows.Value(ProfileSetting.PALETTE, enter = FIRST_ROW_ENTER + 3)
-        AccountRows(rows, enter = FIRST_ROW_ENTER + 4)
+        UiRows(rows, enter = FIRST_ROW_ENTER + 4)
+        AccountRows(rows, enter = FIRST_ROW_ENTER + 5)
     }
 }
 
@@ -144,6 +145,24 @@ private fun SubtitlesRow(rows: SettingRows, enter: Int) {
             .focusRequester(rows.focus.settings.getValue(setting)),
     )
 }
+
+/**
+ * «Настройки UI» — как выглядит сам интерфейс. Первый переключатель убирает белую обводку и
+ * свечение у элемента в фокусе: кому они мешают, остаются увеличение и цвет подложки.
+ */
+@Composable
+private fun UiRows(rows: SettingRows, enter: Int) {
+    SettingsGroup("Настройки UI")
+    TvSwitchRow(
+        label = "Отключить обводку и свечение",
+        checked = rows.state.plainFocus,
+        onCheckedChange = { enabled -> rows.actions.onEvent(ProfileEvent.SetPlainFocus(enabled)) },
+        modifier = Modifier.fxEnter(enter).then(rows.screenFocus.item(PLAIN_FOCUS_KEY)),
+    )
+}
+
+/** Ключ строки «Отключить обводку и свечение» в памяти фокуса экрана. */
+internal const val PLAIN_FOCUS_KEY = "plainFocus"
 
 /** «Аккаунт» — выход с подтверждением; «Приложение» — ручная проверка обновлений и версия. */
 @Composable

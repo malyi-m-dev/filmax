@@ -9,6 +9,7 @@ import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.Coral
 import com.filmax.core.tv.designsystem.FxColors
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.LocalTvPlainFocus
 import com.filmax.core.tv.designsystem.Mint
 import com.filmax.core.tv.designsystem.Violet
 import com.filmax.data.fake.FakeThemeSettingsRepository
@@ -56,6 +57,20 @@ class TvPaletteThemeTest {
 
         choose(ThemePalette.MINT)
         assertEquals(Mint, palette)
+    }
+
+    @Test
+    fun `plain focus from the ui settings reaches every focusable at once`() {
+        var plain: Boolean? = null
+        compose.setContent {
+            FilmaxTvPaletteTheme(themeSettings = settings) { plain = LocalTvPlainFocus.current }
+        }
+        compose.waitForIdle()
+        assertEquals(false, plain, "по умолчанию обводка и свечение есть")
+
+        runBlocking { settings.setPlainFocus(true) }
+        compose.waitForIdle()
+        assertEquals(true, plain)
     }
 
     private fun choose(next: ThemePalette) {

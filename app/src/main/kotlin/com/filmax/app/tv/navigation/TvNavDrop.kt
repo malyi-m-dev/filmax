@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.LocalTvPlainFocus
 import com.filmax.core.tv.designsystem.TvFocus
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.fxGlowPulse
@@ -158,6 +159,8 @@ private fun BoxScope.DropGlow(bounds: Rect, focusScale: State<Float>, edges: () 
 @Composable
 private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>, edges: () -> DropEdges): Modifier {
     val colors = LocalFxColors.current
+    // Рамку капли, как и всю рамку фокуса, отключают в «Настройках UI».
+    val outlined = focused && !LocalTvPlainFocus.current
     return drawWithContent {
         drawContent()
         val current = edges()
@@ -166,7 +169,7 @@ private fun Modifier.dropShape(focused: Boolean, focusScale: State<Float>, edges
         val radius = CornerRadius(minOf(DropRadius.toPx(), dropSize.height / 2, dropSize.width / 2))
         scale(focusScale.value, pivot = topLeft + Offset(dropSize.width / 2, dropSize.height / 2)) {
             drawRoundRect(colors.accent, topLeft, dropSize, radius)
-            if (focused) {
+            if (outlined) {
                 drawRoundRect(TvFocus, topLeft, dropSize, radius, style = Stroke(TvMetrics.FocusBorderWidth.toPx()))
             }
         }

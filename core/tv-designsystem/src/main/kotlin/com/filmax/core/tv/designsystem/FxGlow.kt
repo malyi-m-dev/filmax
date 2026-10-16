@@ -37,10 +37,11 @@ private const val PULSE_MIN_ALPHA = 0.35f
  * Размытие дорогое, поэтому свечение рисуется один раз в текстуру ([GlowImages]) и дальше только
  * выводится с прозрачностью пульса. Пульс читается при отрисовке, а не в композиции: элемент в
  * фокусе не перекомпонуется 60 раз в секунду. В облегчённом режиме и при сниженной анимации
- * свечение горит ровно — экран не перерисовывается, пока ничего не происходит.
+ * свечение горит ровно — экран не перерисовывается, пока ничего не происходит. В «Настройках UI»
+ * свечение отключают ([LocalTvPlainFocus]) — тогда его нет нигде.
  */
 fun Modifier.fxGlowPulse(active: Boolean, cornerRadius: Dp): Modifier = composed {
-    if (!active) return@composed this
+    if (!active || LocalTvPlainFocus.current) return@composed this
     val color = LocalFxColors.current.glow
     val steady = LocalReducedMotion.current || LocalLightEffects.current
     val pulse = if (steady) remember { mutableFloatStateOf(1f) } else rememberPulse()

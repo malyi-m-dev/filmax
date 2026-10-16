@@ -98,6 +98,19 @@ class TvProfileFocusTest {
     }
 
     @Test
+    fun `ui settings switch turns the focus outline and glow off and back on`() {
+        showProfile()
+        repeat(MAX_PRESSES) { if (!focusedHas("Отключить обводку и свечение")) press(Key.DirectionDown) }
+
+        press(Key.DirectionCenter)
+        assertTrue(theme.plainFocus.value, "переключатель не отключил обводку и свечение")
+        assertFocusedHas("Отключить обводку и свечение")
+
+        press(Key.DirectionCenter)
+        assertFalse(theme.plainFocus.value, "повторное «ОК» не вернуло обводку и свечение")
+    }
+
+    @Test
     fun `logout asks with focus on cancel and back returns to the row`() {
         val model = showProfile()
         repeat(MAX_PRESSES) { if (!focusedHas("Выйти из аккаунта")) press(Key.DirectionDown) }
