@@ -82,13 +82,17 @@ class PlayerScreenModel(
     /** Потолок декодера устройства (см. [PlaybackSettingsRepository.decoderLimit]). */
     private var decoderLimit: Int? = null
 
+    /** Экран на виду (см. [PlayerEvent.ScreenShown]): только тогда загрузка запускает видео. */
+    private var screenShown = true
+
     init {
         player.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 // Декодер не тянет кадр (4K H.264 на слабой приставке) — ни другой CDN, ни
                 // повтор не помогут: сразу качество ниже. Раньше плеер перебирал CDN-варианты
-                // того же 4K и падал сериями по 5–11 ошибок, а потом показывал модалку.
-                val failedHeight = error.videoDecoderFailureHeight()
+                // того же 4K и падал сериями по 5–11 ошибок, а потом показывал модалку. Сбой на
+                // Full HD и ниже — не предел железа (см. QualityLadder.limitOf): его разбирает повтор.
+                val failedHeight = error.videoDecoderFailureHeight()?.let(QualityLadder::limitOf)
                 if (failedHeight != null && stepDownBelow(failedHeight)) return
                 // Ошибки плеера не проходят через safeRequest — репортим сами, иначе телеметрия
                 // не увидит именно тот класс сбоев, на который жалуются («серия не запустилась»).
@@ -131,6 +135,11 @@ class PlayerScreenModel(
             PlayerEvent.ClosePanel -> closePanel()
             is PlayerEvent.SelectTab -> screenModelScope { _ -> updateState { it.copy(panelTab = event.tab) } }
             is PlayerEvent.ShowSeason -> screenModelScope { _ -> updateState { it.copy(panelSeason = event.season) } }
+            PlayerEvent.ScreenShown -> screenShown = true
+            PlayerEvent.ScreenHidden -> {
+                screenShown = false
+                player.pause()
+            }
         }
     }
 
@@ -174,7 +183,9 @@ class PlayerScreenModel(
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
             savedVoiceKey = playbackSettings.voiceKeyFor(route.itemId)
-            decoderLimit = playbackSettings.decoderLimit()
+            // Потолок Full HD и ниже мог остаться от 2.2.0, где его записывал занятый декодер, —
+            // такой не действует.
+            decoderLimit = playbackSettings.decoderLimit()?.let(QualityLadder::limitOf)
             when (val result = catalog.getItemDetails(route.itemId)) {
                 is RequestResult.Success -> {
                     val item = result.data
@@ -230,7 +241,7 @@ class PlayerScreenModel(
                         track?.watchedSeconds
                             ?.takeIf { it > 0 && track.watchStatus != WATCH_STATUS_FINISHED }
                             ?.let { player.seekTo(it * MILLIS_IN_SECOND) }
-                        player.playWhenReady = true
+                        player.playWhenReady = screenShown
                     }
                 }
 

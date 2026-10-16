@@ -117,6 +117,13 @@ sealed interface PlayerEvent {
 
     /** Во вкладке «Серии» листают сезон [season] — без запуска серии. */
     data class ShowSeason(val season: Int) : PlayerEvent
+
+    /**
+     * Экран плеера появился и пропал (HOME, лаунчер, уход с экрана). Скрытый плеер на паузе, и
+     * загрузка, закончившаяся за кадром, видео не запускает — иначе звук шёл бы поверх лаунчера.
+     */
+    data object ScreenShown : PlayerEvent
+    data object ScreenHidden : PlayerEvent
 }
 
 sealed interface PlayerSideEffect {

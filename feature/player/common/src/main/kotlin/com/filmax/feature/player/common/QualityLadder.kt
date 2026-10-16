@@ -29,6 +29,14 @@ internal object QualityLadder {
         return playable.firstOrNull { it.label == preferred } ?: playable.firstOrNull()
     }
 
+    /**
+     * Потолок по высоте, на которой упал декодер; null — это не предел железа. Потолком считается
+     * только то, что выше Full HD: 1080p тянет любой ТВ на Android, и сбой на нём значит, что
+     * декодер занят (его ещё держал другой плеер), а не слаб. Запомненный, такой сбой навсегда
+     * оставил бы устройство на 720p — так и вышло на MiTV, где второй плеер открывался за кадром.
+     */
+    fun limitOf(failedHeight: Int): Int? = failedHeight.takeIf { it > FULL_HD_HEIGHT }
+
     /** Лучшее качество ниже [height], на которой декодер упал; null — спускаться некуда. */
     fun below(qualities: List<StreamQuality>, height: Int): StreamQuality? =
         bestFirst(qualities).firstOrNull { quality -> heightOf(quality.label)?.let { it < height } == true }
@@ -45,6 +53,7 @@ internal object QualityLadder {
 
     private val HEIGHT = Regex("""(\d{3,4})\s*p""", RegexOption.IGNORE_CASE)
     private const val UHD_HEIGHT = 2160
+    private const val FULL_HD_HEIGHT = 1080
 }
 
 /**
