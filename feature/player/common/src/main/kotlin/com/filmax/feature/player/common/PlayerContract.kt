@@ -5,9 +5,10 @@ import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.presentation.PeriodicEvent
 
 /**
- * Доступное качество потока. [urls] — варианты доставки в порядке предпочтения (hls4 → hls → http):
+ * Доступное качество потока. [urls] — варианты доставки в порядке предпочтения (hls4 → http → hls):
  * у kino.pub они ведут на РАЗНЫЕ CDN-хосты, и hls4 (api.srvkp.com) бывает недоступен из-за
- * DPI/SNI-блокировок. Плеер стартует с первого и при ошибке источника переключается на следующий.
+ * DPI/SNI-блокировок. Плеер стартует с первого и при ошибке источника переключается на следующий;
+ * mp4 (http) идёт раньше hls, потому что в нём все озвучки, а в hls — одна.
  */
 data class StreamQuality(val label: String, val urls: List<String>) {
     init {

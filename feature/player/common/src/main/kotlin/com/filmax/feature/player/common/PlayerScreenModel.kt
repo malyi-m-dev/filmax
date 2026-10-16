@@ -26,6 +26,8 @@ import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlin.math.abs
 
@@ -46,9 +48,21 @@ class PlayerScreenModel(
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()
 
+    /**
+     * Основной вариант доставки ещё не заиграл, а за ним есть запасной: ошибка загрузки не
+     * повторяется, и плеер сразу уходит на следующий CDN (см. [streamSourceFactory]). Читается
+     * потоком загрузки Media3.
+     */
+    @Volatile
+    private var failFast = false
+
+    /** Сторож старта основного варианта (см. [watchStart]). */
+    private var startWatch: Job? = null
+
     // Шаг перемотки задан явно: дефолты Media3 (5 с назад / 15 с вперёд) не совпадают
     // с иконками Replay10/Forward10 на кнопках плеера.
     val player: ExoPlayer = ExoPlayer.Builder(context)
+        .setMediaSourceFactory(streamSourceFactory(context) { failFast })
         .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
         .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
         .build()
@@ -113,7 +127,11 @@ class PlayerScreenModel(
             override fun onRenderedFirstFrame() = liftDecoderLimitIfExceeded()
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) onWatchFinished()
+                when (playbackState) {
+                    // Поток заиграл — дальше сбои загрузки повторяются как обычно.
+                    Player.STATE_READY -> failFast = false
+                    Player.STATE_ENDED -> onWatchFinished()
+                }
             }
         })
         onFetchData()
@@ -233,8 +251,7 @@ class PlayerScreenModel(
                     if (initial != null) {
                         streamVariantIndex = 0
                         reportPlaybackStart(initial)
-                        player.setMediaItem(buildMediaItem(initial.url))
-                        player.prepare()
+                        beginStream(initial.url, primaryWithBackup = initial.urls.size > 1)
                         applyTrackPreferences(selectedSubtitle.lang)
                         // Продолжаем с сохранённой позиции. Досмотренный до конца трек
                         // начинаем сначала — иначе пересмотр стартовал бы с титров.
@@ -255,11 +272,13 @@ class PlayerScreenModel(
 
     /**
      * Доступные качества — из файлов трека; все варианты доставки в порядке предпочтения,
-     * чтобы плееру было куда фолбэчить при недоступном CDN.
+     * чтобы плееру было куда фолбэчить при недоступном CDN. После hls4 — mp4, а не hls: оба на
+     * cdntogo.net, но в hls kino.pub вшивает одну озвучку, а в mp4 лежат все, и при заблокированном
+     * api.srvkp.com зритель сохраняет выбор озвучки.
      */
     private fun streamQualities(track: MediaTrack?): List<StreamQuality> =
         track?.files.orEmpty().mapNotNull { file ->
-            listOfNotNull(file.hls4, file.hls, file.http)
+            listOfNotNull(file.hls4, file.http, file.hls)
                 .takeIf { it.isNotEmpty() }
                 ?.let { StreamQuality(file.quality, it) }
         }
@@ -277,8 +296,7 @@ class PlayerScreenModel(
         val wasPlaying = player.playWhenReady
         streamVariantIndex = 0
         // trackSelectionParameters (аудио/субтитры) живут на плеере и переживают смену MediaItem.
-        player.setMediaItem(buildMediaItem(quality.url))
-        player.prepare()
+        beginStream(quality.url, primaryWithBackup = quality.urls.size > 1)
         player.seekTo(position)
         player.playWhenReady = wasPlaying
         screenModelScope { _ -> updateState { it.copy(currentQuality = quality.label, streamUrl = quality.url) } }
@@ -308,11 +326,6 @@ class PlayerScreenModel(
         screenModelScope { _ -> playbackSettings.setDecoderLimit(null) }
     }
 
-    /**
-     * Переключает поток на следующий вариант доставки текущего качества (hls4 → hls → http).
-     * Варианты ведут на разные CDN-хосты, и недоступность одного (SNI-блокировка srvkp.com)
-     * не значит, что тайтл не посмотреть. false — варианты кончились, ошибку показывает вызывающий.
-     */
     /** Хлебная крошка старта: при ошибке в отчёте видно тайтл, качество и CDN-хост. */
     private fun reportPlaybackStart(initial: StreamQuality) {
         ErrorReporting.reporter.log(
@@ -320,6 +333,11 @@ class PlayerScreenModel(
         )
     }
 
+    /**
+     * Переключает поток на следующий вариант доставки текущего качества (hls4 → http → hls).
+     * Варианты ведут на разные CDN-хосты, и недоступность одного (SNI-блокировка srvkp.com)
+     * не значит, что тайтл не посмотреть. false — варианты кончились, ошибку показывает вызывающий.
+     */
     private fun playNextStreamVariant(): Boolean {
         val quality = state.qualities.firstOrNull { it.label == state.currentQuality }
         val nextUrl = quality?.urls?.getOrNull(streamVariantIndex + 1) ?: return false
@@ -329,8 +347,7 @@ class PlayerScreenModel(
         // Состояние воспроизведения переносим как есть: сбой CDN — не повод запускать видео
         // у того, кто стоял на паузе.
         val wasPlaying = player.playWhenReady
-        player.setMediaItem(buildMediaItem(nextUrl))
-        player.prepare()
+        beginStream(nextUrl, primaryWithBackup = false)
         if (position > 0) player.seekTo(position)
         player.playWhenReady = wasPlaying
         screenModelScope { _ -> updateState { it.copy(streamUrl = nextUrl) } }
@@ -405,6 +422,31 @@ class PlayerScreenModel(
                 )
             }
         }
+    }
+
+    /**
+     * Ставит в плеер вариант доставки [url]. [primaryWithBackup] — это основной вариант, и за ним
+     * есть запасной: пока поток не заиграл, сбой загрузки не повторяется ([failFast]), а молчание
+     * обрывает сторож старта. Запасные живут на другом CDN и грузятся как обычно, с повторами.
+     */
+    private fun beginStream(url: String, primaryWithBackup: Boolean) {
+        failFast = primaryWithBackup
+        player.setMediaItem(buildMediaItem(url))
+        player.prepare()
+        startWatch?.cancel()
+        if (primaryWithBackup) startWatch = screenModelScope { _ -> watchStart(url) }
+    }
+
+    /**
+     * Сторож старта: основной вариант, который за [START_TIMEOUT_MS] не отдал ни секунды видео,
+     * сменяется запасным, не дожидаясь ошибки, — заблокированный хост молчит до неё полминуты.
+     * Медленный, но живой CDN что-то уже отдал, и его не трогаем.
+     */
+    private suspend fun watchStart(url: String) {
+        delay(START_TIMEOUT_MS)
+        if (!failFast || player.totalBufferedDuration > 0) return
+        ErrorReporting.reporter.log("player: no data in ${START_TIMEOUT_MS}ms host=${urlHost(url)}")
+        playNextStreamVariant()
     }
 
     /** Собирает MediaItem с вложенными конфигурациями субтитров текущего трека. */
