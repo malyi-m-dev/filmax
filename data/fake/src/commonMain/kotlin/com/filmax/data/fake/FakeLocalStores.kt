@@ -82,14 +82,21 @@ class FakeDownloadsRepository : DownloadsRepository {
     }
 }
 
-/** Палитра ТВ в памяти — вместо записи в настройках устройства. */
+/** Оформление ТВ в памяти — вместо записи в настройках устройства. */
 class FakeThemeSettingsRepository : ThemeSettingsRepository {
-    private val state = MutableStateFlow(ThemePalette.VIOLET)
+    private val paletteState = MutableStateFlow(ThemePalette.VIOLET)
+    private val plainFocusState = MutableStateFlow(false)
 
-    override val palette: StateFlow<ThemePalette> = state
+    override val palette: StateFlow<ThemePalette> = paletteState
+
+    override val plainFocus: StateFlow<Boolean> = plainFocusState
 
     override suspend fun setPalette(palette: ThemePalette) {
-        state.value = palette
+        paletteState.value = palette
+    }
+
+    override suspend fun setPlainFocus(enabled: Boolean) {
+        plainFocusState.value = enabled
     }
 }
 

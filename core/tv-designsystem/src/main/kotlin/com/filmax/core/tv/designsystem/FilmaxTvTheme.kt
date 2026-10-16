@@ -24,10 +24,11 @@ import androidx.tv.material3.darkColorScheme as tvDarkColorScheme
  *
  * `primary` — акцент палитры [colors]: цвет главного действия. `border` = [TvFocus], поэтому
  * стандартная обводка фокуса у TV-Surface — белая. Палитру выбирают в Профиле; смена [colors]
- * перекрашивает весь ТВ-UI сразу — через [LocalFxColors] и Material-схемы.
+ * перекрашивает весь ТВ-UI сразу — через [LocalFxColors] и Material-схемы. [plainFocus] — там же,
+ * в «Настройках UI»: фокус без белой обводки и свечения ([LocalTvPlainFocus]).
  */
 @Composable
-fun FilmaxTvTheme(colors: FxColors = Violet, content: @Composable () -> Unit) {
+fun FilmaxTvTheme(colors: FxColors = Violet, plainFocus: Boolean = false, content: @Composable () -> Unit) {
     val composeScheme = darkColorScheme(
         primary = colors.accent,
         onPrimary = colors.onAccent,
@@ -73,6 +74,7 @@ fun FilmaxTvTheme(colors: FxColors = Violet, content: @Composable () -> Unit) {
                 LocalFxColors provides colors,
                 LocalReducedMotion provides rememberReducedMotion(),
                 LocalLightEffects provides rememberLightEffects(),
+                LocalTvPlainFocus provides plainFocus,
             ) {
                 FxWindowBackground(LocalFxColors.current.background)
                 content()

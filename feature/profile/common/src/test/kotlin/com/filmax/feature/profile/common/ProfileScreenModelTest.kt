@@ -74,6 +74,19 @@ class ProfileScreenModelTest {
     }
 
     @Test
+    fun `plain focus switch is kept in theme settings and shown in the state`() = runTest(dispatcher) {
+        val model = model()
+        advanceUntilIdle()
+        assertFalse(model.states.value.plainFocus)
+
+        model.dispatch(ProfileEvent.SetPlainFocus(true))
+        advanceUntilIdle()
+
+        assertTrue(theme.plainFocus.value)
+        assertTrue(model.states.value.plainFocus)
+    }
+
+    @Test
     fun `palette choice is kept in theme settings`() = runTest(dispatcher) {
         val model = model()
         advanceUntilIdle()

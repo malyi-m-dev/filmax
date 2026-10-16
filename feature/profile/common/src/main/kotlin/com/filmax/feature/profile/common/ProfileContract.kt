@@ -16,6 +16,8 @@ data class ProfileState(
     val playback: PlaybackSettings = PlaybackSettings(),
     /** Палитра ТВ-интерфейса. */
     val palette: ThemePalette = ThemePalette.VIOLET,
+    /** Фокус на ТВ без белой обводки и свечения (см. ThemeSettingsRepository.plainFocus). */
+    val plainFocus: Boolean = false,
     /**
      * Настройка, чьи варианты показывает боковая панель (ТВ). Остаётся и после закрытия: панель
      * уезжает со своим содержимым, а фокус возвращается на строку этой настройки.
@@ -45,6 +47,9 @@ sealed interface ProfileEvent {
 
     /** Переключатель «Субтитры» на ТВ: включить — язык по умолчанию, выключить — «Выкл». */
     data class SetSubtitlesEnabled(val enabled: Boolean) : ProfileEvent
+
+    /** Переключатель в «Настройках UI» на ТВ: фокус без белой обводки и свечения. */
+    data class SetPlainFocus(val enabled: Boolean) : ProfileEvent
 
     /** «ОК» на строке со значением — панель с вариантами этой настройки. */
     data class OpenSetting(val setting: ProfileSetting) : ProfileEvent

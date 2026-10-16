@@ -9,8 +9,8 @@ import com.filmax.feature.profile.tv.toFxColors
 import org.koin.compose.koinInject
 
 /**
- * ТВ-тема с палитрой, выбранной в Профиле. Выбор — поток настроек: сменили палитру — весь ТВ-UI
- * перекрашивается сразу, без перезапуска и без возврата на экран.
+ * ТВ-тема с оформлением, выбранным в Профиле: палитра и фокус без обводки и свечения. Выбор —
+ * потоки настроек: переключили — весь ТВ-UI меняется сразу, без перезапуска и без возврата на экран.
  */
 @Composable
 fun FilmaxTvPaletteTheme(
@@ -18,5 +18,6 @@ fun FilmaxTvPaletteTheme(
     content: @Composable () -> Unit,
 ) {
     val palette by themeSettings.palette.collectAsState()
-    FilmaxTvTheme(colors = palette.toFxColors(), content = content)
+    val plainFocus by themeSettings.plainFocus.collectAsState()
+    FilmaxTvTheme(colors = palette.toFxColors(), plainFocus = plainFocus, content = content)
 }

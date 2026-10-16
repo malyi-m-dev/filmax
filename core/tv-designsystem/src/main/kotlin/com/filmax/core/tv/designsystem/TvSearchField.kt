@@ -176,7 +176,7 @@ private fun Modifier.listeningLook(): Modifier = this
         scaleY = TvMetrics.FocusScale
     }
     .fxGlowPulse(active = true, cornerRadius = MicGlowRadius)
-    .border(TvMetrics.FocusBorderWidth, TvFocus, TvMetrics.PanelShape)
+    .tvFocusOutline(focused = true, shape = TvMetrics.PanelShape)
 
 /**
  * Мигающий курсор набора — после запроса в поле и после распознанной речи. При сниженной

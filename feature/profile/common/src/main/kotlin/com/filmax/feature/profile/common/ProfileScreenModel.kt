@@ -30,7 +30,7 @@ class ProfileScreenModel(
         onFetchData()
         observeFavorites()
         observePlaybackSettings()
-        observePalette()
+        observeTheme()
     }
 
     private fun observeFavorites() {
@@ -49,9 +49,13 @@ class ProfileScreenModel(
         }
     }
 
-    private fun observePalette() {
+    /** Оформление — живыми потоками: его меняют здесь же, а значение должно сразу дойти до строк. */
+    private fun observeTheme() {
         screenModelScope {
             themeSettings.palette.collect { palette -> updateState { current -> current.copy(palette = palette) } }
+        }
+        screenModelScope {
+            themeSettings.plainFocus.collect { plain -> updateState { current -> current.copy(plainFocus = plain) } }
         }
     }
 
@@ -65,6 +69,7 @@ class ProfileScreenModel(
                 screenModelScope { _ -> playbackSettings.setSubtitleLanguage(event.language) }
             is ProfileEvent.SetSubtitlesEnabled ->
                 screenModelScope { _ -> playbackSettings.setSubtitleLanguage(subtitleLanguageFor(event.enabled)) }
+            is ProfileEvent.SetPlainFocus -> screenModelScope { _ -> themeSettings.setPlainFocus(event.enabled) }
             is ProfileEvent.OpenSetting -> update { it.copy(setting = event.setting, settingOpen = true) }
             ProfileEvent.CloseSetting -> update { it.copy(settingOpen = false) }
             is ProfileEvent.ChooseOption -> chooseOption(event.index)

@@ -5,6 +5,7 @@ package com.filmax.core.tv.designsystem
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.BoxScope
@@ -14,7 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
@@ -56,6 +59,25 @@ private val CHIP_RADIUS = 17.dp
 private val ROW_RADIUS = 14.dp
 private val CIRCLE_RADIUS = 999.dp
 
+/**
+ * Фокус без белой обводки и свечения — настройка «Настройки UI» в Профиле. Элемент в фокусе тогда
+ * выделяют только увеличение и цвет подложки. Читают её [TvFocusSurface], [fxGlowPulse] и
+ * [tvFocusOutline] — все места, где фокус рисует рамку или свечение.
+ */
+val LocalTvPlainFocus = staticCompositionLocalOf { false }
+
+/**
+ * Белая обводка элемента в фокусе для тех, кто рисует фокус сам, а не через [TvFocusSurface]:
+ * та же рамка и так же отключается в «Настройках UI» ([LocalTvPlainFocus]).
+ */
+fun Modifier.tvFocusOutline(
+    focused: Boolean,
+    shape: Shape,
+    width: Dp = TvMetrics.FocusBorderWidth,
+): Modifier = composed {
+    if (focused && !LocalTvPlainFocus.current) border(width, TvFocus, shape) else this
+}
+
 /** Цвета подложки и содержимого: без фокуса и в фокусе. */
 @Immutable
 data class TvSurfaceColors(
@@ -81,6 +103,9 @@ data class TvSurfaceColors(
  * - цветное свечение палитры, пульсирующее ([fxGlowPulse]), — внутри того же слоя, поэтому
  *   растёт вместе с элементом.
  *
+ * Рамку и свечение отключают в «Настройках UI» ([LocalTvPlainFocus]): тогда фокус держат масштаб
+ * и цвет подложки в фокусе.
+ *
  * Состояние фокуса читается из [interactionSource] — передайте свой, если содержимому нужно
  * знать о фокусе (бегущая строка, смена цвета текста).
  */
@@ -99,6 +124,11 @@ fun TvFocusSurface(
 ) {
     val focused by interactionSource.collectIsFocusedAsState()
     val reduced = LocalReducedMotion.current
+    val outline = if (LocalTvPlainFocus.current) {
+        Border.None
+    } else {
+        Border(BorderStroke(TvMetrics.FocusBorderWidth, TvFocus), shape = style.shape)
+    }
     val scale by animateFloatAsState(
         targetValue = if (focused) style.focusedScale else 1f,
         animationSpec = when {
@@ -120,9 +150,7 @@ fun TvFocusSurface(
             .fxGlowPulse(active = focused, cornerRadius = style.glowRadius),
         shape = ClickableSurfaceDefaults.shape(style.shape),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
-        border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(TvMetrics.FocusBorderWidth, TvFocus), shape = style.shape),
-        ),
+        border = ClickableSurfaceDefaults.border(focusedBorder = outline),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = colors.container,
             contentColor = colors.content,
