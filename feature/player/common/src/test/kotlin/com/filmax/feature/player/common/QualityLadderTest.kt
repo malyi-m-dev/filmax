@@ -57,6 +57,15 @@ class QualityLadderTest {
     }
 
     @Test
+    fun `only a failure above Full HD is a decoder limit`() {
+        assertEquals(UHD, QualityLadder.limitOf(UHD))
+        assertEquals(QHD, QualityLadder.limitOf(QHD))
+        // 1920×1072 — так kino.pub кодирует часть 1080p; сбой на нём — занятый декодер, не слабый.
+        assertNull(QualityLadder.limitOf(FULL_HD_CROPPED))
+        assertNull(QualityLadder.limitOf(FULL_HD))
+    }
+
+    @Test
     fun `video decoder failure gives the frame height`() {
         val error = rendererError(MimeTypes.VIDEO_H264, UHD, PlaybackException.ERROR_CODE_DECODING_FAILED)
 
@@ -87,6 +96,9 @@ class QualityLadderTest {
     private companion object {
         const val AUTO = "Авто"
         const val UHD = 2160
+        const val QHD = 1440
+        const val FULL_HD = 1080
+        const val FULL_HD_CROPPED = 1072
         const val LOWEST = 480
     }
 }

@@ -149,11 +149,27 @@ class PlayerScreenModelTest {
         assertEquals("1080p", loaded(FakeIds.HERO_MOVIE, settings = settings).states.value.currentQuality)
     }
 
+    @Test
+    fun `Full HD limit left by a busy decoder does not hold the device at 720p`() = runTest(dispatcher) {
+        val settings = MemoryPlaybackSettings().apply { limit = FULL_HD_CROPPED }
+
+        assertEquals("2160p", loaded(FakeIds.HERO_MOVIE, settings = settings).states.value.currentQuality)
+    }
+
+    @Test
+    fun `loading finished while the screen is hidden leaves the video paused`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.HERO_MOVIE) { dispatch(PlayerEvent.ScreenHidden) }
+
+        assertNotNull(model.states.value.streamUrl, "поток должен быть выбран и подготовлен")
+        assertFalse(model.player.playWhenReady, "скрытый плеер не должен играть за кадром")
+    }
+
     private fun TestScope.loaded(
         itemId: Int,
         season: Int = -1,
         videoId: Int = -1,
         settings: MemoryPlaybackSettings = MemoryPlaybackSettings(),
+        beforeLoad: PlayerScreenModel.() -> Unit = {},
     ): PlayerScreenModel {
         val model = PlayerScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId, "videoId" to videoId, "season" to season)),
@@ -167,6 +183,7 @@ class PlayerScreenModelTest {
             context = RuntimeEnvironment.getApplication(),
         )
         models += model
+        model.beforeLoad()
         advanceUntilIdle()
         return model
     }
@@ -209,5 +226,8 @@ class PlayerScreenModelTest {
         const val LAST_OF_S4 = 24
         const val FAST = 1.5f
         const val UHD_HEIGHT = 2160
+
+        /** 1920×1072 — высота части 1080p kino.pub, на которой 2.2.0 записывал ложный потолок. */
+        const val FULL_HD_CROPPED = 1072
     }
 }

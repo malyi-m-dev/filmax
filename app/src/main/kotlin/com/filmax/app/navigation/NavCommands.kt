@@ -3,6 +3,9 @@ package com.filmax.app.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import com.filmax.core.domain.common.ErrorReporting
@@ -50,10 +53,17 @@ internal fun NavigationCommands(
     routes: GraphRoutes,
     navigator: Navigator = koinInject(),
 ) {
-    LaunchedEffect(navController, routes) {
-        navigator.commands.collect { command ->
-            ErrorReporting.reporter.log(TelemetryText.line("nav: $command"))
-            navController.execute(command, routes)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(navController, routes, lifecycle) {
+        // Команды разбирает только активити на экране. Очередь у Navigator одна на приложение, и
+        // скрытая активити (лаунчер открыл приложение второй раз поверх первого) забирала каждую
+        // вторую команду: экран не отзывался на нажатие, а плеер открывался в ней и играл за кадром.
+        // Пока активити скрыта, команды ждут в очереди.
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            navigator.commands.collect { command ->
+                ErrorReporting.reporter.log(TelemetryText.line("nav: $command"))
+                navController.execute(command, routes)
+            }
         }
     }
     ScreenTelemetry(navController)

@@ -32,10 +32,15 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Filmax">
 
+        <!-- singleTask: приложение — одна активити. Лаунчеры ТВ (главный экран, список
+             приложений, «недавние») запускают её разными интентами, и при standard каждый
+             повторный запуск клал ПОВЕРХ открытой ещё одну. Скрытая забирала половину команд
+             навигации, а открытые в ней плееры играли за кадром. -->
         <activity
             android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
+            android:launchMode="singleTask"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

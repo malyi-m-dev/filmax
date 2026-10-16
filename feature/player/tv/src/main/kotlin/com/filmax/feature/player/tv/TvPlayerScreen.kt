@@ -51,9 +51,11 @@ fun TvPlayerScreen(
 
     PlayerEffects(transport, screenModel, next = state.nextTrack, actions = actions)
     // Ушли с плеера не «Назад», а HOME/лаунчером — пауза: ScreenModel (и ExoPlayer в нём) жив,
-    // и без этого звук продолжал играть за пределами приложения.
-    LifecycleStartEffect(player) {
-        onStopOrDispose { player.pause() }
+    // и без этого звук продолжал играть за пределами приложения. Модель знает об этом и не
+    // запустит видео, если загрузка закончится, пока экран скрыт.
+    LifecycleStartEffect(screenModel) {
+        screenModel.dispatch(PlayerEvent.ScreenShown)
+        onStopOrDispose { screenModel.dispatch(PlayerEvent.ScreenHidden) }
     }
 
     PlayerContent(PlayerScene(state, transport, appError), actions, modifier) { VideoSurface(player) }

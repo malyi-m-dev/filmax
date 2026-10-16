@@ -144,9 +144,11 @@ fun PlayerScreen(
         onDispose { screenModel.player.removeListener(listener) }
     }
     // Свернули приложение (HOME/другое приложение) — пауза: иначе звук играл бы за пределами
-    // экрана, пока жив ScreenModel (жалоба с TV «вышел из плеера, а звук идёт»).
-    LifecycleStartEffect(screenModel.player) {
-        onStopOrDispose { screenModel.player.pause() }
+    // экрана, пока жив ScreenModel (жалоба с TV «вышел из плеера, а звук идёт»). Модель знает об
+    // этом и не запустит видео, если загрузка закончится, пока экран скрыт.
+    LifecycleStartEffect(screenModel) {
+        screenModel.dispatch(PlayerEvent.ScreenShown)
+        onStopOrDispose { screenModel.dispatch(PlayerEvent.ScreenHidden) }
     }
     KeepScreenOn(enabled = playing)
     PlayerFullscreenEffects()
