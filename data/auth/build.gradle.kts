@@ -17,5 +17,10 @@ kotlin {
             implementation(koinBom)
             implementation(libs.koin.core)
         }
+        // Ответы kino.pub в тестах — подменённым движком Ktor, без сети; токены — в памяти.
+        commonTest.dependencies {
+            implementation(libs.ktor.client.mock)
+            implementation(libs.multiplatform.settings.test)
+        }
     }
 }

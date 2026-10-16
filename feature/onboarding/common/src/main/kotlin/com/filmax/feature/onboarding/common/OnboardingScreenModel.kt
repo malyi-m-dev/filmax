@@ -1,9 +1,7 @@
 package com.filmax.feature.onboarding.common
 
-import android.os.Build
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.delay
 
@@ -11,7 +9,6 @@ private const val MILLIS_PER_SECOND = 1000L
 
 class OnboardingScreenModel(
     private val auth: AuthRepository,
-    private val user: UserRepository,
 ) : BaseScreenModel<OnboardingState, OnboardingSideEffect, OnboardingEvent>(OnboardingState()) {
 
     override fun onEvent(event: OnboardingEvent) {
@@ -68,23 +65,14 @@ class OnboardingScreenModel(
                 timestamp = System.currentTimeMillis() / MILLIS_PER_SECOND,
             )
             if (result is RequestResult.Success) {
-                // Сообщаем бэку о клиенте (kino.pub device/notify) сразу после входа —
-                // best-effort: ошибка регистрации не должна мешать авторизации.
-                registerDevice()
+                // Подпись устройства в аккаунте — не здесь, а в RootScreenModel: этот экран
+                // снимается навигацией, как только сохранится токен, и запрос не успевал уйти.
                 updateState { it.copy(polling = false) }
                 postSideEffect(OnboardingSideEffect.Authenticated)
                 return
             }
         }
         updateState { it.copy(polling = false, error = "Время ожидания истекло. Попробуйте снова.") }
-    }
-
-    private suspend fun registerDevice() {
-        user.registerDevice(
-            title = "${Build.MANUFACTURER} ${Build.MODEL}".trim(),
-            hardware = Build.DEVICE.ifBlank { "android" },
-            software = "Filmax · Android ${Build.VERSION.RELEASE}",
-        )
     }
 
     private fun retryDeviceCode() {
