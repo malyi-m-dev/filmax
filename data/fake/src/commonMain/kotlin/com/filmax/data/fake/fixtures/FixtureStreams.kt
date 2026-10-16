@@ -26,7 +26,7 @@ private const val MUX_BUNNY_HLS = "https://test-streams.mux.dev/x36xhzz/x36xhzz.
 private const val APPLE_ADVANCED_HLS =
     "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"
 
-/** Прогрессивный MP4 — последний вариант доставки, на который плеер откатывается после hls4 и hls. */
+/** Прогрессивный MP4 — второй вариант доставки: на него плеер откатывается сразу после hls4. */
 private const val BUNNY_MP4 = "https://storage.googleapis.com/exoplayer-test-media-0/BigBuckBunny_320x180.mp4"
 
 private val UHD_QUALITIES = listOf("2160p", "1080p", "720p", "480p")

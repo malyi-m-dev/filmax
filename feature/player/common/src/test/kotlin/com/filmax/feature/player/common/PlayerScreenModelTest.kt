@@ -16,8 +16,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.runner.RunWith
@@ -150,6 +152,32 @@ class PlayerScreenModelTest {
     }
 
     @Test
+    fun `mp4 with every voice backs up hls4 before single-voice hls`() = runTest(dispatcher) {
+        val state = loaded(FakeIds.HERO_MOVIE).states.value
+        val file = assertNotNull(state.track).files.first()
+
+        val urls = state.qualities.first { it.label == file.quality }.urls
+
+        assertEquals(listOf(file.hls4, file.http, file.hls), urls)
+    }
+
+    @Test
+    fun `variant that sends no video in time gives way to the backup`() = runTest(dispatcher) {
+        val model = created(FakeIds.HERO_MOVIE)
+        runCurrent()
+        val state = model.states.value
+        val urls = state.qualities.first { it.label == state.currentQuality }.urls
+        assertEquals(urls[0], state.streamUrl)
+
+        // Плеер Robolectric ничего не грузит — как заблокированный по SNI хост.
+        advanceTimeBy(START_TIMEOUT_MS + 1)
+        runCurrent()
+
+        assertEquals(urls[1], model.states.value.streamUrl, "молчащий вариант должен смениться запасным")
+        assertTrue(model.player.playWhenReady, "смена варианта не ставит видео на паузу")
+    }
+
+    @Test
     fun `Full HD limit left by a busy decoder does not hold the device at 720p`() = runTest(dispatcher) {
         val settings = MemoryPlaybackSettings().apply { limit = FULL_HD_CROPPED }
 
@@ -171,6 +199,19 @@ class PlayerScreenModelTest {
         settings: MemoryPlaybackSettings = MemoryPlaybackSettings(),
         beforeLoad: PlayerScreenModel.() -> Unit = {},
     ): PlayerScreenModel {
+        val model = created(itemId, season, videoId, settings)
+        model.beforeLoad()
+        advanceUntilIdle()
+        return model
+    }
+
+    /** Модель до загрузки: корутины ещё не шли — время в тесте ведут вручную. */
+    private fun created(
+        itemId: Int,
+        season: Int = -1,
+        videoId: Int = -1,
+        settings: MemoryPlaybackSettings = MemoryPlaybackSettings(),
+    ): PlayerScreenModel {
         val model = PlayerScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId, "videoId" to videoId, "season" to season)),
             repositories = PlayerRepositories(
@@ -183,8 +224,6 @@ class PlayerScreenModelTest {
             context = RuntimeEnvironment.getApplication(),
         )
         models += model
-        model.beforeLoad()
-        advanceUntilIdle()
         return model
     }
 
