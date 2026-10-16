@@ -10,6 +10,8 @@
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-10-16
+
 ### Добавлено
 - Оценка приложения с комментарием. Окно открывается из Профиля («Оценить приложение»), а само
   — после обновления и после досмотренного фильма, но не чаще раза в два месяца и не раньше
@@ -473,7 +475,8 @@
   R8 + `shrinkResources`, `versionCode` из числа коммитов и `versionName` из git-тега.
 - CI по тегу `v*`: сборка подписанного APK → GitHub Release (+ Telegram).
 
-[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v2.1.2...HEAD
+[Unreleased]: https://github.com/malyi-m-dev/filmax/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.2.0
 [2.1.2]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.1.2
 [2.1.1]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.1.1
 [2.1.0]: https://github.com/malyi-m-dev/filmax/releases/tag/v2.1.0
