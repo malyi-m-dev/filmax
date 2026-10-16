@@ -35,6 +35,7 @@ import com.filmax.core.tv.designsystem.LocalTvNavBarFocused
 import com.filmax.core.tv.designsystem.LocalTvScrollToTop
 import com.filmax.feature.collections.tv.navigation.tvCollectionDetailScreen
 import com.filmax.feature.details.tv.navigation.tvDetailsScreen
+import com.filmax.feature.feedback.tv.navigation.tvFeedbackScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
 import com.filmax.feature.library.tv.navigation.tvFolderScreen
@@ -219,6 +220,7 @@ private fun NavGraphBuilder.tvDestinations(onCheckUpdates: () -> Unit) {
     // «Подборки» больше не вкладка — это контент внутри Каталога. Экран содержимого
     // подборки остаётся push-экраном: в него ведёт Каталог.
     tvCollectionDetailScreen()
+    tvFeedbackScreen()
     // «Моё» и экран открытой папки — push-экран без меню, как детали.
     tvLibraryScreen()
     tvFolderScreen()

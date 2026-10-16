@@ -4,14 +4,17 @@ import android.app.Application
 import android.content.pm.PackageManager
 import com.filmax.app.di.appModule
 import com.filmax.app.di.useCaseModule
+import com.filmax.core.domain.feedback.FeedbackPromptStore
 import com.filmax.core.navigation.di.navigationModule
 import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
 import com.filmax.data.auth.di.authModule
 import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.fake.FakeBackend
+import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.di.fakeDataModule
+import com.filmax.data.feedback.di.feedbackModule
 import com.filmax.data.search.di.searchModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
 import com.filmax.data.tmdb.di.tmdbModule
@@ -19,6 +22,7 @@ import com.filmax.data.user.di.userModule
 import com.filmax.data.watching.di.watchingModule
 import com.filmax.feature.collections.common.di.collectionsModule
 import com.filmax.feature.details.common.di.detailsModule
+import com.filmax.feature.feedback.common.di.feedbackFeatureModule
 import com.filmax.feature.home.common.di.homeModule
 import com.filmax.feature.library.common.di.libraryModule
 import com.filmax.feature.onboarding.common.di.onboardingModule
@@ -49,7 +53,10 @@ class TvShellTestRule : ExternalResource() {
             modules(
                 listOf(navigationModule, networkModule, platformNetworkModule) +
                     listOf(authModule, catalogModule, searchModule, userModule, watchingModule, tmdbModule) +
+                    listOf(feedbackModule) +
                     listOf(fakeDataModule, module { single { FakeBackend(latency = FakeLatency.None) } }) +
+                    // Память показов окна оценки — своя у каждого теста: окно не выскочит посреди сценария.
+                    module { single<FeedbackPromptStore> { FakeFeedbackPromptStore() } } +
                     listOf(
                         useCaseModule,
                         onboardingModule,
@@ -60,6 +67,7 @@ class TvShellTestRule : ExternalResource() {
                         profileModule,
                         detailsModule,
                         playerModule,
+                        feedbackFeatureModule,
                         appModule,
                     ),
             )

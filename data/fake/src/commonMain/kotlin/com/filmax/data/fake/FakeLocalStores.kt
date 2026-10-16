@@ -4,6 +4,8 @@ import com.filmax.core.domain.downloads.DownloadsRepository
 import com.filmax.core.domain.downloads.model.DownloadedItem
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.FavoriteItem
+import com.filmax.core.domain.feedback.FeedbackPromptState
+import com.filmax.core.domain.feedback.FeedbackPromptStore
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.settings.ThemePalette
@@ -117,5 +119,16 @@ class FakePlaybackSettingsRepository : PlaybackSettingsRepository {
 
     override suspend fun setDecoderLimit(height: Int?) {
         decoderLimit = height
+    }
+}
+
+/** Память показов окна оценки в памяти — у каждого теста чистая. */
+class FakeFeedbackPromptStore : FeedbackPromptStore {
+    var state = FeedbackPromptState()
+
+    override suspend fun load(): FeedbackPromptState = state
+
+    override suspend fun save(state: FeedbackPromptState) {
+        this.state = state
     }
 }

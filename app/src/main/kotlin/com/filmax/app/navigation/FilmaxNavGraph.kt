@@ -32,6 +32,7 @@ import com.filmax.core.ui.components.FilmaxTabBar
 import com.filmax.feature.collections.mobile.navigation.collectionDetailScreen
 import com.filmax.feature.designsystem.navigation.designSystemScreen
 import com.filmax.feature.details.mobile.navigation.detailsScreen
+import com.filmax.feature.feedback.mobile.navigation.feedbackDialog
 import com.filmax.feature.home.mobile.navigation.HomeRoute
 import com.filmax.feature.home.mobile.navigation.homeScreen
 import com.filmax.feature.library.mobile.navigation.LibraryRoute
@@ -155,6 +156,7 @@ private fun NavGraphBuilder.filmaxDestinations(onCheckUpdates: () -> Unit) {
     // «Подборки» больше не вкладка — это контент Каталога и ряд на Главной. Экран содержимого
     // подборки остаётся push-экраном: в него ведут они.
     collectionDetailScreen()
+    feedbackDialog()
     libraryScreen()
     profileScreen(
         onCheckUpdates = onCheckUpdates,

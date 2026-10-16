@@ -1,10 +1,12 @@
 package com.filmax.feature.player.common
 
 import androidx.lifecycle.SavedStateHandle
+import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
+import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
@@ -155,10 +157,13 @@ class PlayerScreenModelTest {
     ): PlayerScreenModel {
         val model = PlayerScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId, "videoId" to videoId, "season" to season)),
-            catalog = FakeCatalogRepository(backend),
-            watching = FakeWatchingRepository(backend),
+            repositories = PlayerRepositories(
+                catalog = FakeCatalogRepository(backend),
+                watching = FakeWatchingRepository(backend),
+                user = FakeUserRepository(backend),
+            ),
             playbackSettings = settings,
-            userRepository = FakeUserRepository(backend),
+            feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
             context = RuntimeEnvironment.getApplication(),
         )
         models += model

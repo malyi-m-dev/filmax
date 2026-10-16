@@ -106,5 +106,11 @@ sealed interface HomeEvent {
     data class ToggleWatchLater(val item: Item) : HomeEvent
 }
 
-/** Экран пока не порождает одноразовых эффектов — навигацию экраны просят у Navigator сами. */
-sealed interface HomeSideEffect
+/**
+ * Одноразовые эффекты Главной. Навигацию экраны просят у Navigator сами; эффект — только когда
+ * решение принимает модель.
+ */
+sealed interface HomeSideEffect {
+    /** Приложение обновилось — пора спросить, как оно: экран откроет окно оценки. */
+    data object AskFeedback : HomeSideEffect
+}

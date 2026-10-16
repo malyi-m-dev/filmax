@@ -101,6 +101,9 @@ android {
         buildConfigField("String", "DEMO_REFRESH_TOKEN", "\"\"")
         // In-app update: откуда читать релизы и чем авторизоваться (см. GitHubUpdateRepository).
         buildConfigField("String", "UPDATE_GITHUB_REPO", "\"malyi-m-dev/filmax\"")
+        // Firebase-проект для отзывов (Firestore по REST). Не секрет: тот же id лежит в
+        // google-services.json и уходит в каждом запросе.
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"filmax-5ef9f\"")
         buildConfigField("String", "UPDATE_GITHUB_TOKEN", "\"$updateGithubToken\"")
     }
 
@@ -223,6 +226,7 @@ dependencies {
     implementation(project(":data:user"))
     implementation(project(":data:watching"))
     implementation(project(":data:tmdb"))
+    implementation(project(":data:feedback"))
     // Фейки только в сборке mock: main-код о них не знает, подключает MockFilmaxApplication.
     "mockImplementation"(project(":data:fake"))
     "benchmarkImplementation"(project(":data:fake"))
@@ -240,6 +244,7 @@ dependencies {
     implementation(project(":feature:collections:mobile"))
     implementation(project(":feature:library:mobile"))
     implementation(project(":feature:profile:mobile"))
+    implementation(project(":feature:feedback:mobile"))
     implementation(project(":feature:details:mobile"))
     implementation(project(":feature:player:mobile"))
     implementation(project(":feature:designsystem"))
@@ -251,6 +256,7 @@ dependencies {
     implementation(project(":feature:collections:tv"))
     implementation(project(":feature:library:tv"))
     implementation(project(":feature:profile:tv"))
+    implementation(project(":feature:feedback:tv"))
     implementation(project(":feature:details:tv"))
     implementation(project(":feature:player:tv"))
 

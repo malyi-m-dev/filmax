@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -51,11 +52,17 @@ fun TvProfileScreen(
             ProfileSideEffect.LoggedOut -> navigator.root(Destination.Onboarding)
         }
     }
-    ProfileContent(state, ProfileActions(screenModel::dispatch, onCheckUpdates), modifier)
+    val onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) }
+    ProfileContent(state, ProfileActions(screenModel::dispatch, onCheckUpdates, onRate), modifier)
 }
 
-/** Действия экрана: события модели и ручная проверка обновлений (её модель живёт в :app). */
-internal data class ProfileActions(val onEvent: (ProfileEvent) -> Unit, val onCheckUpdates: () -> Unit)
+/** Действия экрана: события модели, ручная проверка обновлений (её модель живёт в :app) и оценка. */
+internal data class ProfileActions(
+    val onEvent: (ProfileEvent) -> Unit,
+    val onCheckUpdates: () -> Unit,
+    /** Окно оценки приложения. */
+    val onRate: () -> Unit = {},
+)
 
 /**
  * Куда вернуть фокус: на строку настройки, чья панель закрылась, и на «Выйти», когда закрылся

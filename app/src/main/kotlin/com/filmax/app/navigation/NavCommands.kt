@@ -13,6 +13,7 @@ import com.filmax.core.navigation.Navigator
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.designsystem.navigation.DesignSystemRoute
 import com.filmax.feature.details.common.navigation.DetailsRoute
+import com.filmax.feature.feedback.common.navigation.FeedbackRoute
 import com.filmax.feature.home.mobile.navigation.HomeRoute
 import com.filmax.feature.library.mobile.navigation.LibraryRoute
 import com.filmax.feature.onboarding.mobile.navigation.OnboardingRoute
@@ -148,12 +149,10 @@ internal val PhoneRoutes = GraphRoutes(tabRoot = HomeRoute, toRoute = Destinatio
  * маршруты назывались так до переименования разделов.
  */
 private fun Destination.toPhoneRoute(): Any = when (this) {
-    Destination.Home -> HomeRoute
-    Destination.Catalog -> SearchRoute
-    Destination.Mine -> LibraryRoute
-    Destination.Profile -> ProfileRoute
+    is Destination.Tab -> toPhoneTabRoute()
     Destination.Onboarding -> OnboardingRoute
     Destination.DeviceSettings -> DeviceSettingsRoute
+    is Destination.Feedback -> FeedbackRoute(trigger)
     Destination.DesignSystem -> DesignSystemRoute
     is Destination.Details -> DetailsRoute(itemId)
     is Destination.Player -> PlayerRoute(itemId = itemId, videoId = videoId, season = season)
@@ -162,4 +161,12 @@ private fun Destination.toPhoneRoute(): Any = when (this) {
     is Destination.Filmography -> FilmographyRoute(name = name, isDirector = isDirector)
     // Папка на телефоне открывается внутри Библиотеки, отдельного экрана у неё нет.
     is Destination.BookmarkFolder -> error("BookmarkFolder не существует в телефонном графе")
+}
+
+/** Разделы нижней навигации — отдельно: общая таблица иначе за порогом сложности detekt. */
+private fun Destination.Tab.toPhoneTabRoute(): Any = when (this) {
+    Destination.Home -> HomeRoute
+    Destination.Catalog -> SearchRoute
+    Destination.Mine -> LibraryRoute
+    Destination.Profile -> ProfileRoute
 }

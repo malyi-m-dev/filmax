@@ -64,6 +64,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
@@ -71,6 +72,7 @@ import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
+import com.filmax.feature.player.common.PlayerSideEffect
 import com.filmax.feature.player.common.formatPlayerTime
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
@@ -88,6 +90,12 @@ fun PlayerScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
+            PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+        }
+    }
     val appError by screenModel.collectErrorAsState()
     val onBack: () -> Unit = navigator::back
 

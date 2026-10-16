@@ -49,6 +49,12 @@ sealed interface Destination {
 
     data object DeviceSettings : Destination
 
+    /**
+     * Окно оценки приложения. [trigger] — имя `FeedbackTrigger` из domain (Profile, AfterUpdate,
+     * AfterWatch): core:navigation не знает типов domain, поэтому строкой.
+     */
+    data class Feedback(val trigger: String) : Destination
+
     /** Каталог компонентов дизайн-системы — только для debug-сборки. */
     data object DesignSystem : Destination
 }

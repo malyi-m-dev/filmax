@@ -18,11 +18,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
+import com.filmax.feature.home.common.HomeSideEffect
 import com.filmax.feature.home.common.HomeState
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -47,6 +49,11 @@ fun HomeScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            HomeSideEffect.AskFeedback -> navigator.open(Destination.Feedback(FeedbackTrigger.AfterUpdate.name))
+        }
+    }
     val appError by screenModel.collectErrorAsState()
     val offline by screenModel.collectOfflineBannerAsState()
     val actions = remember(navigator) { navigator.homeActions() }

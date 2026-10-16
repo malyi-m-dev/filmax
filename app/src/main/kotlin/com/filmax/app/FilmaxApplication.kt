@@ -10,6 +10,8 @@ import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
 import com.filmax.data.auth.di.authModule
 import com.filmax.data.catalog.di.catalogModule
+import com.filmax.data.feedback.di.FIREBASE_PROJECT_PROPERTY
+import com.filmax.data.feedback.di.feedbackModule
 import com.filmax.data.search.di.searchModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
 import com.filmax.data.tmdb.di.tmdbModule
@@ -17,6 +19,7 @@ import com.filmax.data.user.di.userModule
 import com.filmax.data.watching.di.watchingModule
 import com.filmax.feature.collections.common.di.collectionsModule
 import com.filmax.feature.details.common.di.detailsModule
+import com.filmax.feature.feedback.common.di.feedbackFeatureModule
 import com.filmax.feature.home.common.di.homeModule
 import com.filmax.feature.library.common.di.libraryModule
 import com.filmax.feature.onboarding.common.di.onboardingModule
@@ -42,7 +45,12 @@ open class FilmaxApplication : Application() {
             androidContext(this@FilmaxApplication)
             // Ключ TMDB отдаём модулю свойством, а не в коде: секрет живёт в BuildConfig (из
             // local.properties), а data:tmdb читает его через getProperty.
-            properties(mapOf(TMDB_API_KEY_PROPERTY to BuildConfig.TMDB_API_KEY))
+            properties(
+                mapOf(
+                    TMDB_API_KEY_PROPERTY to BuildConfig.TMDB_API_KEY,
+                    FIREBASE_PROJECT_PROPERTY to BuildConfig.FIREBASE_PROJECT_ID,
+                ),
+            )
             modules(coreModules() + dataModules() + featureModules())
         }
     }
@@ -64,6 +72,7 @@ open class FilmaxApplication : Application() {
         userModule,
         watchingModule,
         tmdbModule,
+        feedbackModule,
     )
 
     /** Фичи и app-модуль — после data, как и раньше. */
@@ -77,6 +86,7 @@ open class FilmaxApplication : Application() {
         profileModule,
         detailsModule,
         playerModule,
+        feedbackFeatureModule,
         appModule,
     )
 
