@@ -13,10 +13,12 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
+import com.filmax.feature.player.common.PlayerSideEffect
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -36,6 +38,12 @@ fun TvPlayerScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
+            PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+        }
+    }
     val appError by screenModel.collectErrorAsState()
     val player = screenModel.player
     val transport = remember(player) { TvTransportState(player) }

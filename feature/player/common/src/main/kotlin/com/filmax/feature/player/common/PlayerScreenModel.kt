@@ -12,7 +12,6 @@ import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.toRoute
-import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
@@ -22,10 +21,9 @@ import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
 import com.filmax.core.domain.error.RequestFailure
+import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
-import com.filmax.core.domain.user.UserRepository
-import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import kotlinx.coroutines.flow.first
@@ -36,12 +34,15 @@ import kotlin.math.abs
 @Suppress("TooManyFunctions")
 class PlayerScreenModel(
     savedStateHandle: SavedStateHandle,
-    private val catalog: CatalogRepository,
-    private val watching: WatchingRepository,
+    repositories: PlayerRepositories,
     private val playbackSettings: PlaybackSettingsRepository,
-    private val userRepository: UserRepository,
+    private val feedbackPrompts: FeedbackPrompts,
     context: Context,
 ) : BaseScreenModel<PlayerState, PlayerSideEffect, PlayerEvent>(PlayerState()) {
+
+    private val catalog = repositories.catalog
+    private val watching = repositories.watching
+    private val userRepository = repositories.user
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()
 
@@ -106,6 +107,10 @@ class PlayerScreenModel(
             // Кадр выше потолка всё-таки показан — зритель выбрал его сам, и он идёт (скажем,
             // 4K в HEVC там, где 4K H.264 падал): потолок был ложным, снимаем.
             override fun onRenderedFirstFrame() = liftDecoderLimitIfExceeded()
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) onWatchFinished()
+            }
         })
         onFetchData()
     }
@@ -319,6 +324,18 @@ class PlayerScreenModel(
         player.playWhenReady = wasPlaying
         screenModelScope { _ -> updateState { it.copy(streamUrl = nextUrl) } }
         return true
+    }
+
+    /**
+     * Досмотрено до конца: досмотр засчитывается, а окно оценки просится, только если дальше
+     * ничего не играет — фильм или последняя доступная серия. Посреди сериала автопереход на
+     * следующую серию окном не перебиваем.
+     */
+    private fun onWatchFinished() {
+        screenModelScope { current ->
+            val ask = feedbackPrompts.afterWatchFinished()
+            if (ask && current.nextTrack == null) postSideEffect(PlayerSideEffect.AskFeedback)
+        }
     }
 
     private fun selectSubtitle(label: String) {

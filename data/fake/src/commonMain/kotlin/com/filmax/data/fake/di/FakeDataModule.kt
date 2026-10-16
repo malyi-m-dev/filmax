@@ -2,6 +2,7 @@ package com.filmax.data.fake.di
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.feedback.FeedbackRepository
 import com.filmax.core.domain.person.CastRepository
 import com.filmax.core.domain.search.SearchRepository
 import com.filmax.core.domain.user.UserRepository
@@ -10,6 +11,7 @@ import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCastRepository
 import com.filmax.data.fake.FakeCatalogRepository
+import com.filmax.data.fake.FakeFeedbackRepository
 import com.filmax.data.fake.FakeSearchRepository
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
@@ -32,4 +34,6 @@ val fakeDataModule = module {
     single<UserRepository> { FakeUserRepository(backend = get()) }
     single<WatchingRepository> { FakeWatchingRepository(backend = get()) }
     single<CastRepository> { FakeCastRepository(backend = get()) }
+    // Отзывы из мок-сборки в боевую базу Firestore не уходят.
+    single<FeedbackRepository> { FakeFeedbackRepository(backend = get()) }
 }

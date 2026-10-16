@@ -166,6 +166,12 @@ private fun AccountRows(rows: SettingRows, enter: Int) {
         onClick = actions.onCheckUpdates,
         modifier = Modifier.fxEnter(enter + 1).then(rows.screenFocus.item("updates")),
     )
+    TvSettingRow(
+        label = "Оценить приложение",
+        value = null,
+        onClick = actions.onRate,
+        modifier = Modifier.fxEnter(enter + 1).then(rows.screenFocus.item("rate")),
+    )
     FilmaxVersionLabel(color = LocalFxColors.current.textDim, modifier = Modifier.padding(top = 6.dp))
 }
 

@@ -119,7 +119,10 @@ sealed interface PlayerEvent {
     data class ShowSeason(val season: Int) : PlayerEvent
 }
 
-sealed interface PlayerSideEffect
+sealed interface PlayerSideEffect {
+    /** Фильм досмотрен — пора спросить, как смотрелось: экран заменит плеер окном оценки. */
+    data object AskFeedback : PlayerSideEffect
+}
 
 /** «1:23:45» / «23:45» — формат времени плеера, единый для mobile и TV. */
 @Suppress("MagicNumber")

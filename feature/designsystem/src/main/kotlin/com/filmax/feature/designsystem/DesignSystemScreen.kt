@@ -34,6 +34,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -74,6 +75,7 @@ import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxProgressBar
 import com.filmax.core.ui.components.FilmaxProgressCard
 import com.filmax.core.ui.components.FilmaxRatingPill
+import com.filmax.core.ui.components.FilmaxRatingStars
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import org.koin.compose.koinInject
@@ -700,6 +702,9 @@ private fun IndicatorsBlock() {
             style = MaterialTheme.typography.bodySmall,
             color = FilmaxOnSurfaceDim,
         )
+        Spacer(Modifier.height(16.dp))
+        var stars by remember { mutableIntStateOf(4) }
+        FilmaxRatingStars(rating = stars, onRate = { stars = it })
         Spacer(Modifier.height(16.dp))
         FilmaxProgressBar(progress = 0.45f)
         Spacer(Modifier.height(10.dp))

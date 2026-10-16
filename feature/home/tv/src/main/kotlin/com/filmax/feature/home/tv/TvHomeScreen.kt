@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -14,6 +15,7 @@ import com.filmax.core.tv.designsystem.TvErrorState
 import com.filmax.core.ui.components.appErrorText
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
+import com.filmax.feature.home.common.HomeSideEffect
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -31,6 +33,11 @@ fun TvHomeScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            HomeSideEffect.AskFeedback -> navigator.open(Destination.Feedback(FeedbackTrigger.AfterUpdate.name))
+        }
+    }
     val offline by screenModel.collectOfflineBannerAsState()
     val appError by screenModel.collectErrorAsState()
     val actions = TvHomeActions(

@@ -4,6 +4,7 @@ import com.filmax.app.navigation.GraphRoutes
 import com.filmax.core.navigation.Destination
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.details.common.navigation.DetailsRoute
+import com.filmax.feature.feedback.common.navigation.FeedbackRoute
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.library.common.navigation.FolderRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
@@ -20,12 +21,10 @@ internal val TvRoutes = GraphRoutes(tabRoot = TvHomeRoute, toRoute = Destination
 
 /** Адрес → маршрут ТВ-графа. `TvSearchRoute` отдаёт Каталог, `TvLibraryRoute` — «Моё». */
 private fun Destination.toTvRoute(): Any = when (this) {
-    Destination.Home -> TvHomeRoute
-    Destination.Catalog -> TvSearchRoute
-    Destination.Mine -> TvLibraryRoute
-    Destination.Profile -> TvProfileRoute
+    is Destination.Tab -> toTvTabRoute()
     Destination.Onboarding -> TvOnboardingRoute
     Destination.DeviceSettings -> TvDeviceSettingsRoute
+    is Destination.Feedback -> FeedbackRoute(trigger)
     // Каталог компонентов — debug-экран телефона, на ТВ его нет и открывать нечем.
     Destination.DesignSystem -> error("DesignSystem не существует в ТВ-графе")
     is Destination.Details -> DetailsRoute(itemId)
@@ -34,4 +33,12 @@ private fun Destination.toTvRoute(): Any = when (this) {
     is Destination.CollectionDetail -> CollectionDetailRoute(collectionId = collectionId, title = title)
     is Destination.Filmography -> FilmographyRoute(name = name, isDirector = isDirector)
     is Destination.BookmarkFolder -> FolderRoute(folderId)
+}
+
+/** Разделы бокового меню — отдельно: общая таблица иначе за порогом сложности detekt. */
+private fun Destination.Tab.toTvTabRoute(): Any = when (this) {
+    Destination.Home -> TvHomeRoute
+    Destination.Catalog -> TvSearchRoute
+    Destination.Mine -> TvLibraryRoute
+    Destination.Profile -> TvProfileRoute
 }

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxOnSurfaceDim
 import com.filmax.core.designsystem.ShapeButton
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.navigation.Destination
@@ -104,6 +105,7 @@ fun ProfileScreen(
         actions = ProfileActions(
             onOpenSheet = { sheet -> activeSheet = sheet },
             onCheckUpdates = onCheckUpdates,
+            onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) },
             onOpenDesignSystem = if (showDesignSystem) {
                 { navigator.open(Destination.DesignSystem) }
             } else {
@@ -130,6 +132,7 @@ fun ProfileScreen(
 private data class ProfileActions(
     val onOpenSheet: (ProfileSheet) -> Unit,
     val onCheckUpdates: () -> Unit,
+    val onRate: () -> Unit,
     val onOpenDesignSystem: (() -> Unit)?,
     val onLogout: () -> Unit,
 )
@@ -167,6 +170,10 @@ private fun ProfileContent(
         SettingRow(
             spec = SettingRowSpec(label = "Проверить обновления"),
             onClick = actions.onCheckUpdates,
+        )
+        SettingRow(
+            spec = SettingRowSpec(label = "Оценить приложение"),
+            onClick = actions.onRate,
         )
 
         val onOpenDesignSystem = actions.onOpenDesignSystem

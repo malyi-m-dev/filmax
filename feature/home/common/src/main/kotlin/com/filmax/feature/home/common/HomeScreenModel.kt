@@ -7,6 +7,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
+import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.user.UserRepository
@@ -19,12 +20,24 @@ class HomeScreenModel(
     private val user: UserRepository,
     private val favorites: FavoritesRepository,
     private val toggleWatchLater: ToggleWatchLaterUseCase,
+    private val feedbackPrompts: FeedbackPrompts,
 ) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
 
     init {
         onFetchData()
         fetchUserInitials()
         observeWatchLater()
+        askFeedbackAfterUpdate()
+    }
+
+    /**
+     * Главная — первый экран после входа на обеих платформах: здесь и узнаём, что приложение
+     * обновилось. Окно открывается не чаще, чем разрешает [FeedbackPrompts].
+     */
+    private fun askFeedbackAfterUpdate() {
+        screenModelScope { _ ->
+            if (feedbackPrompts.afterAppStart()) postSideEffect(HomeSideEffect.AskFeedback)
+        }
     }
 
     override fun onEvent(event: HomeEvent) {

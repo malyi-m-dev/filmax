@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Отзывы о приложении (окно оценки Filmax). Приложение пишет без входа в Firebase, поэтому
+// из APK разрешено только создать отзыв строго нашей формы; прочитать, изменить или удалить его
+// можно только из консоли. Остальная база закрыта.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isFeedback(data) {
+      return data.keys().hasOnly(['rating', 'comment', 'trigger', 'appVersion', 'platform', 'device', 'os', 'username'])
+        && data.keys().hasAll(['rating', 'comment', 'trigger', 'appVersion', 'platform', 'device', 'os', 'username'])
+        && data.rating is int && data.rating >= 1 && data.rating <= 5
+        && data.comment is string && data.comment.size() <= 1000
+        && data.trigger in ['Profile', 'AfterUpdate', 'AfterWatch']
+        && data.platform in ['tv', 'mobile']
+        && data.appVersion is string && data.appVersion.size() <= 40
+        && data.device is string && data.device.size() <= 100
+        && data.os is string && data.os.size() <= 40
+        && data.username is string && data.username.size() <= 100;
+    }
+
+    match /feedback/{id} {
+      allow create: if isFeedback(request.resource.data);
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

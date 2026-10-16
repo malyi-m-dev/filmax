@@ -1,11 +1,13 @@
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.common.LastValueCache
+import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeFavoritesRepository
+import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
@@ -87,6 +89,7 @@ class HomeScreenModelTest {
             user = FakeUserRepository(backend),
             favorites = favorites,
             toggleWatchLater = ToggleWatchLaterUseCase(favorites, watching),
+            feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
         )
     }
 
