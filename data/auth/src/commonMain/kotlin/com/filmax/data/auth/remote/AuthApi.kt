@@ -36,4 +36,9 @@ internal class AuthApi(private val client: HttpClient) {
             parameter("client_secret", OAUTH_CLIENT_SECRET)
             parameter("refresh_token", refreshToken)
         }.body()
+
+    /** Отвязать это устройство от аккаунта: оно пропадает из списка устройств kino.pub. */
+    suspend fun unlinkDevice() {
+        client.post("api/v1/device/unlink")
+    }
 }

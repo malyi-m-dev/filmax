@@ -54,6 +54,9 @@ internal class AuthRepositoryImpl(
     }
 
     override suspend fun logout(): RequestResult<Unit> = safeRequest {
+        // Устройство уходит из аккаунта kino.pub — иначе каждый повторный вход копил бы там
+        // мёртвые устройства. Без сети выход всё равно выполняется: токены стираются в любом случае.
+        safeRequest { api.unlinkDevice() }
         tokenStorage.clear()
         // Дальше устройством может пользоваться другой аккаунт — отвязываем телеметрию.
         ErrorReporting.reporter.setUser(null)
