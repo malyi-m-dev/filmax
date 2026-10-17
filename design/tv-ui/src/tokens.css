@@ -1,0 +1,55 @@
+/*
+ * Токены Filmax TV — зеркало core:tv-designsystem (TvColor.kt, TvType.kt, TvMetrics.kt).
+ * Проектируем в 960×540dp: 1dp = 1px этого холста, 1sp = 1px.
+ * Меняешь значение здесь — меняй и в Kotlin, источник правды там.
+ */
+:root {
+  /* ── Палитра: строгий монохром, R = G = B ───────────────────────────── */
+  --ftv-surface: #0a0a0a;                 /* подложка экрана */
+  --ftv-surface-container: #141414;       /* карточки, панели, поля */
+  --ftv-surface-container-high: #1f1f1f;  /* чипы, вторичные кнопки */
+  --ftv-surface-container-highest: #2e2e2e; /* разделители, аватар */
+  --ftv-on-surface: #e8e8e8;              /* основной текст */
+  --ftv-on-surface-variant: #a0a0a0;      /* вторичный текст, мета */
+  --ftv-on-surface-dim: #8a8a8a;          /* третичный, плейсхолдеры */
+  --ftv-accent: #ffffff;                  /* единственный акцент — белый */
+  --ftv-on-accent: #0a0a0a;               /* текст на белой заливке */
+  --ftv-error: #e0736b;                   /* только ошибки и деструктив */
+  --ftv-error-container: #3a1512;
+  --ftv-focus: #ffffff;                   /* рамка фокуса */
+  --ftv-focus-halo: rgba(0, 0, 0, 0.85);  /* тёмный ореол снаружи рамки */
+
+  /* ── Типографика: Roboto (FontFamily.Default на Android TV) ─────────── */
+  --ftv-font: "Roboto", system-ui, sans-serif;
+
+  /* ── Метрики раскладки 960×540 ───────────────────────────────────────── */
+  --ftv-safe-h: 58px;        /* горизонтальное безопасное поле */
+  --ftv-safe-v: 28px;        /* вертикальное безопасное поле */
+  --ftv-content-top: 40px;   /* отступ контента раздела сверху */
+  --ftv-card-gap: 18px;      /* шаг между карточками и колонками */
+  --ftv-row-gap: 24px;       /* промежуток между рядами */
+  --ftv-focus-inset: 12px;   /* запас под увеличение карточки в фокусе */
+
+  --ftv-poster-w: 190px;     /* постер 2:3 */
+  --ftv-poster-h: 285px;
+  --ftv-continue-w: 250px;   /* карточка 16:9 «продолжить» */
+  --ftv-continue-h: 141px;
+  --ftv-episode-w: 236px;    /* карточка 16:9 эпизода */
+  --ftv-episode-h: 133px;
+  --ftv-hero-h: 326px;       /* hero Главной */
+  --ftv-details-hero-h: 346px; /* hero деталей */
+
+  /* ── Формы: только скруглённый прямоугольник и круг ──────────────────── */
+  --ftv-radius-poster: 8px;
+  --ftv-radius-card: 10px;
+  --ftv-radius-panel: 12px;
+  --ftv-radius-button: 9px;
+  --ftv-radius-chip: 20px;
+
+  /* ── Фокус ───────────────────────────────────────────────────────────── */
+  --ftv-focus-scale: 1.08;
+  --ftv-wide-focus-scale: 1.02;
+  --ftv-dimmed-alpha: 0.55;
+  --ftv-focus-border: 3px;
+  --ftv-focus-halo-width: 5px;
+}

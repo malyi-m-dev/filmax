@@ -1,0 +1,101 @@
+{
+  "projectId": "b40640c9-ac46-4e38-9d6c-e939ef465ac2",
+  "shape": "package",
+  "pkg": "@filmax/tv-ui",
+  "globalName": "FilmaxTV",
+  "buildCmd": "cd design/tv-ui && npm ci && npm run build",
+  "entry": "design/tv-ui/dist/index.js",
+  "cssEntry": "dist/styles.css",
+  "provider": {
+    "component": "TvTheme",
+    "props": {
+      "style": {
+        "padding": "24px"
+      }
+    }
+  },
+  "extraFonts": [
+    "dist/fonts.css"
+  ],
+  "docsMap": {
+    "TvTheme": "../../.design-sync/groups/Foundations.md",
+    "TvIcon": "../../.design-sync/groups/Foundations.md",
+    "TvScreen": "../../.design-sync/groups/Foundations.md",
+    "TvButton": "../../.design-sync/groups/Actions.md",
+    "TvChip": "../../.design-sync/groups/Actions.md",
+    "TvFocusCard": "../../.design-sync/groups/Cards.md",
+    "TvPosterCard": "../../.design-sync/groups/Cards.md",
+    "TvCollectionCard": "../../.design-sync/groups/Cards.md",
+    "TvProgressCard": "../../.design-sync/groups/Cards.md",
+    "TvProgressBar": "../../.design-sync/groups/Cards.md",
+    "TvRatingPill": "../../.design-sync/groups/Cards.md",
+    "TvRail": "../../.design-sync/groups/Cards.md",
+    "TvOverline": "../../.design-sync/groups/Text.md",
+    "TvMetaRow": "../../.design-sync/groups/Text.md",
+    "TvExpandableText": "../../.design-sync/groups/Text.md",
+    "TvSideNav": "../../.design-sync/groups/Navigation.md",
+    "TvSearchBar": "../../.design-sync/groups/Navigation.md",
+    "TvHero": "../../.design-sync/groups/Blocks.md",
+    "TvDetailsHero": "../../.design-sync/groups/Blocks.md",
+    "TvSettingRow": "../../.design-sync/groups/Blocks.md",
+    "TvDialog": "../../.design-sync/groups/Blocks.md",
+    "TvErrorState": "../../.design-sync/groups/Blocks.md"
+  },
+  "overrides": {
+    "TvButton": {
+      "cardMode": "column"
+    },
+    "TvChip": {
+      "cardMode": "column"
+    },
+    "TvDetailsHero": {
+      "cardMode": "column"
+    },
+    "TvDialog": {
+      "cardMode": "column"
+    },
+    "TvErrorState": {
+      "cardMode": "column"
+    },
+    "TvExpandableText": {
+      "cardMode": "column"
+    },
+    "TvFocusCard": {
+      "cardMode": "column"
+    },
+    "TvHero": {
+      "cardMode": "column"
+    },
+    "TvIcon": {
+      "cardMode": "column"
+    },
+    "TvMetaRow": {
+      "cardMode": "column"
+    },
+    "TvPosterCard": {
+      "cardMode": "column"
+    },
+    "TvProgressCard": {
+      "cardMode": "column"
+    },
+    "TvRail": {
+      "cardMode": "column"
+    },
+    "TvScreen": {
+      "cardMode": "column"
+    },
+    "TvSearchBar": {
+      "cardMode": "column"
+    },
+    "TvSettingRow": {
+      "cardMode": "column"
+    },
+    "TvSideNav": {
+      "cardMode": "column"
+    }
+  },
+  "guidelinesGlob": [
+    "tv-screens.md"
+  ],
+  "readmeHeader": ".design-sync/conventions.md"
+}

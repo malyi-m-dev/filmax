@@ -1,0 +1,425 @@
+/*
+ * Стили компонентов Filmax TV. Каждый класс повторяет вёрстку Compose-компонента из
+ * core:tv-designsystem или ТВ-фичи; в комментарии — откуда он взят.
+ */
+@import "./tokens.css";
+
+.ftv-root,
+.ftv-root * {
+  box-sizing: border-box;
+}
+.ftv-root {
+  font-family: var(--ftv-font);
+  color: var(--ftv-on-surface);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Типографика (TvType.kt) ─────────────────────────────────────────────── */
+.ftv-display-medium { font: 800 44px/46px var(--ftv-font); letter-spacing: -0.5px; }
+.ftv-display-small { font: 800 40px/42px var(--ftv-font); letter-spacing: -0.5px; }
+.ftv-headline-medium { font: 800 30px/34px var(--ftv-font); letter-spacing: -0.4px; }
+.ftv-headline-small { font: 800 26px/30px var(--ftv-font); }
+.ftv-title-large { font: 700 21px/26px var(--ftv-font); }
+.ftv-title-medium { font: 600 17px/22px var(--ftv-font); }
+.ftv-title-small { font: 700 16px/20px var(--ftv-font); }
+.ftv-body-large { font: 400 16px/25px var(--ftv-font); }
+.ftv-body-medium { font: 600 14px/18px var(--ftv-font); }
+.ftv-body-small { font: 400 13px/17px var(--ftv-font); }
+.ftv-label-large { font: 600 14px/18px var(--ftv-font); }
+.ftv-label-medium { font: 600 12px/16px var(--ftv-font); letter-spacing: 2px; text-transform: uppercase; }
+.ftv-label-small { font: 600 12px/16px var(--ftv-font); }
+
+.ftv-color-primary { color: var(--ftv-on-surface); }
+.ftv-color-secondary { color: var(--ftv-on-surface-variant); }
+.ftv-color-dim { color: var(--ftv-on-surface-dim); }
+.ftv-color-error { color: var(--ftv-error); }
+
+/* ── Фокус (TvFocusCard + drawFocusRing) ─────────────────────────────────── */
+/* Три сигнала: масштаб, белая рамка 3px и тёмный ореол 5px снаружи неё. */
+.ftv-focusable {
+  position: relative;
+  transition: transform 150ms ease-out, opacity 200ms ease-out;
+  outline: none;
+  cursor: pointer;
+}
+.ftv-focusable::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow:
+    inset 0 0 0 1.5px var(--ftv-focus),
+    inset 0 0 0 2.5px var(--ftv-focus-halo),
+    0 0 0 1.5px var(--ftv-focus),
+    0 0 0 2.5px var(--ftv-focus-halo);
+}
+.ftv-focusable.is-focused,
+.ftv-focusable:focus-visible {
+  transform: scale(var(--ftv-focus-scale));
+  z-index: 1;
+}
+.ftv-focusable.is-wide.is-focused,
+.ftv-focusable.is-wide:focus-visible {
+  transform: scale(var(--ftv-wide-focus-scale));
+}
+.ftv-focusable.is-flat.is-focused,
+.ftv-focusable.is-flat:focus-visible {
+  transform: none;
+}
+.ftv-focusable.is-focused::after,
+.ftv-focusable:focus-visible::after {
+  opacity: 1;
+}
+
+/* Карточка — по размеру содержимого, как Surface в Compose, а не во всю ширину строки. */
+.ftv-focus-card { display: inline-block; vertical-align: top; }
+
+/* ── Иконка ──────────────────────────────────────────────────────────────── */
+.ftv-icon { display: block; flex: none; fill: currentColor; }
+
+/* ── Кнопка (TvButton) ───────────────────────────────────────────────────── */
+.ftv-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: var(--ftv-radius-button);
+  font: 700 16px/20px var(--ftv-font);
+  white-space: nowrap;
+}
+.ftv-button.has-icon { padding-left: 12px; }
+.ftv-button.is-primary { background: var(--ftv-accent); color: var(--ftv-on-accent); }
+.ftv-button.is-secondary { background: var(--ftv-surface-container-high); color: var(--ftv-on-surface); }
+/* На белой кнопке ореол не рисуется: только рамка, как в ButtonDefaults.border. */
+.ftv-button::after {
+  box-shadow: 0 0 0 1.5px var(--ftv-focus), inset 0 0 0 1.5px var(--ftv-focus);
+}
+
+/* ── Чип (TvChip) ────────────────────────────────────────────────────────── */
+.ftv-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  border-radius: var(--ftv-radius-chip);
+  font: 600 14px/18px var(--ftv-font);
+  white-space: nowrap;
+  background: var(--ftv-surface-container-high);
+  color: var(--ftv-on-surface-variant);
+}
+.ftv-chip.is-selected { background: var(--ftv-accent); color: var(--ftv-on-accent); }
+
+/* ── Карточки (TvCards.kt) ───────────────────────────────────────────────── */
+.ftv-card { display: flex; flex-direction: column; flex: none; transition: opacity 200ms ease-out; }
+.ftv-card.is-dimmed { opacity: var(--ftv-dimmed-alpha); }
+.ftv-card__media {
+  position: relative;
+  overflow: visible;
+  background: var(--ftv-surface-container);
+}
+.ftv-card__image {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--ftv-surface-container) center / cover no-repeat;
+}
+.ftv-card__title {
+  margin-top: 16px;
+  font: 700 16px/20px var(--ftv-font);
+  color: var(--ftv-on-surface);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ftv-card__meta {
+  margin-top: 2px;
+  font: 400 13px/17px var(--ftv-font);
+  color: var(--ftv-on-surface-variant);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ftv-poster-card { width: var(--ftv-poster-w); }
+.ftv-poster-card .ftv-card__media {
+  width: var(--ftv-poster-w);
+  height: var(--ftv-poster-h);
+  border-radius: var(--ftv-radius-poster);
+}
+.ftv-progress-card .ftv-card__media { border-radius: var(--ftv-radius-card); }
+.ftv-progress-card.is-continue { width: var(--ftv-continue-w); }
+.ftv-progress-card.is-continue .ftv-card__media { width: var(--ftv-continue-w); height: var(--ftv-continue-h); }
+.ftv-progress-card.is-episode { width: var(--ftv-episode-w); }
+.ftv-progress-card.is-episode .ftv-card__media { width: var(--ftv-episode-w); height: var(--ftv-episode-h); }
+
+.ftv-rating-pill {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: var(--ftv-radius-poster);
+  background: rgba(10, 10, 10, 0.72);
+  color: var(--ftv-on-surface);
+  font: 600 12px/16px var(--ftv-font);
+}
+.ftv-card__rating { position: absolute; top: 8px; right: 8px; }
+
+.ftv-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.ftv-progress-bar__fill { height: 3px; background: var(--ftv-accent); }
+.ftv-card__progress { position: absolute; left: 0; right: 0; bottom: 0; }
+
+/* ── Ряд (TvRail) ────────────────────────────────────────────────────────── */
+.ftv-rail__title {
+  margin: 0 0 12px var(--ftv-safe-h);
+  font: 700 21px/26px var(--ftv-font);
+  color: var(--ftv-on-surface);
+}
+.ftv-rail__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ftv-card-gap);
+  padding: var(--ftv-focus-inset) var(--ftv-safe-h);
+  overflow: hidden;
+}
+
+/* ── Надзаголовок и мета (TvOverline, TvMetaRow) ─────────────────────────── */
+.ftv-overline { font: 600 12px/16px var(--ftv-font); letter-spacing: 2px; text-transform: uppercase; }
+.ftv-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font: 400 16px/25px var(--ftv-font);
+  color: var(--ftv-on-surface-variant);
+  white-space: nowrap;
+}
+.ftv-meta-row__lead { font-weight: 600; color: var(--ftv-on-surface); }
+
+/* ── Ошибка экрана (TvErrorState) ────────────────────────────────────────── */
+.ftv-error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 var(--ftv-safe-h);
+  text-align: center;
+}
+.ftv-error-state__message { margin-top: 10px; max-width: 620px; }
+.ftv-error-state__action { margin-top: 24px; }
+
+/* ── Разворачиваемый текст (TvExpandableText) ────────────────────────────── */
+.ftv-expandable {
+  display: block;
+  padding: 12px;
+  border-radius: var(--ftv-radius-card);
+}
+.ftv-expandable.is-focused,
+.ftv-expandable:focus-visible { background: var(--ftv-surface-container); }
+.ftv-expandable__text {
+  font: 400 16px/25px var(--ftv-font);
+  color: var(--ftv-on-surface-variant);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ftv-expandable__toggle { margin-top: 8px; font: 600 14px/18px var(--ftv-font); color: var(--ftv-on-surface); }
+
+/* ── Строка поиска (CatalogSearchBar) ────────────────────────────────────── */
+.ftv-search { display: flex; align-items: center; gap: 12px; }
+.ftv-search__bar {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 56px;
+  padding: 0 22px;
+  border-radius: var(--ftv-radius-panel);
+  background: var(--ftv-surface-container);
+}
+.ftv-search__bar.is-editing { box-shadow: inset 0 0 0 3px var(--ftv-focus); }
+.ftv-search__text { font: 600 17px/22px var(--ftv-font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ftv-search__caret { display: inline-block; width: 2px; height: 22px; margin-left: 1px; vertical-align: middle; background: var(--ftv-on-surface); }
+.ftv-search__voice {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ftv-radius-panel);
+  background: var(--ftv-surface-container);
+  color: var(--ftv-on-surface);
+}
+
+/* ── Строка настройки (SettingRow профиля) ───────────────────────────────── */
+.ftv-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 60px;
+  padding: 0 22px;
+  border-radius: var(--ftv-radius-panel);
+  background: var(--ftv-surface-container);
+}
+.ftv-setting-row.is-focused { background: var(--ftv-surface-container-high); box-shadow: inset 0 0 0 3px var(--ftv-focus); }
+.ftv-setting-row__label { font: 600 17px/22px var(--ftv-font); color: var(--ftv-on-surface); }
+.ftv-setting-row.is-destructive .ftv-setting-row__label { color: var(--ftv-error); }
+.ftv-setting-row__value { font: 400 16px/25px var(--ftv-font); color: var(--ftv-on-surface-variant); white-space: nowrap; }
+
+/* ── Диалог (TvConfirmDialog) ────────────────────────────────────────────── */
+.ftv-dialog-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+.ftv-dialog {
+  width: 420px;
+  max-width: 100%;
+  padding: 28px;
+  border-radius: var(--ftv-radius-panel);
+  background: var(--ftv-surface-container);
+}
+.ftv-dialog__message { margin-top: 10px; }
+.ftv-dialog__actions { display: flex; gap: 12px; margin-top: 24px; }
+
+/* ── Hero (TvHero Главной, DetailsHero деталей) ──────────────────────────── */
+.ftv-hero { position: relative; width: 100%; overflow: hidden; background: var(--ftv-surface-container-high); }
+.ftv-hero.is-home { height: var(--ftv-hero-h); }
+.ftv-hero.is-details { height: var(--ftv-details-hero-h); }
+.ftv-hero__backdrop { position: absolute; inset: 0; background: center / cover no-repeat; }
+.ftv-hero__scrim { position: absolute; inset: 0; }
+.ftv-hero.is-home .ftv-hero__scrim.is-horizontal {
+  background: linear-gradient(90deg,
+    rgba(10, 10, 10, 0.94) 0%, rgba(10, 10, 10, 0.89) 17%, rgba(10, 10, 10, 0.82) 34%,
+    rgba(10, 10, 10, 0.60) 48%, rgba(10, 10, 10, 0.35) 62%, rgba(10, 10, 10, 0.16) 80%,
+    rgba(10, 10, 10, 0.05) 100%);
+}
+.ftv-hero.is-home .ftv-hero__scrim.is-vertical {
+  background: linear-gradient(180deg,
+    rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 0) 60%, rgba(10, 10, 10, 0.22) 72%,
+    rgba(10, 10, 10, 0.52) 84%, rgba(10, 10, 10, 0.74) 92%, rgba(10, 10, 10, 0.90) 100%);
+}
+.ftv-hero.is-details .ftv-hero__scrim.is-horizontal {
+  background: linear-gradient(90deg,
+    rgba(10, 10, 10, 0.95) 0%, rgba(10, 10, 10, 0.72) 40%, rgba(10, 10, 10, 0.20) 72%,
+    rgba(10, 10, 10, 0) 100%);
+}
+.ftv-hero.is-details .ftv-hero__scrim.is-vertical {
+  background: linear-gradient(180deg,
+    rgba(10, 10, 10, 0) 0%, rgba(10, 10, 10, 0) 22%, rgba(10, 10, 10, 0.35) 60%,
+    rgba(10, 10, 10, 0.98) 100%);
+}
+.ftv-hero__content { position: absolute; left: var(--ftv-safe-h); }
+.ftv-hero.is-home .ftv-hero__content { bottom: 26px; width: 520px; }
+.ftv-hero.is-details .ftv-hero__content { bottom: 22px; width: 600px; }
+.ftv-hero__title {
+  color: var(--ftv-on-surface);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.ftv-hero.is-home .ftv-hero__title { margin-top: 10px; }
+.ftv-hero.is-home .ftv-hero__meta { margin-top: 12px; }
+.ftv-hero.is-home .ftv-hero__actions { margin-top: 20px; }
+.ftv-hero.is-details .ftv-hero__meta { margin-top: 11px; }
+.ftv-hero.is-details .ftv-hero__ratings { margin-top: 9px; }
+.ftv-hero.is-details .ftv-hero__actions { margin-top: 18px; }
+.ftv-hero__actions { display: flex; gap: 12px; }
+.ftv-ratings { display: flex; align-items: center; gap: 20px; font: 400 16px/25px var(--ftv-font); }
+.ftv-ratings__item { display: flex; align-items: center; gap: 6px; }
+.ftv-ratings__value { font-weight: 700; color: var(--ftv-on-surface); }
+.ftv-ratings__source { color: var(--ftv-on-surface-variant); }
+.ftv-ratings__divider { width: 1px; height: 14px; background: var(--ftv-surface-container-highest); }
+
+/* ── Боковое меню (TvSideNav) ────────────────────────────────────────────── */
+.ftv-side-nav { position: absolute; top: 0; left: 0; bottom: 0; z-index: 10; }
+.ftv-side-nav__scrim { position: absolute; top: 0; left: 0; bottom: 0; pointer-events: none; }
+.ftv-side-nav__scrim.is-collapsed {
+  width: var(--ftv-safe-h);
+  background: linear-gradient(90deg, rgba(10, 10, 10, 0.7) 0%, rgba(10, 10, 10, 0.4) 75%, rgba(10, 10, 10, 0) 100%);
+}
+.ftv-side-nav__scrim.is-expanded {
+  width: 520px;
+  opacity: 0;
+  transition: opacity 250ms ease-out;
+  background: linear-gradient(90deg,
+    rgba(10, 10, 10, 0.97) 0%, rgba(10, 10, 10, 0.9) 45%, rgba(10, 10, 10, 0.5) 75%, rgba(10, 10, 10, 0) 100%);
+}
+.ftv-side-nav.is-expanded .ftv-side-nav__scrim.is-expanded { opacity: 1; }
+.ftv-side-nav__panel {
+  position: relative;
+  height: 100%;
+  width: 56px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+}
+.ftv-side-nav.is-expanded .ftv-side-nav__panel { width: 240px; }
+.ftv-side-nav__list { position: relative; width: 100%; display: flex; flex-direction: column; gap: 8px; }
+.ftv-side-nav__highlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 22px;
+  background: rgba(232, 232, 232, 0.14);
+  transition-property: top, bottom, background-color, left, right;
+  transition-timing-function: cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+.ftv-side-nav.is-expanded .ftv-side-nav__highlight { background: var(--ftv-accent); }
+.ftv-side-nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  padding: 0 9px;
+  border-radius: 22px;
+  color: var(--ftv-on-surface-dim);
+  transition: color 180ms ease-out;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ftv-side-nav__item.is-active { color: var(--ftv-on-surface); }
+.ftv-side-nav__item.is-focused { color: var(--ftv-on-accent); }
+.ftv-side-nav__label {
+  margin-left: 14px;
+  font: 600 17px/22px var(--ftv-font);
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+.ftv-side-nav__item.is-active .ftv-side-nav__label { font-weight: 700; }
+.ftv-side-nav.is-expanded .ftv-side-nav__label { opacity: 1; }
+.ftv-side-nav__initials {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  margin: 0 -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ftv-surface-container-highest);
+  color: var(--ftv-on-surface);
+  font: 700 11px/1 var(--ftv-font);
+}
+
+/* ── Кадр экрана (TvScreen) ──────────────────────────────────────────────── */
+.ftv-screen {
+  position: relative;
+  width: 960px;
+  height: 540px;
+  overflow: hidden;
+  background: var(--ftv-surface);
+}
+.ftv-screen__content { position: absolute; inset: 0; overflow: hidden; }

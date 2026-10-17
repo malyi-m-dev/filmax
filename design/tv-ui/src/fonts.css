@@ -1,0 +1,12 @@
+/*
+ * Roboto — шрифт Android TV (FontFamily.Default). Вариативный файл из Android SDK (layoutlib),
+ * ужатый до латиницы и кириллицы: один файл на все начертания 100–900, как на устройстве.
+ * Лицензия Roboto — Apache 2.0.
+ */
+@font-face {
+  font-family: "Roboto";
+  src: url("./fonts/Roboto-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
