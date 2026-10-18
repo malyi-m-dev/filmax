@@ -138,8 +138,9 @@ class TvFolderPickerFocusTest {
 
     @Test
     fun `series has a round folder button next to watch later`() {
-        val picker = show(FakeIds.LONG_SERIES)
-        // Сериал открывается на серии «продолжить»: влево — к кнопкам, дальше вправо по ним.
+        val picker = show(FakeIds.SHORT_SERIES)
+        // Сериал открывается на серии «продолжить»: влево — к кнопкам (сезон один, листать «←»
+        // нечего), дальше вправо по ним.
         press(Key.DirectionLeft)
         press(Key.DirectionRight)
         press(Key.DirectionRight)
@@ -200,6 +201,7 @@ class TvFolderPickerFocusTest {
         onOpenDescription = {},
         onCloseDescription = {},
         onSelectSeason = {},
+        onSwitchSeason = {},
     )
 
     private fun focusedMatcher(text: String): SemanticsMatcher {

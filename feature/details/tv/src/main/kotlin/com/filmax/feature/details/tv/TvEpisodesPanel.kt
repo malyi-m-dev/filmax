@@ -16,6 +16,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,11 +27,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +42,11 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
@@ -57,6 +65,7 @@ import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.tv.designsystem.tvScrollFades
 import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.startEpisode
 import com.filmax.feature.details.common.startEpisodeIndex
 
 /** Серия в фокусе держится третьей сверху: видно и что было, и что дальше. */
@@ -87,12 +96,16 @@ private const val ROWS_ABOVE_START = 2
 private val SeasonSlide = 12.dp
 private const val SEASON_EXIT_MS = 120
 
+/** Стрелки пульта, листающие сезоны с серии: шаг по списку сезонов. */
+private val SeasonArrowSteps = mapOf(Key.DirectionLeft to -1, Key.DirectionRight to 1)
+
 /**
  * Стеклянная панель «Эпизоды»: шапка с числом серий, сезоны компактными чипами и серии
- * списком. Сезон выбирается фокусом на чипе — модель выжидает 250 мс, прежде чем его сменить.
- * [exitLeft] — куда уводит «←» из панели (главная кнопка, а не описание). Задаётся на каждой
- * строке серий и на первом чипе сезонов: направленные свойства Compose берёт у узла под фокусом,
- * а не у контейнера.
+ * списком. Сезон выбирается фокусом на чипе — модель выжидает 250 мс, прежде чем его сменить, —
+ * или стрелками «←/→» прямо с серии, без подъёма к чипам.
+ * [exitLeft] — куда уводит «←» из панели (главная кнопка, а не описание) с первого сезона: с
+ * остальных «←» листает сезоны назад. Задаётся на каждой строке серий и на первом чипе сезонов:
+ * направленные свойства Compose берёт у узла под фокусом, а не у контейнера.
  */
 @Composable
 internal fun TvEpisodesPanel(
@@ -134,11 +147,14 @@ private fun PanelHeader(state: DetailsState) {
 private fun SeasonChips(state: DetailsState, actions: DetailsActions, exit: Modifier) {
     val seasons = state.series?.seasons.orEmpty()
     if (seasons.size < 2) return
-    // Вход в ряд из серий — на выбранный сезон: ближайший чип переключил бы сезон фокусом.
     val selectedChip = remember { FocusRequester() }
+    val selectedIndex = seasons.indexOfFirst { it.first == state.selectedSeason }
+    val rowState = rememberLazyListState()
+    KeepChipInView(rowState, selectedIndex)
     val firstSeason = seasons.first().first
     LazyRow(
-        modifier = Modifier.tvFocusGroup(fallback = selectedChip),
+        state = rowState,
+        modifier = Modifier.enterOnSelected(rowState, selectedIndex, selectedChip),
         contentPadding = PaddingValues(vertical = 12.dp, horizontal = PanelPadding),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -161,9 +177,42 @@ private fun SeasonChips(state: DetailsState, actions: DetailsActions, exit: Modi
 }
 
 /**
+ * Вход в ряд из серий — на выбранный сезон: ближайший чип переключил бы сезон фокусом. Не
+ * `tvFocusGroup(fallback)`: тот просит фокус у fallback вслепую, а у длинного сериала выбранный
+ * чип бывает за краем ряда, не размещён — и Compose 1.8 на таком запросе падает. Пока ряд
+ * докручивает до выбранного чипа ([KeepChipInView]), вход отменяется: фокус остаётся на серии.
+ */
+private fun Modifier.enterOnSelected(rowState: LazyListState, index: Int, selectedChip: FocusRequester): Modifier =
+    focusProperties {
+        onEnter = { if (rowState.isPlaced(index)) selectedChip.requestFocus() else cancelFocusChange() }
+    }.focusGroup()
+
+/**
+ * Выбранный чип — целиком в видимой части ряда. Стрелками с серий сезон листается мимо ряда, и у
+ * длинного сериала выбранный чип уезжал бы за край: не видно, какой сезон открыт, и войти в ряд на
+ * него нельзя. То же при открытии сериала на дальнем сезоне. Прокрутка оставляет слева соседний
+ * чип — видно, что ряд продолжается.
+ */
+@Composable
+private fun KeepChipInView(rowState: LazyListState, index: Int) {
+    LaunchedEffect(index) {
+        if (index >= 0 && !rowState.isFullyVisible(index)) rowState.animateScrollToItem((index - 1).coerceAtLeast(0))
+    }
+}
+
+private fun LazyListState.isPlaced(index: Int): Boolean = layoutInfo.visibleItemsInfo.any { it.index == index }
+
+private fun LazyListState.isFullyVisible(index: Int): Boolean {
+    val layout = layoutInfo
+    val item = layout.visibleItemsInfo.firstOrNull { it.index == index } ?: return false
+    return item.offset >= layout.viewportStartOffset && item.offset + item.size <= layout.viewportEndOffset
+}
+
+/**
  * Серии выбранного сезона. Сезон сменился — старый список гаснет, новый поднимается и
- * открывается на серии «продолжить» или первой недосмотренной. Фокус в это время на чипе
- * сезона, поэтому смена списка его не уносит.
+ * открывается на серии «продолжить» или первой недосмотренной. Сменили чипом — фокус в это
+ * время на чипе, и смена списка его не уносит; стрелкой с серии — фокус переходит на серию,
+ * с которой открылся новый сезон ([seasonArrows]).
  */
 @Composable
 private fun SeasonEpisodes(
@@ -178,13 +227,29 @@ private fun SeasonEpisodes(
     AnimatedContent(
         targetState = state.selectedSeason,
         transitionSpec = { seasonTransition(slide, reduced) },
-        modifier = modifier,
+        modifier = modifier.seasonArrows(state, actions, focus),
         label = "season",
     ) { season ->
         val episodes = state.series?.seasons?.firstOrNull { it.first == season }?.second.orEmpty()
         EpisodeList(episodes, state.series?.resume?.id, EpisodeListActions(actions, focus, exit))
     }
 }
+
+/**
+ * «←/→» с серии листает сезоны. Строка в фокусе уходит вместе со старым списком, поэтому фокус
+ * заранее назначен серии, с которой откроется новый сезон: она примет его, как только
+ * разместится. Листать некуда — стрелка не перехвачена и работает как обычно: «←» с первого
+ * сезона уводит на кнопки.
+ */
+private fun Modifier.seasonArrows(state: DetailsState, actions: DetailsActions, focus: TvScreenFocus): Modifier =
+    onKeyEvent { event ->
+        if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+        val step = SeasonArrowSteps[event.key] ?: return@onKeyEvent false
+        val season = state.adjacentSeason(step) ?: return@onKeyEvent false
+        state.series?.startEpisode(season)?.let { focus.focusOn(episodeKey(it)) }
+        actions.onSwitchSeason(season)
+        true
+    }
 
 private fun AnimatedContentTransitionScope<Int?>.seasonTransition(slide: Int, reduced: Boolean): ContentTransform =
     if (reduced) {

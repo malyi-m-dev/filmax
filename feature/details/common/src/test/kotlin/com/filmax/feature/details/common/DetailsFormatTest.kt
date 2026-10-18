@@ -67,6 +67,48 @@ class DetailsFormatTest {
     }
 
     @Test
+    fun `adjacent season steps through the sorted seasons and stops at the ends`() {
+        val series = calculateSeriesData(
+            listOf(episode(season = 3, number = 1), episode(season = 1, number = 1), episode(season = 2, number = 1)),
+        )
+        val state = DetailsState(series = series, selectedSeason = 2)
+
+        assertEquals(3, state.adjacentSeason(1))
+        assertEquals(1, state.adjacentSeason(-1))
+        assertNull(state.copy(selectedSeason = 3).adjacentSeason(1))
+        assertNull(state.copy(selectedSeason = 1).adjacentSeason(-1))
+    }
+
+    @Test
+    fun `movie and single season have no adjacent season`() {
+        val single = calculateSeriesData(listOf(episode(season = 1, number = 1), episode(season = 1, number = 2)))
+
+        assertNull(DetailsState().adjacentSeason(1))
+        assertNull(DetailsState(series = single, selectedSeason = 1).adjacentSeason(1))
+        assertNull(DetailsState(series = single, selectedSeason = 1).adjacentSeason(-1))
+    }
+
+    @Test
+    fun `season starts on the episode to continue, else on the first unwatched, else on the first`() {
+        val resume = episode(season = 2, number = 2, status = WATCH_STATUS_IN_PROGRESS)
+        val series = calculateSeriesData(
+            listOf(
+                episode(season = 1, number = 1, status = WATCH_STATUS_FINISHED),
+                episode(season = 1, number = 2),
+                episode(season = 2, number = 1, status = WATCH_STATUS_FINISHED),
+                resume,
+                episode(season = 3, number = 1, status = WATCH_STATUS_FINISHED),
+                episode(season = 3, number = 2, status = WATCH_STATUS_FINISHED),
+            ),
+        )
+
+        assertEquals(resume, series.startEpisode(2))
+        assertEquals(1 to 2, series.startEpisode(1)?.let { it.seasonNumber to it.number })
+        assertEquals(3 to 1, series.startEpisode(3)?.let { it.seasonNumber to it.number })
+        assertNull(series.startEpisode(4))
+    }
+
+    @Test
     fun `nothing to resume in an untouched series`() {
         val series = calculateSeriesData(listOf(episode(season = 1, number = 1), episode(season = 1, number = 2)))
 

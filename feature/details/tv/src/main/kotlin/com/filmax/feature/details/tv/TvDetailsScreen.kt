@@ -122,6 +122,8 @@ internal data class DetailsActions(
     val onOpenDescription: () -> Unit,
     val onCloseDescription: () -> Unit,
     val onSelectSeason: (Int) -> Unit,
+    /** Сезон стрелкой с серии — применяется сразу, без паузы выбора чипом. */
+    val onSwitchSeason: (Int) -> Unit,
 )
 
 private fun detailsActions(item: Item, screenModel: DetailsScreenModel, navigator: Navigator): DetailsActions {
@@ -140,5 +142,6 @@ private fun detailsActions(item: Item, screenModel: DetailsScreenModel, navigato
         onOpenDescription = { screenModel.dispatch(DetailsEvent.OpenDescription) },
         onCloseDescription = { screenModel.dispatch(DetailsEvent.CloseDescription) },
         onSelectSeason = { number -> screenModel.dispatch(DetailsEvent.SelectSeason(number)) },
+        onSwitchSeason = { number -> screenModel.dispatch(DetailsEvent.SwitchSeason(number)) },
     )
 }
