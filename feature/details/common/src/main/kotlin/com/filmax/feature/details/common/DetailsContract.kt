@@ -26,6 +26,17 @@ data class DetailsState(
     /** Серии выбранного сезона; у фильма — пусто. */
     val seasonEpisodes: List<MediaTrack>
         get() = series?.seasons?.firstOrNull { it.first == selectedSeason }?.second.orEmpty()
+
+    /**
+     * Сезон через [step] от выбранного: −1 — предыдущий, +1 — следующий; null — дальше сезонов
+     * нет. Так на ТВ «←/→» с серии листает сезоны, не поднимаясь по сериям к чипам.
+     */
+    fun adjacentSeason(step: Int): Int? {
+        val seasons = series?.seasons.orEmpty()
+        val index = seasons.indexOfFirst { it.first == selectedSeason }
+        if (index < 0) return null
+        return seasons.getOrNull(index + step)?.first
+    }
 }
 
 sealed interface DetailsEvent {
@@ -37,6 +48,12 @@ sealed interface DetailsEvent {
      * чтобы быстрое пролистывание чипов не перерисовывало каждый сезон по пути.
      */
     data class SelectSeason(val number: Int) : DetailsEvent
+
+    /**
+     * Сезон выбран стрелкой с серии — применяется сразу: это одно осознанное нажатие, а не
+     * пролистывание чипов, которое стоит переждать. Отменяет выбор чипом, если тот ещё выжидает.
+     */
+    data class SwitchSeason(val number: Int) : DetailsEvent
 
     data object OpenDescription : DetailsEvent
     data object CloseDescription : DetailsEvent

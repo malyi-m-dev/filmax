@@ -164,6 +164,7 @@ class TvMovieDetailsFocusTest {
         onOpenDescription = { calls += "description" },
         onCloseDescription = {},
         onSelectSeason = { number -> calls += "season $number" },
+        onSwitchSeason = { number -> calls += "switch $number" },
     )
 
     private fun focusedHas(text: String): Boolean = compose.onAllNodes(

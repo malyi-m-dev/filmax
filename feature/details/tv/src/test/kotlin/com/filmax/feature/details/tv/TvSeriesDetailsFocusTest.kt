@@ -24,6 +24,7 @@ import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.WATCH_STATUS_FINISHED
 import com.filmax.feature.details.common.calculateSeriesData
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -39,9 +40,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Фокус в деталях сериала с пульта: старт на серии «продолжить», «←» из серий — на главную
- * кнопку, сезон — фокусом на чипе, «ОК» на серии — плеер с сезоном и номером серии. Сериал —
- * «Хроники Пограничья» из фейкового бэкенда: 7 сезонов, S4E7 начата.
+ * Фокус в деталях сериала с пульта: старт на серии «продолжить», «←/→» с серии листают сезоны,
+ * «←» с первого сезона — на главную кнопку, сезон — и фокусом на чипе, «ОК» на серии — плеер с
+ * сезоном и номером серии. Сериал — «Хроники Пограничья» из фейкового бэкенда: 7 сезонов,
+ * S1–S3 и S4E1–E6 досмотрены, S4E7 начата.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-land-xhdpi")
@@ -80,12 +82,82 @@ class TvSeriesDetailsFocusTest {
     }
 
     @Test
-    fun `left from the episodes goes to the main button, not to the description`() {
-        showSeries()
+    fun `right on an episode opens the next season on its first episode`() {
+        showSwitchableSeries()
 
+        pressKey(Key.DirectionRight)
+
+        assertEquals("switch 5", calls.last())
+        // Фокус перешёл в новый список — на серию, с которой открылся сезон, а не повис.
+        pressKey(Key.DirectionCenter)
+        assertEquals("play 5/1", calls.last())
+    }
+
+    @Test
+    fun `left on an episode goes back through the seasons, from the first one to the main button`() {
+        showSwitchableSeries()
+
+        repeat(RESUME_SEASON - 1) { pressKey(Key.DirectionLeft) }
+        assertEquals(listOf("switch 3", "switch 2", "switch 1"), calls.takeLast(RESUME_SEASON - 1))
+
+        // Листать дальше некуда — «←» уводит на главную кнопку, а не на описание.
         pressKey(Key.DirectionLeft)
+        assertFocusedHas(CONTINUE)
+    }
 
-        assertFocusedHas("Продолжить · S4E7")
+    @Test
+    fun `right on the last season keeps focus on the episode`() {
+        showSwitchableSeries()
+
+        repeat(LAST_SEASON - RESUME_SEASON) { pressKey(Key.DirectionRight) }
+        assertEquals("switch $LAST_SEASON", calls.last())
+
+        pressKey(Key.DirectionRight)
+        pressKey(Key.DirectionCenter)
+        assertEquals("play $LAST_SEASON/1", calls.last())
+    }
+
+    @Test
+    fun `up after an arrow switch enters the chip of the new season, not the one left before`() {
+        showSwitchableSeries()
+
+        // Побывать на чипах до смены сезона: возврат на чип четвёртого сезона, с которого ушли,
+        // переключил бы сезон фокусом обратно. Первый сезон — с края ряда: ближайший к серии чип
+        // другой, так что попасть на него можно только как на выбранный.
+        repeat(MAX_PRESSES) { if (!focusedHas("Сезон 4")) pressKey(Key.DirectionUp) }
+        pressKey(Key.DirectionDown)
+        repeat(RESUME_SEASON - 1) { pressKey(Key.DirectionLeft) }
+        assertEquals("switch 1", calls.last())
+
+        repeat(MAX_PRESSES) { if (!focusedHas("Сезон")) pressKey(Key.DirectionUp) }
+
+        assertFocusedHas("Сезон 1")
+        assertEquals("season 1", calls.last())
+    }
+
+    @Test
+    fun `long series keeps the season picked by arrows in view, and up enters its chip`() {
+        showSwitchableSeries(manySeasons(resumeSeason = 1))
+
+        // Ряд из двадцати чипов в панель не влезает: выбранный стрелками сезон уехал бы за край,
+        // и войти в ряд на него было бы нельзя — фокус принимает только размещённый чип.
+        repeat(MANY_SEASONS - 1) { pressKey(Key.DirectionRight) }
+        assertEquals("switch $MANY_SEASONS", calls.last())
+
+        repeat(MAX_PRESSES) { if (!focusedHas("Сезон")) pressKey(Key.DirectionUp) }
+
+        assertFocusedHas("Сезон $MANY_SEASONS")
+    }
+
+    @Test
+    fun `long series opened on a far season enters the chip of that season`() {
+        showSwitchableSeries(manySeasons(resumeSeason = FAR_SEASON))
+        assertFocusedHas(RESUME_TITLE)
+
+        // Чип пятнадцатого сезона при открытии за краем ряда: ряд докручивает до него сам.
+        repeat(MAX_PRESSES) { if (!focusedHas("Сезон")) pressKey(Key.DirectionUp) }
+
+        assertFocusedHas("Сезон $FAR_SEASON")
     }
 
     @Test
@@ -142,7 +214,7 @@ class TvSeriesDetailsFocusTest {
 
         pressKey(Key.DirectionLeft)
 
-        assertFocusedHas("Продолжить · S4E7")
+        assertFocusedHas(CONTINUE)
     }
 
     @Test
@@ -157,14 +229,16 @@ class TvSeriesDetailsFocusTest {
                     actions(
                         onOpen = { state = state.copy(descriptionOpen = true) },
                         onClose = { state = state.copy(descriptionOpen = false) },
+                        onSeason = { state = state.copy(selectedSeason = it) },
                     ),
                 )
             }
         }
         compose.waitForIdle()
 
-        // С серии «←» на главную кнопку, выше — описание: «ОК» открывает панель полного текста.
-        pressKey(Key.DirectionLeft)
+        // С серии «←» листает сезоны до первого и уводит на главную кнопку, выше — описание:
+        // «ОК» открывает панель полного текста.
+        repeat(MAX_PRESSES) { if (!focusedHas(CONTINUE)) pressKey(Key.DirectionLeft) }
         repeat(MAX_PRESSES) { if (!focusedHas(READ_MORE)) pressKey(Key.DirectionUp) }
         assertFocusedHas(READ_MORE)
         pressKey(Key.DirectionCenter)
@@ -184,9 +258,36 @@ class TvSeriesDetailsFocusTest {
         compose.waitForIdle()
     }
 
+    /** Сериал, у которого сезон меняется, как в модели: и фокусом на чипе, и стрелкой с серии. */
+    private fun showSwitchableSeries(item: Item = longSeries()) {
+        var state by mutableStateOf(seriesState(item))
+        compose.setContent {
+            FilmaxTvTheme {
+                DetailsWithSheet(state, item, actions(onSeason = { state = state.copy(selectedSeason = it) }))
+            }
+        }
+        compose.waitForIdle()
+    }
+
     private fun longSeries(): Item = runBlocking {
         val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))
         checkNotNull(catalog.getItemDetails(FakeIds.LONG_SERIES).getOrNull())
+    }
+
+    /**
+     * «Хроники Пограничья», растянутые до [MANY_SEASONS] сезонов копиями четвёртого — ряд чипов не
+     * влезает в панель. Сезоны до [resumeSeason] досмотрены, «продолжить» — его седьмая серия.
+     */
+    private fun manySeasons(resumeSeason: Int): Item {
+        val item = longSeries()
+        val template = item.tracklist.filter { it.seasonNumber == RESUME_SEASON }
+        val tracks = (1..MANY_SEASONS).flatMap { season ->
+            template.map { episode ->
+                val status = if (season < resumeSeason) WATCH_STATUS_FINISHED else episode.watchStatus
+                episode.copy(id = season * SEASON_ID_STEP + episode.number, seasonNumber = season, watchStatus = status)
+            }
+        }
+        return item.copy(tracklist = tracks)
     }
 
     /** Состояние, как его собирает модель: сериал открыт на сезоне серии «продолжить». */
@@ -216,6 +317,10 @@ class TvSeriesDetailsFocusTest {
             calls += "season $number"
             onSeason(number)
         },
+        onSwitchSeason = { number ->
+            calls += "switch $number"
+            onSeason(number)
+        },
     )
 
     private fun focusedMatcher(text: String): SemanticsMatcher =
@@ -242,10 +347,16 @@ class TvSeriesDetailsFocusTest {
     private companion object {
         const val RESUME_TITLE = "7. Корона без короля"
         const val READ_MORE = "Читать полностью"
+        const val CONTINUE = "Продолжить · S4E7"
 
         /** Сезон серии «продолжить» и всего сезонов у «Хроник Пограничья». */
         const val RESUME_SEASON = 4
         const val LAST_SEASON = 7
+
+        /** Сезонов у растянутого сериала — столько чипов в панель не влезает. */
+        const val MANY_SEASONS = 20
+        const val FAR_SEASON = 15
+        const val SEASON_ID_STEP = 1000
 
         /** Потолок нажатий «вверх» до ряда чипов — с запасом на шесть серий над стартовой. */
         const val MAX_PRESSES = 12

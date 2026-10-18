@@ -31,11 +31,13 @@ class DetailsScreenModel(
     private val route = savedStateHandle.toRoute<DetailsRoute>()
 
     /**
-     * Сезоны под фокусом пульта — применяются с задержкой, см. [DetailsEvent.SelectSeason]. При
+     * Запросы сезона: фокус на чипе применяется с задержкой ([DetailsEvent.SelectSeason]), стрелка
+     * с серии — сразу ([DetailsEvent.SwitchSeason]). Один поток на оба — немедленный запрос
+     * вытесняет выжидающий, и поздний чип не перебьёт сезон, выбранный после него. При
      * переполнении теряется старый запрос, а не новый: иначе быстрое пролистывание чипов
      * оставляло на экране сезон, с которого фокус давно ушёл.
      */
-    private val seasonRequests = MutableSharedFlow<Int>(
+    private val seasonRequests = MutableSharedFlow<SeasonRequest>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
@@ -51,7 +53,8 @@ class DetailsScreenModel(
         when (event) {
             DetailsEvent.ToggleFav -> toggleFav()
             DetailsEvent.ToggleDownload -> toggleDownload()
-            is DetailsEvent.SelectSeason -> seasonRequests.tryEmit(event.number)
+            is DetailsEvent.SelectSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, SEASON_SELECT_DELAY_MS))
+            is DetailsEvent.SwitchSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, delayMs = 0))
             DetailsEvent.OpenDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = true) } }
             DetailsEvent.CloseDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = false) } }
         }
@@ -125,8 +128,8 @@ class DetailsScreenModel(
 
     private fun observeSeasonRequests() {
         screenModelScope { _ ->
-            seasonRequests.debounce(SEASON_SELECT_DELAY_MS).collect { number ->
-                updateState { it.copy(selectedSeason = number) }
+            seasonRequests.debounce { it.delayMs }.collect { request ->
+                updateState { it.copy(selectedSeason = request.number) }
             }
         }
     }
@@ -153,3 +156,6 @@ class DetailsScreenModel(
 
 /** Пауза перед сменой сезона по фокусу: быстрое пролистывание чипов не меняет сезон на каждом. */
 private const val SEASON_SELECT_DELAY_MS = 250L
+
+/** Сезон [number], который применится, если за [delayMs] не придёт другой запрос. */
+private data class SeasonRequest(val number: Int, val delayMs: Long)

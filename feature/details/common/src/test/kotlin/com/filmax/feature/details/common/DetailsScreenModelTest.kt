@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.runner.RunWith
@@ -33,7 +34,7 @@ import kotlin.test.assertTrue
 
 /**
  * Логика деталей на фейковом data-слое: фильм и сериал, сезон серии «продолжить», смена сезона
- * фокусом с задержкой, панель описания, «Буду смотреть» и загрузки. Robolectric — ради маршрута:
+ * фокусом с задержкой и стрелкой сразу, панель описания, «Буду смотреть» и загрузки. Robolectric — ради маршрута:
  * `toRoute` читает аргументы из SavedStateHandle через Bundle.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -98,6 +99,23 @@ class DetailsScreenModelTest {
         assertEquals(7, model.states.value.selectedSeason)
         assertTrue(model.states.value.seasonEpisodes.all { it.seasonNumber == 7 })
     }
+
+    @Test
+    fun `season picked by an arrow applies at once and a chip still waiting does not override it`() =
+        runTest(dispatcher) {
+            val model = model(FakeIds.LONG_SERIES)
+            advanceUntilIdle()
+
+            // Фокус задел чип шестого сезона, и сразу же стрелка с серии выбрала третий.
+            model.dispatch(DetailsEvent.SelectSeason(6))
+            runCurrent()
+            model.dispatch(DetailsEvent.SwitchSeason(3))
+            runCurrent()
+            assertEquals(3, model.states.value.selectedSeason)
+
+            advanceUntilIdle()
+            assertEquals(3, model.states.value.selectedSeason)
+        }
 
     @Test
     fun `description panel opens and closes`() = runTest(dispatcher) {
