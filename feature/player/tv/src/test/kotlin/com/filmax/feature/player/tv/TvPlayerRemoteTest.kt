@@ -35,6 +35,7 @@ import com.filmax.feature.player.common.PlayerTab
 import com.filmax.feature.player.common.StreamQuality
 import com.filmax.feature.player.common.SubtitleOption
 import com.filmax.feature.player.common.openingTab
+import com.filmax.feature.player.common.tabValue
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Before

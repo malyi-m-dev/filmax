@@ -36,6 +36,7 @@ internal class UserRepositoryImpl(
                     daysLeft = it.days?.toInt(),
                 )
             },
+            registeredAt = user.regDate?.toLong()?.times(MILLIS_IN_SECOND),
         )
     }
         // Профиль — единственное место, где известен username: привязываем к нему телеметрию.

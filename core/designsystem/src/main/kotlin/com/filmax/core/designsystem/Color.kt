@@ -1,99 +1,96 @@
 package com.filmax.core.designsystem
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 
-// ── Монохромная палитра ───────────────────────────────────────────────────────
-// Нейтральная ахроматичная лестница (R = G = B). Единственный цвет на экране — постер:
-// интерфейс не соревнуется с контентом за внимание. Значения общие с TV-темой, кроме
-// поверхностей: на телефоне смотрят с 30 см, и вторичный текст не нужно осветлять.
-
-/** Подложка экрана. Не чистый чёрный: #000 проваливается на OLED и «звенит» на границах. */
-val FilmaxSurface = Color(0xFF0A0A0A)
-val FilmaxSurfaceDim = Color(0xFF0A0A0A)
-val FilmaxSurfaceBright = Color(0xFF2E2E2E)
-val FilmaxSurfaceContainerLowest = Color(0xFF050505)
-val FilmaxSurfaceContainerLow = Color(0xFF111111)
-
-/** Карточки, строки настроек, поле поиска. */
-val FilmaxSurfaceContainer = Color(0xFF141414)
-
-/** Чипы, вторичные кнопки, pill активной вкладки. */
-val FilmaxSurfaceContainerHigh = Color(0xFF1F1F1F)
-
-/** Аватар-плейсхолдер, разделители. */
-val FilmaxSurfaceContainerHighest = Color(0xFF2E2E2E)
-
-// ── Текст ─────────────────────────────────────────────────────────────────────
-/** Основной текст. Не #FFFFFF: чистый белый на тёмном «вибрирует» и мылится. */
-val FilmaxOnSurface = Color(0xFFE8E8E8)
-
-/** Вторичный текст: мета, подписи, плейсхолдеры. */
-val FilmaxOnSurfaceVariant = Color(0xFFA0A0A0)
-
-/** Третичный: надзаголовки секций, служебные подписи. */
-val FilmaxOnSurfaceDim = Color(0xFF8A8A8A)
-
-val FilmaxOutline = Color(0xFF5A5A5A)
-val FilmaxOutlineVariant = Color(0xFF1F1F1F)
-val FilmaxInverseSurface = Color(0xFFE8E8E8)
-val FilmaxInverseOnSurface = Color(0xFF141414)
-
-// ── Акцент ────────────────────────────────────────────────────────────────────
 /**
- * Акцент — чистый белый. Главное действие («Смотреть»), активная вкладка, прогресс.
- * Другого акцента в приложении нет: шесть цветных пресетов убраны вместе с редизайном.
+ * Цвета, общие для всех палитр. Поверхности — полупрозрачный белый поверх того, что под ними:
+ * стеклянные панели лежат на кадре и фоне палитры, а не перекрывают их глухой плашкой.
  */
-val FilmaxAccent = Color(0xFFFFFFFF)
+object FilmaxColors {
+    /** Основной текст: тёплый белый, не #FFF — чистый белый «звенит» на тёмном фоне. */
+    val Text = Color(0xFFF4F2FA)
+    val TextSecondary = Text.copy(alpha = 0.72f)
+    val TextDim = Text.copy(alpha = 0.5f)
 
-/** Контент на акцентной заливке — почти-чёрный. */
-val FilmaxOnAccent = Color(0xFF0A0A0A)
+    /** Ошибки и деструктив («Выйти») — тёплый красный, общий для всех палитр. */
+    val Error = Color(0xFFF07A6A)
 
-// ── Ошибки ────────────────────────────────────────────────────────────────────
-// Единственное исключение из монохрома: ошибки и деструктив («Выйти»). Цвет при этом
-// никогда не единственный носитель смысла — рядом всегда текст.
-val FilmaxError = Color(0xFFE0736B)
-val FilmaxOnError = Color(0xFF3A1512)
-val FilmaxErrorContainer = Color(0xFF3A1512)
-val FilmaxOnErrorContainer = Color(0xFFFFDAD6)
+    /** Мелкое стекло: круглые кнопки и чипы поверх кадра и ленты. */
+    val Glass = Color.White.copy(alpha = 0.13f)
+    val GlassBorder = Color.White.copy(alpha = 0.14f)
 
-val FilmaxDarkColorScheme = darkColorScheme(
-    primary = FilmaxAccent,
-    onPrimary = FilmaxOnAccent,
-    // primaryContainer — вторичная поверхность, а не цветная плашка: заливкой в монохроме
-    // отмечается только выбор (чип) и главное действие (белая кнопка).
-    primaryContainer = FilmaxSurfaceContainerHigh,
-    onPrimaryContainer = FilmaxOnSurface,
-    inversePrimary = FilmaxSurfaceContainerHighest,
-    secondary = FilmaxOnSurfaceVariant,
-    onSecondary = FilmaxOnAccent,
-    secondaryContainer = FilmaxSurfaceContainerHigh,
-    onSecondaryContainer = FilmaxOnSurface,
-    tertiary = FilmaxOnSurfaceVariant,
-    onTertiary = FilmaxOnAccent,
-    tertiaryContainer = FilmaxSurfaceContainerHigh,
-    onTertiaryContainer = FilmaxOnSurface,
-    error = FilmaxError,
-    onError = FilmaxOnError,
-    errorContainer = FilmaxErrorContainer,
-    onErrorContainer = FilmaxOnErrorContainer,
-    surface = FilmaxSurface,
-    onSurface = FilmaxOnSurface,
-    surfaceVariant = FilmaxSurfaceContainerHigh,
-    onSurfaceVariant = FilmaxOnSurfaceVariant,
-    surfaceTint = FilmaxAccent,
-    inverseSurface = FilmaxInverseSurface,
-    inverseOnSurface = FilmaxInverseOnSurface,
-    outline = FilmaxOutline,
-    outlineVariant = FilmaxOutlineVariant,
-    background = FilmaxSurface,
-    onBackground = FilmaxOnSurface,
-    surfaceBright = FilmaxSurfaceBright,
-    surfaceDim = FilmaxSurfaceDim,
-    surfaceContainerLowest = FilmaxSurfaceContainerLowest,
-    surfaceContainerLow = FilmaxSurfaceContainerLow,
-    surfaceContainer = FilmaxSurfaceContainer,
-    surfaceContainerHigh = FilmaxSurfaceContainerHigh,
-    surfaceContainerHighest = FilmaxSurfaceContainerHighest,
-    scrim = Color(0xFF000000),
-)
+    /** Обводка стеклянных панелей: шапки, навигации, шторки. */
+    val PanelBorder = Color.White.copy(alpha = 0.12f)
+
+    /** Карточка группы настроек и плитка-иконка строки. */
+    val Card = Color.White.copy(alpha = 0.06f)
+    val CardBorder = Color.White.copy(alpha = 0.08f)
+
+    /** Поле ввода, контейнер сегментов, подложка выбранной строки. */
+    val Field = Color.White.copy(alpha = 0.08f)
+
+    /** Разделитель строк внутри группы. */
+    val Divider = Color.White.copy(alpha = 0.07f)
+
+    /** Незаполненная часть полосы прогресса. */
+    val Track = Color.White.copy(alpha = 0.22f)
+
+    /** Затемнение под шторкой — с фиолетовым подтоном фона, а не чистый чёрный. */
+    val Scrim = Color(0x7306040E)
+}
+
+/**
+ * Material-схема на палитре: стандартные компоненты (шторка, поле, диалог, снекбар) берут
+ * акцент и фон выбранной палитры. Контейнеры — тот же полупрозрачный белый, но уже смешанный с
+ * фоном: Material ждёт непрозрачные цвета, а шторка под стеклом должна оставаться читаемой.
+ */
+fun filmaxColorScheme(palette: FilmaxPalette): ColorScheme {
+    val background = palette.background
+    fun white(alpha: Float) = Color.White.copy(alpha = alpha).compositeOver(background)
+    return darkColorScheme(
+        primary = palette.accent,
+        onPrimary = palette.onAccent,
+        primaryContainer = palette.accent.copy(alpha = CONTAINER_ALPHA).compositeOver(background),
+        onPrimaryContainer = palette.accentText,
+        inversePrimary = palette.accentText,
+        secondary = palette.accent2,
+        onSecondary = palette.onAccent2,
+        secondaryContainer = white(HIGH_ALPHA),
+        onSecondaryContainer = FilmaxColors.Text,
+        tertiary = palette.accentText,
+        onTertiary = background,
+        error = FilmaxColors.Error,
+        onError = background,
+        errorContainer = FilmaxColors.Error.copy(alpha = CONTAINER_ALPHA).compositeOver(background),
+        onErrorContainer = FilmaxColors.Error,
+        background = background,
+        onBackground = FilmaxColors.Text,
+        surface = background,
+        onSurface = FilmaxColors.Text,
+        surfaceVariant = white(HIGH_ALPHA),
+        onSurfaceVariant = FilmaxColors.TextSecondary,
+        surfaceTint = Color.Transparent,
+        inverseSurface = FilmaxColors.Text,
+        inverseOnSurface = background,
+        outline = white(OUTLINE_ALPHA),
+        outlineVariant = white(LOW_ALPHA),
+        scrim = FilmaxColors.Scrim,
+        surfaceBright = white(HIGHEST_ALPHA),
+        surfaceDim = background,
+        surfaceContainerLowest = background,
+        surfaceContainerLow = white(LOWEST_ALPHA),
+        surfaceContainer = white(LOW_ALPHA),
+        surfaceContainerHigh = white(HIGH_ALPHA),
+        surfaceContainerHighest = white(HIGHEST_ALPHA),
+    )
+}
+
+private const val LOWEST_ALPHA = 0.04f
+private const val LOW_ALPHA = 0.07f
+private const val HIGH_ALPHA = 0.11f
+private const val HIGHEST_ALPHA = 0.16f
+private const val OUTLINE_ALPHA = 0.3f
+private const val CONTAINER_ALPHA = 0.24f

@@ -23,9 +23,16 @@ fun detailsFacts(item: Item, series: SeriesData?): List<DetailsFact> {
             ?.let { DetailsFact("Аудио", it.joinToString(", ")) },
         track?.subtitles?.map { subtitleLanguageName(it.lang) }?.distinct()?.takeIf { it.isNotEmpty() }
             ?.let { DetailsFact("Субтитры", it.joinToString(", ")) },
-        track?.files?.maxByOrNull { qualityRank(it.quality) }?.quality?.let { DetailsFact("Качество", "до $it") },
+        bestQuality(item)?.let { DetailsFact("Качество", "до $it") },
     )
 }
+
+/** Лучшее качество тайтла — «2160p»; по первой дорожке: у kino.pub оно общее для всех серий. */
+fun bestQuality(item: Item): String? =
+    item.tracklist.firstOrNull()?.files?.maxByOrNull { qualityRank(it.quality) }?.quality
+
+/** Есть ли у тайтла 4K — бейдж в мете деталей. */
+fun hasUhd(item: Item): Boolean = bestQuality(item)?.let(::qualityRank)?.let { it >= UHD_LINES } == true
 
 /** Вес качества для выбора лучшего: «2160p» > «1080p» > «720p»; «4K» — как 2160. */
 private fun qualityRank(quality: String): Int = when {

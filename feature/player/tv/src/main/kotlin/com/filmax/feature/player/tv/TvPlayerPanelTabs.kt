@@ -41,12 +41,19 @@ import com.filmax.core.tv.designsystem.TvOptionRow
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvValueTile
 import com.filmax.core.tv.designsystem.tvFocusGroup
+import com.filmax.feature.player.common.OptionItem
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerSeason
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
+import com.filmax.feature.player.common.PresetSpeeds
+import com.filmax.feature.player.common.optionEvent
+import com.filmax.feature.player.common.optionItems
 import com.filmax.feature.player.common.playerSeasons
 import com.filmax.feature.player.common.shownSeason
+import com.filmax.feature.player.common.speedCaption
+import com.filmax.feature.player.common.speedValue
+import com.filmax.feature.player.common.tabNote
 
 private val OptionGap = 10.dp
 private val TileGap = 12.dp
@@ -207,7 +214,7 @@ private fun OptionsTab(
 private fun SpeedTab(current: Float, actions: PlayerActions, contentFocus: FocusRequester, note: String?) {
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
         Row(Modifier.fillMaxWidth().tvFocusGroup(contentFocus), horizontalArrangement = Arrangement.spacedBy(TileGap)) {
-            TvPlaybackSpeeds.forEach { speed ->
+            PresetSpeeds.forEach { speed ->
                 val selected = speed == current
                 TvValueTile(
                     value = speedValue(speed),

@@ -11,17 +11,15 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.ui.components.FilmaxWordmark
 import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
@@ -60,7 +58,7 @@ fun OnboardingScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface),
+            .background(FilmaxTheme.palette.background),
     ) {
         AnimatedContent(
             targetState = state.step >= STEP_AUTH,
@@ -82,13 +80,7 @@ fun OnboardingScreen(
 
 @Composable
 internal fun Wordmark() {
-    Text(
-        "FILMAX",
-        fontSize = 26.sp,
-        fontWeight = FontWeight.ExtraBold,
-        letterSpacing = 5.sp,
-        color = MaterialTheme.colorScheme.onSurface,
-    )
+    FilmaxWordmark(large = true)
 }
 
 /** Поля экрана входа шире общих 20dp: на нём один блок текста и ему нужен воздух (макет). */

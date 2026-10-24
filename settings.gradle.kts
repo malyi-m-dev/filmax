@@ -41,6 +41,8 @@ include(":data:user")
 include(":data:watching")
 include(":data:tmdb")
 include(":data:feedback")
+// Телефон ↔ ТВ в одной сети: поиск, проверка аккаунта, команды пульта.
+include(":data:tvlink")
 // Фейковый data-слой без сети: сборка `mock` и юнит-тесты ScreenModel'ей.
 include(":data:fake")
 
@@ -71,6 +73,9 @@ include(":feature:details:tv")
 include(":feature:player:common")
 include(":feature:player:mobile")
 include(":feature:player:tv")
+include(":feature:tvlink:common")
+include(":feature:tvlink:mobile")
+include(":feature:tvlink:tv")
 include(":feature:designsystem")
 
 include(":shared")

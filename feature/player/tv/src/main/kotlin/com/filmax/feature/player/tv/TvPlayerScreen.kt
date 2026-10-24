@@ -38,16 +38,21 @@ fun TvPlayerScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    val actions = remember(itemId, navigator, screenModel) { playerActions(itemId, navigator, screenModel) }
     screenModel.collectSideEffect { effect ->
         when (effect) {
             // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
             PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+            // Пульт телефона: другая серия — заменой экрана, «Остановить» — выход из плеера.
+            is PlayerSideEffect.PlayEpisode -> actions.onPlayEpisode(effect.season, effect.videoId)
+            PlayerSideEffect.Exit -> actions.onExit()
+            // Передать просмотр на телевизор можно только с телефона.
+            is PlayerSideEffect.ChooseTv -> Unit
         }
     }
     val appError by screenModel.collectErrorAsState()
     val player = screenModel.player
     val transport = remember(player) { TvTransportState(player) }
-    val actions = remember(itemId, navigator, screenModel) { playerActions(itemId, navigator, screenModel) }
 
     PlayerEffects(transport, screenModel, next = state.nextTrack, actions = actions)
     // Ушли с плеера не «Назад», а HOME/лаунчером — пауза: ScreenModel (и ExoPlayer в нём) жив,

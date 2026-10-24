@@ -8,11 +8,21 @@ import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.feature.player.common.AudioOption
+import com.filmax.feature.player.common.OptionText
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
+import com.filmax.feature.player.common.PresetSpeeds
 import com.filmax.feature.player.common.StreamQuality
 import com.filmax.feature.player.common.SubtitleOption
+import com.filmax.feature.player.common.audioOptionText
+import com.filmax.feature.player.common.optionEvent
+import com.filmax.feature.player.common.optionItems
+import com.filmax.feature.player.common.playerSubtitle
+import com.filmax.feature.player.common.speedCaption
+import com.filmax.feature.player.common.speedValue
+import com.filmax.feature.player.common.statusLabel
+import com.filmax.feature.player.common.tabValue
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -130,6 +140,6 @@ class TvPlayerLabelsTest {
 
     @Test
     fun `tv speeds are six tiles from half to double`() {
-        assertEquals(listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f), TvPlaybackSpeeds)
+        assertEquals(listOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f), PresetSpeeds)
     }
 }

@@ -6,7 +6,7 @@ import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
 
 /**
- * Экран открытой папки (ТВ). Содержимое постраничное — kino.pub отдаёт `bookmarks/{id}` по
+ * Экран открытой папки (телефон и ТВ). Содержимое постраничное — kino.pub отдаёт `bookmarks/{id}` по
  * страницам; [folder] — папка с локальным оформлением (цвет шапки, название).
  */
 data class FolderState(

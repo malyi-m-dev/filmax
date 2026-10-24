@@ -2,6 +2,7 @@ package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.presentation.PeriodicEvent
 
 /**
@@ -75,9 +76,13 @@ object PlaybackSpeeds {
 data class PlayerState(
     val loading: Boolean = true,
     val item: Item? = null,
-    /** Играющий трек и следующий за ним по плейлисту — модель выбирает их по маршруту, UI не ищет заново. */
+    /**
+     * Играющий трек и соседи по плейлисту — модель выбирает их по маршруту, UI не ищет заново.
+     * Предыдущий нужен пульту телефона: там есть кнопка «предыдущая серия».
+     */
     val track: MediaTrack? = null,
     val nextTrack: MediaTrack? = null,
+    val previousTrack: MediaTrack? = null,
     val streamUrl: String? = null,
     val qualities: List<StreamQuality> = emptyList(),
     val currentQuality: String? = null,
@@ -113,6 +118,9 @@ sealed interface PlayerEvent {
     data object OpenPanel : PlayerEvent
     data object ClosePanel : PlayerEvent
 
+    /** Телефон: открыть панель сразу на вкладке [tab] — по чипу «Аудио», «Субтитры» под видео. */
+    data class OpenPanelAt(val tab: PlayerTab) : PlayerEvent
+
     /** Фокус пришёл на вкладку панели — она и выбрана. */
     data class SelectTab(val tab: PlayerTab) : PlayerEvent
 
@@ -125,23 +133,24 @@ sealed interface PlayerEvent {
      */
     data object ScreenShown : PlayerEvent
     data object ScreenHidden : PlayerEvent
+
+    /** Телефон: «Смотреть на ТВ» — продолжить с этого места на телевизоре. */
+    data object ContinueOnTv : PlayerEvent
 }
 
 sealed interface PlayerSideEffect {
     /** Фильм досмотрен — пора спросить, как смотрелось: экран заменит плеер окном оценки. */
     data object AskFeedback : PlayerSideEffect
-}
 
-/** «1:23:45» / «23:45» — формат времени плеера, единый для mobile и TV. */
-@Suppress("MagicNumber")
-fun formatPlayerTime(ms: Long): String {
-    val totalSec = ms / 1000
-    val hours = totalSec / 3600
-    val minutes = (totalSec % 3600) / 60
-    val seconds = totalSec % 60
-    return if (hours > 0) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
-    }
+    /**
+     * Пульт телефона попросил другую серию. Это навигация (новый экран плеера), а не подмена потока:
+     * прогресс модель пишет в трек, выбранный при старте.
+     */
+    data class PlayEpisode(val season: Int, val videoId: Int) : PlayerSideEffect
+
+    /** Пульт телефона закрыл плеер. */
+    data object Exit : PlayerSideEffect
+
+    /** Выбрать телевизор и отдать ему [play] — эту серию с текущей позиции. */
+    data class ChooseTv(val play: RemoteCommand.Play) : PlayerSideEffect
 }

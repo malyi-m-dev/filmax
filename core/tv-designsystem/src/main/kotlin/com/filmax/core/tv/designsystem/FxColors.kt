@@ -3,22 +3,15 @@ package com.filmax.core.tv.designsystem
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import com.filmax.core.designsystem.FilmaxColors
+import com.filmax.core.designsystem.FilmaxPalette
+import com.filmax.core.designsystem.FilmaxPalettes
 
 // ── Палитры редизайна «Filmax TV» ────────────────────────────────────────────────
 // Яркий акцент вместо монохрома: главное действие, текущий раздел, прогресс и свечение фокуса —
 // цветом палитры, рейтинги и аватар — вторым акцентом. Поверхности — полупрозрачный белый поверх
-// фона: стеклянные панели лежат на кадре, а не перекрывают его. Значения — перевод из oklch
-// макета (docs/tv-redesign.md), на панели ТВ их стоит сверять глазами.
-
-/** Основной текст: тёплый белый, не #FFF — чистый белый «звенит» на тёмном фоне. */
-private val FxText = Color(0xFFF4F2FA)
-
-/** Ошибки и деструктив — тёплый красный, общий для всех палитр. */
-private val FxError = Color(0xFFF07A6A)
-
-/** Вторичный и третичный текст — тот же белый с прозрачностью: на любом фоне он одного тона. */
-private const val SECONDARY_ALPHA = 0.72f
-private const val DIM_ALPHA = 0.5f
+// фона: стеклянные панели лежат на кадре, а не перекрывают его. Сами акценты и фон — общие с
+// телефоном (FilmaxPalettes), на панели ТВ их стоит сверять глазами.
 
 /** Стекло: доля белого поверх того, что под панелью. */
 private const val SURFACE_ALPHA = 0.07f
@@ -44,52 +37,37 @@ data class FxColors(
     /** Цветная подсветка сверху экрана. */
     val wash: Color,
     val background: Color,
-    val text: Color = FxText,
-    val textSecondary: Color = FxText.copy(alpha = SECONDARY_ALPHA),
-    val textDim: Color = FxText.copy(alpha = DIM_ALPHA),
+    val text: Color = FilmaxColors.Text,
+    val textSecondary: Color = FilmaxColors.TextSecondary,
+    val textDim: Color = FilmaxColors.TextDim,
     /** Стекло: панели, кнопки второго плана, поля. */
     val surface: Color = Color.White.copy(alpha = SURFACE_ALPHA),
     val surfaceHigh: Color = Color.White.copy(alpha = SURFACE_HIGH_ALPHA),
     /** Тонкая обводка стеклянных панелей. */
     val outline: Color = Color.White.copy(alpha = OUTLINE_ALPHA),
-    val error: Color = FxError,
+    val error: Color = FilmaxColors.Error,
+)
+
+/** Цвета ТВ на общей палитре: акценты и фон — из неё, стекло и текст — общие. */
+private fun FilmaxPalette.toFxColors() = FxColors(
+    accent = accent,
+    onAccent = onAccent,
+    accent2 = accent2,
+    onAccent2 = onAccent2,
+    accentText = accentText,
+    glow = glow,
+    wash = wash,
+    background = background,
 )
 
 /** «Фиолет» — палитра по умолчанию. */
-val Violet = FxColors(
-    accent = Color(0xFF7B5CF5),
-    onAccent = Color.White,
-    accent2 = Color(0xFFE14BA0),
-    onAccent2 = Color.White,
-    accentText = Color(0xFFBEB2FF),
-    glow = Color(0xA67B5CF5),
-    wash = Color(0x669B4FD8),
-    background = Color(0xFF0F0C1A),
-)
+val Violet = FilmaxPalettes.Violet.toFxColors()
 
 /** «Коралл». */
-val Coral = FxColors(
-    accent = Color(0xFFF26B4C),
-    onAccent = Color(0xFF1A0B06),
-    accent2 = Color(0xFFF0B53C),
-    onAccent2 = Color(0xFF1A1206),
-    accentText = Color(0xFFFFB59E),
-    glow = Color(0x99F26B4C),
-    wash = Color(0x61E0603C),
-    background = Color(0xFF170F0C),
-)
+val Coral = FilmaxPalettes.Coral.toFxColors()
 
 /** «Мята». */
-val Mint = FxColors(
-    accent = Color(0xFF3FDBB2),
-    onAccent = Color(0xFF04140F),
-    accent2 = Color(0xFF4D98EE),
-    onAccent2 = Color.White,
-    accentText = Color(0xFF93F0D2),
-    glow = Color(0x8C3FDBB2),
-    wash = Color(0x663D8FC7),
-    background = Color(0xFF0A1218),
-)
+val Mint = FilmaxPalettes.Mint.toFxColors()
 
 /** Палитра текущего экрана. Ставит [FilmaxTvTheme]. */
 val LocalFxColors = staticCompositionLocalOf { Violet }

@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.LocalContentColor
 import androidx.tv.material3.Text
+import com.filmax.core.designsystem.Onest
 
 private val TileHeight = 84.dp
 private val TileShape = RoundedCornerShape(16.dp)

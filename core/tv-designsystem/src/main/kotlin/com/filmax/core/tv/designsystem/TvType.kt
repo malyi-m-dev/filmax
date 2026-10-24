@@ -5,22 +5,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-
-/**
- * Onest — заголовки, кнопки, чипы, названия карточек. Статические начертания 500–800, ужатые до
- * латиницы и кириллицы (лицензия OFL — LICENSE-Onest.txt модуля).
- */
-val Onest = FontFamily(
-    Font(R.font.onest_medium, FontWeight.Medium),
-    Font(R.font.onest_semibold, FontWeight.SemiBold),
-    Font(R.font.onest_bold, FontWeight.Bold),
-    Font(R.font.onest_extrabold, FontWeight.ExtraBold),
-)
+import com.filmax.core.designsystem.Onest
 
 /**
  * Шкала редизайна «Filmax TV»: Onest несёт характер, Roboto — текст и мету. Размеры 1:1 из

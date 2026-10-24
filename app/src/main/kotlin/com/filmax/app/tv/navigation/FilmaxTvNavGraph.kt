@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
@@ -18,6 +19,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
@@ -48,9 +50,14 @@ import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.tv.navigation.tvFilmographyScreen
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
+import com.filmax.feature.tvlink.tv.TvLinkHost
+import com.filmax.feature.tvlink.tv.TvRemoteCard
 import kotlinx.serialization.Serializable
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+
+/** Плашка «Пульт подключён» — у верхнего края, над контентом и не на месте часов. */
+private val TvLinkPlaqueTop = 28.dp
 
 // internal, а не private: сериализатор маршрута на JVM (UI-тесты оболочки) достаёт объект
 // рефлексией, и к private-классу доступа у него нет.
@@ -127,6 +134,15 @@ fun FilmaxTvNavGraph(
                     .focusProperties { if (showNav) left = navFocus },
             )
         }
+
+        // Телефон как пульт: пока Filmax на экране и вход выполнен, ТВ виден в сети; тайтл с телефона
+        // открывает плеер, подключившийся телефон объявляется плашкой.
+        TvLinkHost(
+            enabled = isAuthenticated == true,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = TvLinkPlaqueTop),
+        )
 
         if (showNav) {
             TvSideNav(
@@ -224,7 +240,7 @@ private fun NavGraphBuilder.tvDestinations(onCheckUpdates: () -> Unit) {
     // «Моё» и экран открытой папки — push-экран без меню, как детали.
     tvLibraryScreen()
     tvFolderScreen()
-    tvProfileScreen(onCheckUpdates = onCheckUpdates)
+    tvProfileScreen(onCheckUpdates = onCheckUpdates, remoteCard = { modifier -> TvRemoteCard(modifier) })
     // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
     // device/info и device/settings на бэкенде отвечают 500.
     tvDeviceSettingsScreen()

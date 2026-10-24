@@ -13,16 +13,6 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
@@ -32,13 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 
 /**
@@ -68,7 +52,7 @@ enum class VoiceSearchError {
  * Голосовой ввод БЕЗ стороннего экрана: слушаем микрофон через [SpeechRecognizer] прямо в
  * приложении и отдаём Compose-стейтом всё, что нужно нарисовать слушание: идёт ли оно, текст по
  * ходу речи ([transcript]), громкость ([level]) и ошибку ([error]). Телефон рисует его
- * [VoiceListeningDialog], ТВ — своим оверлеем. Финальная фраза уходит в onResult.
+ * [VoiceListeningOverlay], ТВ — своим оверлеем. Финальная фраза уходит в onResult.
  *
  * Порядок запуска в [start]: нет разрешения на микрофон → системный запрос (после согласия
  * слушание стартует само); сервис распознавания недоступен → фолбэк на внешний
@@ -85,7 +69,7 @@ class VoiceSearchController internal constructor(
     private val fallback: () -> Unit,
 ) : RecognitionListener {
 
-    /** Идёт ли слушание — на нём держится [VoiceListeningDialog]. */
+    /** Идёт ли слушание — на нём держится [VoiceListeningOverlay]. */
     var listening by mutableStateOf(false)
         private set
 
@@ -239,46 +223,6 @@ fun rememberInAppVoiceSearch(onResult: (String) -> Unit): VoiceSearchController 
 }
 
 /**
- * Плашка слушания по центру экрана: микрофон, «Говорите…» и частичный текст. Рисуется через
- * [Dialog] — всплывает над всем окном из любого места дерева, а «Назад»/тап мимо отменяют
- * слушание. Ставится рядом с местом использования контроллера.
- */
-@Composable
-fun VoiceListeningDialog(controller: VoiceSearchController) {
-    if (!controller.listening) return
-    Dialog(onDismissRequest = controller::cancel) {
-        Column(
-            modifier = Modifier
-                .widthIn(min = 280.dp, max = 420.dp)
-                .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 28.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Icon(
-                Icons.Filled.Mic,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp),
-            )
-            Text(
-                "Говорите…",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(top = 12.dp),
-            )
-            Text(
-                controller.partialText.ifBlank { "Назовите фильм или сериал" },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-    }
-}
-
-/**
  * Фолбэк: системный распознаватель отдельным экраном (RecognizerIntent). Используется только
  * когда [SpeechRecognizer] на устройстве недоступен.
  */
@@ -306,4 +250,10 @@ private fun recognizeIntent(): Intent = Intent(RecognizerIntent.ACTION_RECOGNIZE
     putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ru-RU")
     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
     putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, SILENCE_MILLIS)
+}
+
+/** Почему голос не сработал — словами, без кодов ошибок распознавателя. Одна формулировка на телефон и ТВ. */
+fun voiceErrorText(error: VoiceSearchError): String = when (error) {
+    VoiceSearchError.NETWORK -> "Нет связи с сервисом распознавания — проверьте интернет"
+    VoiceSearchError.PERMISSION -> "Нет доступа к микрофону — разрешите его в настройках"
 }

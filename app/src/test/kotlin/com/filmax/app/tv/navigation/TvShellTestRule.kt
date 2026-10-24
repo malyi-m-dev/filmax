@@ -5,6 +5,9 @@ import android.content.pm.PackageManager
 import com.filmax.app.di.appModule
 import com.filmax.app.di.useCaseModule
 import com.filmax.core.domain.feedback.FeedbackPromptStore
+import com.filmax.core.domain.tvlink.TvDiscovery
+import com.filmax.core.domain.tvlink.TvLinkReceiver
+import com.filmax.core.domain.tvlink.TvRemote
 import com.filmax.core.navigation.di.navigationModule
 import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
@@ -13,6 +16,9 @@ import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeTvDiscovery
+import com.filmax.data.fake.FakeTvLinkReceiver
+import com.filmax.data.fake.FakeTvRemote
 import com.filmax.data.fake.di.fakeDataModule
 import com.filmax.data.feedback.di.feedbackModule
 import com.filmax.data.search.di.searchModule
@@ -29,6 +35,7 @@ import com.filmax.feature.onboarding.common.di.onboardingModule
 import com.filmax.feature.player.common.di.playerModule
 import com.filmax.feature.profile.common.di.profileModule
 import com.filmax.feature.search.common.di.searchFeatureModule
+import com.filmax.feature.tvlink.common.di.tvLinkFeatureModule
 import org.junit.rules.ExternalResource
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.context.startKoin
@@ -57,6 +64,13 @@ class TvShellTestRule : ExternalResource() {
                     listOf(fakeDataModule, module { single { FakeBackend(latency = FakeLatency.None) } }) +
                     // Память показов окна оценки — своя у каждого теста: окно не выскочит посреди сценария.
                     module { single<FeedbackPromptStore> { FakeFeedbackPromptStore() } } +
+                    // Связь с телефоном — без сокетов и mDNS: Robolectric их не поднимет, а оболочке
+                    // они не нужны.
+                    module {
+                        single<TvLinkReceiver> { FakeTvLinkReceiver() }
+                        single<TvRemote> { FakeTvRemote() }
+                        single<TvDiscovery> { FakeTvDiscovery() }
+                    } +
                     listOf(
                         useCaseModule,
                         onboardingModule,
@@ -68,6 +82,7 @@ class TvShellTestRule : ExternalResource() {
                         detailsModule,
                         playerModule,
                         feedbackFeatureModule,
+                        tvLinkFeatureModule,
                         appModule,
                     ),
             )

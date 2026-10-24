@@ -4,11 +4,13 @@ import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeTvLinkReceiver
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +51,7 @@ class PlayerScreenModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val models = mutableListOf<PlayerScreenModel>()
+    private val tvLink = FakeTvLinkReceiver()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -113,6 +116,25 @@ class PlayerScreenModelTest {
         model.send(PlayerEvent.OpenPanel)
         assertEquals(PlayerTab.Speed, model.states.value.panelTab, "панель открывается на вкладке прошлого раза")
         assertEquals(4, model.states.value.panelSeason, "сезон сбрасывается на сезон играющей серии")
+    }
+
+    @Test
+    fun `chip under the video opens the panel on its own tab, an absent tab falls back`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
+
+        model.send(PlayerEvent.OpenPanelAt(PlayerTab.Speed))
+        assertTrue(model.states.value.panelOpen)
+        assertEquals(PlayerTab.Speed, model.states.value.panelTab)
+        assertFalse(model.player.playWhenReady, "панель с чипа тоже ставит видео на паузу")
+
+        model.send(PlayerEvent.ClosePanel)
+        val movie = loaded(FakeIds.HERO_MOVIE)
+        movie.send(PlayerEvent.OpenPanelAt(PlayerTab.Episodes))
+        assertEquals(
+            movie.states.value.openingTab(),
+            movie.states.value.panelTab,
+            "у фильма нет серий — вкладка по умолчанию"
+        )
     }
 
     @Test
@@ -192,6 +214,80 @@ class PlayerScreenModelTest {
         assertFalse(model.player.playWhenReady, "скрытый плеер не должен играть за кадром")
     }
 
+    @Test
+    fun `tv starts where the phone stopped, not from the saved progress`() = runTest(dispatcher) {
+        // В фейке S4E7 начата — без позиции с телефона плеер продолжил бы с сохранённой.
+        val model = created(FakeIds.LONG_SERIES, season = 4, videoId = 7, startSeconds = PHONE_POSITION_S)
+        advanceUntilIdle()
+
+        assertEquals(PHONE_POSITION_S * 1000L, model.player.currentPosition)
+    }
+
+    @Test
+    fun `phone remote pauses, resumes and seeks the tv player`() = runTest(dispatcher) {
+        val model = created(FakeIds.LONG_SERIES, season = 4, videoId = 7, startSeconds = PHONE_POSITION_S)
+        advanceUntilIdle()
+
+        remoteSends(RemoteCommand.Pause)
+        assertFalse(model.player.playWhenReady)
+        remoteSends(RemoteCommand.Resume)
+        assertTrue(model.player.playWhenReady)
+        remoteSends(RemoteCommand.SeekBy(-10_000))
+        assertEquals((PHONE_POSITION_S - 10) * 1000L, model.player.currentPosition)
+        remoteSends(RemoteCommand.SeekBy(-1_000_000))
+        assertEquals(0L, model.player.currentPosition, "перемотка назад не уходит за начало")
+    }
+
+    @Test
+    fun `phone remote switches episodes and closes the player by navigation`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
+        val effects = mutableListOf<PlayerSideEffect>()
+        model.observeSideEffects { effects += it }
+
+        listOf(RemoteCommand.NextEpisode, RemoteCommand.PreviousEpisode, RemoteCommand.Stop).forEach {
+            tvLink.receive(it)
+            advanceUntilIdle()
+        }
+
+        val expected = listOf(
+            PlayerSideEffect.PlayEpisode(season = 4, videoId = 8),
+            PlayerSideEffect.PlayEpisode(season = 4, videoId = 6),
+            PlayerSideEffect.Exit,
+        )
+        assertEquals(expected, effects)
+    }
+
+    @Test
+    fun `phone sees the playing episode until the player leaves the screen`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
+        model.send(PlayerEvent.ScreenShown)
+
+        val status = assertNotNull(tvLink.playback.value)
+        assertEquals(FakeIds.LONG_SERIES to (4 to 7), status.itemId to (status.season to status.episode))
+        assertTrue(status.hasNext && status.hasPrevious)
+
+        model.send(PlayerEvent.ScreenHidden)
+        assertNull(tvLink.playback.value)
+    }
+
+    @Test
+    fun `continue on tv hands over this episode from the current position`() = runTest(dispatcher) {
+        val model = created(FakeIds.LONG_SERIES, season = 4, videoId = 7, startSeconds = PHONE_POSITION_S)
+        advanceUntilIdle()
+        val effects = mutableListOf<PlayerSideEffect>()
+        model.observeSideEffects { effects += it }
+
+        model.send(PlayerEvent.ContinueOnTv)
+
+        val play = RemoteCommand.Play(
+            itemId = FakeIds.LONG_SERIES,
+            videoId = 7,
+            season = 4,
+            startSeconds = PHONE_POSITION_S,
+        )
+        assertEquals(listOf<PlayerSideEffect>(PlayerSideEffect.ChooseTv(play)), effects)
+    }
+
     private fun TestScope.loaded(
         itemId: Int,
         season: Int = -1,
@@ -205,15 +301,20 @@ class PlayerScreenModelTest {
         return model
     }
 
-    /** Модель до загрузки: корутины ещё не шли — время в тесте ведут вручную. */
+    /**
+     * Модель до загрузки: корутины ещё не шли — время в тесте ведут вручную. [startSeconds] — позиция,
+     * переданная с телефона (-1 — с сохранённого прогресса).
+     */
     private fun created(
         itemId: Int,
         season: Int = -1,
         videoId: Int = -1,
         settings: MemoryPlaybackSettings = MemoryPlaybackSettings(),
+        startSeconds: Int = -1,
     ): PlayerScreenModel {
+        val route = mapOf("itemId" to itemId, "videoId" to videoId, "season" to season, "startSeconds" to startSeconds)
         val model = PlayerScreenModel(
-            savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId, "videoId" to videoId, "season" to season)),
+            savedStateHandle = SavedStateHandle(route),
             repositories = PlayerRepositories(
                 catalog = FakeCatalogRepository(backend),
                 watching = FakeWatchingRepository(backend),
@@ -221,6 +322,7 @@ class PlayerScreenModelTest {
             ),
             playbackSettings = settings,
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
+            tvLink = tvLink,
             context = RuntimeEnvironment.getApplication(),
         )
         models += model
@@ -230,6 +332,12 @@ class PlayerScreenModelTest {
     private fun PlayerScreenModel.send(event: PlayerEvent) {
         dispatch(event)
         dispatcher.scheduler.advanceUntilIdle()
+    }
+
+    /** Команда с пульта телефона — и всё, что она запустила в модели. */
+    private suspend fun TestScope.remoteSends(command: RemoteCommand) {
+        tvLink.receive(command)
+        advanceUntilIdle()
     }
 
     /** Настройки воспроизведения в памяти: дефолты и озвучки по тайтлам. */
@@ -268,5 +376,8 @@ class PlayerScreenModelTest {
 
         /** 1920×1072 — высота части 1080p kino.pub, на которой 2.2.0 записывал ложный потолок. */
         const val FULL_HD_CROPPED = 1072
+
+        /** Где телефон остановился, передавая просмотр на ТВ. */
+        const val PHONE_POSITION_S = 754
     }
 }

@@ -1,205 +1,156 @@
-// Секции экрана деталей под кнопками: описание, актёры с режиссёром и «Похожее».
-// Сезоны и серии — в DetailsEpisodes.
+// Секции под шапкой деталей: описание со ссылкой на полный текст, серии сериала, актёры, факты
+// «О фильме» и «Похожие». Порядок — как на ТВ: у сериала серии сразу под описанием, ради них
+// карточку сериала и открывают.
 
 package com.filmax.feature.details.mobile
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
-import com.filmax.core.designsystem.FilmaxOnSurfaceDim
+import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.person.CastMember
-import com.filmax.core.ui.components.FilmaxExpandableText
+import com.filmax.core.ui.components.FilmaxCastCard
 import com.filmax.core.ui.components.FilmaxPosterCard
-import com.filmax.core.ui.components.PosterImage
-import com.filmax.feature.details.common.initials
+import com.filmax.core.ui.components.FilmaxSectionHeader
+import com.filmax.core.ui.components.FilmaxTextButton
+import com.filmax.core.ui.components.posterMeta
+import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.typeLabel
+import com.filmax.feature.details.common.DetailsEvent
+import com.filmax.feature.details.common.DetailsFact
+import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.detailsFacts
+import com.filmax.feature.details.common.resolveCast
 
-/** Ширина карточки актёра и диаметр круглого аватара в секции «Актёры». */
-private val ActorCardWidth = 88.dp
-private val ActorAvatarSize = 72.dp
+/** Сколько строк описания видно до «Читать полностью». */
+private const val DESCRIPTION_LINES = 3
 
-/**
- * Описание свёрнуто до четырёх строк: у сериалов kino.pub оно бывает на полэкрана и уводило
- * актёров и серии далеко вниз. Целиком — по «Подробнее».
- */
-@Composable
-internal fun DetailsAbout(item: Item, modifier: Modifier = Modifier) {
+/** Секции ленты деталей после шапки. */
+internal fun LazyListScope.detailsSections(item: Item, state: DetailsState, actions: DetailsActions) {
     if (item.plot.isNotBlank()) {
-        FilmaxExpandableText(text = item.plot, modifier = modifier)
+        item(key = "description") {
+            Description(plot = item.plot, onReadMore = { actions.onDetails(DetailsEvent.OpenDescription) })
+        }
     }
-}
-
-/**
- * Состав тайтла карточками с фото. Фото приходят из TMDB ([DetailsState.cast]); пока их нет —
- * показываем те же карточки, но с инициалами вместо фото (имена всегда есть от kino.pub). Любая
- * карточка кликабельна и ведёт в фильмографию человека.
- */
-@Composable
-internal fun CastSection(
-    people: List<CastMember>,
-    director: String,
-    onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (people.isEmpty() && director.isBlank()) return
-    Column(modifier) {
-        if (people.isNotEmpty()) {
-            Text(
-                "Актёры",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(horizontal = FilmaxMetrics.DetailsPadding, vertical = 0.dp),
-            )
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = FilmaxMetrics.DetailsPadding),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                modifier = Modifier.padding(top = 14.dp),
-            ) {
-                items(people) { member ->
-                    ActorCard(member = member, onClick = { onOpenPerson(member.name, false) })
-                }
-            }
-        }
-        if (director.isNotBlank()) {
-            DirectorLine(
-                director = director,
-                // По запятой — только первый режиссёр: kino.pub ищет по одному имени в `director`.
-                onClick = { onOpenPerson(director.substringBefore(",").trim(), true) },
-                modifier = Modifier.padding(
-                    start = FilmaxMetrics.DetailsPadding,
-                    end = FilmaxMetrics.DetailsPadding,
-                    top = if (people.isNotEmpty()) 18.dp else 0.dp,
-                ),
-            )
-        }
+    if (state.series != null) episodesSection(state = state, actions = actions)
+    // Люди: фото из TMDB, если доехали; иначе — имена из строки kino.pub. Режиссёр — первым.
+    val people = resolveCast(state.cast, item.cast)
+    if (people.isNotEmpty() || item.director.isNotBlank()) {
+        item(key = "cast") { CastRow(people = people, director = item.director, onOpenPerson = actions.onOpenPerson) }
+    }
+    val facts = detailsFacts(item, state.series)
+    if (facts.isNotEmpty()) {
+        item(key = "facts") { Facts(title = if (state.series == null) "О фильме" else "О сериале", facts = facts) }
+    }
+    if (state.similar.isNotEmpty()) {
+        item(key = "similar") { SimilarRow(similar = state.similar, onOpenItem = actions.onOpenItem) }
     }
 }
 
 @Composable
-private fun ActorCard(member: CastMember, onClick: () -> Unit) {
-    Column(
-        Modifier.width(ActorCardWidth).clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        ActorAvatar(member)
+private fun Description(plot: String, onReadMore: () -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(start = FilmaxMetrics.ScreenPadding, end = 12.dp, top = 22.dp)) {
         Text(
-            member.name,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
+            plot,
+            style = FilmaxType.body,
+            color = FilmaxColors.TextSecondary,
+            maxLines = DESCRIPTION_LINES,
             overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
+            modifier = Modifier.padding(end = 8.dp),
         )
-        member.character?.takeIf { it.isNotBlank() }?.let { character ->
-            Text(
-                character,
-                style = MaterialTheme.typography.bodySmall,
-                color = FilmaxOnSurfaceDim,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
+        FilmaxTextButton(text = "Читать полностью ›", onClick = onReadMore, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
 @Composable
-private fun ActorAvatar(member: CastMember) {
-    Box(
-        Modifier
-            .size(ActorAvatarSize)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-        contentAlignment = Alignment.Center,
-    ) {
-        val photo = member.photoUrl
-        if (photo != null) {
-            PosterImage(
-                url = photo,
-                contentDescription = member.name,
-                modifier = Modifier.fillMaxSize(),
-                shape = CircleShape,
-                accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            )
-        } else {
-            Text(
-                initials(member.name),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-private fun DirectorLine(director: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            "Режиссёр",
-            style = MaterialTheme.typography.bodyMedium,
-            color = FilmaxOnSurfaceDim,
-        )
-        Text(
-            director,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.clickable(onClick = onClick),
-        )
-    }
-}
-
-@Composable
-internal fun SimilarSection(similar: List<Item>, onOpenItem: (Int) -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier) {
-        Text(
-            "Похожее",
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(
-                start = FilmaxMetrics.DetailsPadding,
-                end = FilmaxMetrics.DetailsPadding,
-                bottom = 12.dp,
-            ),
-        )
-        // Ряд полноширинный, поля — через contentPadding: внутри общих боковых полей последняя
-        // карточка обрезалась бы по правому краю, и ряд читался бы как сломанный.
+private fun CastRow(people: List<CastMember>, director: String, onOpenPerson: (String, Boolean) -> Unit) {
+    Column {
+        FilmaxSectionHeader(title = "Актёры")
         LazyRow(
-            contentPadding = PaddingValues(horizontal = FilmaxMetrics.DetailsPadding),
-            horizontalArrangement = Arrangement.spacedBy(FilmaxMetrics.CardGap),
+            contentPadding = PaddingValues(horizontal = FilmaxMetrics.ScreenPadding),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            items(similar, key = { it.id }) { similarItem ->
-                FilmaxPosterCard(
-                    title = similarItem.title,
-                    posterUrl = similarItem.posters.medium.ifBlank { similarItem.posters.big },
-                    onClick = { onOpenItem(similarItem.id) },
-                    width = FilmaxMetrics.SimilarPosterWidth,
-                    height = FilmaxMetrics.SimilarPosterHeight,
+            // Режиссёров у kino.pub строка через запятую — карточка на каждого, с его фильмографией.
+            val directors = director.split(",").map { it.trim() }.filter { it.isNotBlank() }
+            items(directors, key = { "director-$it" }) { name ->
+                FilmaxCastCard(name = name, photoUrl = null, role = "Режиссёр", onClick = { onOpenPerson(name, true) })
+            }
+            items(people, key = { "actor-${it.name}" }) { person ->
+                FilmaxCastCard(
+                    name = person.name,
+                    photoUrl = person.photoUrl,
+                    role = person.character,
+                    onClick = { onOpenPerson(person.name, false) },
                 )
             }
         }
     }
 }
+
+/** Факты сеткой «подпись — значение»: подписи одной колонкой, значения выровнены по ней. */
+@Composable
+internal fun Facts(title: String?, facts: List<DetailsFact>, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        title?.let { FilmaxSectionHeader(title = it) }
+        Column(
+            Modifier.padding(horizontal = FilmaxMetrics.ScreenPadding),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            facts.forEach { fact ->
+                Row(Modifier.fillMaxWidth()) {
+                    Text(
+                        fact.label,
+                        style = FilmaxType.bodySmall,
+                        color = FilmaxColors.TextDim,
+                        modifier = Modifier.width(FactLabelWidth)
+                    )
+                    Text(
+                        fact.value,
+                        style = FilmaxType.bodySmall,
+                        color = FilmaxColors.Text,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimilarRow(similar: List<Item>, onOpenItem: (Int) -> Unit) {
+    Column {
+        FilmaxSectionHeader(title = "Похожие")
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = FilmaxMetrics.ScreenPadding),
+            horizontalArrangement = Arrangement.spacedBy(FilmaxMetrics.CardGap),
+        ) {
+            items(similar, key = { it.id }) { item ->
+                FilmaxPosterCard(
+                    title = item.title,
+                    posterUrl = item.posters.medium,
+                    onClick = { onOpenItem(item.id) },
+                    rating = ratingLabel(item.rating.kinopoisk),
+                    meta = posterMeta(typeLabel(item.type), item.year),
+                    modifier = Modifier.width(FilmaxMetrics.PosterWidth),
+                )
+            }
+        }
+    }
+}
+
+private val FactLabelWidth = 110.dp

@@ -19,8 +19,18 @@ sealed interface Destination {
 
     data object Home : Tab
     data object Catalog : Tab
+
+    /** Поиск — отдельная вкладка телефона; на ТВ поиск живёт в Каталоге, туда и ведёт. */
+    data object Search : Tab
     data object Mine : Tab
     data object Profile : Tab
+
+    /**
+     * Раздел каталога с готовой выборкой: «Фильмы», «4K и HDR», «Новинки» — из чипов и шторки
+     * разделов Главной. [section] — имя `CatalogSection` из domain строкой (core:navigation не знает
+     * типов domain). Открывается поверх раздела, со своей кнопкой «назад».
+     */
+    data class Browse(val section: String) : Destination
 
     /** Вход в приложение — корень для неавторизованного пользователя. */
     data object Onboarding : Destination
@@ -31,8 +41,14 @@ sealed interface Destination {
      * Плеер. [videoId] — НОМЕР видео, а не id трека: тем же числом kino.pub принимает и отдаёт
      * прогресс. [season] обязателен вместе с ним — номер уникален только внутри сезона.
      * Дефолтные `-1` означают «фильм или неизвестная серия»: плеер возьмёт первый трек.
+     * [startSeconds] — позиция старта, когда просмотр передали с телефона; `-1` — с сохранённого прогресса.
      */
-    data class Player(val itemId: Int, val videoId: Int = -1, val season: Int = -1) : Destination
+    data class Player(
+        val itemId: Int,
+        val videoId: Int = -1,
+        val season: Int = -1,
+        val startSeconds: Int = -1,
+    ) : Destination
 
     data class Trailer(val url: String, val title: String) : Destination
 
@@ -46,6 +62,20 @@ sealed interface Destination {
 
     /** Фильмография человека: тап по актёру или режиссёру в деталях. */
     data class Filmography(val name: String, val isDirector: Boolean) : Destination
+
+    /** Пульт телевизора — только на телефоне: им управляют подключённым ТВ. */
+    data object Remote : Destination
+
+    /**
+     * Выбор телевизора в сети — только на телефоне. Аргументы — что запустить на нём, как у [Player];
+     * [itemId] = -1 — ничего: телевизор выбирают ради пульта.
+     */
+    data class TvPicker(
+        val itemId: Int = -1,
+        val videoId: Int = -1,
+        val season: Int = -1,
+        val startSeconds: Int = -1,
+    ) : Destination
 
     data object DeviceSettings : Destination
 

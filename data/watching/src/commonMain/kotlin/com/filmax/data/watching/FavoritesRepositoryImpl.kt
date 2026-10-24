@@ -139,7 +139,7 @@ internal class FavoritesRepositoryImpl(
      * Страницы `bookmarks/{id}` у kino.pub пересекаются (тайтл приходит и на первой, и на
      * второй), а список уходит в LazyGrid с `key = id` — дубликат роняет экран «Моё» на
      * `IllegalArgumentException: Key … was already used`. Так же лечится содержимое обычных
-     * папок в LibraryScreenModel и выдача каталога/поиска.
+     * папок (FolderScreenModel) и выдача каталога/поиска.
      */
     private fun updateState(list: List<FavoriteItem>) {
         val unique = list.distinctBy { it.id }

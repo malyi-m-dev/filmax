@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import com.filmax.core.designsystem.Onest
 
 private val RowHeight = 56.dp
 private val MarkSize = 24.dp

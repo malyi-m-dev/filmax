@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -39,15 +38,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
-import com.filmax.core.designsystem.FilmaxOnSurfaceDim
-import com.filmax.core.designsystem.ShapeButton
+import com.filmax.core.designsystem.ShapeTile
 import com.filmax.core.domain.user.model.DeviceOption
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.serverLocationLabel
 import com.filmax.core.domain.user.model.streamingTypeLabel
 import com.filmax.core.domain.user.model.streamingTypeOptions
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.feature.profile.common.DeviceSettingsEvent
 import com.filmax.feature.profile.common.DeviceSettingsScreenModel
 import com.filmax.feature.profile.common.DeviceSettingsSideEffect
@@ -188,21 +188,7 @@ private fun DeviceSettingsContent(
 @Composable
 private fun DeviceSettingsHeader(title: String, onBack: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 6.dp)) {
-        Box(
-            modifier = Modifier
-                .size(FilmaxMetrics.BackButtonSize)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable(onClick = onBack),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Назад",
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        FilmaxIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", onClick = onBack)
         Spacer(Modifier.width(14.dp))
         Column {
             Text(
@@ -229,7 +215,7 @@ private fun SectionOverline(text: String) {
     Text(
         text,
         style = MaterialTheme.typography.labelMedium,
-        color = FilmaxOnSurfaceDim,
+        color = FilmaxColors.TextDim,
         modifier = Modifier.padding(top = 28.dp, bottom = 12.dp),
     )
 }
@@ -251,7 +237,7 @@ private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
         modifier = Modifier
             .fillMaxWidth()
             .height(FilmaxMetrics.SettingsRowHeight)
-            .clip(ShapeButton)
+            .clip(ShapeTile)
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable { onCheckedChange(!checked) }
             .padding(start = 18.dp, end = 12.dp),
@@ -290,7 +276,7 @@ private fun NavigationRow(label: String, value: String, onClick: (() -> Unit)?) 
         modifier = Modifier
             .fillMaxWidth()
             .height(FilmaxMetrics.SettingsRowHeight)
-            .clip(ShapeButton)
+            .clip(ShapeTile)
             .background(MaterialTheme.colorScheme.surfaceContainer)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 18.dp),
@@ -302,7 +288,7 @@ private fun NavigationRow(label: String, value: String, onClick: (() -> Unit)?) 
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
-        Text(value, style = MaterialTheme.typography.bodyMedium, color = FilmaxOnSurfaceDim, maxLines = 1)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = FilmaxColors.TextDim, maxLines = 1)
         if (onClick != null) {
             Spacer(Modifier.width(8.dp))
             Icon(
@@ -321,7 +307,7 @@ private fun SaveButton(saving: Boolean, onSave: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .height(FilmaxMetrics.PrimaryButtonHeight)
-            .clip(ShapeButton)
+            .clip(ShapeTile)
             .background(MaterialTheme.colorScheme.primary)
             .clickable(enabled = !saving, onClick = onSave),
         horizontalArrangement = Arrangement.Center,
@@ -374,7 +360,7 @@ private fun DeviceOptionList(options: List<DeviceOption>, selected: Int, onSelec
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(FilmaxMetrics.SettingsRowHeight)
-                    .clip(ShapeButton)
+                    .clip(ShapeTile)
                     .clickable { onSelect(option.id) }
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

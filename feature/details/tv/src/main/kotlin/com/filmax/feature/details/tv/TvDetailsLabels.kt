@@ -5,13 +5,14 @@ package com.filmax.feature.details.tv
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.TvEpisodeRowModel
-import com.filmax.core.ui.components.durationLabel
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.SeriesData
 import com.filmax.feature.details.common.WATCH_STATUS_FINISHED
 import com.filmax.feature.details.common.WATCH_STATUS_IN_PROGRESS
 import com.filmax.feature.details.common.episodeProgress
+import com.filmax.feature.details.common.episodeRowMeta
+import com.filmax.feature.details.common.numberedEpisodeTitle
 import com.filmax.feature.details.common.volumeLabel
 
 /** Оценка с источником для бейджа: главный источник выделен. */
@@ -82,7 +83,7 @@ internal fun episodeRow(episode: MediaTrack, resumeId: Int?): TvEpisodeRowModel 
     val watched = episode.watchStatus == WATCH_STATUS_FINISHED
     val resume = episode.id == resumeId && !watched
     return TvEpisodeRowModel(
-        title = if (episode.title.isBlank()) "Серия ${episode.number}" else "${episode.number}. ${episode.title}",
+        title = numberedEpisodeTitle(episode),
         meta = episodeRowMeta(episode, resume),
         imageUrl = episode.thumbnail,
         progress = episodeProgress(episode).takeIf { episode.watchStatus == WATCH_STATUS_IN_PROGRESS || watched },
@@ -92,22 +93,6 @@ internal fun episodeRow(episode: MediaTrack, resumeId: Int?): TvEpisodeRowModel 
 }
 
 private const val SECONDS_IN_MINUTE = 60
-
-/**
- * Мета строки серии без номера — он уже в названии: «Просмотрено · 52 мин»,
- * «Продолжить · осталось 41 мин», у нетронутой — длительность.
- */
-private fun episodeRowMeta(episode: MediaTrack, resume: Boolean): String? {
-    val total = (episode.durationSeconds / SECONDS_IN_MINUTE).takeIf { it > 0 }?.let(::durationLabel)
-    val left = ((episode.durationSeconds - episode.watchedSeconds) / SECONDS_IN_MINUTE).takeIf { it > 0 }
-        ?.let { "осталось ${durationLabel(it)}" }
-    return when {
-        episode.watchStatus == WATCH_STATUS_FINISHED -> listOfNotNull("Просмотрено", total).joinToString(" · ")
-        resume -> listOfNotNull("Продолжить", left).joinToString(" · ")
-        episode.watchStatus == WATCH_STATUS_IN_PROGRESS -> left
-        else -> total
-    }
-}
 
 /** «10 серий · ~55 мин» — число серий сезона и средняя длительность; null — сезон пуст. */
 internal fun seasonSummary(episodes: List<MediaTrack>): String? {

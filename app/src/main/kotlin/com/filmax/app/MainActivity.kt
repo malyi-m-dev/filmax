@@ -15,7 +15,6 @@ import com.filmax.app.tv.navigation.FilmaxTvNavGraph
 import com.filmax.app.update.AppUpdateEvent
 import com.filmax.app.update.AppUpdatePrompt
 import com.filmax.app.update.AppUpdateScreenModel
-import com.filmax.core.designsystem.FilmaxTheme
 import org.koin.androidx.compose.koinViewModel
 
 class MainActivity : ComponentActivity() {
@@ -60,7 +59,7 @@ class MainActivity : ComponentActivity() {
                     AppUpdatePrompt(updateScreenModel)
                 }
             } else {
-                FilmaxTheme {
+                FilmaxPhonePaletteTheme {
                     FilmaxNavGraph(onCheckUpdates = onCheckUpdates)
                     AppUpdatePrompt(updateScreenModel)
                 }

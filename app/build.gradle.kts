@@ -227,6 +227,7 @@ dependencies {
     implementation(project(":data:watching"))
     implementation(project(":data:tmdb"))
     implementation(project(":data:feedback"))
+    implementation(project(":data:tvlink"))
     // Фейки только в сборке mock: main-код о них не знает, подключает MockFilmaxApplication.
     "mockImplementation"(project(":data:fake"))
     "benchmarkImplementation"(project(":data:fake"))
@@ -247,6 +248,7 @@ dependencies {
     implementation(project(":feature:feedback:mobile"))
     implementation(project(":feature:details:mobile"))
     implementation(project(":feature:player:mobile"))
+    implementation(project(":feature:tvlink:mobile"))
     implementation(project(":feature:designsystem"))
 
     // TV UI (выбирается в MainActivity по FEATURE_LEANBACK)
@@ -259,6 +261,7 @@ dependencies {
     implementation(project(":feature:feedback:tv"))
     implementation(project(":feature:details:tv"))
     implementation(project(":feature:player:tv"))
+    implementation(project(":feature:tvlink:tv"))
 
     // Compose
     val bom = platform(libs.compose.bom)

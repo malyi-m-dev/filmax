@@ -1,5 +1,6 @@
 package com.filmax.feature.search.common
 
+import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
@@ -10,6 +11,7 @@ import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.search.SearchRepository
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.feature.search.common.navigation.browseSection
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -55,10 +57,18 @@ private val TrendingQueries = listOf(
     "Игра престолов",
 )
 
+/**
+ * Поиск и витрина каталога. [savedStateHandle] несёт раздел ([browseSection]), если экран открыт
+ * разделом с Главной: выборка раздела — стартовое состояние, а не событие от экрана, поэтому
+ * первая же загрузка идёт уже по ней.
+ */
 class SearchScreenModel(
     private val search: SearchRepository,
     private val catalog: CatalogRepository,
-) : BaseScreenModel<SearchState, SearchSideEffect, SearchEvent>(SearchState()) {
+    savedStateHandle: SavedStateHandle = SavedStateHandle(),
+) : BaseScreenModel<SearchState, SearchSideEffect, SearchEvent>(
+    SearchState().withSection(savedStateHandle.browseSection()),
+) {
 
     private val queryFlow = MutableStateFlow("")
     private val pager = CatalogPager(catalog)

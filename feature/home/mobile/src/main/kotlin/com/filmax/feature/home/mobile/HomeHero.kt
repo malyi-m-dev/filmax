@@ -1,5 +1,5 @@
-// Hero Главной: обложка со скримом, надзаголовок, название, мета и кнопка «Смотреть».
-// Лента и переходы — в HomeScreen.
+// Hero Главной: карусель «Выбора редакции» — кадр с медленным «Кен Бёрнсом», подсветка палитры,
+// надзаголовок, название, мета и кнопки. Лента и переходы — в HomeScreen.
 
 package com.filmax.feature.home.mobile
 
@@ -9,173 +9,213 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
-import com.filmax.core.designsystem.ShapeButton
+import com.filmax.core.designsystem.FilmaxTheme
+import com.filmax.core.designsystem.FilmaxType
+import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.ui.components.PosterImage
+import com.filmax.core.ui.components.FilmaxButton
+import com.filmax.core.ui.components.FilmaxIconButton
+import com.filmax.core.ui.components.FilmaxOverline
+import com.filmax.core.ui.components.FilmaxPageDots
+import com.filmax.core.ui.components.FilmaxRatingPill
+import com.filmax.core.ui.components.KenBurnsImage
+import com.filmax.core.ui.components.durationLabel
 import com.filmax.core.ui.components.ratingLabel
+import kotlinx.coroutines.delay
 
+/** Действия hero над тайтлом карусели. */
+internal data class HeroActions(
+    val onPlay: (Item) -> Unit,
+    val onOpenItem: (Item) -> Unit,
+    val onToggleWatchLater: (Item) -> Unit,
+)
+
+/**
+ * Карусель hero. Листается пальцем и сама — раз в [HERO_INTERVAL_MILLIS], пока её не трогают;
+ * «Кен Бёрнс» идёт только у кадра на экране. Тап по кадру — детали тайтла.
+ */
 @Composable
-internal fun HomeHero(item: Item, onPlay: () -> Unit, onOpenItem: () -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(FilmaxMetrics.HomeHeroHeight)
-            .clickable(onClick = onOpenItem),
-    ) {
-        PosterImage(
-            // Широкий кадр — если он есть: вертикальную обложку на 412dp во всю ширину режет по центру.
-            url = item.posters.wide?.takeIf { it.isNotBlank() } ?: item.posters.big,
-            contentDescription = item.title,
-            modifier = Modifier.matchParentSize(),
-            shape = RectangleShape,
-            accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+internal fun HomeHero(heroes: List<Item>, watchLaterIds: Set<Int>, height: Dp, actions: HeroActions) {
+    val pager = rememberPagerState { heroes.size }
+    AutoAdvance(pager)
+    Box(Modifier.fillMaxWidth().height(height)) {
+        HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), key = { heroes[it].id }) { page ->
+            val hero = heroes[page]
+            HeroPage(
+                item = hero,
+                running = page == pager.settledPage,
+                inWatchLater = hero.id in watchLaterIds,
+                actions = actions,
+            )
+        }
+        FilmaxPageDots(
+            count = heroes.size,
+            current = pager.currentPage,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp),
         )
-        Box(Modifier.matchParentSize().background(heroScrim()))
-        HeroContent(item = item, onPlay = onPlay, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
-/**
- * Скрим hero: снизу плотный — на нём лежит текст, сверху лёгкий — постер должен читаться.
- *
- * Плотнее макета в нижней трети. В макете кадр Дюны тёмный сам по себе, и лёгкого затемнения
- * хватало; на реальном каталоге постер бывает каким угодно — на светлом мультике надзаголовок
- * и мета пропадали. Скрим обязан держать текст на ЛЮБОЙ обложке, а не на удачной.
- *
- * Прозрачность набирается из surface, а не из [androidx.compose.ui.graphics.Color.Transparent]:
- * у последнего нулевой RGB, и переход к нему уводит градиент через чёрный, давая грязь.
- */
+/** Следующий тайтл через паузу; палец на карусели — пауза начинается заново после отпускания. */
 @Composable
-private fun heroScrim(): Brush {
-    val base = MaterialTheme.colorScheme.surface
-    return Brush.verticalGradient(
-        colorStops = arrayOf(
-            0f to base.copy(alpha = 0.55f),
-            0.45f to base.copy(alpha = 0.35f),
-            0.62f to base.copy(alpha = 0.72f),
-            0.82f to base.copy(alpha = 0.95f),
-            1f to base,
-        ),
-    )
+private fun AutoAdvance(pager: PagerState) {
+    LaunchedEffect(pager, pager.settledPage, pager.pageCount) {
+        if (pager.pageCount < 2) return@LaunchedEffect
+        delay(HERO_INTERVAL_MILLIS)
+        if (!pager.isScrollInProgress) pager.animateScrollToPage((pager.settledPage + 1) % pager.pageCount)
+    }
 }
 
 @Composable
-private fun HeroContent(item: Item, onPlay: () -> Unit, modifier: Modifier = Modifier) {
+private fun HeroPage(item: Item, running: Boolean, inWatchLater: Boolean, actions: HeroActions) {
+    val palette = FilmaxTheme.palette
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clickable(role = Role.Button) { actions.onOpenItem(item) },
+    ) {
+        // Вертикальный постер, а не широкий кадр: hero на телефоне выше, чем шире, и кадр 16:9
+        // резался бы по центру до неузнаваемости.
+        KenBurnsImage(
+            url = item.posters.big.ifBlank { item.posters.wide.orEmpty() },
+            contentDescription = item.title,
+            running = running,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .radialWash(palette.wash, centerX = 1f, centerY = 0f, radiusX = 1f, radiusY = 0.6f)
+                .background(heroFade(palette.background)),
+        )
+        HeroContent(
+            item = item,
+            inWatchLater = inWatchLater,
+            actions = actions,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+}
+
+/** Низ кадра уходит в фон экрана: на нём лежит текст, а лента под hero продолжает его без шва. */
+private fun heroFade(background: Color) = Brush.verticalGradient(
+    0f to Color.Transparent,
+    HERO_OPEN_UNTIL to Color.Transparent,
+    HERO_FADE_MIDDLE to background.copy(alpha = HERO_FADE_MIDDLE_ALPHA),
+    1f to background,
+)
+
+private const val HERO_OPEN_UNTIL = 0.38f
+private const val HERO_FADE_MIDDLE = 0.72f
+private const val HERO_FADE_MIDDLE_ALPHA = 0.78f
+
+@Composable
+private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 22.dp)
-            .padding(bottom = 16.dp),
+            .padding(horizontal = FilmaxMetrics.ScreenPadding)
+            .padding(bottom = 30.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            "ВЫБОР РЕДАКЦИИ",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
+        FilmaxOverline("Выбор редакции")
         Text(
             item.title,
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = FilmaxType.hero,
+            color = FilmaxColors.Text,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 10.dp),
         )
-        HeroMeta(item = item)
-        // Кнопки «Буду смотреть» рядом нет намеренно: HomeEvent не умеет переключать watchlist,
-        // а рисовать кнопку, которая ничего не делает, — хуже, чем не рисовать её вовсе.
-        HeroPlayButton(onClick = onPlay)
+        HeroMeta(item = item, modifier = Modifier.padding(top = 12.dp))
+        Row(
+            Modifier.fillMaxWidth().padding(top = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            FilmaxButton(
+                text = "Смотреть",
+                onClick = { actions.onPlay(item) },
+                icon = Icons.Filled.PlayArrow,
+                modifier = Modifier.weight(1f),
+            )
+            FilmaxIconButton(
+                if (inWatchLater) Icons.Filled.Check else Icons.Filled.Add,
+                contentDescription = if (inWatchLater) "Убрать из «Буду смотреть»" else "Буду смотреть",
+                onClick = { actions.onToggleWatchLater(item) },
+                size = FilmaxMetrics.IconButtonLarge,
+            )
+            FilmaxIconButton(
+                Icons.Outlined.Info,
+                contentDescription = "О тайтле",
+                onClick = { actions.onOpenItem(item) },
+                size = FilmaxMetrics.IconButtonLarge,
+            )
+        }
     }
 }
 
-/** Мета hero: «8.3 КП · Фантастика · Драма · 2024» — оценка весом, остальное вторичным. */
+/** Мета hero: пилюля рейтинга и «Фантастика · 2024 · 2 ч 46 мин». */
 @Composable
-private fun HeroMeta(item: Item) {
-    val rating = ratingLabel(item.rating.kinopoisk)
-    val genres = item.genres.take(MAX_HERO_GENRES).joinToString(" · ") { it.title }
+private fun HeroMeta(item: Item, modifier: Modifier = Modifier) {
+    val parts = buildList {
+        item.genres.firstOrNull()?.title?.let(::add)
+        if (item.year > 0) add(item.year.toString())
+        item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let { add(durationLabel(it)) }
+    }
     Row(
-        modifier = Modifier.padding(top = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(9.dp),
+        modifier,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (rating != null) {
+        ratingLabel(item.rating.kinopoisk ?: item.rating.imdb)?.let { FilmaxRatingPill(it) }
+        if (parts.isNotEmpty()) {
             Text(
-                "$rating КП",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        if (genres.isNotBlank()) {
-            Text(
-                genres,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                parts.joinToString(" · "),
+                style = FilmaxType.meta,
+                color = FilmaxColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                // Длинные жанры ужимаются с многоточием, а не выдавливают год за край экрана.
-                modifier = Modifier.weight(1f, fill = false),
-            )
-        }
-        if (item.year > 0) {
-            Text(
-                item.year.toString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
-/** Главное действие экрана — единственная белая заливка в монохроме. */
+/** Высота hero: 61% экрана, как в макете (560 из 915), но не ниже 440 — иначе кнопки съедают кадр. */
 @Composable
-private fun HeroPlayButton(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .padding(top = 15.dp)
-            .fillMaxWidth()
-            .height(HeroButtonHeight)
-            .clip(ShapeButton)
-            .background(MaterialTheme.colorScheme.primary)
-            .clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Filled.PlayArrow,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            "Смотреть",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onPrimary,
-        )
-    }
+internal fun rememberHeroHeight(): Dp {
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    return (screenHeight * HERO_SHARE).coerceIn(HeroMinHeight, FilmaxMetrics.HomeHeroHeight)
 }
 
-/** Высота кнопки hero — из макета; общий [FilmaxMetrics.PrimaryButtonHeight] выше на 2dp. */
-private val HeroButtonHeight = 48.dp
-
-/** Больше двух жанров мета-строка hero не вмещает: на 360dp рядом ещё оценка и год. */
-private const val MAX_HERO_GENRES = 2
+private val HeroMinHeight = 440.dp
+private const val HERO_SHARE = 0.61f
+private const val HERO_INTERVAL_MILLIS = 8_000L
