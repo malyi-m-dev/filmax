@@ -57,8 +57,11 @@ import com.filmax.core.tv.designsystem.fxGlass
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
+import com.filmax.feature.player.common.label
 import com.filmax.feature.player.common.openingTab
 import com.filmax.feature.player.common.panelTabs
+import com.filmax.feature.player.common.playerSubtitle
+import com.filmax.feature.player.common.tabValue
 
 private val PanelHeight = 330.dp
 private val PanelMargin = 14.dp

@@ -48,6 +48,7 @@ import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
+import com.filmax.feature.player.common.nextUpTitle
 
 private val SubscriptionCardTop = 96.dp
 private val NextUpTop = 220.dp

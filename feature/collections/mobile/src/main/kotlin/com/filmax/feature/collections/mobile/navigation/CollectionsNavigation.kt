@@ -9,6 +9,6 @@ import com.filmax.feature.collections.mobile.CollectionDetailScreen
 fun NavGraphBuilder.collectionDetailScreen() {
     composable<CollectionDetailRoute> { entry ->
         val route = entry.toRoute<CollectionDetailRoute>()
-        CollectionDetailScreen(title = route.title)
+        CollectionDetailScreen(collectionId = route.collectionId, title = route.title)
     }
 }

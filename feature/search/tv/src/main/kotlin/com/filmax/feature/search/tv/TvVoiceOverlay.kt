@@ -54,8 +54,8 @@ import com.filmax.core.tv.designsystem.TvVoiceLevel
 import com.filmax.core.tv.designsystem.TvVoiceTranscript
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.ui.components.VoiceSearchController
-import com.filmax.core.ui.components.VoiceSearchError
 import com.filmax.core.ui.components.rememberInAppVoiceSearch
+import com.filmax.core.ui.components.voiceErrorText
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 
@@ -249,10 +249,4 @@ private fun voiceHints(failed: Boolean): List<TvKeyHint> {
     val back = TvKeyHint(listOf(Icons.AutoMirrored.Rounded.ArrowBack), if (failed) "закрыть" else "отмена")
     if (failed) return listOf(back)
     return listOf(back, TvKeyHint(listOf(Icons.Rounded.Timer), "пауза 1.5 с — искать"))
-}
-
-/** Почему голос не сработал — словами, без кодов ошибок распознавателя. */
-internal fun voiceErrorText(error: VoiceSearchError): String = when (error) {
-    VoiceSearchError.NETWORK -> "Нет связи с сервисом распознавания — проверьте интернет"
-    VoiceSearchError.PERMISSION -> "Нет доступа к микрофону — разрешите его в настройках"
 }

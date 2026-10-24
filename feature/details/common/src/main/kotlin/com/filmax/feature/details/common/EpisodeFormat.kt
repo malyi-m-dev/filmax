@@ -10,6 +10,25 @@ private const val SECONDS_IN_MINUTE = 60
 /** Название серии, а у безымянной — её номер. */
 fun episodeTitle(episode: MediaTrack): String = episode.title.ifBlank { "Серия ${episode.number}" }
 
+/** Название строки в списке серий: «7. Тайный совет»; безымянная — «Серия 7». */
+fun numberedEpisodeTitle(episode: MediaTrack): String =
+    if (episode.title.isBlank()) "Серия ${episode.number}" else "${episode.number}. ${episode.title}"
+
+/**
+ * Мета строки серии без номера — он уже в названии: «Просмотрено · 52 мин», «Продолжить ·
+ * осталось 41 мин», у начатой — остаток, у нетронутой — длительность. [resume] — серия «продолжить».
+ */
+fun episodeRowMeta(episode: MediaTrack, resume: Boolean): String? {
+    val total = (episode.durationSeconds / SECONDS_IN_MINUTE).takeIf { it > 0 }?.let(::durationLabel)
+    val left = remainingLabel(episode)
+    return when {
+        episode.watchStatus == WATCH_STATUS_FINISHED -> listOfNotNull("Просмотрено", total).joinToString(" · ")
+        resume -> listOfNotNull("Продолжить", left).joinToString(" · ")
+        episode.watchStatus == WATCH_STATUS_IN_PROGRESS -> left
+        else -> total
+    }
+}
+
 /**
  * Подпись под карточкой серии: «Серия 3 · осталось 18 мин». Номер — если он не стал заголовком,
  * дальше — где в серии зритель: досмотрена, сколько осталось в начатой, длительность нетронутой.

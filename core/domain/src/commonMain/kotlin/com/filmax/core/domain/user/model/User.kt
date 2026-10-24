@@ -6,6 +6,11 @@ data class UserProfile(
     val email: String?,
     val avatarUrl: String?,
     val subscription: Subscription?,
+    /**
+     * Дата регистрации (unix-мс). Посторонний её не знает, поэтому из неё и имени выводится ключ,
+     * которым телефон и ТВ одного аккаунта узнают друг друга в сети (data:tvlink).
+     */
+    val registeredAt: Long? = null,
 )
 
 /** Инициалы для аватара: 1–2 заглавные буквы из имени (по словам/точкам). */

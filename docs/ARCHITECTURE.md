@@ -17,6 +17,7 @@
 | Сеть | Ktor Client 3 + `kotlinx.serialization` (+ Chucker — инспектор запросов в debug) |
 | Локальное хранилище | multiplatform-settings (избранное, настройки) |
 | Плеер | Media3 ExoPlayer |
+| Телефон ↔ ТВ | `ktor-network` (TCP, JSON-строки) + `NsdManager` (mDNS) |
 | Асинхронность | Coroutines + Flow |
 | Сборка | AGP 8.7, convention plugins в `build-logic`, detekt |
 | CI | GitHub Actions: debug → Telegram; тег `vX.Y.Z` → GitHub Release + Telegram |
@@ -55,7 +56,7 @@ if (isTv) FilmaxTvTheme { FilmaxTvNavGraph() } else FilmaxTheme { FilmaxNavGraph
 app/                         # один таргет: телефон + Android TV
 ├─ MainActivity              # выбор UI по FEATURE_LEANBACK
 ├─ update/                   # in-app обновления из GitHub Releases
-├─ navigation/               # FilmaxNavGraph (телефон, нижний таб-бар)
+├─ navigation/               # FilmaxNavGraph (телефон, плавающая навигация)
 └─ tv/navigation/            # FilmaxTvNavGraph + TvSideNav (ТВ, боковое меню)
 core/
 ├─ domain/                   # модели, интерфейсы репозиториев, RequestResult, UseCase
@@ -66,9 +67,9 @@ core/
 ├─ tv-designsystem/          # FilmaxTvTheme, TvPosterCard, TvFocusCard, TvRail (фокус из коробки)
 └─ ui/                       # переиспользуемые Composable (PosterImage, голосовой ввод, …)
 data/                        # реализации репозиториев + DTO + мапперы
-└─ auth/ catalog/ search/ user/ watching/ tmdb/ fake/ (фейки для mock-сборки)
+└─ auth/ catalog/ search/ user/ watching/ tmdb/ tvlink/ fake/ (фейки для mock-сборки)
 feature/
-├─ onboarding/ home/ search/ collections/ library/ profile/ details/ player/
+├─ onboarding/ home/ search/ collections/ library/ profile/ details/ player/ tvlink/
 │     └─ каждая: <feature>(логика) + <feature>:mobile + <feature>:tv
 └─ designsystem/             # только телефон (каталог компонентов, debug)
 ```
@@ -119,11 +120,37 @@ saveState = true }` + `restoreState`) — скролл ленты и выбра�
 
 ### Разделы
 
-И на телефоне, и на ТВ — четыре раздела: **Главная · Каталог · Моё · Профиль**, плюс
-push-экраны: карточка тайтла, фильмография, содержимое подборки, плеер, трейлер.
-Поиск и подборки живут внутри Каталога.
+На ТВ — четыре раздела: **Главная · Каталог · Моё · Профиль**, поиск живёт внутри Каталога.
+На телефоне к ним добавлен **Поиск** отдельной вкладкой плавающей стеклянной навигации. Поверх
+разделов — push-экраны: карточка тайтла, раздел каталога (`Destination.Browse`: «Фильмы», «4K и
+HDR» с Главной), фильмография, подборка, папка, плеер, трейлер. Подборки — ряд на Главной.
 
 Подробнее про TV — [`TV.md`](TV.md).
+
+### Телефон как пульт ТВ (`tvlink`)
+
+Телефон находит в той же Wi-Fi телевизоры с Filmax, отдаёт им тайтл и управляет плеером.
+Оба конца живут в одном APK: телефон пользуется поиском (`TvDiscovery`) и пультом (`TvRemote`),
+ТВ — приёмником (`TvLinkReceiver`). Интерфейсы — в `core:domain`, реализация — `data:tvlink`.
+
+- **Поиск** — mDNS через `NsdManager`, сервис `_filmax._tcp`. Сети, где роутер режет multicast,
+  закрывает ввод адреса вручную. Адрес приёмника ТВ показывает в Профиле.
+- **Связь** — TCP на порту 47100 (занят — любой свободный), по сообщению JSON на строку
+  (`TvLinkMessage`). Протокол и сокеты лежат в `commonMain` (`ktor-network`), поэтому iOS сможет
+  подключиться к тем же ТВ. Платформенные в `androidMain` только mDNS и криптография (`javax.crypto`).
+- **Только свой аккаунт.** Ключ выводится из имени, почты и даты регистрации (`api/v1/user`) и по
+  сети не ходит. ТВ объявляет в mDNS лишь отпечаток ключа, по нему телефон отбирает свои ТВ. В
+  рукопожатии стороны подписывают (HMAC) случайные числа друг друга. Так ТВ не пустит чужой
+  телефон, а телефон не отправит команды ТВ, который просто повторил отпечаток.
+- **Токены kino.pub не передаются.** Одна пара токенов на двух устройствах умирает при ротации,
+  поэтому каждое устройство входит само.
+- **ТВ виден, пока Filmax на экране** (`TvLinkHost` поверх ТВ-графа). Открыть плеер поверх
+  лаунчера Android всё равно не даст.
+- **Плеер** сообщает о себе приёмнику (`PlayerRemoteLink`): снимок раз в секунду и сразу на паузу,
+  буферизацию и перемотку. Транспорт пульта исполняется на ExoPlayer. Другая серия и выход —
+  side-effect'ы, и экран делает их навигацией: другая серия — новый экран плеера.
+- Мок-сборка оставляет связь настоящей: две мок-сборки в одной Wi-Fi находят друг друга. В юнит-тестах
+  — фейки `FakeTvDiscovery` / `FakeTvRemote` / `FakeTvLinkReceiver` из `:data:fake`.
 
 ### iOS / Apple TV (KMP)
 
@@ -184,10 +211,20 @@ picsum.photos, видео — публичные тестовые HLS-поток
 
 ## Дизайн
 
-Дизайн ведётся в Claude Design и портируется поэкранно в Compose. Телефон — Material 3
-с акцентом `#B4305A`; Android TV — **монохромный редизайн** (акцент — белый, фокус —
-рамка с тёмным ореолом, работает на любом постере). Токены — в `core:designsystem` и
-`core:tv-designsystem`. TV-макет: [`design/filmax-tv-all-screens.html`](design/filmax-tv-all-screens.html).
+Дизайн ведётся в Claude Design (проект «Filmax TV»: ТВ и `templates/mobile-redesign`) и портируется
+поэкранно в Compose. Обе платформы — на одних палитрах **«Фиолет · Коралл · Мята»**
+(`FilmaxPalettes` в `core:designsystem`, выбор — в Профиле): акцент — главное действие и текущий
+раздел, второй акцент — рейтинги и аватар, поверхности — стекло. Шрифты — Onest (заголовки, кнопки,
+чипы) и Roboto (текст), шкала телефона — `FilmaxType`, ТВ — `FxType`.
+
+- **Телефон** — стеклянный интерфейс: панели, шапки и плавающая навигация размывают ленту под
+  собой (`GlassPanel` поверх Haze, Android 12+; раньше — плотная подложка), мелкие элементы — белая
+  дымка с обводкой (`glassFill`). Цвета вне палитры — из oklch макета (`oklch()`), оттенки подборок и
+  папок считаются из hue. Плеер — альбомный, с боковой панелью вкладок.
+- **ТВ** — те же палитры, фокус — белая рамка с тёмным ореолом и scale.
+
+Компоненты — в `core:ui` (телефон) и `core:tv-designsystem` (ТВ), живой каталог — debug-экран
+`feature:designsystem` (Профиль → «Дизайн-система»).
 
 ---
 

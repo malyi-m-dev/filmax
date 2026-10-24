@@ -1,6 +1,6 @@
-// Экран плеера: поверхность ExoPlayer, оверлей контролов, эффекты автоскрытия и сохранения
-// прогресса, плашка «нужна подписка». Композиция экрана цельная намеренно — почему, сказано
-// над PlayerScreen; кнопки и чип качества, из которых собран оверлей, — в PlayerControls.
+// Экран плеера: поверхность ExoPlayer, оверлей контролов с автоскрытием и блокировкой экрана,
+// боковая панель, плашка «нужна подписка» и эффекты воспроизведения (прогресс, экран не гаснет,
+// пауза за кадром). Контролы — в PlayerOverlay, панель — в PlayerSidePanel.
 
 package com.filmax.feature.player.mobile
 
@@ -10,78 +10,52 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Audiotrack
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.ClosedCaption
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.filmax.core.designsystem.FilmaxColors
+import com.filmax.core.designsystem.FilmaxTheme
+import com.filmax.core.designsystem.FilmaxType
+import com.filmax.core.designsystem.ShapeTile
+import com.filmax.core.designsystem.glassFill
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.KeepScreenOn
-import com.filmax.feature.player.common.PlaybackSpeeds
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
 import com.filmax.feature.player.common.PlayerSideEffect
-import com.filmax.feature.player.common.formatPlayerTime
+import com.filmax.feature.player.common.PlayerState
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-// PlayerScreen — единая композиция экрана плеера: ExoPlayer-поверхность, верифицированный
-// Slider скраббинга и эффекты авто-скрытия/SaveProgress (#22). Декомпозиция раздробила бы
-// проверенную логику воспроизведения/перемотки/сохранения прогресса — поэтому подавляем.
-@Suppress("LongMethod", "CyclomaticComplexMethod")
+private const val AUTO_HIDE_DELAY_MS = 4500L
+
+/**
+ * Плеер. [itemId] — из маршрута: экрану он нужен, чтобы попросить другую серию — это НАВИГАЦИЯ на
+ * новый экран плеера, а не подмена потока: прогресс модель пишет в трек, выбранный при старте.
+ */
 @Composable
 fun PlayerScreen(
     itemId: Int,
@@ -90,88 +64,27 @@ fun PlayerScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    screenModel.collectSideEffect { effect ->
-        when (effect) {
-            // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
-            PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
-        }
-    }
+    screenModel.collectSideEffect { effect -> navigator.onPlayerEffect(itemId, effect) }
     val appError by screenModel.collectErrorAsState()
-    val onBack: () -> Unit = navigator::back
-
-    // Следующая серия — из state (играющий трек выбирает модель по маршруту). null — фильм
-    // или последняя серия. Это НАВИГАЦИЯ на новый экран плеера, а не подмена MediaItem:
-    // прогресс модель пишет в трек, выбранный при старте, и подмена на месте писала бы позицию
-    // новой серии в запись предыдущей. Замена текущего экрана не копит стек при перещёлкивании.
-    val nextTrack = state.nextTrack
-    val playNext: (() -> Unit)? = nextTrack?.let {
-        {
-            navigator.replace(
-                Destination.Player(itemId = itemId, videoId = it.number, season = it.seasonNumber),
-            )
-        }
+    // Другая серия — замена текущего экрана: перещёлкивание серий не копит стек.
+    val playEpisode: (Int, Int) -> Unit = { season, videoId ->
+        navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
     }
-    // Эффекты замыкают АКТУАЛЬНЫЙ колбэк: при старте плейлиста ещё нет и playNext == null.
-    val currentPlayNext by rememberUpdatedState(playNext)
-    var controlsVisible by remember { mutableStateOf(true) }
-    var progress by remember { mutableFloatStateOf(0f) }
-    // Пока пользователь тащит thumb — фоновый тик не перезаписывает progress, seek уходит по завершению жеста.
-    var isScrubbing by remember { mutableStateOf(false) }
-    var qualityMenu by remember { mutableStateOf(false) }
-    var subtitleMenu by remember { mutableStateOf(false) }
-    var audioMenu by remember { mutableStateOf(false) }
-    var speedMenu by remember { mutableStateOf(false) }
-
-    // Пока идёт воспроизведение, экран не гаснет (жалоба: гас через 10 минут при живом звуке);
-    // на паузе — обычный таймаут системы.
-    var playing by remember { mutableStateOf(screenModel.player.isPlaying) }
-    // Буферизация потока — под спиннер: старт видео, перемотка и смена качества иначе
-    // выглядели бы как зависший чёрный экран.
-    var buffering by remember { mutableStateOf(screenModel.player.playbackState == Player.STATE_BUFFERING) }
-    DisposableEffect(screenModel.player) {
-        val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(isPlaying: Boolean) {
-                playing = isPlaying
-            }
-
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                buffering = playbackState == Player.STATE_BUFFERING
-                // Серия доиграла — сразу следующая (как на TV): раньше плеер застывал на титрах.
-                if (playbackState == Player.STATE_ENDED) currentPlayNext?.invoke()
-            }
-        }
-        screenModel.player.addListener(listener)
-        onDispose { screenModel.player.removeListener(listener) }
-    }
-    // Свернули приложение (HOME/другое приложение) — пауза: иначе звук играл бы за пределами
-    // экрана, пока жив ScreenModel (жалоба с TV «вышел из плеера, а звук идёт»). Модель знает об
-    // этом и не запустит видео, если загрузка закончится, пока экран скрыт.
-    LifecycleStartEffect(screenModel) {
-        screenModel.dispatch(PlayerEvent.ScreenShown)
-        onStopOrDispose { screenModel.dispatch(PlayerEvent.ScreenHidden) }
-    }
-    KeepScreenOn(enabled = playing)
-    PlayerFullscreenEffects()
-    val metrics = overlayMetrics()
-
-    // Auto-hide controls (но не во время скраббинга — таймер стартует заново после жеста).
-    LaunchedEffect(controlsVisible, isScrubbing) {
-        if (controlsVisible && !isScrubbing) {
-            delay(AUTO_HIDE_DELAY_MS)
-            controlsVisible = false
-        }
-    }
-    // Track playback progress
-    LaunchedEffect(screenModel.player) {
-        while (true) {
-            delay(PROGRESS_TICK_MS)
-            val duration = screenModel.player.duration.takeIf { it > 0 } ?: continue
-            if (!isScrubbing) {
-                progress = screenModel.player.currentPosition / duration.toFloat()
-            }
-            screenModel.dispatch(PlayerEvent.SaveProgress(screenModel.player.currentPosition))
-        }
-    }
+    val playNext = state.nextTrack?.let { next -> { playEpisode(next.seasonNumber, next.number) } }
+    val playback = rememberPlayback(
+        player = screenModel.player,
+        onEnded = { playNext?.invoke() },
+        onTick = { screenModel.dispatch(PlayerEvent.SaveProgress(it)) },
+    )
+    PlayerEffects(screenModel = screenModel, playing = playback.playing)
+    val controls = rememberControls(scrubbing = playback.scrubMs != null, panelOpen = state.panelOpen)
+    val actions = overlayActions(
+        screenModel,
+        playback,
+        onBack = navigator::back,
+        onLock = controls::lock,
+        onNext = playNext
+    )
 
     Box(
         modifier = modifier
@@ -180,390 +93,178 @@ fun PlayerScreen(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-            ) { controlsVisible = !controlsVisible },
+                onClick = controls::toggle
+            ),
     ) {
-        // ── ExoPlayer surface ─────────────────────────────────────────────────
-        AndroidView(
-            factory = { viewContext ->
-                PlayerView(viewContext).also { view ->
-                    view.player = screenModel.player
-                    view.useController = false
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
-
-        // ── Loading: детали тайтла ИЛИ буферизация потока (под модалкой ошибки не крутим) ─────
-        if ((state.loading || buffering) && appError == null) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.align(Alignment.Center),
-            )
+        PlayerSurface(screenModel.player)
+        // Загрузка тайтла или буферизация потока; под модалкой ошибки не крутим.
+        if ((state.loading || playback.buffering) && appError == null) {
+            CircularProgressIndicator(color = FilmaxTheme.palette.accent, modifier = Modifier.align(Alignment.Center))
         }
-
+        // Плашка подписки — вне оверлея: без неё kino.pub не отдаст поток, и объяснение должно
+        // быть видно всегда, а не только пока контролы на экране.
+        if (state.subscriptionRequired && appError == null) SubscriptionBanner(Modifier.align(Alignment.TopCenter))
+        Controls(state = state, playback = playback, controls = controls, actions = actions)
+        PlayerSidePanel(
+            state = state,
+            actions = PanelActions(onEvent = screenModel::dispatch, onPlayEpisode = playEpisode)
+        )
         appError?.let { error ->
             FilmaxErrorModal(
                 error = error,
                 onDismiss = screenModel::dismissError,
-                // «Повторить» перезапускает загрузку и воспроизведение (retry сбрасывает ошибку
-                // и зовёт onFetchData) — раньше кнопка молча выходила из плеера.
+                // «Повторить» перезапускает загрузку и воспроизведение (retry сбрасывает ошибку и
+                // зовёт onFetchData).
                 onPrimary = screenModel::retry,
-                onSecondary = onBack,
+                onSecondary = navigator::back,
             )
-        }
-
-        // Плашка подписки — вне оверлея: без неё kino.pub не отдаст поток, и объяснение
-        // должно быть видно всегда, а не только пока контролы на экране.
-        if (state.subscriptionRequired && appError == null) {
-            SubscriptionBanner(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(OverlayTopInsets)
-                    .padding(top = SubscriptionBannerTop),
-            )
-        }
-
-        // ── Controls overlay ──────────────────────────────────────────────────
-        AnimatedVisibility(
-            visible = controlsVisible && !state.loading,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        listOf(Color(0xB3000000), Color(0x33000000), Color(0x33000000), Color(0xCC000000))
-                    )
-                )
-            ) {
-                // Top bar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(OverlayTopInsets)
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    GlassButton(size = 44.dp, onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "СЕЙЧАС ИГРАЕТ",
-                            fontSize = 11.sp,
-                            color = Color.White.copy(0.7f),
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.sp
-                        )
-                        Text(
-                            state.item?.title.orEmpty(),
-                            fontSize = 15.sp,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
-                    // Озвучка: показываем только когда есть из чего выбрать (>1 дорожки), как на TV.
-                    if (state.audioTracks.size > 1) {
-                        Box {
-                            GlassButton(size = 44.dp, onClick = { audioMenu = true }) {
-                                Icon(
-                                    Icons.Filled.Audiotrack,
-                                    contentDescription = "Озвучка",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = audioMenu,
-                                onDismissRequest = { audioMenu = false },
-                            ) {
-                                state.audioTracks.forEach { option ->
-                                    val isCurrent = option.label == state.currentAudio
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                option.label,
-                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                            )
-                                        },
-                                        onClick = {
-                                            screenModel.dispatch(PlayerEvent.SelectAudio(option.label))
-                                            audioMenu = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    if (state.subtitles.size > 1) {
-                        Box {
-                            GlassButton(size = 44.dp, onClick = { subtitleMenu = true }) {
-                                Icon(
-                                    Icons.Filled.ClosedCaption,
-                                    contentDescription = "Субтитры",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = subtitleMenu,
-                                onDismissRequest = { subtitleMenu = false },
-                            ) {
-                                state.subtitles.forEach { option ->
-                                    val isCurrent = option.label == state.currentSubtitle
-                                    DropdownMenuItem(
-                                        text = {
-                                            Text(
-                                                option.label,
-                                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                            )
-                                        },
-                                        onClick = {
-                                            screenModel.dispatch(PlayerEvent.SelectSubtitle(option.label))
-                                            subtitleMenu = false
-                                        },
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Center: rewind / play / forward
-                Row(
-                    modifier = Modifier.align(Alignment.Center).offset(y = -metrics.centerLift),
-                    horizontalArrangement = Arrangement.spacedBy(32.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    GlassButton(size = metrics.seekSize, onClick = { screenModel.player.seekBack() }) {
-                        Icon(
-                            Icons.Filled.Replay10,
-                            contentDescription = "Назад 10 сек",
-                            tint = Color.White,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-                    Surface(
-                        modifier = Modifier.size(metrics.playSize),
-                        shape = RoundedCornerShape(28.dp),
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        onClick = {
-                            if (screenModel.player.isPlaying) {
-                                screenModel.player.pause()
-                            } else {
-                                screenModel.player.play()
-                            }
-                        },
-                    ) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Icon(
-                                if (screenModel.player.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(40.dp),
-                            )
-                        }
-                    }
-                    GlassButton(size = metrics.seekSize, onClick = { screenModel.player.seekForward() }) {
-                        Icon(
-                            Icons.Filled.Forward10,
-                            contentDescription = "Вперёд 10 сек",
-                            tint = Color.White,
-                            modifier = Modifier.size(30.dp)
-                        )
-                    }
-                }
-
-                // Bottom: scrubber + time + controls
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(OverlayBottomInsets)
-                        .padding(horizontal = 20.dp, vertical = metrics.bottomPadding),
-                ) {
-                    val durationMs = screenModel.player.duration.takeIf { it > 0 } ?: 0L
-                    val targetMs = (progress * durationMs).toLong()
-                    // Превью целевого времени во время перетаскивания (высота зарезервирована — без скачка вёрстки).
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(PreviewBarHeight),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (isScrubbing) {
-                            Text(
-                                formatPlayerTime(targetMs),
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.primary)
-                                    .padding(horizontal = 12.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                    Slider(
-                        value = progress,
-                        onValueChange = { value ->
-                            isScrubbing = true
-                            progress = value
-                        },
-                        onValueChangeFinished = {
-                            val duration = screenModel.player.duration
-                            if (duration > 0) screenModel.player.seekTo((progress * duration).toLong())
-                            isScrubbing = false
-                        },
-                        enabled = durationMs > 0,
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = Color.White.copy(0.2f),
-                        ),
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
-                            formatPlayerTime(targetMs),
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            "-${formatPlayerTime(durationMs - targetMs)}",
-                            color = Color.White.copy(0.7f),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Spacer(Modifier.height(metrics.controlsGap))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        if (state.qualities.isNotEmpty()) {
-                            Box {
-                                QualityChip(
-                                    text = state.currentQuality ?: "Авто",
-                                    onClick = { qualityMenu = true },
-                                )
-                                DropdownMenu(
-                                    expanded = qualityMenu,
-                                    onDismissRequest = { qualityMenu = false },
-                                ) {
-                                    state.qualities.forEach { quality ->
-                                        val isCurrent = quality.label == state.currentQuality
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    quality.label,
-                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                                )
-                                            },
-                                            onClick = {
-                                                screenModel.dispatch(PlayerEvent.SelectQuality(quality.label))
-                                                qualityMenu = false
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            Spacer(Modifier.size(0.dp))
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            // Скорость воспроизведения: галочка отмечает текущую (сессионная, дефолт 1.0).
-                            Box {
-                                GlassButton(size = 44.dp, onClick = { speedMenu = true }) {
-                                    Icon(
-                                        Icons.Filled.Speed,
-                                        contentDescription = "Скорость",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                DropdownMenu(
-                                    expanded = speedMenu,
-                                    onDismissRequest = { speedMenu = false },
-                                ) {
-                                    PlaybackSpeeds.options.forEach { option ->
-                                        val isCurrent = option.value == state.currentSpeed
-                                        DropdownMenuItem(
-                                            text = {
-                                                Text(
-                                                    option.label,
-                                                    fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                                )
-                                            },
-                                            trailingIcon = if (isCurrent) {
-                                                {
-                                                    Icon(
-                                                        Icons.Filled.Check,
-                                                        contentDescription = null,
-                                                        modifier = Modifier.size(18.dp),
-                                                    )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            onClick = {
-                                                screenModel.dispatch(PlayerEvent.SetSpeed(option.value))
-                                                speedMenu = false
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-                            MuteButton(player = screenModel.player)
-                            // «Следующая серия» — только у сериала не на последней серии.
-                            playNext?.let { next ->
-                                GlassButton(size = 44.dp, onClick = next) {
-                                    Icon(
-                                        Icons.Filled.SkipNext,
-                                        contentDescription = "Следующая серия",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            FullscreenButton()
-                        }
-                    }
-                }
-            }
         }
     }
 }
 
-private const val AUTO_HIDE_DELAY_MS = 4500L
-private const val PROGRESS_TICK_MS = 1000L
-private val PreviewBarHeight = 28.dp
+/**
+ * Эффекты экрана: свернули приложение — пауза (иначе звук играл бы за пределами экрана, пока жив
+ * ScreenModel); пока идёт воспроизведение — экран не гаснет; плеер — альбомный и без системных панелей.
+ */
+@Composable
+private fun PlayerEffects(screenModel: PlayerScreenModel, playing: Boolean) {
+    LifecycleStartEffect(screenModel) {
+        screenModel.dispatch(PlayerEvent.ScreenShown)
+        onStopOrDispose { screenModel.dispatch(PlayerEvent.ScreenHidden) }
+    }
+    KeepScreenOn(enabled = playing)
+    PlayerFullscreenEffects()
+}
 
-/** Отступ плашки подписки от статус-бара — ниже верхнего ряда контролов оверлея. */
-private val SubscriptionBannerTop = 76.dp
+/** Видны ли контролы и заблокирован ли экран; тап по видео переключает видимость. */
+@Stable
+internal class ControlsUi {
+    var visible by mutableStateOf(true)
+        private set
+    var locked by mutableStateOf(false)
+        private set
+
+    fun toggle() {
+        visible = !visible
+    }
+
+    fun hide() {
+        visible = false
+    }
+
+    fun lock() {
+        locked = true
+    }
+
+    fun unlock() {
+        locked = false
+    }
+}
+
+/** Контролы прячутся сами, но не пока тянут ползунок и не при открытой панели. */
+@Composable
+private fun rememberControls(scrubbing: Boolean, panelOpen: Boolean): ControlsUi {
+    val controls = remember { ControlsUi() }
+    LaunchedEffect(controls.visible, scrubbing, panelOpen) {
+        if (controls.visible && !scrubbing && !panelOpen) {
+            delay(AUTO_HIDE_DELAY_MS)
+            controls.hide()
+        }
+    }
+    return controls
+}
+
+/** Что умеют контролы: транспорт — сам плеер, панель и «на ТВ» — события модели. */
+private fun overlayActions(
+    screenModel: PlayerScreenModel,
+    playback: PlaybackUi,
+    onBack: () -> Unit,
+    onLock: () -> Unit,
+    onNext: (() -> Unit)?,
+): OverlayActions {
+    val player = screenModel.player
+    return OverlayActions(
+        onBack = onBack,
+        onTogglePlay = { if (player.isPlaying) player.pause() else player.play() },
+        onSeekBy = { delta -> player.seekTo((player.currentPosition + delta).coerceAtLeast(0)) },
+        onScrub = { playback.scrubMs = it },
+        onScrubFinished = {
+            playback.scrubMs?.let { target ->
+                player.seekTo(target)
+                playback.positionMs = target
+            }
+            playback.scrubMs = null
+        },
+        onOpenTab = { screenModel.dispatch(PlayerEvent.OpenPanelAt(it)) },
+        onPlayOnTv = { screenModel.dispatch(PlayerEvent.ContinueOnTv) },
+        onLock = onLock,
+        onNext = onNext,
+    )
+}
+
+@Composable
+private fun PlayerSurface(player: Player) {
+    AndroidView(
+        factory = { viewContext ->
+            PlayerView(viewContext).also { view ->
+                view.player = player
+                view.useController = false
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+/** Оверлей или «замок» — по состоянию экрана: что видно, что блокировано и что умеют контролы. */
+@Composable
+private fun Controls(state: PlayerState, playback: PlaybackUi, controls: ControlsUi, actions: OverlayActions) {
+    AnimatedVisibility(
+        // При открытой панели контролы прячутся: панель сама управляет, а сквозь неё они мешают читать.
+        visible = controls.visible && !state.loading && !state.panelOpen,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        if (controls.locked) {
+            LockedOverlay(onUnlock = controls::unlock)
+        } else {
+            PlayerOverlay(state = state, playback = playback, actions = actions)
+        }
+    }
+}
 
 /** Плашка «нужна подписка»: без неё kino.pub не отдаст поток, и экран остался бы просто чёрным. */
 @Composable
 private fun SubscriptionBanner(modifier: Modifier = Modifier) {
     Column(
         modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xD9000000))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .windowInsetsPadding(OverlayTopInsets)
+            .padding(top = 76.dp)
+            .glassFill(ShapeTile, fill = BannerFill)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Нужна подписка", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Text("Нужна подписка", style = FilmaxType.itemTitle, color = FilmaxColors.Text)
         Text(
             "Просмотр доступен только с активной подпиской kino.pub",
-            color = Color.White.copy(alpha = 0.8f),
-            fontSize = 12.sp,
+            style = FilmaxType.meta,
+            color = FilmaxColors.TextSecondary
         )
     }
 }
+
+/** Эффекты модели — это навигация: окно оценки, серия и выход по пульту, выбор телевизора. */
+private fun Navigator.onPlayerEffect(itemId: Int, effect: PlayerSideEffect) {
+    when (effect) {
+        // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
+        PlayerSideEffect.AskFeedback -> replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+        is PlayerSideEffect.PlayEpisode ->
+            replace(Destination.Player(itemId = itemId, videoId = effect.videoId, season = effect.season))
+        PlayerSideEffect.Exit -> back()
+        is PlayerSideEffect.ChooseTv -> effect.play.let { play ->
+            open(Destination.TvPicker(play.itemId, play.videoId, play.season, play.startSeconds))
+        }
+    }
+}
+
+private val BannerFill = Color.Black.copy(alpha = 0.7f)

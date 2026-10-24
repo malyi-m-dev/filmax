@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import com.filmax.core.designsystem.Onest
 
 private val PlayPauseSize = 56.dp
 private val PlayPauseGlyph = 32.dp

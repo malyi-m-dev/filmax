@@ -24,6 +24,8 @@ import com.filmax.core.domain.error.RequestFailure
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.tvlink.RemoteCommand
+import com.filmax.core.domain.tvlink.TvLinkReceiver
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import kotlinx.coroutines.Job
@@ -39,6 +41,7 @@ class PlayerScreenModel(
     repositories: PlayerRepositories,
     private val playbackSettings: PlaybackSettingsRepository,
     private val feedbackPrompts: FeedbackPrompts,
+    tvLink: TvLinkReceiver,
     context: Context,
 ) : BaseScreenModel<PlayerState, PlayerSideEffect, PlayerEvent>(PlayerState()) {
 
@@ -99,8 +102,16 @@ class PlayerScreenModel(
     /** Экран на виду (см. [PlayerEvent.ScreenShown]): только тогда загрузка запускает видео. */
     private var screenShown = true
 
+    /** Пульт телефона, если ТВ к нему подключён (см. [PlayerRemoteLink]). */
+    private val remote = PlayerRemoteLink(tvLink, player) { state }
+
     init {
         player.addListener(object : Player.Listener {
+            // Пульт узнаёт о паузе, буферизации и перемотке сразу, а не со следующим тиком прогресса.
+            override fun onEvents(player: Player, events: Player.Events) {
+                if (REMOTE_EVENTS.any(events::contains)) remote.publish()
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 // Декодер не тянет кадр (4K H.264 на слабой приставке) — ни другой CDN, ни
                 // повтор не помогут: сразу качество ниже. Раньше плеер перебирал CDN-варианты
@@ -134,12 +145,16 @@ class PlayerScreenModel(
                 }
             }
         })
+        screenModelScope { _ -> remote.listen(::postSideEffect) }
         onFetchData()
     }
 
     override fun onEvent(event: PlayerEvent) {
         when (event) {
-            is PlayerEvent.SaveProgress -> saveProgress(event.positionMs)
+            is PlayerEvent.SaveProgress -> {
+                saveProgress(event.positionMs)
+                remote.publish()
+            }
             is PlayerEvent.SelectQuality -> selectQuality(event.label)
             is PlayerEvent.SelectAudio -> selectAudio(event.label)
             is PlayerEvent.SelectSubtitle -> selectSubtitle(event.label)
@@ -150,28 +165,49 @@ class PlayerScreenModel(
                 screenModelScope { _ -> updateState { it.copy(currentSpeed = event.speed) } }
             }
             PlayerEvent.OpenPanel -> openPanel()
+            is PlayerEvent.OpenPanelAt -> openPanel(event.tab)
             PlayerEvent.ClosePanel -> closePanel()
             is PlayerEvent.SelectTab -> screenModelScope { _ -> updateState { it.copy(panelTab = event.tab) } }
             is PlayerEvent.ShowSeason -> screenModelScope { _ -> updateState { it.copy(panelSeason = event.season) } }
-            PlayerEvent.ScreenShown -> screenShown = true
+            PlayerEvent.ScreenShown -> {
+                screenShown = true
+                remote.publish()
+            }
             PlayerEvent.ScreenHidden -> {
                 screenShown = false
                 player.pause()
+                remote.withdraw()
             }
+            PlayerEvent.ContinueOnTv -> continueOnTv()
         }
+    }
+
+    /** Эта серия с текущей позиции — на телевизор; плеер телефона встанет на паузу, уходя с экрана. */
+    private fun continueOnTv() {
+        val item = state.item ?: return
+        val track = selectedTrack
+        val play = RemoteCommand.Play(
+            itemId = item.id,
+            videoId = track?.number ?: route.videoId,
+            season = track?.seasonNumber ?: route.season,
+            startSeconds = (player.currentPosition / MILLIS_IN_SECOND).toInt(),
+        )
+        screenModelScope { _ -> postSideEffect(PlayerSideEffect.ChooseTv(play)) }
     }
 
     /**
      * Панель открывается поверх остановленного кадра: выбирать дорожку или серию, пока фильм идёт
      * дальше, — значит пропустить кусок. Было ли воспроизведение, запоминаем — закрытие его вернёт.
      */
-    private fun openPanel() {
+    /** [tab] — вкладка, на которой открыть; её нет среди доступных — открывается как обычно. */
+    private fun openPanel(tab: PlayerTab? = null) {
         if (state.panelOpen) return
         resumeAfterPanel = player.playWhenReady
         player.pause()
         screenModelScope { _ ->
             updateState {
-                it.copy(panelOpen = true, panelTab = it.openingTab(), panelSeason = it.track?.seasonNumber)
+                val opening = tab?.takeIf { wanted -> wanted in it.panelTabs() } ?: it.openingTab()
+                it.copy(panelOpen = true, panelTab = opening, panelSeason = it.track?.seasonNumber)
             }
         }
     }
@@ -240,6 +276,7 @@ class PlayerScreenModel(
                             item = item,
                             track = track,
                             nextTrack = item.tracklist.getOrNull(trackIndex + 1),
+                            previousTrack = item.tracklist.getOrNull(trackIndex - 1),
                             streamUrl = initial?.url,
                             qualities = qualities,
                             currentQuality = initial?.label,
@@ -253,11 +290,7 @@ class PlayerScreenModel(
                         reportPlaybackStart(initial)
                         beginStream(initial.url, primaryWithBackup = initial.urls.size > 1)
                         applyTrackPreferences(selectedSubtitle.lang)
-                        // Продолжаем с сохранённой позиции. Досмотренный до конца трек
-                        // начинаем сначала — иначе пересмотр стартовал бы с титров.
-                        track?.watchedSeconds
-                            ?.takeIf { it > 0 && track.watchStatus != WATCH_STATUS_FINISHED }
-                            ?.let { player.seekTo(it * MILLIS_IN_SECOND) }
+                        startSeconds(track)?.let { player.seekTo(it * MILLIS_IN_SECOND) }
                         player.playWhenReady = screenShown
                     }
                 }
@@ -269,6 +302,15 @@ class PlayerScreenModel(
             }
         }
     }
+
+    /**
+     * С какой секунды начать. Позицию, переданную с телефона, берём как есть: он только что
+     * показывал этот кадр. Иначе — сохранённый прогресс, но досмотренный до конца трек начинаем
+     * сначала, иначе пересмотр стартовал бы с титров. null — с начала.
+     */
+    private fun startSeconds(track: MediaTrack?): Int? =
+        route.startSeconds.takeIf { it >= 0 }
+            ?: track?.watchedSeconds?.takeIf { it > 0 && track.watchStatus != WATCH_STATUS_FINISHED }
 
     /**
      * Доступные качества — из файлов трека; все варианты доставки в порядке предпочтения,
@@ -509,6 +551,7 @@ class PlayerScreenModel(
     }
 
     override fun onCleared() {
+        remote.withdraw()
         player.release()
         super.onCleared()
     }
@@ -516,6 +559,13 @@ class PlayerScreenModel(
     private companion object {
         const val SEEK_INCREMENT_MS = 10_000L
         const val MILLIS_IN_SECOND = 1000L
+
+        /** События плеера, о которых пульт узнаёт сразу: пауза, буферизация, перемотка. */
+        val REMOTE_EVENTS = intArrayOf(
+            Player.EVENT_IS_PLAYING_CHANGED,
+            Player.EVENT_PLAYBACK_STATE_CHANGED,
+            Player.EVENT_POSITION_DISCONTINUITY,
+        )
 
         /** Хост из URL — для хлебных крошек телеметрии (сам URL с подписью в логи не пишем). */
         fun urlHost(url: String): String = url.substringAfter("://").substringBefore("/")

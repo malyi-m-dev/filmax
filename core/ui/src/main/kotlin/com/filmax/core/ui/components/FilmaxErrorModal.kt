@@ -2,20 +2,14 @@ package com.filmax.core.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -30,97 +24,50 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.filmax.core.designsystem.ShapeButton
+import com.filmax.core.designsystem.FilmaxColors
+import com.filmax.core.designsystem.FilmaxTheme
+import com.filmax.core.designsystem.FilmaxType
+import com.filmax.core.designsystem.ShapeSidePanel
 import com.filmax.core.domain.error.AppError
 
-// Палитра модалок ошибок. Цвета вынесены в именованные константы (detekt MagicNumber);
-// значения не менялись. Цвета — фирменные для каждого типа [AppError], не из темы Material.
-private val OfflineAccent = Color(0xFFF4B792)
-private val OfflineOnAccent = Color(0xFF4F2500)
-private val ServerAccent = Color(0xFFB4305A)
-private val TimeoutAccent = Color(0xFFE8A43A)
-private val TimeoutOnAccent = Color(0xFF3A2705)
-private val NotFoundAccent = Color(0xFF9E8B91)
-private val NotFoundOnAccent = Color(0xFF1A1012)
-private val EmptyAccent = Color(0xFF6AC2B0)
-private val EmptyOnAccent = Color(0xFF06251D)
-private val PremiumAccent = Color(0xFFD4A84A)
-private val PremiumOnAccent = Color(0xFF3A2C05)
-private val RegionAccent = Color(0xFF6B4B8F)
-private val AuthAccent = Color(0xFFE46962)
-
 /**
- * Оформление модалки: иконка, палитра, код и подписи кнопок. Заголовок и текст сюда не входят —
- * они общие с TV и живут в [appErrorText].
+ * Оформление модалки: иконка, код и подписи кнопок. Заголовок и текст сюда не входят — они общие
+ * с TV и живут в [appErrorText]. Цвет у всех ошибок один — акцент палитры: модалка говорит текстом
+ * и иконкой, а не своим цветом на каждый случай.
  */
 private data class ErrorVisual(
     val icon: ImageVector,
-    val palette: ErrorPalette,
     val code: String,
     val primary: String,
     val secondary: String? = null,
     val retry: Boolean = false,
 )
 
-/** Пара «акцент — цвет текста на нём»: у каждой ошибки своя, а вместе они всегда ходят парой. */
-private data class ErrorPalette(val accent: Color, val onAccent: Color)
-
-private val OfflinePalette = ErrorPalette(OfflineAccent, OfflineOnAccent)
-private val ServerPalette = ErrorPalette(ServerAccent, Color.White)
-private val TimeoutPalette = ErrorPalette(TimeoutAccent, TimeoutOnAccent)
-private val NotFoundPalette = ErrorPalette(NotFoundAccent, NotFoundOnAccent)
-private val EmptyPalette = ErrorPalette(EmptyAccent, EmptyOnAccent)
-private val PremiumPalette = ErrorPalette(PremiumAccent, PremiumOnAccent)
-private val RegionPalette = ErrorPalette(RegionAccent, Color.White)
-private val AuthPalette = ErrorPalette(AuthAccent, Color.White)
-
 private fun visualFor(error: AppError): ErrorVisual = when (error) {
-    AppError.Offline ->
-        ErrorVisual(Icons.Filled.WifiOff, OfflinePalette, "NET · НЕТ СЕТИ", "Повторить", retry = true)
-
-    AppError.Server ->
-        ErrorVisual(Icons.Filled.CloudOff, ServerPalette, "ERROR 500", "Повторить", "Назад", retry = true)
-
-    AppError.Timeout ->
-        ErrorVisual(Icons.Filled.Schedule, TimeoutPalette, "ERROR 408", "Повторить", "Отмена", retry = true)
-
-    AppError.NotFound ->
-        ErrorVisual(Icons.Filled.VisibilityOff, NotFoundPalette, "ERROR 404", "В каталог")
-
-    AppError.Empty ->
-        ErrorVisual(Icons.Filled.SearchOff, EmptyPalette, "ПУСТО", "Сбросить фильтры")
-
-    AppError.Premium ->
-        ErrorVisual(Icons.Filled.WorkspacePremium, PremiumPalette, "ERROR 402", "Оформить Premium", "Позже")
-
-    AppError.Region ->
-        ErrorVisual(Icons.Filled.Public, RegionPalette, "ERROR 403", "Понятно")
-
-    AppError.Auth ->
-        ErrorVisual(Icons.Filled.Lock, AuthPalette, "ERROR 401", "Войти заново", "Отмена")
-
-    AppError.Playback ->
-        ErrorVisual(Icons.Filled.ErrorOutline, ServerPalette, "PLAYER", "Повторить", "Закрыть", retry = true)
+    AppError.Offline -> ErrorVisual(Icons.Filled.WifiOff, "NET · НЕТ СЕТИ", "Повторить", retry = true)
+    AppError.Server -> ErrorVisual(Icons.Filled.CloudOff, "ERROR 500", "Повторить", "Назад", retry = true)
+    AppError.Timeout -> ErrorVisual(Icons.Filled.Schedule, "ERROR 408", "Повторить", "Отмена", retry = true)
+    AppError.NotFound -> ErrorVisual(Icons.Filled.VisibilityOff, "ERROR 404", "В каталог")
+    AppError.Empty -> ErrorVisual(Icons.Filled.SearchOff, "ПУСТО", "Сбросить фильтры")
+    AppError.Premium -> ErrorVisual(Icons.Filled.WorkspacePremium, "ERROR 402", "Оформить Premium", "Позже")
+    AppError.Region -> ErrorVisual(Icons.Filled.Public, "ERROR 403", "Понятно")
+    AppError.Auth -> ErrorVisual(Icons.Filled.Lock, "ERROR 401", "Войти заново", "Отмена")
+    AppError.Playback -> ErrorVisual(Icons.Filled.ErrorOutline, "PLAYER", "Повторить", "Закрыть", retry = true)
 }
 
 /**
- * Модальное окно ошибки Filmax — резолвится из [AppError]. Выразительная cookie-иконка,
- * код, заголовок, текст и до двух действий.
+ * Модальное окно ошибки Filmax — резолвится из [AppError]: иконка, код, заголовок, текст и до двух
+ * действий.
  *
  * Показывается, когда `screenModel.collectErrorAsState()` не null:
  * ```
@@ -145,139 +92,81 @@ fun FilmaxErrorModal(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(24.dp)
-                .clip(RoundedCornerShape(32.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(32.dp))
+                .padding(20.dp)
+                .clip(ShapeSidePanel)
+                .background(FilmaxTheme.palette.background)
+                .border(1.dp, FilmaxColors.PanelBorder, ShapeSidePanel)
                 .padding(top = 32.dp, start = 24.dp, end = 24.dp, bottom = 24.dp),
         ) {
             ErrorModalCloseButton(onDismiss)
-            ErrorModalContent(visual, appErrorText(error), onPrimary, onSecondary, onDismiss)
+            ErrorModalContent(visual, appErrorText(error), onPrimary, onSecondary ?: onDismiss)
         }
     }
 }
 
-/** Кнопка закрытия в правом верхнем углу модалки. */
 @Composable
 private fun BoxScope.ErrorModalCloseButton(onDismiss: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .align(Alignment.TopEnd)
-            .size(36.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Filled.Close,
-            contentDescription = "Закрыть",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-    }
+    FilmaxIconButton(
+        Icons.Filled.Close,
+        contentDescription = "Закрыть",
+        onClick = onDismiss,
+        size = CloseSize,
+        modifier = Modifier.align(Alignment.TopEnd),
+    )
 }
 
-/** Содержимое модалки: иконка-cookie, код, заголовок, текст и кнопки действий. */
+/** Содержимое модалки: иконка в плитке, код, заголовок, текст и кнопки действий. */
 @Composable
 private fun ErrorModalContent(
     visual: ErrorVisual,
     text: AppErrorText,
     onPrimary: () -> Unit,
-    onSecondary: (() -> Unit)?,
-    onDismiss: () -> Unit,
+    onSecondary: () -> Unit,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    val palette = FilmaxTheme.palette
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier
-                .size(92.dp)
-                .clip(ShapeButton)
-                .background(visual.palette.accent.copy(alpha = 0.13f))
-                .border(1.dp, visual.palette.accent.copy(alpha = 0.2f), ShapeButton),
+                .size(88.dp)
+                .clip(IconShape)
+                .background(palette.accent.copy(alpha = ICON_FILL_ALPHA))
+                .border(1.dp, palette.accent.copy(alpha = ICON_BORDER_ALPHA), IconShape),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(visual.icon, contentDescription = null, tint = visual.palette.accent, modifier = Modifier.size(44.dp))
+            Icon(visual.icon, contentDescription = null, tint = palette.accentText, modifier = Modifier.size(42.dp))
         }
         Spacer(Modifier.height(22.dp))
-        Text(
-            visual.code,
-            color = visual.palette.accent,
-            fontSize = 11.5.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 2.sp,
-        )
+        Text(visual.code, style = FilmaxType.overline, color = palette.accentText)
         Spacer(Modifier.height(10.dp))
-        Text(
-            text.title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center,
-        )
+        Text(text.title, style = FilmaxType.sheetTitle, color = FilmaxColors.Text, textAlign = TextAlign.Center)
         Spacer(Modifier.height(10.dp))
         Text(
             text.message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = FilmaxType.body,
+            color = FilmaxColors.TextSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
         Spacer(Modifier.height(26.dp))
-
-        ErrorModalPrimaryButton(visual, onPrimary)
-
-        if (visual.secondary != null) {
-            Spacer(Modifier.height(10.dp))
-            ErrorModalSecondaryButton(visual.secondary, onSecondary ?: onDismiss)
-        }
-    }
-}
-
-/** Основное действие — заполненная акцентом pill-кнопка (с иконкой Refresh при retry). */
-@Composable
-private fun ErrorModalPrimaryButton(visual: ErrorVisual, onPrimary: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(54.dp)
-            .clip(CircleShape)
-            .background(visual.palette.accent)
-            .clickable(onClick = onPrimary),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (visual.retry) {
-            Icon(
-                Icons.Filled.Refresh,
-                contentDescription = null,
-                tint = visual.palette.onAccent,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-        }
-        Text(visual.primary, color = visual.palette.onAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-    }
-}
-
-/** Вторичное действие — текстовая pill-кнопка без заливки. */
-@Composable
-private fun ErrorModalSecondaryButton(label: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .clip(CircleShape)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 15.sp,
+        FilmaxButton(
+            text = visual.primary,
+            onClick = onPrimary,
+            icon = Icons.Filled.Refresh.takeIf { visual.retry },
+            modifier = Modifier.fillMaxWidth(),
         )
+        visual.secondary?.let {
+            Spacer(Modifier.height(10.dp))
+            FilmaxButton(
+                text = it,
+                onClick = onSecondary,
+                style = FilmaxButtonStyle.Secondary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
     }
 }
+
+private val IconShape = RoundedCornerShape(26.dp)
+private val CloseSize = 36.dp
+private const val ICON_FILL_ALPHA = 0.18f
+private const val ICON_BORDER_ALPHA = 0.3f

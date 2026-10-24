@@ -32,14 +32,22 @@ data class FolderDraft(
         is FolderInput.Key -> copy(title = typedText(title, input.key, FOLDER_TITLE_MAX_LENGTH))
         FolderInput.Space -> copy(title = typedText(title, SPACE_KEY, FOLDER_TITLE_MAX_LENGTH))
         FolderInput.Erase -> copy(title = erasedText(title))
+        // Системная клавиатура телефона отдаёт текст целиком: регистр и пробелы — как набрали.
+        is FolderInput.Text -> copy(title = input.text.trimStart().take(FOLDER_TITLE_MAX_LENGTH))
         is FolderInput.Tint -> copy(tint = input.tint.mod(FOLDER_TINT_COUNT))
         is FolderInput.Layout -> copy(layout = input.layout)
     }
 }
 
-/** Что пульт делает с черновиком: клавиша, пробел, «Стереть», цвет, раскладка. */
+/**
+ * Что делают с черновиком: пульт — клавиша, пробел, «Стереть», раскладка; телефон — текст поля
+ * целиком; оба — цвет.
+ */
 sealed interface FolderInput {
     data class Key(val key: String) : FolderInput
+
+    /** Текст поля целиком — с системной клавиатуры телефона. */
+    data class Text(val text: String) : FolderInput
     data object Space : FolderInput
     data object Erase : FolderInput
     data class Tint(val tint: Int) : FolderInput

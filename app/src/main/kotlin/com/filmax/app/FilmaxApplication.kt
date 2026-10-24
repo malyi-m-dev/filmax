@@ -15,6 +15,7 @@ import com.filmax.data.feedback.di.feedbackModule
 import com.filmax.data.search.di.searchModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
 import com.filmax.data.tmdb.di.tmdbModule
+import com.filmax.data.tvlink.di.tvLinkModule
 import com.filmax.data.user.di.userModule
 import com.filmax.data.watching.di.watchingModule
 import com.filmax.feature.collections.common.di.collectionsModule
@@ -26,6 +27,7 @@ import com.filmax.feature.onboarding.common.di.onboardingModule
 import com.filmax.feature.player.common.di.playerModule
 import com.filmax.feature.profile.common.di.profileModule
 import com.filmax.feature.search.common.di.searchFeatureModule
+import com.filmax.feature.tvlink.common.di.tvLinkFeatureModule
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import org.koin.android.ext.koin.androidContext
@@ -73,6 +75,9 @@ open class FilmaxApplication : Application() {
         watchingModule,
         tmdbModule,
         feedbackModule,
+        // Связь с ТВ — не kino.pub: мок-сборка оставляет её настоящей, и две мок-сборки в одной
+        // Wi-Fi находят друг друга.
+        tvLinkModule,
     )
 
     /** Фичи и app-модуль — после data, как и раньше. */
@@ -87,6 +92,7 @@ open class FilmaxApplication : Application() {
         detailsModule,
         playerModule,
         feedbackFeatureModule,
+        tvLinkFeatureModule,
         appModule,
     )
 

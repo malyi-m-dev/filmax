@@ -1,210 +1,192 @@
 package com.filmax.core.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.designsystem.FilmaxTheme
+import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeCard
 import com.filmax.core.designsystem.ShapePoster
+import com.filmax.core.designsystem.glassFill
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.watching.model.WatchProgress
 import java.util.Locale
 
+/** Постер 2:3 — ширину задаёт место вызова, высота следует из пропорции. */
+const val POSTER_ASPECT = 2f / 3f
+
+/** Кадр 16:9: «Продолжить», кадры фильма, превью серии. */
+const val FRAME_ASPECT = 16f / 9f
+
 /**
- * Карточка-постер 2:3 — один из двух типов медиа-карточек. Размер задаётся снаружи: в ряду
- * новинок 120×180, в сетке каталога 98×147, в «Похожем» 112×168 — но это одна и та же карточка.
- *
- * Подпись живёт ПОД постером, а не поверх: в монохроме постер — единственный источник цвета,
- * и накрывать его градиентом-скримом значит гасить единственное, что держит экран.
+ * Карточка-постер: ряд «В тренде», сетка каталога, «Похожие». Ширину задаёт [modifier]
+ * (`width(128.dp)` в ряду, `weight(1f)` в сетке), высота — пропорция 2:3. Рейтинг — пилюлей в
+ * углу постера, название и мета — под ним: накрывать постер скримом значит гасить кадр.
+ * [onLongClick] — убрать из «Буду смотреть» или папки.
  */
-// Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier прямым
-// параметром, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API».
+// Компонент дизайн-системы: параметры — его публичный API (см. FilmaxButton).
 @Suppress("LongParameterList")
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FilmaxPosterCard(
     title: String,
     posterUrl: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    width: Dp = FilmaxMetrics.PosterWidth,
-    height: Dp = FilmaxMetrics.PosterHeight,
     rating: String? = null,
     meta: String? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier
-            .width(width)
-            .clickable(onClick = onClick),
-    ) {
+    Column(modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)) {
         Box(
             Modifier
-                .size(width = width, height = height)
-                .clip(ShapePoster)
-                .background(MaterialTheme.colorScheme.surfaceContainer),
+                .fillMaxWidth()
+                .aspectRatio(POSTER_ASPECT)
+                .clip(ShapePoster),
         ) {
-            PosterImage(
-                url = posterUrl,
-                contentDescription = title,
-                modifier = Modifier.fillMaxSize(),
-                shape = ShapePoster,
-                accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            )
-            if (rating != null) {
-                FilmaxRatingPill(
-                    rating = rating,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(5.dp),
-                )
-            }
+            PosterImage(url = posterUrl, contentDescription = title, modifier = Modifier.fillMaxSize())
+            rating?.let { FilmaxRatingPill(it, Modifier.align(Alignment.TopStart).padding(8.dp)) }
         }
-        Text(
-            title,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        if (!meta.isNullOrBlank()) {
-            Text(
-                meta,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        CardCaption(title = title, meta = meta, titleStyle = FilmaxType.cardTitle)
     }
 }
 
 /**
- * Карточка 16:9 с полосой прогресса — второй и последний тип. «Продолжить», история, эпизоды.
- * [meta] несёт то, ради чего карточка существует: «S2 · E5 · осталось 18 мин».
+ * Карточка «Продолжить»: кадр 16:9 с полосой прогресса и стеклянной кнопкой «▶» поверх затемнённого
+ * низа. [meta] несёт то, ради чего карточка существует: «S2 · осталось 18 мин».
  *
  * [placeholder] рисуется вместо кадра, когда ссылки нет вовсе: у kino.pub кадр серии часто
- * пустой, и ряд одинаковых заглушек со значком «битой картинки» не отличить друг от друга, а
- * крупный номер серии отличает.
+ * пустой, и ряд одинаковых заглушек не отличить друг от друга, а крупный номер серии отличает.
  */
-// Компонент дизайн-системы: параметры — его публичный API (см. FilmaxPosterCard).
+// Компонент дизайн-системы: параметры — его публичный API (см. FilmaxButton).
 @Suppress("LongParameterList")
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FilmaxProgressCard(
+fun FilmaxContinueCard(
     title: String,
     meta: String?,
-    posterUrl: String,
+    imageUrl: String,
     progress: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    width: Dp = FilmaxMetrics.ContinueWidth,
-    height: Dp = FilmaxMetrics.ContinueHeight,
     placeholder: String? = null,
+    onLongClick: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier
-            .width(width)
-            .clickable(onClick = onClick),
-    ) {
+    Column(modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)) {
         Box(
             Modifier
-                .size(width = width, height = height)
+                .fillMaxWidth()
+                .aspectRatio(FRAME_ASPECT)
                 .clip(ShapeCard)
-                .background(MaterialTheme.colorScheme.surfaceContainer),
+                .background(FilmaxColors.Card),
         ) {
-            if (posterUrl.isBlank() && placeholder != null) {
+            if (imageUrl.isBlank() && placeholder != null) {
                 Text(
                     placeholder,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center),
+                    style = FilmaxType.sectionTitle,
+                    color = FilmaxColors.TextDim,
+                    modifier = Modifier.align(Alignment.Center)
                 )
             } else {
                 PosterImage(
-                    url = posterUrl,
+                    url = imageUrl,
                     contentDescription = title,
                     modifier = Modifier.fillMaxSize(),
-                    shape = ShapeCard,
-                    accentColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shape = ShapeCard
                 )
             }
-            FilmaxProgressBar(
-                progress = progress,
-                modifier = Modifier.align(Alignment.BottomStart),
-            )
+            Box(Modifier.matchParentSize().background(FrameScrim))
+            PlayMark(Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 12.dp))
+            FilmaxProgressBar(progress = progress, modifier = Modifier.align(Alignment.BottomStart))
         }
-        Text(
-            title,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 7.dp),
-        )
-        if (!meta.isNullOrBlank()) {
-            Text(
-                meta,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 2.dp),
-            )
-        }
+        CardCaption(title = title, meta = meta, titleStyle = FilmaxType.chip)
     }
 }
 
-/** Полоса прогресса на карточке: белая заливка по полупрозрачному треку. */
+/** Название и мета под карточкой — одна строка каждая, длинное ужимается многоточием. */
 @Composable
-fun FilmaxProgressBar(progress: Float, modifier: Modifier = Modifier) {
+private fun CardCaption(title: String, meta: String?, titleStyle: TextStyle) {
+    Text(
+        title,
+        style = titleStyle,
+        color = FilmaxColors.Text,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+    if (!meta.isNullOrBlank()) {
+        Text(
+            meta,
+            style = FilmaxType.metaSmall,
+            color = FilmaxColors.TextDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 2.dp),
+        )
+    }
+}
+
+/** Стеклянный «▶» на кадре: карточка ведёт сразу в плеер, а не в детали. */
+@Composable
+private fun PlayMark(modifier: Modifier = Modifier) {
+    Box(modifier.size(32.dp).glassFill(CircleShape), contentAlignment = Alignment.Center) {
+        Icon(Icons.Filled.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Полоса прогресса: заливка акцентом палитры по полупрозрачному треку. */
+@Composable
+fun FilmaxProgressBar(
+    progress: Float,
+    modifier: Modifier = Modifier,
+    thickness: Dp = FilmaxMetrics.ProgressBarHeight,
+) {
     Box(
         modifier
             .fillMaxWidth()
-            .height(FilmaxMetrics.ProgressBarHeight)
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+            .height(thickness)
+            .background(FilmaxColors.Track),
     ) {
         Box(
             Modifier
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
-                .height(FilmaxMetrics.ProgressBarHeight)
-                .background(MaterialTheme.colorScheme.primary),
+                .height(thickness)
+                .background(FilmaxTheme.palette.accent),
         )
     }
 }
 
-/**
- * Пилюля рейтинга поверх постера: полупрозрачная тёмная подложка, без цветового кодирования —
- * в монохроме оценку несёт число.
- */
-@Composable
-fun FilmaxRatingPill(rating: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .clip(ShapePoster)
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
-            .padding(horizontal = 6.dp, vertical = 3.dp),
-    ) {
-        Text(
-            rating,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
+/** Затемнение низа кадра под кнопкой и полосой: на светлом кадре они иначе пропадают. */
+private val FrameScrim = Brush.verticalGradient(
+    0.45f to Color.Transparent,
+    1f to Color.Black.copy(alpha = 0.6f),
+)
 
 /**
  * Оценка для пилюли: в домене строка вида «8.312», на экране нужен один знак.
@@ -288,7 +270,7 @@ fun durationLabel(totalMinutes: Int): String {
 
 /**
  * Постер подборки: сначала средний, затем большой. null — картинки нет вовсе, такую подборку
- * ряды не показывают (в монохроме карточку держит только изображение).
+ * ряды не показывают (карточку держит изображение).
  */
 fun Collection.posterUrl(): String? =
     posters?.let { it.medium.ifEmpty { it.big } }?.takeIf { it.isNotBlank() }

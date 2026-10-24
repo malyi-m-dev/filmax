@@ -38,11 +38,15 @@ import org.koin.compose.koinInject
  * в общем с телефоном [ProfileScreenModel], экран рисует и отдаёт события.
  *
  * Блока «Настройки устройства» здесь нет намеренно: device/info и device/settings отвечают 500.
+ *
+ * [remoteCard] — карточка «Пульт с телефона» под подпиской. Её даёт граф (фича связи с телефоном),
+ * а не этот экран: фичи друг от друга не зависят.
  */
 @Composable
 fun TvProfileScreen(
     onCheckUpdates: () -> Unit,
     modifier: Modifier = Modifier,
+    remoteCard: @Composable (Modifier) -> Unit = {},
     screenModel: ProfileScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
@@ -53,7 +57,7 @@ fun TvProfileScreen(
         }
     }
     val onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) }
-    ProfileContent(state, ProfileActions(screenModel::dispatch, onCheckUpdates, onRate), modifier)
+    ProfileContent(state, ProfileActions(screenModel::dispatch, onCheckUpdates, onRate), modifier, remoteCard)
 }
 
 /** Действия экрана: события модели, ручная проверка обновлений (её модель живёт в :app) и оценка. */
@@ -75,7 +79,12 @@ internal class ProfileFocus {
 
 /** Экран из состояния — без Koin и навигатора: так его собирают UI-тесты фокуса. */
 @Composable
-internal fun ProfileContent(state: ProfileState, actions: ProfileActions, modifier: Modifier = Modifier) {
+internal fun ProfileContent(
+    state: ProfileState,
+    actions: ProfileActions,
+    modifier: Modifier = Modifier,
+    remoteCard: @Composable (Modifier) -> Unit = {},
+) {
     val focus = remember { ProfileFocus() }
     Box(modifier.fillMaxSize().tvSectionBackground()) {
         if (state.loading) {
@@ -90,7 +99,7 @@ internal fun ProfileContent(state: ProfileState, actions: ProfileActions, modifi
                 TvOptionSheet(optionSheet(state)) { index -> actions.onEvent(ProfileEvent.ChooseOption(index)) }
             },
         ) {
-            ProfileBody(state, actions, focus)
+            ProfileBody(state, actions, focus, remoteCard)
         }
         TvConfirmDialog(
             spec = LogoutSpec.takeIf { state.confirmLogout },

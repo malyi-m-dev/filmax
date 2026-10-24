@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Сокеты связи с ТВ и системный mDNS (NsdManager) работают только с ним. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>

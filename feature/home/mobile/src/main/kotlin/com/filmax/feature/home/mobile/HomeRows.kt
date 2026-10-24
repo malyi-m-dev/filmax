@@ -1,73 +1,89 @@
-// Ряды ленты Главной: «Продолжить», постерные ряды и «Подборки» с догрузкой страниц, плюс
-// заголовок ряда. Состав и порядок рядов задаёт модель, ленту собирает HomeScreen.
+// Ряды ленты Главной: «Продолжить просмотр», «Топ-10 недели», постерные ряды и «Подборки» с
+// догрузкой страниц. Состав и порядок рядов задаёт модель, ленту собирает HomeScreen.
 
 package com.filmax.feature.home.mobile
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.ui.components.FilmaxCollectionCard
+import com.filmax.core.ui.components.FilmaxContinueCard
 import com.filmax.core.ui.components.FilmaxPosterCard
-import com.filmax.core.ui.components.FilmaxProgressCard
+import com.filmax.core.ui.components.FilmaxSectionHeader
+import com.filmax.core.ui.components.FilmaxTopTenCard
+import com.filmax.core.ui.components.collectionHue
 import com.filmax.core.ui.components.continueMeta
+import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.posterUrl
 import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.ui.components.titlesLabel
+import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
 import com.filmax.feature.home.common.HomeState
 
+/** Сколько мест в «Топ-10» — первые тайтлы ряда «В тренде» по просмотрам. */
+private const val TOP_COUNT = 10
+
 /** Лента — это [HomeState.rows]: экран идёт по ним и рисует, состав и порядок задаёт модель. */
-internal fun LazyListScope.homeRows(state: HomeState, actions: HomeActions, onEvent: (HomeEvent) -> Unit) {
+internal fun LazyListScope.homeRows(state: HomeState, actions: HomeActions) {
+    val onEvent = actions.onEvent
     state.rows.forEach { row ->
         if (row.isEmpty) return@forEach
         when (row) {
             is HomeRow.Continue -> continueRow(row, onPlay = actions.onPlay)
-            is HomeRow.Titles -> posterRow(row, actions.onOpenItem, onEvent)
+            is HomeRow.Titles -> titlesRow(row, actions.onOpenItem, onEvent)
             is HomeRow.Collections -> collectionsRow(row, actions.onOpenCollection, onEvent)
         }
     }
 }
 
 /**
- * Заголовки рядов живут в экране, а не в модели: у ТВ для того же ряда своя формулировка
- * («Продолжить просмотр» на десяти футах читается лучше, чем «Продолжить»).
+ * Заголовки рядов живут в экране, а не в модели: у ТВ для того же ряда своя формулировка.
+ * Тренды здесь не названы — у них свой ряд «Топ-10 недели».
  */
 private val HomeRowId.title: String
     get() = when (this) {
-        HomeRowId.CONTINUE -> "Продолжить"
-        HomeRowId.TRENDING -> "В тренде"
+        HomeRowId.CONTINUE -> "Продолжить просмотр"
+        HomeRowId.TRENDING -> "Топ-10 недели"
         // Заголовок честный: forYou — это топ сериалов по рейтингу, персонализации в фиде нет.
         HomeRowId.FOR_YOU -> "Сериалы с высоким рейтингом"
         HomeRowId.COLLECTIONS -> "Подборки"
         HomeRowId.FRESH -> "Новинки"
     }
 
+/** «В тренде» — это просмотры недели: первые десять и есть топ, ряд постеров для них не нужен. */
+private fun LazyListScope.titlesRow(row: HomeRow.Titles, onOpenItem: (Int) -> Unit, onEvent: (HomeEvent) -> Unit) {
+    if (row.id == HomeRowId.TRENDING) {
+        topTenRow(row, onOpenItem)
+    } else {
+        posterRow(row, onOpenItem, onEvent)
+    }
+}
+
 private fun LazyListScope.continueRow(
     row: HomeRow.Continue,
     onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
 ) {
     item(key = row.id.name) {
-        TitledRow(title = row.id.title) {
+        TitledRow(title = row.id.title, count = row.entries.size) {
             items(row.entries, key = { it.itemId }) { entry ->
                 // Ряд продолжения ведёт сразу в плеер, минуя детали: недосмотренный эпизод —
                 // videoId+сезон из истории, позицию внутри трека восстановит PlayerScreenModel.
-                FilmaxProgressCard(
+                FilmaxContinueCard(
                     title = entry.title,
                     meta = continueMeta(entry.progress),
-                    posterUrl = entry.wideOrPoster,
+                    imageUrl = entry.wideOrPoster,
                     progress = entry.progress?.fraction ?: 0f,
                     onClick = {
                         onPlay(
@@ -76,6 +92,23 @@ private fun LazyListScope.continueRow(
                             entry.progress?.videoId ?: NO_VIDEO_ID,
                         )
                     },
+                    modifier = Modifier.width(FilmaxMetrics.ContinueWidth),
+                )
+            }
+        }
+    }
+}
+
+private fun LazyListScope.topTenRow(row: HomeRow.Titles, onOpenItem: (Int) -> Unit) {
+    val top = row.paging.items.take(TOP_COUNT)
+    item(key = row.id.name) {
+        TitledRow(title = row.id.title) {
+            itemsIndexed(top, key = { _, rowItem -> rowItem.id }) { index, rowItem ->
+                FilmaxTopTenCard(
+                    rank = index + 1,
+                    title = rowItem.title,
+                    posterUrl = rowItem.posters.medium,
+                    onClick = { onOpenItem(rowItem.id) },
                 )
             }
         }
@@ -102,6 +135,8 @@ private fun LazyListScope.posterRow(
                     posterUrl = rowItem.posters.medium,
                     onClick = { onOpenItem(rowItem.id) },
                     rating = ratingLabel(rowItem.rating.kinopoisk),
+                    meta = posterMeta(typeLabel(rowItem.type), rowItem.year),
+                    modifier = Modifier.width(FilmaxMetrics.PosterWidth),
                 )
             }
         }
@@ -113,42 +148,34 @@ private fun LazyListScope.collectionsRow(
     onOpenCollection: (id: Int, title: String) -> Unit,
     onEvent: (HomeEvent) -> Unit,
 ) {
-    // Отсев пустых ссылок. Полностью «подборки без картинки» он не убирает: kino.pub отдаёт
-    // адрес постера всегда, даже когда файла нет (967 → /selection/medium/967.jpg = 404), и
-    // такая карточка остаётся градиентной заглушкой с подписью.
-    val withPoster = row.paging.items.mapNotNull { collection ->
-        collection.posterUrl()?.let { poster -> collection to poster }
-    }
-    if (withPoster.isEmpty()) return
+    val collections = row.paging.items
     item(key = row.id.name) {
         TitledRow(title = row.id.title) {
-            itemsIndexed(withPoster, key = { _, entry -> entry.first.id }) { index, (collection, poster) ->
+            itemsIndexed(collections, key = { _, collection -> collection.id }) { index, collection ->
                 // Хвостовая карточка скомпонована — просим следующую страницу (как у постер-рядов).
-                if (index == withPoster.lastIndex) {
-                    LaunchedEffect(withPoster.size) { onEvent(HomeEvent.LoadMoreRow(row.id)) }
+                if (index == collections.lastIndex) {
+                    LaunchedEffect(collections.size) { onEvent(HomeEvent.LoadMoreRow(row.id)) }
                 }
-                FilmaxPosterCard(
+                // Число тайтлов — только точное (превью знает его у подборок в одну страницу).
+                val preview = row.previews[collection.id]
+                FilmaxCollectionCard(
                     title = collection.title,
-                    posterUrl = poster,
+                    hue = collectionHue(collection.id),
                     onClick = { onOpenCollection(collection.id, collection.title) },
+                    subtitle = preview?.count?.let(::titlesLabel),
+                    posterUrl = preview?.posters?.firstOrNull() ?: collection.posterUrl(),
                 )
             }
         }
     }
 }
 
-/** Заголовок ряда без стрелки: ряд листается пальцем, а вести ей было некуда. */
+/** Заголовок ряда и сам ряд: карточки листаются пальцем, края ряда — на полях экрана. */
 @Composable
-private fun TitledRow(title: String, content: LazyListScope.() -> Unit) {
-    Column(Modifier.padding(top = FilmaxMetrics.RowGap)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = FilmaxMetrics.ScreenPadding),
-        )
+private fun TitledRow(title: String, count: Int? = null, content: LazyListScope.() -> Unit) {
+    Column {
+        FilmaxSectionHeader(title = title, count = count)
         LazyRow(
-            modifier = Modifier.padding(top = 12.dp),
             contentPadding = PaddingValues(horizontal = FilmaxMetrics.ScreenPadding),
             horizontalArrangement = Arrangement.spacedBy(FilmaxMetrics.CardGap),
             content = content,

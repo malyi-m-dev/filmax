@@ -7,9 +7,8 @@ import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
 
 /**
- * Сегменты ТВ-раздела «Моё» — четыре непересекающихся ответа на вопрос «что у меня есть».
- * На телефоне вкладки другие ([LibraryTab]): там есть «Загрузки», а «Буду смотреть» зовётся
- * «Избранным».
+ * Сегменты раздела «Моё» на телефоне и ТВ — четыре непересекающихся ответа на вопрос «что у меня
+ * есть». «Загрузок» нет: kino.pub не отдаёт файлы для офлайна.
  */
 enum class MineSegment(val label: String) {
     CONTINUE("Продолжить"),

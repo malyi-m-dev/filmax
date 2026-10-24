@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import com.filmax.core.designsystem.Onest
 import com.filmax.core.ui.components.PosterImage
 
 private val SpotlightHeight = 196.dp

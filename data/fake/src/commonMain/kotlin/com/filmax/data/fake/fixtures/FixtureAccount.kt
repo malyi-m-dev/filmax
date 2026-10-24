@@ -15,6 +15,12 @@ private const val MILLIS_IN_DAY = 24 * MILLIS_IN_HOUR
 /** Остаток подписки: заметно больше недели, чтобы плашка «нужна подписка» не мешала проверкам. */
 private const val SUBSCRIPTION_DAYS_LEFT = 47
 
+/**
+ * Дата регистрации — постоянная, а не от текущего момента: из неё выводится ключ связи телефона с ТВ,
+ * и две мок-сборки на разных устройствах должны узнать друг друга как один аккаунт.
+ */
+private const val DEMO_REGISTERED_AT = 1_577_836_800_000L
+
 /** Папка «Буду смотреть» — то же название, по которому её ищет FavoritesRepositoryImpl. */
 
 /**
@@ -31,6 +37,7 @@ internal fun demoProfile(now: Long): UserProfile = UserProfile(
         endsAt = now + SUBSCRIPTION_DAYS_LEFT * MILLIS_IN_DAY,
         daysLeft = SUBSCRIPTION_DAYS_LEFT,
     ),
+    registeredAt = DEMO_REGISTERED_AT,
 )
 
 /** Настройки устройства: тип потока 2 — HLS4, сервер раздачи — «Автоматически». */

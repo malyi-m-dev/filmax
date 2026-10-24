@@ -30,6 +30,13 @@ class FolderDraftTest {
     }
 
     @Test
+    fun `text from the phone keyboard is kept as typed, without leading spaces and within the limit`() {
+        val draft = FolderDraft().apply(FolderInput.Text("  дача " + "я".repeat(FOLDER_TITLE_MAX_LENGTH)))
+
+        assertEquals("дача " + "я".repeat(FOLDER_TITLE_MAX_LENGTH - "дача ".length), draft.title)
+    }
+
+    @Test
     fun `title stops growing at the limit`() {
         val draft = type(FolderDraft(), "я".repeat(FOLDER_TITLE_MAX_LENGTH + 5))
 

@@ -18,14 +18,19 @@ import com.filmax.feature.designsystem.navigation.DesignSystemRoute
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import com.filmax.feature.feedback.common.navigation.FeedbackRoute
 import com.filmax.feature.home.mobile.navigation.HomeRoute
-import com.filmax.feature.library.mobile.navigation.LibraryRoute
+import com.filmax.feature.library.common.navigation.FolderRoute
+import com.filmax.feature.library.mobile.navigation.MineRoute
 import com.filmax.feature.onboarding.mobile.navigation.OnboardingRoute
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.common.navigation.TrailerRoute
 import com.filmax.feature.profile.mobile.navigation.DeviceSettingsRoute
 import com.filmax.feature.profile.mobile.navigation.ProfileRoute
+import com.filmax.feature.search.common.navigation.BrowseRoute
 import com.filmax.feature.search.common.navigation.FilmographyRoute
+import com.filmax.feature.search.mobile.navigation.CatalogRoute
 import com.filmax.feature.search.mobile.navigation.SearchRoute
+import com.filmax.feature.tvlink.common.navigation.RemoteRoute
+import com.filmax.feature.tvlink.common.navigation.TvPickerRoute
 import org.koin.compose.koinInject
 
 /**
@@ -154,10 +159,10 @@ private fun NavHostController.makeRoot(route: Any) {
 /** Маршруты телефонного графа. */
 internal val PhoneRoutes = GraphRoutes(tabRoot = HomeRoute, toRoute = Destination::toPhoneRoute)
 
-/**
- * Адрес → маршрут телефонного графа. `SearchRoute` отдаёт Каталог, `LibraryRoute` — «Моё»:
- * маршруты назывались так до переименования разделов.
- */
+/** Адрес → маршрут телефонного графа. */
+// Плоская таблица «адрес → маршрут»: ветка на адрес и ни одной развилки внутри. Сложность здесь —
+// число адресов, а не логики; дробить таблицу значит прятать адреса по функциям.
+@Suppress("CyclomaticComplexMethod")
 private fun Destination.toPhoneRoute(): Any = when (this) {
     is Destination.Tab -> toPhoneTabRoute()
     Destination.Onboarding -> OnboardingRoute
@@ -165,18 +170,27 @@ private fun Destination.toPhoneRoute(): Any = when (this) {
     is Destination.Feedback -> FeedbackRoute(trigger)
     Destination.DesignSystem -> DesignSystemRoute
     is Destination.Details -> DetailsRoute(itemId)
-    is Destination.Player -> PlayerRoute(itemId = itemId, videoId = videoId, season = season)
+    is Destination.Player -> toPlayerRoute()
     is Destination.Trailer -> TrailerRoute(url = url, title = title)
     is Destination.CollectionDetail -> CollectionDetailRoute(collectionId = collectionId, title = title)
     is Destination.Filmography -> FilmographyRoute(name = name, isDirector = isDirector)
-    // Папка на телефоне открывается внутри Библиотеки, отдельного экрана у неё нет.
-    is Destination.BookmarkFolder -> error("BookmarkFolder не существует в телефонном графе")
+    is Destination.BookmarkFolder -> FolderRoute(folderId)
+    is Destination.Browse -> BrowseRoute(section)
+    // Телефон как пульт телевизора: выбор ТВ и сам пульт.
+    Destination.Remote -> RemoteRoute
+    is Destination.TvPicker ->
+        TvPickerRoute(itemId = itemId, videoId = videoId, season = season, startSeconds = startSeconds)
 }
 
 /** Разделы нижней навигации — отдельно: общая таблица иначе за порогом сложности detekt. */
 private fun Destination.Tab.toPhoneTabRoute(): Any = when (this) {
     Destination.Home -> HomeRoute
-    Destination.Catalog -> SearchRoute
-    Destination.Mine -> LibraryRoute
+    Destination.Catalog -> CatalogRoute
+    Destination.Search -> SearchRoute
+    Destination.Mine -> MineRoute
     Destination.Profile -> ProfileRoute
 }
+
+/** Плеер — общий маршрут обоих графов: серия, сезон и позиция старта, переданная с телефона. */
+internal fun Destination.Player.toPlayerRoute() =
+    PlayerRoute(itemId = itemId, videoId = videoId, season = season, startSeconds = startSeconds)

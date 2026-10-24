@@ -64,14 +64,20 @@ private const val CARD_ENTER = 3
 /** Ключ строки настройки для памяти фокуса; стартовый фокус — на «Качестве видео». */
 internal fun settingKey(setting: ProfileSetting) = "setting:${setting.name}"
 
+/** Колонка настроек слева, справочные карточки справа: подписка и [remoteCard] под ней. */
 @Composable
-internal fun ProfileBody(state: ProfileState, actions: ProfileActions, focus: ProfileFocus) {
+internal fun ProfileBody(
+    state: ProfileState,
+    actions: ProfileActions,
+    focus: ProfileFocus,
+    remoteCard: @Composable (Modifier) -> Unit,
+) {
     Row(Modifier.fillMaxHeight()) {
         SettingsColumn(state, actions, focus)
-        SubscriptionCard(
-            state.profile?.subscription,
-            Modifier.padding(start = 30.dp, top = CardTop).fxEnter(CARD_ENTER)
-        )
+        Column(Modifier.padding(start = 30.dp, top = CardTop), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            SubscriptionCard(state.profile?.subscription, Modifier.fxEnter(CARD_ENTER))
+            remoteCard(Modifier.fxEnter(CARD_ENTER + 1))
+        }
     }
 }
 

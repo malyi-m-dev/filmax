@@ -204,6 +204,17 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
         }
     }
 
+    /**
+     * Подписка на side-effects вне Compose — для тестов ScreenModel'ей, как [states] для состояния:
+     * буферизованные эффекты доставляются сразу, следующие — по мере появления. Вызывать с главного
+     * потока: подписчик тот же, что у [collectSideEffect].
+     */
+    fun observeSideEffects(onSideEffect: (SIDE_EFFECT) -> Unit) {
+        sideEffectsSubscriber = onSideEffect
+        sideEffectsQueue.forEach(onSideEffect)
+        sideEffectsQueue.clear()
+    }
+
     override fun onCleared() {
         sideEffectsSubscriber = null
         super.onCleared()
