@@ -57,27 +57,32 @@ import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPlayButton
 import com.filmax.core.ui.components.FilmaxRatingPill
 import com.filmax.core.ui.components.KenBurnsImage
-import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.details.common.DetailsEvent
+import com.filmax.feature.details.common.DetailsHeading
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
-import com.filmax.feature.details.common.SeriesData
-import com.filmax.feature.details.common.hasUhd
-import com.filmax.feature.details.common.volumeLabel
+import com.filmax.feature.details.common.PlayButton
 
 /** Кадр и заголовок: текст начинается на затемнённом низе кадра, а не под ним. */
 @Composable
-internal fun DetailsHead(item: Item, state: DetailsState, inAnyFolder: Boolean, actions: DetailsActions) {
-    val series = state.series
+internal fun DetailsHead(
+    item: Item,
+    state: DetailsState,
+    inAnyFolder: Boolean,
+    onEvent: (DetailsEvent) -> Unit,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
+    val heading = state.heading
+    val contentTop = if (state.series == null) FilmaxMetrics.MovieContentTop else FilmaxMetrics.SeriesContentTop
     Box(Modifier.fillMaxWidth()) {
         DetailsBackdropImage(item)
         Column(
             Modifier
                 .fillMaxWidth()
-                .padding(top = if (series == null) FilmaxMetrics.MovieContentTop else FilmaxMetrics.SeriesContentTop)
+                .padding(top = contentTop)
                 .padding(horizontal = FilmaxMetrics.ScreenPadding),
         ) {
-            FilmaxOverline(detailsOverline(item))
+            FilmaxOverline(heading.typeAndGenre)
             Text(
                 item.title,
                 style = FilmaxType.title,
@@ -86,11 +91,17 @@ internal fun DetailsHead(item: Item, state: DetailsState, inAnyFolder: Boolean, 
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.padding(top = 10.dp),
             )
-            originLine(item)?.let {
+            heading.originLine?.let {
                 Text(it, style = FilmaxType.meta, color = FilmaxColors.TextDim, modifier = Modifier.padding(top = 6.dp))
             }
-            DetailsMeta(item = item, series = series, modifier = Modifier.padding(top = 12.dp))
-            ActionTiles(item = item, isFav = state.isFav, inAnyFolder = inAnyFolder, actions = actions)
+            DetailsMeta(heading = heading, modifier = Modifier.padding(top = 12.dp))
+            ActionTiles(
+                trailerUrl = state.trailerUrl,
+                isFav = state.isFav,
+                inAnyFolder = inAnyFolder,
+                onEvent = onEvent,
+                onFolders = onFolders,
+            )
         }
     }
 }
@@ -130,27 +141,23 @@ private const val FADE_MIDDLE = 0.62f
 private const val FADE_MIDDLE_ALPHA = 0.6f
 private const val FADE_END = 0.97f
 
-/** «2021 · США» — год и страны под названием: оригинального названия kino.pub не отдаёт. */
-private fun originLine(item: Item): String? = listOfNotNull(
-    item.year.takeIf { it > 0 }?.toString(),
-    item.country.trim().takeIf { it.isNotBlank() },
-).joinToString(" · ").ifBlank { null }
-
 /** Оценки и объём: пилюля главной оценки, КП и IMDb, длительность или сезоны, бейдж 4K. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DetailsMeta(item: Item, series: SeriesData?, modifier: Modifier = Modifier) {
+private fun DetailsMeta(heading: DetailsHeading, modifier: Modifier = Modifier) {
+    val kinopoisk = heading.ratingBadges.firstOrNull { it.highlighted }?.value
+    val imdb = heading.ratingBadges.firstOrNull { !it.highlighted }?.value
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        ratingLabel(item.rating.kinopoisk ?: item.rating.imdb)?.let { FilmaxRatingPill(it) }
-        ratingLabel(item.rating.kinopoisk)?.let { MetaText("КП $it") }
-        ratingLabel(item.rating.imdb)?.let { MetaText("IMDb $it") }
-        volumeLabel(item, series)?.let { MetaText(it) }
-        if (hasUhd(item)) FilmaxBadge("4K")
+        heading.ratingBadges.firstOrNull()?.let { FilmaxRatingPill(it.value) }
+        kinopoisk?.let { MetaText("КП $it") }
+        imdb?.let { MetaText("IMDb $it") }
+        heading.volume?.let { MetaText(it) }
+        if (heading.hasUhd) FilmaxBadge("4K")
     }
 }
 
@@ -164,32 +171,36 @@ private fun MetaText(text: String) {
  * офлайна, а плитка, которая ничего не скачивает, — обман.
  */
 @Composable
-private fun ActionTiles(item: Item, isFav: Boolean, inAnyFolder: Boolean, actions: DetailsActions) {
-    // Трейлер показываем, только если url — играбельный http(s) (kino.pub отдаёт прямой HLS).
-    val trailerUrl = item.trailer?.url?.takeIf { it.startsWith("http") }
+private fun ActionTiles(
+    trailerUrl: String?,
+    isFav: Boolean,
+    inAnyFolder: Boolean,
+    onEvent: (DetailsEvent) -> Unit,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().padding(top = 20.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        trailerUrl?.let { url ->
+        if (trailerUrl != null) {
             FilmaxActionTile(
                 icon = Icons.Filled.Movie,
                 label = "Трейлер",
-                onClick = { actions.onPlayTrailer(url, "Трейлер · ${item.title}") },
+                onClick = { onEvent(DetailsEvent.PlayTrailer) },
                 modifier = Modifier.weight(1f),
             )
         }
         FilmaxActionTile(
             icon = if (isFav) Icons.Filled.BookmarkAdded else Icons.Filled.BookmarkAdd,
             label = if (isFav) "В списке" else "Буду смотреть",
-            onClick = { actions.onDetails(DetailsEvent.ToggleFav) },
+            onClick = { onEvent(DetailsEvent.ToggleFav) },
             active = isFav,
             modifier = Modifier.weight(1f),
         )
         FilmaxActionTile(
             icon = if (inAnyFolder) Icons.Filled.Folder else Icons.Filled.CreateNewFolder,
             label = "В папку",
-            onClick = { actions.onFolders(FolderPickerEvent.Open) },
+            onClick = { onFolders(FolderPickerEvent.Open) },
             active = inAnyFolder,
             modifier = Modifier.weight(1f),
         )
@@ -201,13 +212,7 @@ private fun ActionTiles(item: Item, isFav: Boolean, inAnyFolder: Boolean, action
  * под кнопками проявляется стекло с названием — лента не читается сквозь часы и кнопки.
  */
 @Composable
-internal fun DetailsTopBar(
-    title: String,
-    collapsed: Boolean,
-    glass: GlassState,
-    onBack: () -> Unit,
-    onShare: () -> Unit
-) {
+internal fun DetailsTopBar(title: String, collapsed: Boolean, glass: GlassState, onEvent: (DetailsEvent) -> Unit) {
     Box(Modifier.fillMaxWidth()) {
         AnimatedVisibility(
             visible = collapsed,
@@ -225,7 +230,11 @@ internal fun DetailsTopBar(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            FilmaxIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", onClick = onBack)
+            FilmaxIconButton(
+                Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = "Назад",
+                onClick = { onEvent(DetailsEvent.Back) },
+            )
             val titleAlpha by animateFloatAsState(if (collapsed) 1f else 0f, label = "detailsTitle")
             Text(
                 title,
@@ -235,24 +244,27 @@ internal fun DetailsTopBar(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f).graphicsLayer { alpha = titleAlpha },
             )
-            FilmaxIconButton(Icons.Filled.Share, contentDescription = "Поделиться", onClick = onShare)
+            FilmaxIconButton(
+                Icons.Filled.Share,
+                contentDescription = "Поделиться",
+                onClick = { onEvent(DetailsEvent.Share) },
+            )
         }
     }
 }
 
 /**
  * Плавающая панель «Смотреть»: главная кнопка с подписью, что именно сыграет, и «на телевизоре».
- * Сериал без серий играть нечем ([onPlay] = null) — панели нет вовсе.
+ * Сериал без серий играть нечем ([play] = null) — панели нет вовсе.
  */
 @Composable
 internal fun DetailsPlayPanel(
-    label: PlayLabel,
-    onPlay: (() -> Unit)?,
-    onPlayOnTv: (() -> Unit)?,
+    play: PlayButton?,
     glass: GlassState,
+    onEvent: (DetailsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (onPlay == null) return
+    if (play == null) return
     GlassPanel(
         state = glass,
         shape = ShapeFull,
@@ -269,17 +281,17 @@ internal fun DetailsPlayPanel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FilmaxPlayButton(
-                title = label.title,
-                subtitle = label.subtitle,
+                title = play.title,
+                subtitle = play.subtitle,
                 icon = Icons.Filled.PlayArrow,
-                onClick = onPlay,
-                progress = label.progress,
+                onClick = { onEvent(DetailsEvent.Play) },
+                progress = play.progress,
                 modifier = Modifier.weight(1f),
             )
             FilmaxIconButton(
                 Icons.Filled.Cast,
                 contentDescription = "Смотреть на телевизоре",
-                onClick = onPlayOnTv,
+                onClick = { onEvent(DetailsEvent.PlayOnTv) },
                 size = FilmaxMetrics.IconButtonLarge,
             )
         }

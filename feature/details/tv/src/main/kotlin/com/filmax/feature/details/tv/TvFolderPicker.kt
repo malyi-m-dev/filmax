@@ -56,6 +56,7 @@ import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
 import com.filmax.core.presentation.input.KeyboardLayout
 import com.filmax.core.presentation.input.keyboardRows
+import com.filmax.core.presentation.labels.titlesLabel
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -70,7 +71,6 @@ import com.filmax.core.tv.designsystem.TvKeyHints
 import com.filmax.core.tv.designsystem.TvKeyboardActions
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.tvFolderTint
-import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerState
 

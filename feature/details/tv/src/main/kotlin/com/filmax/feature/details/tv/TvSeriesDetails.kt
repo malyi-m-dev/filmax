@@ -26,7 +26,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvBackHint
@@ -38,9 +37,9 @@ import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
-import com.filmax.feature.details.common.resolveCast
 
 private val InfoTop = 24.dp
 private val InfoWidth = 430.dp
@@ -50,9 +49,6 @@ private val ButtonGap = 10.dp
 
 /** Строка состава — подпись, а не текст: тише описания. */
 private const val CAST_LINE_ALPHA = 0.55f
-
-/** Сколько актёров в строке «В ролях» у сериала — дальше строка уходит за край колонки. */
-private const val CAST_LINE_NAMES = 3
 
 /** Строка состава и кнопки появляются следом за шапкой (у неё fxEnter 0–3). */
 private const val CAST_ENTER_INDEX = 4
@@ -67,30 +63,31 @@ private const val BUTTONS_ENTER_INDEX = 5
 internal fun TvSeriesDetails(
     state: DetailsState,
     item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     sheets: DetailsSheetFocus,
 ) {
-    val resume = state.series?.resume
-    val startAt = resume?.takeIf { episode -> state.seasonEpisodes.any { it.id == episode.id } }?.let(::episodeKey)
+    val startAt = state.episodes?.startFocusEpisodeId?.let(::episodeKey)
     val focus = rememberTvScreenFocus(startAt = startAt ?: PLAY_KEY)
     val playFocus = remember { FocusRequester() }
     Box(Modifier.fillMaxSize()) {
         TvBackdrop(item.posters.wide ?: item.posters.big, style = TvBackdropStyle.Split)
         Row(Modifier.fillMaxSize().then(focus.containerModifier)) {
-            SeriesInfo(state, item, actions, SeriesFocus(focus, playFocus, sheets), Modifier.weight(1f))
-            TvEpisodesPanel(
-                state = state,
-                actions = actions,
-                focus = focus,
-                exitLeft = playFocus,
-                modifier = Modifier.fillMaxHeight(),
-            )
+            SeriesInfo(state, item, onEvent, SeriesFocus(focus, playFocus, sheets), Modifier.weight(1f))
+            state.episodes?.let { panel ->
+                TvEpisodesPanel(
+                    panel = panel,
+                    onEvent = onEvent,
+                    focus = focus,
+                    exitLeft = playFocus,
+                    modifier = Modifier.fillMaxHeight(),
+                )
+            }
         }
     }
 }
 
 /** Ключ серии для памяти фокуса: возврат из плеера — на ту же серию. */
-internal fun episodeKey(episode: MediaTrack): String = "episode:${episode.id}"
+internal fun episodeKey(episodeId: Int): String = "episode:$episodeId"
 
 /**
  * Фокус экрана сериала: память экрана, главная кнопка (на неё «←» возвращает из панели серий) и
@@ -103,7 +100,7 @@ private data class SeriesFocus(val screen: TvScreenFocus, val play: FocusRequest
 private fun SeriesInfo(
     state: DetailsState,
     item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     focus: SeriesFocus,
     modifier: Modifier,
 ) {
@@ -118,23 +115,21 @@ private fun SeriesInfo(
         Column(Modifier.padding(top = HeadingTop), verticalArrangement = Arrangement.spacedBy(CastGap)) {
             DetailsHeading(
                 item = item,
-                series = state.series,
-                description = HeadingDescription(actions.onOpenDescription, focus.sheets.description),
+                heading = state.heading,
+                description = HeadingDescription({ onEvent(DetailsEvent.OpenDescription) }, focus.sheets.description),
                 style = SeriesHeadingStyle,
             )
-            CastLine(state, item, Modifier.fxEnter(CAST_ENTER_INDEX))
+            state.castLine?.let { CastLine(it, Modifier.fxEnter(CAST_ENTER_INDEX)) }
         }
-        SeriesButtons(state, actions, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
+        SeriesButtons(state, onEvent, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
     }
 }
 
 /** «В ролях: Анна Лунд, Эрик Сунд, Мия Хольм» — у сериала состав строкой, место занимают серии. */
 @Composable
-private fun CastLine(state: DetailsState, item: Item, modifier: Modifier) {
-    val names = resolveCast(state.cast, item.cast).take(CAST_LINE_NAMES).joinToString(", ") { it.name }
-    if (names.isBlank()) return
+private fun CastLine(line: String, modifier: Modifier) {
     Text(
-        "В ролях: $names",
+        line,
         style = FxType.meta,
         color = LocalFxColors.current.text.copy(alpha = CAST_LINE_ALPHA),
         maxLines = 1,
@@ -145,21 +140,23 @@ private fun CastLine(state: DetailsState, item: Item, modifier: Modifier) {
 
 /** «Продолжить · S4E7» и круглые «В список» / «В папку» / «Трейлер»: место в колонке занимают серии. */
 @Composable
-private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: SeriesFocus, modifier: Modifier) {
-    val resume = state.series?.resume
-    // Кнопка играет серию «продолжить», иначе первую серию выбранного сезона.
-    val target = resume ?: state.seasonEpisodes.firstOrNull()
+private fun SeriesButtons(
+    state: DetailsState,
+    onEvent: (DetailsEvent) -> Unit,
+    focus: SeriesFocus,
+    modifier: Modifier,
+) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(ButtonGap)) {
         TvButton(
-            playLabel(resume),
-            onClick = { target?.let { actions.onPlay(it.seasonNumber, it.number) } },
+            state.play?.compact ?: "Смотреть",
+            onClick = { onEvent(DetailsEvent.Play) },
             leadingIcon = Icons.Rounded.PlayArrow,
             modifier = focus.screen.item(PLAY_KEY).focusRequester(focus.play),
         )
         TvIconButton(
             icon = if (state.isFav) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
             contentDescription = if (state.isFav) "В списке" else "Буду смотреть",
-            onClick = actions.onToggleWatchLater,
+            onClick = { onEvent(DetailsEvent.ToggleFav) },
         )
         val folders = focus.sheets.folders
         TvIconButton(
@@ -168,8 +165,12 @@ private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: S
             onClick = { folders.onEvent(FolderPickerEvent.Open) },
             modifier = Modifier.focusRequester(folders.buttonFocus),
         )
-        actions.onTrailer?.let { onTrailer ->
-            TvIconButton(icon = Icons.Rounded.Movie, contentDescription = "Трейлер", onClick = onTrailer)
+        if (state.trailerUrl != null) {
+            TvIconButton(
+                icon = Icons.Rounded.Movie,
+                contentDescription = "Трейлер",
+                onClick = { onEvent(DetailsEvent.PlayTrailer) },
+            )
         }
     }
 }

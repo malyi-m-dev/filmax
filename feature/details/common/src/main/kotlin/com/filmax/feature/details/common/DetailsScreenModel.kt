@@ -3,6 +3,7 @@ package com.filmax.feature.details.common
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.downloads.DownloadsRepository
@@ -11,6 +12,8 @@ import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.toFavoriteItem
 import com.filmax.core.domain.person.CastRepository
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import kotlinx.coroutines.FlowPreview
@@ -26,6 +29,7 @@ class DetailsScreenModel(
     private val favorites: FavoritesRepository,
     private val cast: CastRepository,
     private val toggleWatchLater: ToggleWatchLaterUseCase,
+    private val navigator: Navigator,
 ) : BaseScreenModel<DetailsState, DetailsSideEffect, DetailsEvent>(DetailsState()) {
 
     private val route = savedStateHandle.toRoute<DetailsRoute>()
@@ -51,12 +55,20 @@ class DetailsScreenModel(
 
     override fun onEvent(event: DetailsEvent) {
         when (event) {
-            DetailsEvent.ToggleFav -> toggleFav()
-            DetailsEvent.ToggleDownload -> toggleDownload()
+            DetailsEvent.Back -> navigator.back()
+            DetailsEvent.ToggleFav -> onToggleFav()
+            DetailsEvent.ToggleDownload -> onToggleDownload()
+            DetailsEvent.Play -> onPlay()
+            is DetailsEvent.PlayEpisode -> openPlayer(event.season, event.videoId)
+            DetailsEvent.PlayOnTv -> onPlayOnTv()
+            DetailsEvent.PlayTrailer -> onPlayTrailer()
+            DetailsEvent.Share -> onShare()
+            is DetailsEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            is DetailsEvent.OpenPerson -> navigator.open(Destination.Filmography(event.name, event.isDirector))
             is DetailsEvent.SelectSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, SEASON_SELECT_DELAY_MS))
             is DetailsEvent.SwitchSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, delayMs = 0))
-            DetailsEvent.OpenDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = true) } }
-            DetailsEvent.CloseDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = false) } }
+            DetailsEvent.OpenDescription -> onDescription(open = true)
+            DetailsEvent.CloseDescription -> onDescription(open = false)
         }
     }
 
@@ -64,31 +76,18 @@ class DetailsScreenModel(
         screenModelScope { _ ->
             val itemResult = catalog.getItemDetails(route.itemId)
             val similar = catalog.getSimilarItems(route.itemId).getOrNull().orEmpty()
-            when (itemResult) {
-                is RequestResult.Success -> {
-                    val series = itemResult.data.takeIf { it.isSeries() }?.let { calculateSeriesData(it.tracklist) }
-                    updateState {
-                        it.copy(
-                            loading = false,
-                            item = itemResult.data,
-                            similar = similar,
-                            series = series,
-                            // Сериал открывается на сезоне серии «продолжить».
-                            selectedSeason = series?.seasons?.getOrNull(series.resumeSeasonIndex)?.first,
-                        )
-                    }
-                    // Down-sync: если на сервере фильм уже в watchlist — заносим в локальный кэш.
-                    if (itemResult.data.inWatchlist) {
-                        favorites.add(itemResult.data.toFavoriteItem())
-                    }
-                    loadCast(itemResult.data.imdbId)
-                }
-
-                is RequestResult.Error -> {
-                    updateState { it.copy(loading = false, error = itemResult.message) }
-                    showError(itemResult)
-                }
+            if (itemResult is RequestResult.Error) {
+                updateState { it.copy(loading = false, error = itemResult.message) }
+                showError(itemResult)
+                return@screenModelScope
             }
+            val item = (itemResult as RequestResult.Success).data
+            val series = if (isSeries(item)) calculateSeriesData(item.tracklist) else null
+            val loaded = state.loaded(item, similar, series)
+            updateState { loaded }
+            // Down-sync: если на сервере фильм уже в watchlist — заносим в локальный кэш.
+            if (item.inWatchlist) favorites.add(item.toFavoriteItem())
+            loadCast(item.imdbId)
         }
     }
 
@@ -99,9 +98,9 @@ class DetailsScreenModel(
     private fun loadCast(imdbId: String?) {
         screenModelScope { _ ->
             val members = cast.getCast(imdbId)
-            if (members.isNotEmpty()) {
-                updateState { it.copy(cast = members) }
-            }
+            if (members.isEmpty()) return@screenModelScope
+            val withCast = state.withCast(members)
+            updateState { withCast }
         }
     }
 
@@ -121,36 +120,70 @@ class DetailsScreenModel(
         }
     }
 
-    private fun toggleFav() {
-        val item = state.item ?: return
-        screenModelScope { _ -> toggleWatchLater(item) }
-    }
-
     private fun observeSeasonRequests() {
         screenModelScope { _ ->
             seasonRequests.debounce { it.delayMs }.collect { request ->
-                updateState { it.copy(selectedSeason = request.number) }
+                val withSeason = state.withSeason(request.number)
+                updateState { withSeason }
             }
         }
     }
 
-    private fun toggleDownload() {
+    private fun onToggleFav() {
+        val item = state.item ?: return
+        screenModelScope { _ -> toggleWatchLater(item) }
+    }
+
+    private fun onToggleDownload() {
         val item = state.item ?: return
         screenModelScope {
             if (state.isDownloaded) {
                 downloads.remove(item.id)
             } else {
-                downloads.add(
-                    DownloadedItem(
-                        id = item.id,
-                        title = item.title,
-                        posterSmall = item.posters.medium.ifBlank { item.posters.small },
-                        year = item.year,
-                        durationMinutes = item.duration.averageMinutes?.toInt() ?: 0,
-                    ),
-                )
+                downloads.add(downloadedItem(item))
             }
         }
+    }
+
+    private fun downloadedItem(item: Item) = DownloadedItem(
+        id = item.id,
+        title = item.title,
+        posterSmall = item.posters.medium.ifBlank { item.posters.small },
+        year = item.year,
+        durationMinutes = item.duration.averageMinutes?.toInt() ?: 0,
+    )
+
+    /** Главная кнопка играет то, что модель выбрала для неё: фильм целиком или нужную серию. */
+    private fun onPlay() {
+        val play = state.play ?: return
+        openPlayer(play.season, play.videoId)
+    }
+
+    /** [videoId] — НОМЕР серии, а не её id: тем же числом kino.pub принимает и отдаёт прогресс. */
+    private fun openPlayer(season: Int, videoId: Int) {
+        navigator.open(Destination.Player(itemId = route.itemId, videoId = videoId, season = season))
+    }
+
+    /** На ТВ — с прогресса kino.pub: телефон эту серию сейчас не играет. */
+    private fun onPlayOnTv() {
+        val play = state.play ?: return
+        navigator.open(Destination.TvPicker(itemId = route.itemId, videoId = play.videoId, season = play.season))
+    }
+
+    private fun onPlayTrailer() {
+        val url = state.trailerUrl ?: return
+        val title = state.item?.title ?: return
+        navigator.open(Destination.Trailer(url = url, title = "Трейлер · $title"))
+    }
+
+    private fun onShare() {
+        val item = state.item ?: return
+        val text = "${item.title} (${item.year}) — смотри в Filmax"
+        screenModelScope { _ -> postSideEffect(DetailsSideEffect.Share(text)) }
+    }
+
+    private fun onDescription(open: Boolean) {
+        screenModelScope { _ -> updateState { it.copy(descriptionOpen = open) } }
     }
 }
 

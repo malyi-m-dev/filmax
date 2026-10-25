@@ -61,7 +61,8 @@ class DetailsScreenModelTest {
         assertEquals(FakeIds.HERO_MOVIE, state.item?.id)
         assertNull(state.series)
         assertNull(state.selectedSeason)
-        assertTrue(state.seasonEpisodes.isEmpty())
+        assertNull(state.episodes)
+        assertEquals("Смотреть", state.play?.compact)
         assertTrue(state.similar.isNotEmpty())
     }
 
@@ -74,8 +75,10 @@ class DetailsScreenModelTest {
         assertEquals(LONG_SERIES_SEASONS, series.seasons.size)
         assertEquals(LONG_SERIES_RESUME_SEASON, state.selectedSeason)
         assertEquals(LONG_SERIES_RESUME_SEASON to LONG_SERIES_RESUME_EPISODE, resume.seasonNumber to resume.number)
-        assertTrue(state.seasonEpisodes.all { it.seasonNumber == LONG_SERIES_RESUME_SEASON })
-        assertTrue(resume in state.seasonEpisodes)
+        val rows = checkNotNull(state.episodes).rows
+        assertTrue(rows.all { it.episode.seasonNumber == LONG_SERIES_RESUME_SEASON })
+        assertTrue(rows.any { it.episode == resume && it.resume })
+        assertEquals("Продолжить · S4E7", state.play?.compact)
     }
 
     @Test
@@ -97,7 +100,7 @@ class DetailsScreenModelTest {
 
         advanceUntilIdle()
         assertEquals(7, model.states.value.selectedSeason)
-        assertTrue(model.states.value.seasonEpisodes.all { it.seasonNumber == 7 })
+        assertTrue(model.states.value.episodes?.rows.orEmpty().all { it.episode.seasonNumber == 7 })
     }
 
     @Test

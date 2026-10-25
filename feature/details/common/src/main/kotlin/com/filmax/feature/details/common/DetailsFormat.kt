@@ -1,5 +1,5 @@
-// Чистые производные и форматирование экрана Деталей, общие для mobile и tv:
-// модель сериала (сезоны + точка «продолжить»), подписи меты и склонения. Без UI-зависимостей.
+// Чистые производные экрана Деталей, общие для mobile и tv: модель сериала (сезоны + точка
+// «продолжить»), объём, состав и склонения. Без UI-зависимостей.
 
 package com.filmax.feature.details.common
 
@@ -7,6 +7,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
+import com.filmax.core.presentation.labels.durationLabel
 
 /** Статусы просмотра kino.pub (`watching.status`): -1 не начат, 0 в процессе, 1 досмотрен. */
 const val WATCH_STATUS_IN_PROGRESS = 0
@@ -15,8 +16,6 @@ const val WATCH_STATUS_FINISHED = 1
 // Модули русских правил склонения по числу (последние две / одна цифра).
 private const val PLURAL_MOD_HUNDRED = 100
 private const val PLURAL_MOD_TEN = 10
-
-private const val MINUTES_IN_HOUR = 60
 
 /**
  * Производные данные сериала для экрана: сезоны (сгруппированы и отсортированы) и точка «продолжить».
@@ -64,8 +63,8 @@ private fun resumeEpisode(seasons: List<Pair<Int, List<MediaTrack>>>): MediaTrac
  * Сериал определяем по ТИПУ тайтла, а не по числу дорожек: у фильма с двумя озвучками
  * `tracklist.size > 1`, и он получил бы селектор сезонов из одного бессмысленного сезона.
  */
-fun Item.isSeries(): Boolean =
-    type == ItemType.SERIES || type == ItemType.ANIME || type == ItemType.DOCUMENTARY
+fun isSeries(item: Item): Boolean =
+    item.type == ItemType.SERIES || item.type == ItemType.ANIME || item.type == ItemType.DOCUMENTARY
 
 /**
  * У фильма в мете длительность, у сериала — объём: «3 сезона», а у односезонного «12 серий»
@@ -76,20 +75,6 @@ fun volumeLabel(item: Item, series: SeriesData?): String? = when {
     series.seasons.size > 1 -> "${series.seasons.size} ${seasonsWord(series.seasons.size)}"
     item.tracklist.isNotEmpty() -> "${item.tracklist.size} ${episodesWord(item.tracklist.size)}"
     else -> null
-}
-
-/**
- * «2 ч 46 мин» / «46 мин» / «2 ч» — пустые часы и минуты опускаем. Так же пишут карточки
- * (`durationLabel` в core:ui): раньше здесь выходило «2 ч 0 мин».
- */
-internal fun durationLabel(minutes: Int): String {
-    val hours = minutes / MINUTES_IN_HOUR
-    val rest = minutes % MINUTES_IN_HOUR
-    return when {
-        hours > 0 && rest > 0 -> "$hours ч $rest мин"
-        hours > 0 -> "$hours ч"
-        else -> "$rest мин"
-    }
 }
 
 /**
@@ -120,7 +105,8 @@ private fun seasonsWord(count: Int): String = when {
     else -> "сезонов"
 }
 
-private fun episodesWord(count: Int): String = when {
+/** «1 серия», «3 серии», «12 серий». */
+internal fun episodesWord(count: Int): String = when {
     count % PLURAL_MOD_HUNDRED in 11..14 -> "серий"
     count % PLURAL_MOD_TEN == 1 -> "серия"
     count % PLURAL_MOD_TEN in 2..4 -> "серии"

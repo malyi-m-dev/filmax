@@ -30,6 +30,7 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.labels.titlesLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxCheckRow
 import com.filmax.core.ui.components.FilmaxFolderEditor
@@ -39,23 +40,27 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxSheetScope
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerState
-import com.filmax.feature.details.common.detailsFacts
 
 /** Оттенок системной «Буду смотреть» в списке папок — фиолетовый, как у первой папки. */
 private const val WATCHLIST_HUE = 290f
 
 @Composable
-internal fun DetailsSheets(item: Item, state: DetailsState, folderState: FolderPickerState, actions: DetailsActions) {
+internal fun DetailsSheets(
+    item: Item,
+    state: DetailsState,
+    folderState: FolderPickerState,
+    onEvent: (DetailsEvent) -> Unit,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
     if (state.descriptionOpen) {
-        DescriptionSheet(item = item, state = state, onDismiss = { actions.onDetails(DetailsEvent.CloseDescription) })
+        DescriptionSheet(item = item, state = state, onDismiss = { onEvent(DetailsEvent.CloseDescription) })
     }
     if (folderState.open) {
-        FolderSheet(item = item, isFav = state.isFav, state = folderState, actions = actions)
+        FolderSheet(item = item, isFav = state.isFav, state = folderState, onEvent = onEvent, onFolders = onFolders)
     }
 }
 
@@ -64,7 +69,7 @@ internal fun DetailsSheets(item: Item, state: DetailsState, folderState: FolderP
 private fun DescriptionSheet(item: Item, state: DetailsState, onDismiss: () -> Unit) {
     FilmaxSheet(
         onDismiss = onDismiss,
-        title = if (state.series == null) "О фильме" else "О сериале",
+        title = state.factsTitle,
         subtitle = listOfNotNull(item.title, item.year.takeIf { it > 0 }?.toString()).joinToString(" · "),
     ) {
         Column(
@@ -89,31 +94,42 @@ private fun DescriptionSheet(item: Item, state: DetailsState, onDismiss: () -> U
                     .height(1.dp)
                     .background(FilmaxColors.CardBorder),
             )
-            Facts(title = null, facts = detailsFacts(item, state.series), modifier = Modifier.padding(top = 10.dp))
+            Facts(title = null, facts = state.facts, modifier = Modifier.padding(top = 10.dp))
         }
     }
 }
 
 /** «В папку»: список с отметками или редактор новой папки — по черновику в модели. */
 @Composable
-private fun FolderSheet(item: Item, isFav: Boolean, state: FolderPickerState, actions: DetailsActions) {
+private fun FolderSheet(
+    item: Item,
+    isFav: Boolean,
+    state: FolderPickerState,
+    onEvent: (DetailsEvent) -> Unit,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
     val draft = state.draft
     val marked = state.memberOf.size + if (isFav) 1 else 0
     FilmaxSheet(
-        onDismiss = { actions.onFolders(FolderPickerEvent.Close) },
+        onDismiss = { onFolders(FolderPickerEvent.Close) },
         title = if (draft == null) "Добавить в папку" else "Новая папка",
         subtitle = if (draft == null) "«${item.title}» · отмечено $marked" else "«${item.title}» сразу попадёт в неё",
     ) {
         if (draft == null) {
-            FolderList(isFav = isFav, state = state, actions = actions)
+            FolderList(isFav = isFav, state = state, onEvent = onEvent, onFolders = onFolders)
         } else {
-            FolderEditor(draft = draft, creating = state.creating, error = state.error, onEvent = actions.onFolders)
+            FolderEditor(draft = draft, creating = state.creating, error = state.error, onFolders = onFolders)
         }
     }
 }
 
 @Composable
-private fun FilmaxSheetScope.FolderList(isFav: Boolean, state: FolderPickerState, actions: DetailsActions) {
+private fun FilmaxSheetScope.FolderList(
+    isFav: Boolean,
+    state: FolderPickerState,
+    onEvent: (DetailsEvent) -> Unit,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
     val sheet = this
     Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
         Column(
@@ -125,7 +141,7 @@ private fun FilmaxSheetScope.FolderList(isFav: Boolean, state: FolderPickerState
             FilmaxCheckRow(
                 title = "Буду смотреть",
                 checked = isFav,
-                onClick = { actions.onDetails(DetailsEvent.ToggleFav) },
+                onClick = { onEvent(DetailsEvent.ToggleFav) },
                 subtitle = titlesLabel(state.watchlistCount),
                 leading = { FilmaxFolderIcon(hue = WATCHLIST_HUE, icon = Icons.Filled.Bookmark) },
             )
@@ -138,12 +154,12 @@ private fun FilmaxSheetScope.FolderList(isFav: Boolean, state: FolderPickerState
                 FilmaxCheckRow(
                     title = folder.title,
                     checked = folder.id in state.memberOf,
-                    onClick = { actions.onFolders(FolderPickerEvent.Toggle(folder.id)) },
+                    onClick = { onFolders(FolderPickerEvent.Toggle(folder.id)) },
                     subtitle = titlesLabel(folder.count),
                     leading = { FilmaxFolderIcon(hue = folderHue(folder.tint)) },
                 )
             }
-            FilmaxNewFolderRow(onClick = { actions.onFolders(FolderPickerEvent.StartCreate) })
+            FilmaxNewFolderRow(onClick = { onFolders(FolderPickerEvent.StartCreate) })
         }
         state.error?.let { SheetError(it, Modifier.padding(horizontal = FilmaxMetrics.ScreenPadding)) }
         FilmaxButton(
@@ -157,12 +173,17 @@ private fun FilmaxSheetScope.FolderList(isFav: Boolean, state: FolderPickerState
 
 /** Новая папка: название, цвет и «Создать и добавить» — тайтл ляжет в неё сразу. */
 @Composable
-private fun FolderEditor(draft: FolderDraft, creating: Boolean, error: String?, onEvent: (FolderPickerEvent) -> Unit) {
-    val actions = remember(onEvent) {
+private fun FolderEditor(
+    draft: FolderDraft,
+    creating: Boolean,
+    error: String?,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
+    val actions = remember(onFolders) {
         FolderEditorActions(
-            onTitleChange = { onEvent(FolderPickerEvent.Edit(FolderInput.Text(it))) },
-            onTintChange = { onEvent(FolderPickerEvent.Edit(FolderInput.Tint(it))) },
-            onSubmit = { onEvent(FolderPickerEvent.Submit) },
+            onTitleChange = { onFolders(FolderPickerEvent.Edit(FolderInput.Text(it))) },
+            onTintChange = { onFolders(FolderPickerEvent.Edit(FolderInput.Tint(it))) },
+            onSubmit = { onFolders(FolderPickerEvent.Submit) },
         )
     }
     FilmaxFolderEditor(

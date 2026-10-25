@@ -24,41 +24,36 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.person.CastMember
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.ui.components.FilmaxCastCard
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxSectionHeader
 import com.filmax.core.ui.components.FilmaxTextButton
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsFact
 import com.filmax.feature.details.common.DetailsState
-import com.filmax.feature.details.common.detailsFacts
-import com.filmax.feature.details.common.resolveCast
 
 /** Сколько строк описания видно до «Читать полностью». */
 private const val DESCRIPTION_LINES = 3
 
 /** Секции ленты деталей после шапки. */
-internal fun LazyListScope.detailsSections(item: Item, state: DetailsState, actions: DetailsActions) {
+internal fun LazyListScope.detailsSections(item: Item, state: DetailsState, onEvent: (DetailsEvent) -> Unit) {
     if (item.plot.isNotBlank()) {
         item(key = "description") {
-            Description(plot = item.plot, onReadMore = { actions.onDetails(DetailsEvent.OpenDescription) })
+            Description(plot = item.plot, onReadMore = { onEvent(DetailsEvent.OpenDescription) })
         }
     }
-    if (state.series != null) episodesSection(state = state, actions = actions)
-    // Люди: фото из TMDB, если доехали; иначе — имена из строки kino.pub. Режиссёр — первым.
-    val people = resolveCast(state.cast, item.cast)
-    if (people.isNotEmpty() || item.director.isNotBlank()) {
-        item(key = "cast") { CastRow(people = people, director = item.director, onOpenPerson = actions.onOpenPerson) }
+    state.episodes?.let { episodesSection(panel = it, onEvent = onEvent) }
+    if (state.people.isNotEmpty() || state.directors.isNotEmpty()) {
+        item(key = "cast") { CastRow(people = state.people, directors = state.directors, onEvent = onEvent) }
     }
-    val facts = detailsFacts(item, state.series)
-    if (facts.isNotEmpty()) {
-        item(key = "facts") { Facts(title = if (state.series == null) "О фильме" else "О сериале", facts = facts) }
+    if (state.facts.isNotEmpty()) {
+        item(key = "facts") { Facts(title = state.factsTitle, facts = state.facts) }
     }
     if (state.similar.isNotEmpty()) {
-        item(key = "similar") { SimilarRow(similar = state.similar, onOpenItem = actions.onOpenItem) }
+        item(key = "similar") { SimilarRow(similar = state.similar, onEvent = onEvent) }
     }
 }
 
@@ -77,25 +72,29 @@ private fun Description(plot: String, onReadMore: () -> Unit) {
     }
 }
 
+/** Люди: фото из TMDB, если доехали; иначе — имена из строки kino.pub. Режиссёры — первыми. */
 @Composable
-private fun CastRow(people: List<CastMember>, director: String, onOpenPerson: (String, Boolean) -> Unit) {
+private fun CastRow(people: List<CastMember>, directors: List<String>, onEvent: (DetailsEvent) -> Unit) {
     Column {
         FilmaxSectionHeader(title = "Актёры")
         LazyRow(
             contentPadding = PaddingValues(horizontal = FilmaxMetrics.ScreenPadding),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Режиссёров у kino.pub строка через запятую — карточка на каждого, с его фильмографией.
-            val directors = director.split(",").map { it.trim() }.filter { it.isNotBlank() }
             items(directors, key = { "director-$it" }) { name ->
-                FilmaxCastCard(name = name, photoUrl = null, role = "Режиссёр", onClick = { onOpenPerson(name, true) })
+                FilmaxCastCard(
+                    name = name,
+                    photoUrl = null,
+                    role = "Режиссёр",
+                    onClick = { onEvent(DetailsEvent.OpenPerson(name, isDirector = true)) },
+                )
             }
             items(people, key = { "actor-${it.name}" }) { person ->
                 FilmaxCastCard(
                     name = person.name,
                     photoUrl = person.photoUrl,
                     role = person.character,
-                    onClick = { onOpenPerson(person.name, false) },
+                    onClick = { onEvent(DetailsEvent.OpenPerson(person.name, isDirector = false)) },
                 )
             }
         }
@@ -132,7 +131,7 @@ internal fun Facts(title: String?, facts: List<DetailsFact>, modifier: Modifier 
 }
 
 @Composable
-private fun SimilarRow(similar: List<Item>, onOpenItem: (Int) -> Unit) {
+private fun SimilarRow(similar: List<Item>, onEvent: (DetailsEvent) -> Unit) {
     Column {
         FilmaxSectionHeader(title = "Похожие")
         LazyRow(
@@ -143,7 +142,7 @@ private fun SimilarRow(similar: List<Item>, onOpenItem: (Int) -> Unit) {
                 FilmaxPosterCard(
                     title = item.title,
                     posterUrl = item.posters.medium,
-                    onClick = { onOpenItem(item.id) },
+                    onClick = { onEvent(DetailsEvent.OpenItem(item.id)) },
                     rating = ratingLabel(item.rating.kinopoisk),
                     meta = posterMeta(typeLabel(item.type), item.year),
                     modifier = Modifier.width(FilmaxMetrics.PosterWidth),

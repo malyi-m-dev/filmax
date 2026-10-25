@@ -2,7 +2,7 @@
 // плитками действий, описание, серии (сериал), актёры, факты и «Похожие»; поверх — стеклянные
 // кнопки сверху и плавающая панель «Смотреть» снизу. Здесь — состояние экрана и порядок секций;
 // кадр и заголовок — в DetailsBackdrop, секции — в DetailsSections, серии — в DetailsEpisodes,
-// шторки описания и папок — в DetailsSheets.
+// шторки описания и папок — в DetailsSheets. Куда ведут кнопки, решает DetailsScreenModel.
 
 package com.filmax.feature.details.mobile
 
@@ -32,34 +32,15 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
+import com.filmax.feature.details.common.DetailsSideEffect
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerScreenModel
 import com.filmax.feature.details.common.FolderPickerState
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
-
-/** Действия экрана — группой, чтобы не раздувать списки параметров вложенных секций. */
-internal data class DetailsActions(
-    val onBack: () -> Unit,
-    /** [season] ≤ 0 — фильм/сезон неизвестен; номер видео уникален только внутри сезона. */
-    val onPlay: (season: Int, videoId: Int) -> Unit,
-    /** То же, но на телевизоре: выбор ТВ в сети и пульт. */
-    val onPlayOnTv: (season: Int, videoId: Int) -> Unit,
-    val onShare: () -> Unit,
-    val onOpenItem: (Int) -> Unit,
-    /** Тап по актёру/режиссёру — открыть его фильмографию (isDirector различает запрос к API). */
-    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
-    /** Играть трейлер: прямой HLS-url и заголовок «Трейлер · Название». */
-    val onPlayTrailer: (url: String, title: String) -> Unit,
-    val onDetails: (DetailsEvent) -> Unit,
-    val onFolders: (FolderPickerEvent) -> Unit,
-)
 
 /**
  * Мобильные Детали поверх общих [DetailsScreenModel] и [FolderPickerScreenModel] (itemId берётся
@@ -70,12 +51,16 @@ fun DetailsScreen(
     modifier: Modifier = Modifier,
     screenModel: DetailsScreenModel = koinViewModel(),
     folders: FolderPickerScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
     val folderState by folders.collectAsState()
     val appError by screenModel.collectErrorAsState()
     val context = LocalContext.current
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is DetailsSideEffect.Share -> shareText(context, effect.text)
+        }
+    }
     val item = state.item
 
     Box(modifier = modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
@@ -86,16 +71,8 @@ fun DetailsScreen(
             )
 
             item != null -> {
-                val actions = remember(item.id, navigator, screenModel, folders) {
-                    navigator.detailsActions(
-                        item = item,
-                        onShare = { shareItem(context, item) },
-                        onDetails = screenModel::dispatch,
-                        onFolders = folders::dispatch,
-                    )
-                }
-                DetailsContent(item = item, state = state, folderState = folderState, actions = actions)
-                DetailsSheets(item = item, state = state, folderState = folderState, actions = actions)
+                DetailsContent(item, state, folderState, screenModel::dispatch, folders::dispatch)
+                DetailsSheets(item, state, folderState, screenModel::dispatch, folders::dispatch)
             }
         }
 
@@ -114,9 +91,14 @@ fun DetailsScreen(
  * и строить их все разом ради первого экрана незачем.
  */
 @Composable
-private fun DetailsContent(item: Item, state: DetailsState, folderState: FolderPickerState, actions: DetailsActions) {
+private fun DetailsContent(
+    item: Item,
+    state: DetailsState,
+    folderState: FolderPickerState,
+    onEvent: (DetailsEvent) -> Unit,
+    onFolders: (FolderPickerEvent) -> Unit,
+) {
     val glass = rememberGlassState()
-    val target = playTarget(item, state.series, state.seasonEpisodes)
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val listState = rememberLazyListState()
     // Стекло под кнопками — когда начало текста ушло под статус-бар, а не когда уехала вся шапка.
@@ -138,54 +120,26 @@ private fun DetailsContent(item: Item, state: DetailsState, folderState: FolderP
                     item = item,
                     state = state,
                     inAnyFolder = folderState.inAnyFolder,
-                    actions = actions,
+                    onEvent = onEvent,
+                    onFolders = onFolders,
                 )
             }
-            detailsSections(item = item, state = state, actions = actions)
+            detailsSections(item = item, state = state, onEvent = onEvent)
         }
-        DetailsTopBar(
-            title = item.title,
-            collapsed = collapsed,
-            glass = glass,
-            onBack = actions.onBack,
-            onShare = actions.onShare,
-        )
+        DetailsTopBar(title = item.title, collapsed = collapsed, glass = glass, onEvent = onEvent)
         DetailsPlayPanel(
-            label = playLabel(item, state.series, target),
-            onPlay = target?.let { { actions.onPlay(it.season, it.videoId) } },
-            onPlayOnTv = target?.let { { actions.onPlayOnTv(it.season, it.videoId) } },
+            play = state.play,
             glass = glass,
+            onEvent = onEvent,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
 
-/** Куда ведут детали — из [Navigator]: граф про эти переходы больше ничего не знает. */
-private fun Navigator.detailsActions(
-    item: Item,
-    onShare: () -> Unit,
-    onDetails: (DetailsEvent) -> Unit,
-    onFolders: (FolderPickerEvent) -> Unit,
-) = DetailsActions(
-    onBack = ::back,
-    // Второй аргумент — НОМЕР серии, а не её id: тем же числом kino.pub принимает и отдаёт прогресс.
-    onPlay = { season, videoId -> open(Destination.Player(itemId = item.id, videoId = videoId, season = season)) },
-    // На ТВ — с прогресса kino.pub: телефон эту серию сейчас не играет.
-    onPlayOnTv = { season, videoId ->
-        open(Destination.TvPicker(itemId = item.id, videoId = videoId, season = season))
-    },
-    onShare = onShare,
-    onOpenItem = { itemId -> open(Destination.Details(itemId)) },
-    onOpenPerson = { name, isDirector -> open(Destination.Filmography(name = name, isDirector = isDirector)) },
-    onPlayTrailer = { url, title -> open(Destination.Trailer(url = url, title = title)) },
-    onDetails = onDetails,
-    onFolders = onFolders,
-)
-
-private fun shareItem(context: Context, item: Item) {
+private fun shareText(context: Context, text: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_TEXT, "${item.title} (${item.year}) — смотри в Filmax")
+        putExtra(Intent.EXTRA_TEXT, text)
     }
     runCatching {
         context.startActivity(Intent.createChooser(intent, "Поделиться"))
