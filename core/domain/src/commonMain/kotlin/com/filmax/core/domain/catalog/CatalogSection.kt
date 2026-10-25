@@ -13,6 +13,12 @@ enum class CatalogSection {
     ANIME,
     DOCUMENTARY,
 
+    /** ТВ-шоу — тип `tvshow`. */
+    TV_SHOWS,
+
+    /** Концерты — тип `concert`. */
+    CONCERTS,
+
     /** Только 4K. */
     UHD,
 

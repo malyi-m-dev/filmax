@@ -182,8 +182,8 @@ suspend fun logout(): RequestResult<Unit>
 ```kotlin
 suspend fun getItems(type: ItemType, sort: CatalogSort = UPDATED, page: Int = 1): RequestResult<ItemPage>
 suspend fun getItemsByGenre(type: ItemType, genreId: Int, sort: CatalogSort = UPDATED, page: Int = 1): RequestResult<ItemPage>
-suspend fun getHotItems(type: ItemType, page: Int = 1): RequestResult<ItemPage>
-suspend fun getNewItems(type: ItemType, page: Int = 1): RequestResult<ItemPage>
+// Готовые выборки kino.pub: HOT / POPULAR / FRESH (items/new в API нет — 404).
+suspend fun getShortcutItems(shortcut: CatalogShortcut, type: ItemType, page: Int = 1): RequestResult<ItemPage>
 suspend fun getItemDetails(id: Int): RequestResult<Item>
 suspend fun getSimilarItems(id: Int): RequestResult<List<Item>>
 suspend fun getGenres(): RequestResult<List<Genre>>
@@ -286,7 +286,9 @@ Item(
   finished: Boolean,             // досмотрено полностью
 )
 
-enum ItemType { MOVIE, SERIES, ANIME, DOCUMENTARY, TV }   // .apiValue: movie/serial/anime/docuserial/tv
+enum ItemType { MOVIE, SERIES, ANIME, DOCUMENTARY, DOCUMENTARY_MOVIE, TV_SHOW, CONCERT, TV }
+// .apiValue: movie/serial/anime/docuserial/documovie/tvshow/concert/tv; .episodic — сезоны и серии
+enum CatalogShortcut { HOT, POPULAR, FRESH }              // готовые выборки items/<path>
 enum CatalogSort { UPDATED, CREATED, RATING, VIEWS, YEAR } // сортировка каталога
 
 Genre(id: Int, title: String)

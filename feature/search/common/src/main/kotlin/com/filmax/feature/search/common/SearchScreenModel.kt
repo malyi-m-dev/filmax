@@ -2,6 +2,7 @@ package com.filmax.feature.search.common
 
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogGenres
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
@@ -33,10 +34,9 @@ private val BrowseTypes = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.DOCUM
 
 /**
  * Чип «Аниме»: типа «anime» у kino.pub НЕТ — аниме это ЖАНР (id 25) поверх фильмов и
- * сериалов. Поэтому фильтр ANIME разворачивается в movie+serial с жанром [ANIME_GENRE_ID];
+ * сериалов. Поэтому фильтр ANIME разворачивается в movie+serial с жанром [CatalogGenres.ANIME];
  * выбранный в ряду жанр на это время игнорируется — параметр `genre` в API один.
  */
-private const val ANIME_GENRE_ID = 25
 private val AnimeTypes = listOf(ItemType.MOVIE, ItemType.SERIES)
 
 /**
@@ -329,7 +329,7 @@ private fun SearchState.catalogQuery(): CatalogQuery = CatalogQuery(
         ItemType.ANIME -> AnimeTypes
         else -> listOf(filter)
     },
-    genreId = if (filter == ItemType.ANIME) ANIME_GENRE_ID else selectedGenreId,
+    genreId = if (filter == ItemType.ANIME) CatalogGenres.ANIME else selectedGenreId,
     filters = filters,
     sort = sort,
 )

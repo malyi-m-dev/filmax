@@ -6,9 +6,28 @@ import com.filmax.core.domain.watching.model.WatchHistory
 
 /**
  * Ряды ленты. Идентификатор — единственное, чем экран адресует ряд: по нему просят догрузку
- * и берут заголовок (формулировки у телефона и ТВ свои, поэтому они живут в экранах).
+ * и берут заголовок (формулировки у телефона и ТВ свои, поэтому они живут в экранах). Порядок
+ * ленты задаёт модель, а не порядок констант.
+ *
+ * Первые пять приходят с фидом, остальные — тематические: у каждого свой запрос каталога
+ * (`THEME_SOURCES`), и догружаются они уже после фида.
  */
-enum class HomeRowId { CONTINUE, TRENDING, COLLECTIONS, FOR_YOU, FRESH }
+enum class HomeRowId {
+    CONTINUE,
+    TRENDING,
+    COLLECTIONS,
+    FOR_YOU,
+    FRESH,
+    POPULAR_SERIES,
+    CARTOONS,
+    COMEDIES,
+    SCI_FI,
+    ANIME,
+    DORAMAS,
+    DOCUMENTARY,
+    TV_SHOWS,
+    CONCERTS,
+}
 
 /**
  * Срез постранично догружаемого ряда. [page] — последняя загруженная страница каталога
@@ -40,7 +59,10 @@ sealed interface HomeRow {
         override val isEmpty: Boolean get() = entries.isEmpty()
     }
 
-    /** Ряд тайтлов: «В тренде», «Сериалы с высоким рейтингом», «Новинки». Догружается из каталога. */
+    /**
+     * Ряд тайтлов: «В тренде», «Новинки», тематические ряды. Догружается из каталога; тематический
+     * до первой страницы пуст, и экран его пропускает.
+     */
     data class Titles(override val id: HomeRowId, val paging: RowPaging<Item>) : HomeRow {
         override val isEmpty: Boolean get() = paging.items.isEmpty()
     }

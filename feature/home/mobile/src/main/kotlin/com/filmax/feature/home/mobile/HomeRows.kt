@@ -60,6 +60,15 @@ private val HomeRowId.title: String
         HomeRowId.FOR_YOU -> "Сериалы с высоким рейтингом"
         HomeRowId.COLLECTIONS -> "Подборки"
         HomeRowId.FRESH -> "Новинки"
+        HomeRowId.POPULAR_SERIES -> "Популярные сериалы"
+        HomeRowId.CARTOONS -> "Мультфильмы"
+        HomeRowId.COMEDIES -> "Комедии"
+        HomeRowId.SCI_FI -> "Фантастика"
+        HomeRowId.ANIME -> "Аниме"
+        HomeRowId.DORAMAS -> "Дорамы"
+        HomeRowId.DOCUMENTARY -> "Документальные фильмы"
+        HomeRowId.TV_SHOWS -> "ТВ-шоу"
+        HomeRowId.CONCERTS -> "Концерты"
     }
 
 /** «В тренде» — это просмотры недели: первые десять и есть топ, ряд постеров для них не нужен. */
