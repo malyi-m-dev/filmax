@@ -168,6 +168,13 @@ class DetailsFormatTest {
         assertFalse(movie(minutes = 90.0).copy(tracklist = listOf(episode(0, 1), episode(0, 2))).isSeries())
     }
 
+    @Test
+    fun `tv show goes by seasons like a series, a concert plays like a film`() {
+        assertTrue(movie(minutes = 50.0).copy(type = ItemType.TV_SHOW).isSeries())
+        assertFalse(movie(minutes = 120.0).copy(type = ItemType.CONCERT).isSeries())
+        assertFalse(movie(minutes = 90.0).copy(type = ItemType.DOCUMENTARY_MOVIE).isSeries())
+    }
+
     private fun volumeOf(tracks: List<MediaTrack>): String? {
         val item = movie(minutes = null).copy(type = ItemType.SERIES, tracklist = tracks)
         return volumeLabel(item, calculateSeriesData(tracks))

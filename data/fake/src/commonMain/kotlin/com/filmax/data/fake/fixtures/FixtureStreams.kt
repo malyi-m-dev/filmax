@@ -72,18 +72,19 @@ private fun russian(type: String, author: String): Voice = Voice(RUSSIAN, type, 
 private fun original(lang: String): Voice = Voice(lang, ORIGINAL, author = null)
 
 /**
- * Озвучки тайтла. У русского — одна оригинальная дорожка. У иностранного — две: у фильмов,
- * аниме и документалок русская плюс оригинал, у сериалов — две русские разных студий. Последний
- * случай и объясняет, зачем меню показывает студию и зачем плеер помнит выбор на тайтл: по языку
- * такие озвучки не отличить.
+ * Озвучки тайтла. У русского и у концерта — одна оригинальная дорожка: концерты не переводят. У
+ * иностранного — две: у фильмов, аниме и документалок русская плюс оригинал, у сериалов — две
+ * русские разных студий. Последний случай и объясняет, зачем меню показывает студию и зачем плеер
+ * помнит выбор на тайтл: по языку такие озвучки не отличить.
  */
 internal fun voicesFor(spec: TitleSpec): List<AudioTrack> {
     val language = spec.country.language
     val isAnime = spec.genres.any { it.id == FakeIds.ANIME_GENRE }
+    val isDocumentary = spec.type == ItemType.DOCUMENTARY || spec.type == ItemType.DOCUMENTARY_MOVIE
     val voices = when {
-        language == RUSSIAN -> listOf(original(RUSSIAN))
+        language == RUSSIAN || spec.type == ItemType.CONCERT -> listOf(original(language))
         isAnime -> listOf(russian("Многоголосый", "Сакура Саунд"), original(language))
-        spec.type == ItemType.DOCUMENTARY -> listOf(russian("Закадровый", "Северный дубляж"), original(language))
+        isDocumentary -> listOf(russian("Закадровый", "Северный дубляж"), original(language))
         spec.type == ItemType.MOVIE -> listOf(russian("Дубляж", "Северный дубляж"), original(language))
         else -> listOf(russian("Многоголосый", "Тихий Омут"), russian("Многоголосый", "Ламповая озвучка"))
     }

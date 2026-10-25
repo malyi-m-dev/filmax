@@ -1,5 +1,7 @@
 package com.filmax.data.fake.fixtures
 
+import com.filmax.core.domain.catalog.model.ItemType
+
 /**
  * Люди из титров — выдуманные. Актёры кочуют из тайтла в тайтл, чтобы фильмография была не из
  * одной карточки: Воронцова, Северин, Велехов и Колдуэлл играют в четырёх-пяти тайтлах.
@@ -70,10 +72,24 @@ internal object People {
     val ALDRIDGE = Person(id = 69, name = "Маргарет Олдридж")
     val VALDAEV = Person(id = 70, name = "Игорь Валдаев")
     val AKHMETOV = Person(id = 71, name = "Данияр Ахметов")
+
+    // Ведущие шоу и музыканты
+    val STRELTSOV = Person(id = 72, name = "Егор Стрельцов")
+    val BRIGHT = Person(id = 73, name = "Оливия Брайт")
+    val ROSTOV = Person(id = 74, name = "Михаил Ростов")
+    val ZVONAREVA = Person(id = 75, name = "Алина Звонарёва")
 }
 
-/** Рассказчик — единственная «роль» в документальном кино. */
-internal const val NARRATOR_ROLE = "Рассказчик"
+/**
+ * Роль, которая у формата одна на всех: у документального кино — рассказчик, у шоу — ведущий, на
+ * концерте — исполнитель. Профессия из [ROLES] под фото музыканта читалась бы нелепо.
+ */
+internal val FORMAT_ROLES: Map<ItemType, String> = mapOf(
+    ItemType.DOCUMENTARY to "Рассказчик",
+    ItemType.DOCUMENTARY_MOVIE to "Рассказчик",
+    ItemType.TV_SHOW to "Ведущий",
+    ItemType.CONCERT to "Исполнитель",
+)
 
 /**
  * Роли главного состава. Профессии, а не имена персонажей: подходят любому актёру, а экрану

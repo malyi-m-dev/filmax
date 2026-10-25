@@ -17,6 +17,8 @@ class CatalogSectionsTest {
     fun `section sets the starting selection, no section keeps the default storefront`() {
         assertEquals(ItemType.MOVIE, SearchState().withSection(CatalogSection.MOVIES).filter)
         assertEquals(ItemType.ANIME, SearchState().withSection(CatalogSection.ANIME).filter)
+        assertEquals(ItemType.TV_SHOW, SearchState().withSection(CatalogSection.TV_SHOWS).filter)
+        assertEquals(ItemType.CONCERT, SearchState().withSection(CatalogSection.CONCERTS).filter)
         assertTrue(SearchState().withSection(CatalogSection.UHD).filters.only4k)
         assertEquals(CatalogSort.CREATED, SearchState().withSection(CatalogSection.FRESH).sort.field)
         assertEquals(SearchState(), SearchState().withSection(null))

@@ -1,39 +1,48 @@
 package com.filmax.data.fake.fixtures
 
+import com.filmax.core.domain.catalog.CatalogGenres
 import com.filmax.core.domain.catalog.model.Genre
-import com.filmax.data.fake.FakeIds
 
 private const val MOVIE = "movie"
 private const val SERIAL = "serial"
 private const val DOCUSERIAL = "docuserial"
+private const val CONCERT = "concert"
 private const val MUSIC = "music"
 
 /**
  * Жанры — как их отдаёт `api/v1/genres`: с типом раздела и одним списком на все разделы, включая
  * музыкальные. Каталог приложения обязан отсеять «Blues» и «Chillout» — здесь видно, что отсеивает.
+ *
+ * Id — настоящие id kino.pub там, где они известны: тематические ряды Главной и чип «Аниме» ищут
+ * жанр по id, и на выдуманных номерах мок-сборка показала бы в «Комедиях» драмы. У остальных id
+ * свои, но ни с одним настоящим не совпадают.
  */
 internal object Genres {
-    val DRAMA = Genre(id = 1, title = "Драма", type = MOVIE)
-    val COMEDY = Genre(id = 2, title = "Комедия", type = MOVIE)
-    val THRILLER = Genre(id = 3, title = "Триллер", type = MOVIE)
-    val SCI_FI = Genre(id = 4, title = "Фантастика", type = MOVIE)
-    val DETECTIVE = Genre(id = 5, title = "Детектив", type = MOVIE)
-    val ADVENTURE = Genre(id = 6, title = "Приключения", type = MOVIE)
-    val MELODRAMA = Genre(id = 7, title = "Мелодрама", type = MOVIE)
-    val HORROR = Genre(id = 8, title = "Ужасы", type = MOVIE)
-    val ACTION = Genre(id = 9, title = "Боевик", type = MOVIE)
-    val FANTASY = Genre(id = 10, title = "Фэнтези", type = MOVIE)
-    val CRIME = Genre(id = 11, title = "Криминал", type = MOVIE)
-    val FAMILY = Genre(id = 12, title = "Семейный", type = MOVIE)
-    val HISTORY = Genre(id = 13, title = "История", type = MOVIE)
-    val WAR = Genre(id = 14, title = "Военный", type = MOVIE)
-    val SPORT = Genre(id = 15, title = "Спорт", type = MOVIE)
+    val COMEDY = Genre(id = CatalogGenres.COMEDY, title = "Комедия", type = MOVIE)
+    val ACTION = Genre(id = 2, title = "Боевик", type = MOVIE)
+    val SCI_FI = Genre(id = CatalogGenres.SCI_FI, title = "Фантастика", type = MOVIE)
+    val FANTASY = Genre(id = 5, title = "Фэнтези", type = MOVIE)
+    val FAMILY = Genre(id = 6, title = "Семейный", type = MOVIE)
+    val THRILLER = Genre(id = 7, title = "Триллер", type = MOVIE)
+    val ADVENTURE = Genre(id = 8, title = "Приключения", type = MOVIE)
+    val DRAMA = Genre(id = 9, title = "Драма", type = MOVIE)
+    val MELODRAMA = Genre(id = 10, title = "Мелодрама", type = MOVIE)
+    val HORROR = Genre(id = 12, title = "Ужасы", type = MOVIE)
+    val DETECTIVE = Genre(id = 13, title = "Детектив", type = MOVIE)
+    val HISTORY = Genre(id = 14, title = "История", type = MOVIE)
+    val WAR = Genre(id = 15, title = "Военный", type = MOVIE)
+    val SPORT = Genre(id = 16, title = "Спорт", type = MOVIE)
+    val CRIME = Genre(id = 17, title = "Криминал", type = MOVIE)
     val SITCOM = Genre(id = 20, title = "Ситком", type = SERIAL)
     val MYSTIC = Genre(id = 21, title = "Мистика", type = SERIAL)
-    val ANIME = Genre(id = FakeIds.ANIME_GENRE, title = "Аниме", type = MOVIE)
+    val DORAMA = Genre(id = CatalogGenres.DORAMA, title = "Дорама", type = SERIAL)
+    val CARTOON = Genre(id = CatalogGenres.CARTOON, title = "Мультфильм", type = MOVIE)
+    val ANIME = Genre(id = CatalogGenres.ANIME, title = "Аниме", type = MOVIE)
     val NATURE = Genre(id = 30, title = "Природа", type = DOCUSERIAL)
     val SCIENCE = Genre(id = 31, title = "Наука", type = DOCUSERIAL)
     val TRAVEL = Genre(id = 32, title = "Путешествия", type = DOCUSERIAL)
+    val ROCK = Genre(id = 40, title = "Рок", type = CONCERT)
+    val CLASSICAL = Genre(id = 41, title = "Классика", type = CONCERT)
     private val BLUES = Genre(id = 90, title = "Blues", type = MUSIC)
     private val CHILLOUT = Genre(id = 91, title = "Chillout", type = MUSIC)
 
@@ -53,12 +62,16 @@ internal object Genres {
         HISTORY,
         WAR,
         SPORT,
+        CARTOON,
         SITCOM,
         MYSTIC,
+        DORAMA,
         ANIME,
         NATURE,
         SCIENCE,
         TRAVEL,
+        ROCK,
+        CLASSICAL,
         BLUES,
         CHILLOUT,
     )

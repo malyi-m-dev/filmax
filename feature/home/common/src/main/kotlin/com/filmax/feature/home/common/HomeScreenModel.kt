@@ -1,14 +1,13 @@
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
+import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
@@ -58,15 +57,7 @@ class HomeScreenModel(
                     loading = false,
                     heroes = feed.heroes,
                     heroIndex = 0,
-                    // Состав и порядок ленты — здесь и только здесь.
-                    rows = listOf(
-                        HomeRow.Continue(feed.continueWatching),
-                        HomeRow.Titles(HomeRowId.TRENDING, RowPaging(feed.trending)),
-                        HomeRow.Collections(RowPaging(feed.collections)),
-                        HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
-                        // Новинки — сводка двух источников, листать её из каталога нечем.
-                        HomeRow.Titles(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
-                    ),
+                    rows = current.rowsFor(feed),
                     error = feed.error,
                 )
             }
@@ -79,6 +70,10 @@ class HomeScreenModel(
                 else -> dismissOfflineBanner()
             }
             loadCollectionPreviews(feed.collections)
+            // Тематические ряды — после фида и параллельно: первый экран их не ждёт, каждый ряд
+            // появляется, как только пришла его страница. Упавший запрос — просто ряд, которого
+            // пока нет (пустой экран пропускает); повторная загрузка Главной попробует его снова.
+            state.unloadedThemeRows().forEach(::loadTitlesPage)
         }
     }
 
@@ -115,18 +110,21 @@ class HomeScreenModel(
         when (val row = state.rows.firstOrNull { it.id == id }) {
             // История приходит из фида целиком — листать нечего.
             is HomeRow.Continue, null -> Unit
-            is HomeRow.Titles -> loadMoreTitles(row)
+            is HomeRow.Titles -> if (row.paging.canLoadMore) loadTitlesPage(row)
             is HomeRow.Collections -> loadMoreCollections(row)
         }
     }
 
-    private fun loadMoreTitles(row: HomeRow.Titles) {
+    /**
+     * Следующая страница ряда тайтлов из его источника ([TITLE_SOURCES]); у пустого тематического
+     * ряда — первая. Догрузка по хвосту ряда и первая загрузка тематического — один путь.
+     */
+    private fun loadTitlesPage(row: HomeRow.Titles) {
         val source = TITLE_SOURCES[row.id] ?: return
-        if (!row.paging.canLoadMore) return
         val nextPage = row.paging.page + 1
         screenModelScope { _ ->
             updateRows { current -> current.withTitlesPaging(row.id) { paging -> paging.copy(loadingMore = true) } }
-            val result = catalog.getItems(source.type, source.sort, nextPage)
+            val result = catalog.titlesPage(source, nextPage)
             updateRows { current ->
                 current.withTitlesPaging(row.id) { paging ->
                     when (result) {
@@ -140,7 +138,7 @@ class HomeScreenModel(
     }
 
     /**
-     * Догрузка «Подборок» отдельно от [loadMoreTitles]: другой источник, и репозиторий отдаёт
+     * Догрузка «Подборок» отдельно от [loadTitlesPage]: другой источник, и репозиторий отдаёт
      * список без пагинации — конец определяется пустой страницей.
      */
     private fun loadMoreCollections(row: HomeRow.Collections) {
@@ -169,13 +167,18 @@ class HomeScreenModel(
 /** Сколько подборок получают превью — столько видно в ряду до первой прокрутки и чуть дальше. */
 private const val COLLECTION_PREVIEWS_LIMIT = 6
 
-/** Чем наполняется ряд тайтлов при догрузке: фид даёт стартовую горстку, дальше — каталог. */
-private data class TitleSource(val type: ItemType, val sort: CatalogSort)
-
-private val TITLE_SOURCES = mapOf(
-    HomeRowId.TRENDING to TitleSource(ItemType.MOVIE, CatalogSort.VIEWS),
-    HomeRowId.FOR_YOU to TitleSource(ItemType.SERIES, CatalogSort.RATING),
-)
+/**
+ * Лента: ряды фида, за ними тематические. Состав и порядок ленты — здесь и только здесь (порядок
+ * тематических рядов — [THEME_SOURCES]).
+ */
+private fun HomeState.rowsFor(feed: HomeFeed): List<HomeRow> = listOf(
+    HomeRow.Continue(feed.continueWatching),
+    HomeRow.Titles(HomeRowId.TRENDING, RowPaging(feed.trending)),
+    HomeRow.Collections(RowPaging(feed.collections)),
+    HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
+    // Новинки — сводка двух источников, листать её из каталога нечем.
+    HomeRow.Titles(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
+) + themeRows()
 
 /**
  * Потолок карточек в одном ряду: бесконечный ряд на пульте — сотни нажатий вправо, а каждая

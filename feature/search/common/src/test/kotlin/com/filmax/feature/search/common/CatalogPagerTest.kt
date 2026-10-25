@@ -107,8 +107,8 @@ class CatalogPagerTest {
         val OnlySeries = AllTypes.copy(types = listOf(ItemType.SERIES))
         val OnlyMovies = AllTypes.copy(types = listOf(ItemType.MOVIE))
 
-        const val ESTIMATED_ALL = 62
-        const val ALL_TITLES = 49
+        const val ESTIMATED_ALL = 63
+        const val ALL_TITLES = 52
         const val SLOW_ANSWER_MS = 1_000L
     }
 }

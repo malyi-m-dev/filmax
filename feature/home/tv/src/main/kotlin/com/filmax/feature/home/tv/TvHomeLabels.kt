@@ -21,6 +21,17 @@ internal val HomeRowId.heading: RailHeading
         // Честно: forYou — топ сериалов по рейтингу, персонализации в фиде нет.
         HomeRowId.FOR_YOU -> RailHeading("Сериалы с высоким рейтингом", "КиноПоиск 8+")
         HomeRowId.FRESH -> RailHeading("Новинки")
+        HomeRowId.POPULAR_SERIES -> RailHeading("Популярные сериалы")
+        HomeRowId.CARTOONS -> RailHeading("Мультфильмы")
+        HomeRowId.COMEDIES -> RailHeading("Комедии")
+        HomeRowId.SCI_FI -> RailHeading("Фантастика")
+        // Пояснения — там, где без них ряд читается шире, чем он есть: аниме здесь только
+        // сериалы, а «дорама» знакома не каждому.
+        HomeRowId.ANIME -> RailHeading("Аниме", "сериалы")
+        HomeRowId.DORAMAS -> RailHeading("Дорамы", "азиатские сериалы")
+        HomeRowId.DOCUMENTARY -> RailHeading("Документальное кино")
+        HomeRowId.TV_SHOWS -> RailHeading("ТВ-шоу")
+        HomeRowId.CONCERTS -> RailHeading("Концерты")
     }
 
 /** Сколько первых тайтлов «В тренде» несут номер: топ-10, дальше номер теряет смысл. */

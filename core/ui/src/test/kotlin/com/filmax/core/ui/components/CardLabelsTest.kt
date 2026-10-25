@@ -33,6 +33,9 @@ class CardLabelsTest {
     fun `type label speaks the viewer language, not the API one`() {
         assertEquals("Сериал", typeLabel(ItemType.SERIES))
         assertEquals("Документальный", typeLabel(ItemType.DOCUMENTARY))
+        assertEquals("Документальный", typeLabel(ItemType.DOCUMENTARY_MOVIE))
+        assertEquals("ТВ-шоу", typeLabel(ItemType.TV_SHOW))
+        assertEquals("Концерт", typeLabel(ItemType.CONCERT))
     }
 
     @Test

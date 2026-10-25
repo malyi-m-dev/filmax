@@ -1,5 +1,5 @@
-// Чистые правила ленты Главной: смена hero в карусели и превью подборок. Вынесены из
-// HomeScreenModel, чтобы модель только оркестрировала загрузку, а правила проверялись отдельно.
+// Чистые правила ленты Главной: смена hero в карусели, превью подборок, тематические ряды. Вынесены
+// из HomeScreenModel, чтобы модель только оркестрировала загрузку, а правила проверялись отдельно.
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogRepository
@@ -29,6 +29,20 @@ suspend fun CatalogRepository.collectionPreview(collectionId: Int): CollectionPr
 /** Ряд подборок с ещё одним превью; другие ряды не меняются. */
 internal fun HomeRow.withPreview(collectionId: Int, preview: CollectionPreview): HomeRow =
     if (this is HomeRow.Collections) copy(previews = previews + (collectionId to preview)) else this
+
+/**
+ * Тематические ряды новой ленты в порядке [THEME_SOURCES]. Уже пришедший ряд остаётся как был:
+ * повторная загрузка Главной не прячет его до ответа и не сбрасывает пролистанное. Остальные —
+ * пустые, ждут первой страницы.
+ */
+internal fun HomeState.themeRows(): List<HomeRow> = THEME_SOURCES.keys.map { id ->
+    rows.firstOrNull { it.id == id } ?: HomeRow.Titles(id, RowPaging())
+}
+
+/** Тематические ряды, которым нечего показать и которые никто не грузит: первый заход или сбой. */
+internal fun HomeState.unloadedThemeRows(): List<HomeRow.Titles> = rows
+    .filterIsInstance<HomeRow.Titles>()
+    .filter { it.id in THEME_SOURCES && it.isEmpty && !it.paging.loadingMore }
 
 /** Ряд тайтлов [id] с изменённой пагинацией; другие ряды не меняются. */
 internal fun HomeRow.withTitlesPaging(id: HomeRowId, transform: (RowPaging<Item>) -> RowPaging<Item>): HomeRow =
