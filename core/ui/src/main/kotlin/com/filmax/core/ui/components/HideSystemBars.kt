@@ -1,9 +1,7 @@
 package com.filmax.core.ui.components
 
-import androidx.activity.compose.LocalActivity
+import android.app.Activity
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -13,18 +11,23 @@ import androidx.core.view.WindowInsetsControllerCompat
  * края показывает их на пару секунд поверх картинки, не сдвигая её: так устроены плееры Netflix и
  * YouTube, а системный жест «назад» остаётся под рукой.
  *
- * Уходит экран — панели возвращаются: остальное приложение живёт edge-to-edge с видимыми барами.
+ * Уходит последний такой экран — панели возвращаются: остальное приложение живёт edge-to-edge с
+ * видимыми барами. Экран, сменивший сам себя (следующая серия), их не показывает.
  * Отступы контролов поверх видео берите из `WindowInsets.displayCutout` вместе с барами: без
  * статус-бара в альбомной ориентации кнопки иначе заезжают под вырез камеры.
  */
 @Composable
 fun HideSystemBars() {
-    val activity = LocalActivity.current ?: return
-    val view = LocalView.current
-    DisposableEffect(activity, view) {
-        val controller = WindowCompat.getInsetsController(activity.window, view)
-        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        controller.hide(WindowInsetsCompat.Type.systemBars())
-        onDispose { controller.show(WindowInsetsCompat.Type.systemBars()) }
-    }
+    HoldWindowMode(
+        mode = WindowMode.HiddenSystemBars,
+        enable = { activity ->
+            val controller = activity.insetsController()
+            controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        },
+        disable = { activity -> activity.insetsController().show(WindowInsetsCompat.Type.systemBars()) },
+    )
 }
+
+private fun Activity.insetsController(): WindowInsetsControllerCompat =
+    WindowCompat.getInsetsController(window, window.decorView)

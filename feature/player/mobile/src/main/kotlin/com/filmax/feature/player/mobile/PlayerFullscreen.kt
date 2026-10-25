@@ -3,15 +3,13 @@
 
 package com.filmax.feature.player.mobile
 
-import android.content.pm.ActivityInfo
-import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import com.filmax.core.ui.components.HideSystemBars
+import com.filmax.core.ui.components.LockLandscape
 
 /**
  * Отступы контролов поверх видео. Системные панели скрыты, и safeDrawing сводится к вырезу
@@ -25,15 +23,12 @@ internal val OverlayBottomInsets: WindowInsets
 
 /**
  * Плеер — альбомный экран без системных панелей, как в макете: видео 16:9 в портрете занимало бы
- * треть экрана, а с выключенным автоповоротом в альбомной было бы не посмотреть вовсе. Сенсорная
- * альбомная — телефон можно перевернуть другой стороной. На выходе ориентация отдаётся системе.
+ * треть экрана, а с выключенным автоповоротом в альбомной было бы не посмотреть вовсе. На выходе
+ * ориентация отдаётся системе, а при переходе на следующую серию держится: новый экран плеера
+ * входит раньше, чем уходит старый, и снимать блокировку должен последний из них.
  */
 @Composable
 internal fun PlayerFullscreenEffects() {
     HideSystemBars()
-    val activity = LocalActivity.current ?: return
-    DisposableEffect(activity) {
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        onDispose { activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }
-    }
+    LockLandscape()
 }
