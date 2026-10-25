@@ -4,6 +4,7 @@ import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.RemoteSession
 import com.filmax.core.domain.tvlink.TvRemote
 import com.filmax.core.presentation.BaseScreenModel
+import kotlinx.coroutines.flow.combine
 
 /**
  * Пульт телевизора на телефоне. Связь не его — она одна на приложение ([TvRemote]): закрыли пульт, а
@@ -18,7 +19,10 @@ class RemoteScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ -> remote.session.collect { session -> updateState { it.copy(session = session) } } }
+        screenModelScope { _ ->
+            combine(remote.session, remote.paired) { session, paired -> session to paired?.id }
+                .collect { (session, pairedId) -> updateState { it.copy(session = session, pairedId = pairedId) } }
+        }
     }
 
     override fun onEvent(event: RemoteEvent) {
@@ -32,8 +36,8 @@ class RemoteScreenModel(
             RemoteEvent.StopOnTv -> remote.send(RemoteCommand.Stop)
             RemoteEvent.Reconnect -> reconnect()
             RemoteEvent.ChooseTv -> screenModelScope { _ -> postSideEffect(RemoteSideEffect.OpenPicker) }
-            RemoteEvent.Disconnect -> {
-                remote.disconnect()
+            RemoteEvent.Forget -> {
+                remote.forget()
                 screenModelScope { _ -> postSideEffect(RemoteSideEffect.Close) }
             }
         }

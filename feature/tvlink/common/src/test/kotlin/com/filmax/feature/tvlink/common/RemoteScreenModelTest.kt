@@ -16,10 +16,12 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
-/** Пульт: команды по состоянию плеера на ТВ, ползунок под пальцем, обрыв связи и отключение. */
+/** Пульт: команды по состоянию плеера на ТВ, ползунок под пальцем, обрыв связи и «Забыть телевизор». */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RemoteScreenModelTest {
 
@@ -78,12 +80,33 @@ class RemoteScreenModelTest {
     }
 
     @Test
-    fun `disconnect closes the remote`() = runTest {
+    fun `lost link to the remembered tv comes back by itself`() = runTest {
         val model = connected(STATUS)
 
-        model.dispatch(RemoteEvent.Disconnect)
+        remote.drop()
+
+        assertTrue(model.states.value.reconnectsItself, "пульт должен сказать, что ждать — подключится сам")
+    }
+
+    @Test
+    fun `tv of another account does not come back by itself`() = runTest {
+        remote.pair(LIVING_ROOM)
+        remote.otherAccount += LIVING_ROOM.id
+        remote.connect(LIVING_ROOM)
+
+        val model = RemoteScreenModel(remote)
+
+        assertFalse(model.states.value.reconnectsItself)
+    }
+
+    @Test
+    fun `forget drops the link and the remembered tv`() = runTest {
+        val model = connected(STATUS)
+
+        model.dispatch(RemoteEvent.Forget)
 
         assertEquals(RemoteSession.Idle, model.states.value.session)
+        assertNull(remote.paired.value, "забытый ТВ не должен подключаться сам")
         assertEquals(listOf<RemoteSideEffect>(RemoteSideEffect.Close), effects)
     }
 

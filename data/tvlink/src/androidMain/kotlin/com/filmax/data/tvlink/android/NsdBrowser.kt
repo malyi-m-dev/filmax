@@ -70,7 +70,8 @@ internal class NsdBrowser(context: Context) : ServiceBrowser {
     private fun NsdServiceInfo.toLinkService(): LinkService? {
         val address = preferredAddress()?.hostAddress ?: return null
         return LinkService(
-            id = serviceName,
+            // Имя сервиса меняется («Гостиная (2)» при совпадении с соседом), id из записи — нет.
+            id = attributes[TvLinkProtocol.ATTR_ID]?.decodeToString()?.ifBlank { null } ?: serviceName,
             name = serviceName,
             host = address,
             port = port,

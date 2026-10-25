@@ -19,6 +19,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.ktor.network)
+            // Запомненный ТВ — в тех же настройках устройства, что и токены (Settings даёт core:network).
+            implementation(libs.multiplatform.settings)
 
             implementation(koinBom)
             implementation(libs.koin.core)
@@ -29,6 +31,7 @@ kotlin {
         // Профиль аккаунта в тестах — из фейкового data-слоя, как у мок-сборки.
         commonTest.dependencies {
             implementation(project(":data:fake"))
+            implementation(libs.multiplatform.settings.test)
         }
         // `./gradlew :data:tvlink:connectedDebugAndroidTest` на телефоне или эмуляторе с Wi-Fi.
         androidInstrumentedTest.dependencies {

@@ -104,18 +104,44 @@ class TvPickerScreenModelTest {
     }
 
     @Test
-    fun `connected tv gets the title without reconnecting`() = runTest(dispatcher) {
+    fun `connected tv gets the title right away without reconnecting`() = runTest(dispatcher) {
         discovery.found.value = listOf(LIVING_ROOM)
         remote.reachable += LIVING_ROOM.id
         remote.connect(LIVING_ROOM)
         // Связь уже есть: если бы модель переподключалась, отказ здесь сорвал бы передачу.
         remote.reachable.clear()
-        val model = opened(withTitle = true)
-        assertEquals(LIVING_ROOM.id, model.states.value.connectedTo)
 
-        model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
+        opened(withTitle = true)
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+    }
+
+    @Test
+    fun `remembered tv gets the title without choosing even when search misses it`() = runTest(dispatcher) {
+        remote.pair(LIVING_ROOM)
+        remote.reachable += LIVING_ROOM.id
+
+        opened(withTitle = true)
+
+        assertEquals(listOf(LIVING_ROOM), remote.connects)
+        assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+    }
+
+    @Test
+    fun `remembered tv that just failed is listed first and not dialed again`() = runTest(dispatcher) {
+        val bedroom = TvDevice(id = "tv-bedroom", name = "Спальня", host = "192.168.1.51", port = 47100)
+        discovery.found.value = listOf(bedroom)
+        remote.pair(LIVING_ROOM)
+        remote.connect(LIVING_ROOM)
+        remote.connects.clear()
+
+        val model = opened(withTitle = true)
+
+        assertEquals(listOf(LIVING_ROOM, bedroom), model.states.value.devices)
+        assertTrue(remote.connects.isEmpty(), "выключенный ТВ не дёргаем — выбор за зрителем")
+        assertTrue(effects.isEmpty())
     }
 
     @Test
