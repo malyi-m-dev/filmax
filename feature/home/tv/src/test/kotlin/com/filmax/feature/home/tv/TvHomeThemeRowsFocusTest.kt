@@ -84,7 +84,7 @@ class TvHomeThemeRowsFocusTest {
     }
 
     @Test
-    fun `after leaving the screen focus comes back to the theme row it left`() {
+    fun `after leaving the screen focus comes back to the card it left`() {
         repeat(ROW_IDS.size) { pressKey(Key.DirectionDown) }
         pressKey(Key.DirectionRight)
 
@@ -92,10 +92,9 @@ class TvHomeThemeRowsFocusTest {
         restoration.emulateSavedInstanceStateRestore()
         compose.waitForIdle()
 
-        // Проверяется ряд — то, за что отвечают ключи «ряд:id». Карточку внутри ряда при входе
-        // выбирает память TvRail (focusProperties.enter), и после пересоздания она ведёт на первую
-        // видимую карточку — так же и на коротком фиде, к длине ленты это отношения не имеет.
-        assertFocusedHas("${HomeRowId.CONCERTS.name} ", substring = true)
+        // Ряд находят ключи «ряд:id» (id в рядах одни и те же), карточку в ряду — память TvRail:
+        // она переживает пересоздание экрана, иначе возврат вёл бы на первую карточку ряда.
+        assertFocusedHas(cardTitle(HomeRowId.CONCERTS, SECOND_CARD_ID))
     }
 
     private fun actions() = TvHomeActions(
