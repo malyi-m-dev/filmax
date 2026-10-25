@@ -23,8 +23,8 @@ internal data class CatalogEntry(
     /** Аниме у kino.pub — жанр поверх фильма или сериала, а не отдельный тип; каталог приложения считает так же. */
     val isAnime: Boolean get() = item.genres.any { it.id == FakeIds.ANIME_GENRE }
 
-    /** Сериальный формат — всё, кроме фильма: сериалы, аниме-сериалы, док. сериалы. */
-    val isEpisodic: Boolean get() = item.type != ItemType.MOVIE
+    /** Сериальный формат: сериалы, аниме-сериалы, док. сериалы, ТВ-шоу — то же правило, что у деталей. */
+    val isEpisodic: Boolean get() = item.type.episodic
 
     /** Тип в смысле фильтра каталога: «Аниме» — по жанру, остальные — по полю type. */
     fun isOfType(type: ItemType): Boolean = if (type == ItemType.ANIME) isAnime else item.type == type

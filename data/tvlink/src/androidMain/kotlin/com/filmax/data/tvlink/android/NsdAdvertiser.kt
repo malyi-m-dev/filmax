@@ -31,6 +31,7 @@ internal class NsdAdvertiser(context: Context) : ServiceAdvertiser {
         port = this@toServiceInfo.port
         setAttribute(TvLinkProtocol.ATTR_FINGERPRINT, fingerprint)
         setAttribute(TvLinkProtocol.ATTR_VERSION, TvLinkProtocol.VERSION.toString())
+        setAttribute(TvLinkProtocol.ATTR_ID, this@toServiceInfo.id)
     }
 
     private class Registration : NsdManager.RegistrationListener {

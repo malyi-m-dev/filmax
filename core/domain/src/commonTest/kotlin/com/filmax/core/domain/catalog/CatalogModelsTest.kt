@@ -56,4 +56,17 @@ class CatalogModelsTest {
         assertEquals(ItemType.SERIES, ItemType.from("serial"))
         assertEquals(ItemType.MOVIE, ItemType.from("3d"))
     }
+
+    @Test
+    fun `tv shows and documentary series are episodic, concerts and documentary films are not`() {
+        assertEquals(ItemType.TV_SHOW, ItemType.from("tvshow"))
+        assertEquals(ItemType.CONCERT, ItemType.from("concert"))
+        assertEquals(ItemType.DOCUMENTARY_MOVIE, ItemType.from("documovie"))
+
+        assertTrue(ItemType.TV_SHOW.episodic)
+        assertTrue(ItemType.DOCUMENTARY.episodic)
+        assertFalse(ItemType.CONCERT.episodic)
+        assertFalse(ItemType.DOCUMENTARY_MOVIE.episodic)
+        assertFalse(ItemType.from("3d").episodic)
+    }
 }

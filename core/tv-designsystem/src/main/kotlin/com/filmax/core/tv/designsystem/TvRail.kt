@@ -22,6 +22,8 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -65,7 +67,7 @@ fun TvRail(
     content: LazyListScope.() -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
-    val memory = remember { RailMemory() }
+    val memory = rememberSaveable(saver = RailMemory.Saver) { RailMemory() }
     val pivot = with(LocalDensity.current) { contentStart.toPx() }
     val pivotSpec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
     Column(modifier.bringIntoViewAsWhole()) {
@@ -101,9 +103,8 @@ fun TvRail(
  * Номер — обычное поле, не состояние: переход по ряду не должен перекомпоновывать ряд.
  */
 @Stable
-private class RailMemory {
+private class RailMemory(private var lastIndex: Int = 0) {
     private val cards = mutableMapOf<Int, FocusRequester>()
-    private var lastIndex = 0
 
     fun card(index: Int): FocusRequester = cards.getOrPut(index) { FocusRequester() }
 
@@ -120,6 +121,15 @@ private class RailMemory {
         val visible = state.layoutInfo.visibleItemsInfo.map { it.index }
         val index = if (lastIndex in visible) lastIndex else visible.firstOrNull { it in cards }
         return index?.let { cards[it] } ?: FocusRequester.Default
+    }
+
+    companion object {
+        /**
+         * Номер переживает уход экрана из композиции — в детали, плеер и обратно, как прокрутка ряда.
+         * С обычным `remember` память пропадала, и возврат с третьей карточки вёл на первую.
+         * Запросчики фокуса не сохраняются: они принадлежат композиции и создаются заново.
+         */
+        val Saver: Saver<RailMemory, Int> = Saver(save = { it.lastIndex }, restore = { RailMemory(it) })
     }
 }
 

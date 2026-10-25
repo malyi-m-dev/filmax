@@ -1,5 +1,7 @@
 package com.filmax.feature.home.common
 
+import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.LastValueCache
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
@@ -26,13 +28,18 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-/** Логика Главной на фейковом data-слое: карусель hero, ряды, превью подборок, «Буду смотреть», переходы. */
+/**
+ * Логика Главной на фейковом data-слое: карусель hero, ряды и тематические ряды, превью подборок,
+ * «Буду смотреть», переходы.
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeScreenModelTest {
 
     private val scheduler = TestCoroutineScheduler()
+    private val backend = FakeBackend(latency = FakeLatency.None)
     private val navigator = FakeNavigator()
 
     @BeforeTest
@@ -68,16 +75,88 @@ class HomeScreenModelTest {
     }
 
     @Test
-    fun `rows follow the design order and fresh row is not paged`() {
+    fun `rows follow the design order, theme rows go after fresh and fresh row is not paged`() {
         val model = homeModel()
 
         assertEquals(
-            listOf(HomeRowId.CONTINUE, HomeRowId.TRENDING, HomeRowId.COLLECTIONS, HomeRowId.FOR_YOU, HomeRowId.FRESH),
+            listOf(HomeRowId.CONTINUE, HomeRowId.TRENDING, HomeRowId.COLLECTIONS, HomeRowId.FOR_YOU, HomeRowId.FRESH) +
+                THEME_SOURCES.keys,
             model.states.value.rows.map { it.id },
         )
-        val fresh = model.states.value.rows.single { it.id == HomeRowId.FRESH } as HomeRow.Titles
-        assertTrue(fresh.paging.endReached)
+        assertTrue(model.states.value.titles(HomeRowId.FRESH).paging.endReached)
         assertFalse(model.states.value.isEmpty)
+    }
+
+    @Test
+    fun `rows carry their headings for both screens`() {
+        val model = homeModel()
+
+        assertEquals("В тренде" to "на этой неделе", model.states.value.titles(HomeRowId.TRENDING).heading())
+        assertEquals("Дорамы" to "азиатские сериалы", model.states.value.titles(HomeRowId.DORAMAS).heading())
+        assertEquals("Подборки", model.states.value.rows.single { it.id == HomeRowId.COLLECTIONS }.title)
+    }
+
+    @Test
+    fun `feed is shown without waiting for theme rows, they arrive afterwards`() {
+        val catalog = RecordingHomeCatalog(FakeCatalogRepository(backend), held = THEME_SOURCES.values.toSet())
+        val model = homeModel(catalog)
+
+        val feedOnly = model.states.value
+        assertFalse(feedOnly.loading)
+        assertNotNull(feedOnly.hero)
+        assertTrue(feedOnly.titles(HomeRowId.TRENDING).paging.items.isNotEmpty())
+        THEME_SOURCES.keys.forEach { id -> assertTrue(feedOnly.titles(id).isEmpty, "ряд $id пришёл вместе с фидом") }
+
+        catalog.release()
+
+        val loaded = model.states.value
+        THEME_SOURCES.forEach { (id, source) ->
+            val items = loaded.titles(id).paging.items
+            assertTrue(items.isNotEmpty(), "ряд $id пуст на мок-данных — на mock-сборке его не будет")
+            assertTrue(items.all { it.belongsTo(source) }, "в ряду $id чужие тайтлы: ${items.map { it.title }}")
+        }
+    }
+
+    @Test
+    fun `theme row is loaded once, from page one of its own source`() {
+        val catalog = RecordingHomeCatalog(FakeCatalogRepository(backend))
+        homeModel(catalog)
+
+        THEME_SOURCES.values.forEach { source ->
+            assertEquals(listOf(TitlesCall(source, 1)), catalog.calls.filter { it.source == source })
+        }
+    }
+
+    @Test
+    fun `load more of a theme row asks its own source for the next page`() {
+        val catalog = RecordingHomeCatalog(FakeCatalogRepository(backend), endless = true)
+        val model = homeModel(catalog)
+
+        THEME_SOURCES.forEach { (id, source) ->
+            catalog.calls.clear()
+
+            model.dispatch(HomeEvent.LoadMoreRow(id))
+
+            assertEquals(listOf(TitlesCall(source, 2)), catalog.calls, "догрузка ряда $id")
+            assertEquals(2, model.states.value.titles(id).paging.page)
+        }
+    }
+
+    @Test
+    fun `reload retries a failed theme row and keeps the loaded ones`() {
+        val concerts = THEME_SOURCES.getValue(HomeRowId.CONCERTS)
+        val comedies = THEME_SOURCES.getValue(HomeRowId.COMEDIES)
+        val catalog = RecordingHomeCatalog(FakeCatalogRepository(backend), failing = setOf(concerts))
+        val model = homeModel(catalog)
+        assertTrue(model.states.value.titles(HomeRowId.CONCERTS).isEmpty)
+        val loadedComedies = model.states.value.titles(HomeRowId.COMEDIES)
+
+        catalog.failing = emptySet()
+        model.dispatch(HomeEvent.Load)
+
+        assertTrue(model.states.value.titles(HomeRowId.CONCERTS).paging.items.isNotEmpty())
+        assertEquals(loadedComedies, model.states.value.titles(HomeRowId.COMEDIES))
+        assertEquals(1, catalog.calls.count { it.source == comedies }, "загруженный ряд перезапросили")
     }
 
     @Test
@@ -153,9 +232,7 @@ class HomeScreenModelTest {
         scheduler.runCurrent()
     }
 
-    private fun homeModel(): HomeScreenModel {
-        val backend = FakeBackend(latency = FakeLatency.None)
-        val catalog = FakeCatalogRepository(backend)
+    private fun homeModel(catalog: CatalogRepository = FakeCatalogRepository(backend)): HomeScreenModel {
         val watching = FakeWatchingRepository(backend)
         val favorites = FakeFavoritesRepository()
         return HomeScreenModel(
@@ -167,6 +244,17 @@ class HomeScreenModelTest {
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
             navigator = navigator,
         )
+    }
+
+    private fun HomeState.titles(id: HomeRowId): HomeRow.Titles = rows.single { it.id == id } as HomeRow.Titles
+
+    private fun HomeRow.heading(): Pair<String, String?> = title to subtitle
+
+    /** Тайтл из выдачи источника: тот же тип и, если источник с жанром, тот же жанр. */
+    private fun Item.belongsTo(source: TitleSource): Boolean = when (source) {
+        is TitleSource.Catalog ->
+            type == source.type && (source.genreId == null || genres.any { it.id == source.genreId })
+        is TitleSource.Shortcut -> type == source.type
     }
 
     private companion object {

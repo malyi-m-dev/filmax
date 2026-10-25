@@ -1,4 +1,4 @@
-package com.filmax.core.ui.components
+package com.filmax.core.presentation.labels
 
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.watching.model.WatchProgress
@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class CardLabelsTest {
+class TitleLabelsTest {
 
     @Test
     fun `rating keeps one decimal`() {
@@ -33,6 +33,9 @@ class CardLabelsTest {
     fun `type label speaks the viewer language, not the API one`() {
         assertEquals("Сериал", typeLabel(ItemType.SERIES))
         assertEquals("Документальный", typeLabel(ItemType.DOCUMENTARY))
+        assertEquals("Документальный", typeLabel(ItemType.DOCUMENTARY_MOVIE))
+        assertEquals("ТВ-шоу", typeLabel(ItemType.TV_SHOW))
+        assertEquals("Концерт", typeLabel(ItemType.CONCERT))
     }
 
     @Test

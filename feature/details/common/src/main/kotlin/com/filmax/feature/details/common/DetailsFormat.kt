@@ -4,7 +4,6 @@
 package com.filmax.feature.details.common
 
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
 import com.filmax.core.presentation.labels.durationLabel
@@ -62,9 +61,9 @@ private fun resumeEpisode(seasons: List<Pair<Int, List<MediaTrack>>>): MediaTrac
 /**
  * Сериал определяем по ТИПУ тайтла, а не по числу дорожек: у фильма с двумя озвучками
  * `tracklist.size > 1`, и он получил бы селектор сезонов из одного бессмысленного сезона.
+ * Сериальны не только сериалы: ТВ-шоу и документальные сериалы тоже идут сезонами.
  */
-fun isSeries(item: Item): Boolean =
-    item.type == ItemType.SERIES || item.type == ItemType.ANIME || item.type == ItemType.DOCUMENTARY
+fun isSeries(item: Item): Boolean = item.type.episodic
 
 /**
  * У фильма в мете длительность, у сериала — объём: «3 сезона», а у односезонного «12 серий»

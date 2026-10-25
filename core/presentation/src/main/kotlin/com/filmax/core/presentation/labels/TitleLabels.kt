@@ -44,7 +44,9 @@ fun typeLabel(type: ItemType): String = when (type) {
     ItemType.MOVIE -> "Фильм"
     ItemType.SERIES -> "Сериал"
     ItemType.ANIME -> "Аниме"
-    ItemType.DOCUMENTARY -> "Документальный"
+    ItemType.DOCUMENTARY, ItemType.DOCUMENTARY_MOVIE -> "Документальный"
+    ItemType.TV_SHOW -> "ТВ-шоу"
+    ItemType.CONCERT -> "Концерт"
     ItemType.TV -> "ТВ"
 }
 

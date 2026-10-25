@@ -1,6 +1,8 @@
 package com.filmax.feature.search.common
 
+import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.data.fake.FakeBackend
@@ -28,7 +30,8 @@ import kotlin.test.assertTrue
  * Каталог и поиск на фейковом data-слое: витрина по чипам, догрузка и счётчик, поиск с лучшим
  * совпадением, экранная клавиатура ТВ, панели сортировки и фильтров, недавние запросы.
  *
- * Фикстуры: 27 фильмов, 17 сериалов, 5 документальных — по 20 на страницу, как у kino.pub.
+ * Фикстуры: 29 фильмов, 18 сериалов, 5 документальных — по 20 на страницу, как у kino.pub. ТВ-шоу,
+ * концерты и документальные фильмы в «Все» не входят — у них свои разделы.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class SearchScreenModelTest {
@@ -70,6 +73,21 @@ class SearchScreenModelTest {
         assertTrue(state.catalogItems.all { it.type == ItemType.SERIES })
         assertEquals(CatalogCount(SERIES_COUNT, exact = true), state.catalogCount)
         assertTrue(state.catalogEndReached)
+    }
+
+    @Test
+    fun `tv shows section from the home sheet shows only tv shows`() = runTest(dispatcher) {
+        val model = SearchScreenModel(
+            FakeSearchRepository(backend),
+            catalog,
+            SavedStateHandle(mapOf("section" to CatalogSection.TV_SHOWS.name)),
+        )
+        model.dispatch(SearchEvent.LoadCatalog)
+        advanceUntilIdle()
+
+        val items = model.states.value.catalogItems
+        assertTrue(items.isNotEmpty())
+        assertTrue(items.all { it.type == ItemType.TV_SHOW })
     }
 
     @Test
@@ -300,13 +318,13 @@ class SearchScreenModelTest {
     }
 
     private companion object {
-        /** Первая страница «Все»: 20 фильмов + 17 сериалов + 5 документальных. */
-        const val FIRST_PAGE_OF_ALL = 42
+        /** Первая страница «Все»: 20 фильмов + 18 сериалов + 5 документальных. */
+        const val FIRST_PAGE_OF_ALL = 43
 
         /** Оценка «Все» по первым страницам: фильмов две страницы по 20, остальные — как есть. */
-        const val ESTIMATED_ALL = 62
-        const val ALL_TITLES = 49
-        const val SERIES_COUNT = 17
+        const val ESTIMATED_ALL = 63
+        const val ALL_TITLES = 52
+        const val SERIES_COUNT = 18
         const val BROWSE_TYPES = 3
 
         /** «Фантастика» в фикстурах. */

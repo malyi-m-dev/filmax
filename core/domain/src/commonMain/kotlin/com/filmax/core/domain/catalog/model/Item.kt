@@ -21,14 +21,37 @@ data class Item(
     val imdbId: String? = null,
 )
 
-enum class ItemType(val apiValue: String) {
-    MOVIE("movie"),
-    SERIES("serial"),
-    ANIME("anime"),
-    DOCUMENTARY("docuserial"),
-    TV("tv"),
+/**
+ * Тип тайтла — значение `type` kino.pub (`api/v1/types`). [episodic] — у тайтла сезоны и серии, а
+ * не одно видео: по нему детали решают, нужен ли выбор сезона. Решать по типу, а не по числу
+ * видео, приходится потому, что у фильма их тоже бывает несколько.
+ */
+enum class ItemType(val apiValue: String, val episodic: Boolean) {
+    MOVIE("movie", episodic = false),
+    SERIES("serial", episodic = true),
+
+    /**
+     * Псевдотип фильтра каталога: типа `anime` у kino.pub нет, аниме — жанр поверх фильмов и
+     * сериалов. Из API тайтл с таким типом не приходит.
+     */
+    ANIME("anime", episodic = true),
+
+    /** Документальные сериалы. Документальные фильмы — отдельный тип [DOCUMENTARY_MOVIE]. */
+    DOCUMENTARY("docuserial", episodic = true),
+    DOCUMENTARY_MOVIE("documovie", episodic = false),
+
+    /** ТВ-шоу выходят сезонами и выпусками — для деталей это сериал, а не фильм. */
+    TV_SHOW("tvshow", episodic = true),
+    CONCERT("concert", episodic = false),
+
+    /** Эфирные каналы; в `api/v1/types` такого типа нет. */
+    TV("tv", episodic = false),
     ;
     companion object {
+        /**
+         * Незнакомый тип — фильм: `3d` у kino.pub это фильмы в 3D, а `4k` пуст (4K — фильтр
+         * `quality`, а не тип).
+         */
         fun from(value: String) = entries.firstOrNull { it.apiValue == value } ?: MOVIE
     }
 }

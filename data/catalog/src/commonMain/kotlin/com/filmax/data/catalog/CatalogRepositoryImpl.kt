@@ -2,6 +2,7 @@ package com.filmax.data.catalog
 
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Collection
@@ -46,11 +47,12 @@ internal class CatalogRepositoryImpl(
     ): RequestResult<ItemPage> =
         safeRequest { api.getFilteredItems(filters.toQuery(type, genreId, sort, page)).toDomain() }
 
-    override suspend fun getHotItems(type: ItemType, page: Int): RequestResult<ItemPage> =
-        safeRequest { api.getItemsByShortcut("hot", type.apiValue, page).toDomain() }
-
-    override suspend fun getNewItems(type: ItemType, page: Int): RequestResult<ItemPage> =
-        safeRequest { api.getItemsByShortcut("new", type.apiValue, page).toDomain() }
+    override suspend fun getShortcutItems(
+        shortcut: CatalogShortcut,
+        type: ItemType,
+        page: Int,
+    ): RequestResult<ItemPage> =
+        safeRequest { api.getItemsByShortcut(shortcut.path, type.apiValue, page).toDomain() }
 
     override suspend fun getItemDetails(id: Int): RequestResult<Item> =
         safeRequest { api.getItemDetails(id).item.toDomain() }

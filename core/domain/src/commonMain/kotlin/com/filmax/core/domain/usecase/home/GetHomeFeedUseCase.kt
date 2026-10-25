@@ -1,6 +1,7 @@
 package com.filmax.core.domain.usecase.home
 
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.LastValueCache
@@ -24,13 +25,13 @@ class GetHomeFeedUseCase(
     private val cache: LastValueCache<HomeFeed>,
 ) {
     suspend operator fun invoke(): HomeFeed = coroutineScope {
-        val hotDeferred = async { catalog.getHotItems(ItemType.MOVIE) }
+        val hotDeferred = async { catalog.getShortcutItems(CatalogShortcut.HOT, ItemType.MOVIE) }
         val trendingDeferred = async { catalog.getItems(ItemType.MOVIE, CatalogSort.VIEWS) }
         val collectionsDeferred = async { catalog.getCollections() }
         val forYouDeferred = async { catalog.getItems(ItemType.SERIES, CatalogSort.RATING) }
         val historyDeferred = async { watching.getHistory() }
-        val freshMoviesDeferred = async { catalog.getNewItems(ItemType.MOVIE) }
-        val freshSeriesDeferred = async { catalog.getNewItems(ItemType.SERIES) }
+        val freshMoviesDeferred = async { catalog.getShortcutItems(CatalogShortcut.FRESH, ItemType.MOVIE) }
+        val freshSeriesDeferred = async { catalog.getShortcutItems(CatalogShortcut.FRESH, ItemType.SERIES) }
 
         val hot = hotDeferred.await()
         val trending = trendingDeferred.await()

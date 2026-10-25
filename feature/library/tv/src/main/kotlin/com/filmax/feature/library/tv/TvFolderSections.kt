@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.user.model.UserFolder
 import com.filmax.core.presentation.labels.durationLabel
 import com.filmax.core.presentation.labels.isHighRating
@@ -274,9 +273,12 @@ private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, onEvent: (Fol
     )
 }
 
-/** «2021 · 1 ч 52 мин» — у фильма длительность, у сериала только год. */
+/**
+ * «2021 · 1 ч 52 мин» — у фильма длительность, у сериала только год. Концерт и документальный
+ * фильм — одно видео, как фильм: длительность им тоже к месту.
+ */
 private fun String?.withDuration(item: Item): String? {
-    val minutes = item.duration.averageMinutes?.toInt()?.takeIf { it > 0 && item.type == ItemType.MOVIE }
+    val minutes = item.duration.averageMinutes?.toInt()?.takeIf { it > 0 && !item.type.episodic }
     return listOfNotNull(this, minutes?.let(::durationLabel)).joinToString(" · ").ifBlank { null }
 }
 

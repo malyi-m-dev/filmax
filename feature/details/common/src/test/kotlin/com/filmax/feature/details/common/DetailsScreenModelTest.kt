@@ -9,6 +9,7 @@ import com.filmax.data.fake.FakeDownloadsRepository
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeWatchingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -195,6 +196,7 @@ class DetailsScreenModelTest {
         favorites = favorites,
         cast = FakeCastRepository(backend),
         toggleWatchLater = ToggleWatchLaterUseCase(favorites, watching),
+        navigator = FakeNavigator(),
     )
 
     private companion object {

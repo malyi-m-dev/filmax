@@ -1,10 +1,13 @@
 package com.filmax.feature.tvlink.common
 
+import com.filmax.core.domain.tvlink.LinkFailure
 import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteSession
 
 data class RemoteState(
     val session: RemoteSession = RemoteSession.Idle,
+    /** Id запомненного телевизора; null — телефон ни с одним не знаком. */
+    val pairedId: String? = null,
     /**
      * Позиция под пальцем, пока тянут ползунок: снимки с ТВ приходят каждую секунду и иначе
      * дёргали бы его назад. Отпустили — уходит перемотка, и позиция снова с ТВ.
@@ -16,6 +19,16 @@ data class RemoteState(
 
     /** Позиция ползунка: под пальцем — своя, иначе — с телевизора. */
     val positionMs: Long get() = scrubPositionMs ?: playback?.positionMs ?: 0
+
+    /**
+     * Связь пропала с запомненным ТВ — телефон вернёт её сам, как только ТВ ответит. ТВ другого
+     * аккаунта не вернёт: стучаться к нему бесполезно.
+     */
+    val reconnectsItself: Boolean
+        get() {
+            val lost = session as? RemoteSession.Lost ?: return false
+            return lost.device.id == pairedId && lost.failure != LinkFailure.OtherAccount
+        }
 }
 
 sealed interface RemoteEvent {
@@ -40,7 +53,8 @@ sealed interface RemoteEvent {
     /** Выбрать другой (или первый) телевизор. */
     data object ChooseTv : RemoteEvent
 
-    data object Disconnect : RemoteEvent
+    /** Отключиться и забыть телевизор: сам он больше не подключится. */
+    data object Forget : RemoteEvent
 }
 
 sealed interface RemoteSideEffect {

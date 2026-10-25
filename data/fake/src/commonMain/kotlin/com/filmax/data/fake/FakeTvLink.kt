@@ -41,33 +41,59 @@ class FakeTvDiscovery : TvDiscovery {
 }
 
 /**
- * Пульт без сети: подключается к ТВ из [reachable], а ТВ из [otherAccount] отказывает, как чужой
- * аккаунт. Отправленные команды копятся в [sent].
+ * Пульт без сети: подключается к ТВ из [reachable] и запоминает его, а ТВ из [otherAccount] отказывает,
+ * как чужой аккаунт. Отправленные команды копятся в [sent], подключения — в [connects].
  */
 class FakeTvRemote : TvRemote {
 
     val reachable = mutableSetOf<String>()
     val otherAccount = mutableSetOf<String>()
     val sent = mutableListOf<RemoteCommand>()
+    val connects = mutableListOf<TvDevice>()
+
+    /** Сколько корутин сейчас держат связь ([stayConnected]). */
+    val keepers = MutableStateFlow(0)
 
     private val current = MutableStateFlow<RemoteSession>(RemoteSession.Idle)
     override val session: StateFlow<RemoteSession> = current.asStateFlow()
 
+    private val pairedTv = MutableStateFlow<TvDevice?>(null)
+    override val paired: StateFlow<TvDevice?> = pairedTv.asStateFlow()
+
     override suspend fun connect(device: TvDevice): Boolean {
+        // Как и настоящий пульт: связь с этим же ТВ не рвётся ради второго такого же запроса.
+        if ((current.value as? RemoteSession.Connected)?.device?.id == device.id) return true
+        connects += device
         current.value = when (device.id) {
             in reachable -> RemoteSession.Connected(device, playback = null)
             in otherAccount -> RemoteSession.Lost(device, LinkFailure.OtherAccount)
             else -> RemoteSession.Lost(device, LinkFailure.Unreachable)
         }
+        if (current.value is RemoteSession.Connected) pairedTv.value = device
         return current.value is RemoteSession.Connected
+    }
+
+    override suspend fun stayConnected() {
+        keepers.update { it + 1 }
+        try {
+            awaitCancellation()
+        } finally {
+            keepers.update { it - 1 }
+        }
     }
 
     override fun send(command: RemoteCommand) {
         if (current.value is RemoteSession.Connected) sent += command
     }
 
-    override fun disconnect() {
+    override fun forget() {
+        pairedTv.value = null
         current.value = RemoteSession.Idle
+    }
+
+    /** ТВ запомнен с прошлого запуска: связи с ним ещё нет. */
+    fun pair(device: TvDevice) {
+        pairedTv.value = device
     }
 
     /** ТВ прислал снимок плеера. */

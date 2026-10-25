@@ -54,12 +54,17 @@ internal fun CatalogHeader(
 ) {
     FilmaxGlassHeader(glass = glass, modifier = modifier) {
         TitleRow(title = title, actions = actions)
-        FilmaxSegmentedControl(
-            options = SegmentOptions.map { it.second },
-            selectedIndex = SegmentOptions.indexOfFirst { it.first == state.filter }.coerceAtLeast(0),
-            onSelect = { index -> actions.onFilter(SegmentOptions[index].first) },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = FilmaxMetrics.GridPadding),
-        )
+        val selectedSegment = SegmentOptions.indexOfFirst { it.first == state.filter }
+        // Раздел вне сегментов («ТВ-шоу», «Концерты» из «Разделов»): ни один сегмент такую выборку
+        // не описывает, а подсвеченное «Все» соврало бы. Тип здесь задал раздел, и его называет заголовок.
+        if (selectedSegment >= 0) {
+            FilmaxSegmentedControl(
+                options = SegmentOptions.map { it.second },
+                selectedIndex = selectedSegment,
+                onSelect = { index -> actions.onFilter(SegmentOptions[index].first) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = FilmaxMetrics.GridPadding),
+            )
+        }
         SelectionChips(state = state, actions = actions)
     }
 }

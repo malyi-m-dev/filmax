@@ -10,10 +10,12 @@ import com.filmax.core.domain.tvlink.TvRemote
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.tvlink.common.navigation.TvPickerRoute
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.combine
 
 /**
  * Выбор телевизора на телефоне: свои ТВ в сети (или адрес вручную), подключение и передача тайтла.
- * Поиск идёт, пока окно открыто, — модель живёт столько же, сколько окно.
+ * Поиск идёт, пока окно открыто, — модель живёт столько же, сколько окно. Запомненный ТВ выбирать не
+ * нужно: окно сразу подключается к нему и отдаёт тайтл.
  */
 class TvPickerScreenModel(
     savedStateHandle: SavedStateHandle,
@@ -30,7 +32,10 @@ class TvPickerScreenModel(
 
     override fun onFetchData() {
         screenModelScope { _ -> updateState { it.copy(withTitle = play != null) } }
-        screenModelScope { _ -> discovery.devices().collect { found -> updateState { it.copy(devices = found) } } }
+        screenModelScope { _ ->
+            combine(discovery.devices(), remote.paired) { found, paired -> found.withPaired(paired) }
+                .collect { devices -> updateState { it.copy(devices = devices) } }
+        }
         screenModelScope { _ ->
             remote.session.collect { session ->
                 updateState { it.copy(connectedTo = (session as? RemoteSession.Connected)?.device?.id) }
@@ -40,6 +45,17 @@ class TvPickerScreenModel(
             delay(SLOW_SEARCH_MS)
             updateState { it.copy(searchTakesLong = true) }
         }
+        connectToPaired()
+    }
+
+    /**
+     * Телефон и ТВ уже знакомы — «На ТВ» просто запускает тайтл, без выбора. ТВ, с которым связь
+     * только что не вышла, не дёргаем: окно покажет список — выбрать его снова или другой.
+     */
+    private fun connectToPaired() {
+        val tv = remote.paired.value ?: return
+        if (remote.session.value is RemoteSession.Lost) return
+        connect(tv)
     }
 
     override fun onEvent(event: TvPickerEvent) {
@@ -63,12 +79,12 @@ class TvPickerScreenModel(
         connect(device)
     }
 
-    /** Подключиться (если связи с этим ТВ ещё нет), отдать тайтл и открыть пульт. */
+    /** Подключиться (связь с этим ТВ, если она есть, пульт не рвёт), отдать тайтл и открыть пульт. */
     private fun connect(device: TvDevice) {
         if (state.connectingTo != null) return
         screenModelScope { _ ->
             updateState { it.copy(connectingTo = device.id, failure = null) }
-            val linked = device.id == state.connectedTo || remote.connect(device)
+            val linked = remote.connect(device)
             if (!linked) {
                 val reason = (remote.session.value as? RemoteSession.Lost)?.failure
                 updateState { picker ->
@@ -87,6 +103,16 @@ class TvPickerScreenModel(
 
         fun TvPickerRoute.toPlay(): RemoteCommand.Play? = takeIf { itemId > 0 }?.let {
             RemoteCommand.Play(itemId = itemId, videoId = videoId, season = season, startSeconds = startSeconds)
+        }
+
+        /**
+         * Найденные ТВ и запомненный — первым, даже если поиск его не видит (роутер режет mDNS или ТВ
+         * подключали по адресу). Если поиск его видит, берём найденного: адрес там свежее.
+         */
+        fun List<TvDevice>.withPaired(paired: TvDevice?): List<TvDevice> {
+            paired ?: return this
+            val (own, others) = partition { it.id == paired.id }
+            return listOf(own.firstOrNull() ?: paired) + others
         }
     }
 }

@@ -2,12 +2,13 @@ package com.filmax.data.tvlink.platform
 
 import kotlinx.coroutines.flow.Flow
 
-/** Что ТВ объявляет о себе в сети: имя, порт приёмника и отпечаток аккаунта. */
-internal data class LinkAdvert(val name: String, val port: Int, val fingerprint: String)
+/** Что ТВ объявляет о себе в сети: имя, порт приёмника, отпечаток аккаунта и постоянный id. */
+internal data class LinkAdvert(val name: String, val port: Int, val fingerprint: String, val id: String)
 
 /**
- * ТВ, найденный в сети. [fingerprint] — отпечаток аккаунта из TXT-записи; null — ТВ его не объявил
- * (сторонний сервис с тем же типом или сбой разбора записи).
+ * ТВ, найденный в сети. [id] — постоянный id ТВ из TXT-записи, а у ТВ на Filmax до 2.6 — имя
+ * сервиса. [fingerprint] — отпечаток аккаунта из TXT-записи; null — ТВ его не объявил (сторонний
+ * сервис с тем же типом или сбой разбора записи).
  */
 internal data class LinkService(
     val id: String,

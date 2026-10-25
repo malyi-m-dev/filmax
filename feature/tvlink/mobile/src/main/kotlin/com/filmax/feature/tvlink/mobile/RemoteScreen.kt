@@ -74,7 +74,7 @@ fun RemoteScreen(
         RemoteTopBar(
             session = state.session,
             onBack = navigator::back,
-            onDisconnect = { dispatch(RemoteEvent.Disconnect) },
+            onForget = { dispatch(RemoteEvent.Forget) },
         )
         Box(
             Modifier
@@ -89,7 +89,7 @@ fun RemoteScreen(
                         ?.let { RemotePlayback(it, state.positionMs, dispatch, Modifier.fillMaxHeight()) }
                         ?: NothingPlaying()
                 is RemoteSession.Connecting -> Connecting(session.device.name)
-                is RemoteSession.Lost -> LinkLost(session, dispatch)
+                is RemoteSession.Lost -> LinkLost(session, reconnectsItself = state.reconnectsItself, dispatch)
                 RemoteSession.Idle -> NotConnected(dispatch)
             }
         }
@@ -97,11 +97,12 @@ fun RemoteScreen(
 }
 
 /**
- * Шапка: назад, имя телевизора и — пока связь есть — «Отключиться». Иконкой здесь, а не кнопкой
- * внизу: на маленьком телефоне низ занят управлением, и оно важнее.
+ * Шапка: назад, имя телевизора и — пока телевизор выбран — «Забыть телевизор». Иконкой здесь, а не
+ * кнопкой внизу: на маленьком телефоне низ занят управлением, и оно важнее. Видна и без связи:
+ * запомненный ТВ, который больше не нужен, иначе подключался бы сам.
  */
 @Composable
-private fun RemoteTopBar(session: RemoteSession, onBack: () -> Unit, onDisconnect: () -> Unit) {
+private fun RemoteTopBar(session: RemoteSession, onBack: () -> Unit, onForget: () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
         FilmaxIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", onClick = onBack)
         Column(Modifier.weight(1f)) {
@@ -114,8 +115,8 @@ private fun RemoteTopBar(session: RemoteSession, onBack: () -> Unit, onDisconnec
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (session is RemoteSession.Connected) {
-            FilmaxIconButton(Icons.Filled.LinkOff, contentDescription = "Отключиться", onClick = onDisconnect)
+        if (session !is RemoteSession.Idle) {
+            FilmaxIconButton(Icons.Filled.LinkOff, contentDescription = "Забыть телевизор", onClick = onForget)
         }
     }
 }
@@ -149,8 +150,9 @@ private fun Connecting(deviceName: String) {
     }
 }
 
+/** [reconnectsItself] — ТВ запомнен: телефон подключится сам, как только тот ответит. */
 @Composable
-private fun LinkLost(session: RemoteSession.Lost, dispatch: (RemoteEvent) -> Unit) {
+private fun LinkLost(session: RemoteSession.Lost, reconnectsItself: Boolean, dispatch: (RemoteEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FilmaxEmptyState(
             icon = Icons.Filled.TvOff,
@@ -158,6 +160,15 @@ private fun LinkLost(session: RemoteSession.Lost, dispatch: (RemoteEvent) -> Uni
             subtitle = session.failure.message(session.device.name),
             modifier = Modifier.fillMaxWidth(),
         )
+        if (reconnectsItself) {
+            Text(
+                "Подключимся сами, как только Filmax на телевизоре снова будет на экране",
+                style = FilmaxType.meta,
+                color = FilmaxColors.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         FilmaxButton(text = "Подключиться снова", onClick = {
             dispatch(RemoteEvent.Reconnect)
         }, modifier = Modifier.fillMaxWidth())

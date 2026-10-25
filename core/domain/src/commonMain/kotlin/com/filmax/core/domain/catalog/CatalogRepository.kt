@@ -9,8 +9,8 @@ import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 
-// Каталог kino.pub большой: детали, похожее, жанры, страны, подборки, hot/new, фильтруемая
-// выдача. Это один связный контракт, дробить его на несколько интерфейсов незачем.
+// Каталог kino.pub большой: детали, похожее, жанры, страны, подборки, готовые выборки,
+// фильтруемая выдача. Это один связный контракт, дробить его на несколько интерфейсов незачем.
 @Suppress("TooManyFunctions")
 interface CatalogRepository {
 
@@ -42,9 +42,8 @@ interface CatalogRepository {
         page: Int = 1,
     ): RequestResult<ItemPage>
 
-    suspend fun getHotItems(type: ItemType, page: Int = 1): RequestResult<ItemPage>
-
-    suspend fun getNewItems(type: ItemType, page: Int = 1): RequestResult<ItemPage>
+    /** Готовая выборка kino.pub ([CatalogShortcut]) одного типа — постранично, как и выдача каталога. */
+    suspend fun getShortcutItems(shortcut: CatalogShortcut, type: ItemType, page: Int = 1): RequestResult<ItemPage>
 
     suspend fun getItemDetails(id: Int): RequestResult<Item>
 
@@ -58,6 +57,22 @@ interface CatalogRepository {
     suspend fun getCollections(page: Int = 1): RequestResult<List<Collection>>
 
     suspend fun getCollectionItems(collectionId: Int, page: Int = 1): RequestResult<CollectionPage>
+}
+
+/**
+ * Готовая выборка kino.pub — `api/v1/items/<path>`. Что в неё попадает и в каком порядке, решает
+ * сервер: жанра и сортировки она не принимает, только тип. Выборки `new` в API нет (404 «Страница
+ * не найдена») — свежие поступления отдаёт [FRESH].
+ */
+enum class CatalogShortcut(val path: String) {
+    /** То, что смотрят сейчас. */
+    HOT("hot"),
+
+    /** Популярное. */
+    POPULAR("popular"),
+
+    /** Свежие поступления. */
+    FRESH("fresh"),
 }
 
 /**

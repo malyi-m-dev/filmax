@@ -17,8 +17,11 @@ import com.filmax.data.tvlink.security.TvLinkKey
 /** Чем кончилось рукопожатие для телефона. */
 internal sealed interface PhoneHandshake {
 
-    /** [tvName] — имя из приветствия ТВ: у ТВ, введённого адресом, другого имени нет. */
-    data class Accepted(val tvName: String) : PhoneHandshake
+    /**
+     * [tvName] — имя из приветствия ТВ: у ТВ, введённого адресом, другого имени нет. [tvId] — его
+     * постоянный id; пустой у ТВ на Filmax до 2.6.
+     */
+    data class Accepted(val tvName: String, val tvId: String) : PhoneHandshake
 
     /** ТВ из другого аккаунта: он отказал или не смог подписать число телефона. */
     data object OtherAccount : PhoneHandshake
@@ -33,7 +36,7 @@ internal suspend fun LinkConnection.handshakeAsPhone(key: TvLinkKey, phoneName: 
     send(TvLinkMessage.Auth(name = phoneName, proof = key.proof(LinkRole.Phone, hello.nonce), nonce = phoneNonce))
     return when (val reply = receive(TvLinkProtocol.HANDSHAKE_TIMEOUT_MS)) {
         is TvLinkMessage.Welcome -> if (key.accepts(LinkRole.Tv, phoneNonce, reply.proof)) {
-            PhoneHandshake.Accepted(tvName = hello.name)
+            PhoneHandshake.Accepted(tvName = hello.name, tvId = hello.id)
         } else {
             PhoneHandshake.OtherAccount
         }
@@ -43,9 +46,9 @@ internal suspend fun LinkConnection.handshakeAsPhone(key: TvLinkKey, phoneName: 
 }
 
 /** Имя телефона, если он из того же аккаунта; null — не пустили (чужой аккаунт или не ответил). */
-internal suspend fun LinkConnection.handshakeAsTv(key: TvLinkKey, tvName: String): String? {
+internal suspend fun LinkConnection.handshakeAsTv(key: TvLinkKey, tvName: String, tvId: String): String? {
     val tvNonce = key.nonce()
-    send(TvLinkMessage.Hello(version = TvLinkProtocol.VERSION, name = tvName, nonce = tvNonce))
+    send(TvLinkMessage.Hello(version = TvLinkProtocol.VERSION, name = tvName, nonce = tvNonce, id = tvId))
     val auth = receive(TvLinkProtocol.HANDSHAKE_TIMEOUT_MS) as? TvLinkMessage.Auth ?: return null
     val accepted = key.accepts(LinkRole.Phone, tvNonce, auth.proof)
     send(if (accepted) TvLinkMessage.Welcome(proof = key.proof(LinkRole.Tv, auth.nonce)) else TvLinkMessage.Denied)

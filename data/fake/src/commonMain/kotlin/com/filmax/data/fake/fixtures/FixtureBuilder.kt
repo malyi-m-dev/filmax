@@ -4,7 +4,6 @@ import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.Duration
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.VideoFile
 import com.filmax.core.domain.person.CastMember
@@ -131,8 +130,5 @@ private fun TitleSpec.castMembers(): List<CastMember> = cast.mapIndexed { index,
     CastMember(name = person.name, character = roleOf(index, person), photoUrl = personPhotoUrl(person.id))
 }
 
-private fun TitleSpec.roleOf(index: Int, person: Person): String? = when {
-    type == ItemType.DOCUMENTARY -> NARRATOR_ROLE
-    index >= NAMED_ROLES -> null
-    else -> ROLES[(person.id + id) % ROLES.size]
-}
+private fun TitleSpec.roleOf(index: Int, person: Person): String? =
+    FORMAT_ROLES[type] ?: ROLES[(person.id + id) % ROLES.size].takeIf { index < NAMED_ROLES }

@@ -17,6 +17,8 @@ internal fun SearchState.withSection(section: CatalogSection?): SearchState = wh
     CatalogSection.SERIES -> copy(filter = ItemType.SERIES)
     CatalogSection.ANIME -> copy(filter = ItemType.ANIME)
     CatalogSection.DOCUMENTARY -> copy(filter = ItemType.DOCUMENTARY)
+    CatalogSection.TV_SHOWS -> copy(filter = ItemType.TV_SHOW)
+    CatalogSection.CONCERTS -> copy(filter = ItemType.CONCERT)
     CatalogSection.UHD -> copy(filters = filters.copy(only4k = true))
     CatalogSection.FRESH -> copy(sort = SortOption(CatalogSort.CREATED))
 }

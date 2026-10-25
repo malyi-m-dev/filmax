@@ -172,7 +172,8 @@ internal val ANIME: List<TitleSpec> = listOf(
         title = "Сад падающих звёзд",
         type = ItemType.MOVIE,
         year = 2019,
-        genres = listOf(Genres.ANIME, Genres.FANTASY, Genres.MELODRAMA),
+        // Аниме-фильм у kino.pub — ещё и «Мультфильм»: он есть и в ряду мультфильмов на Главной.
+        genres = listOf(Genres.ANIME, Genres.CARTOON, Genres.FANTASY, Genres.MELODRAMA),
         country = Countries.JAPAN,
         director = People.MATSUDA,
         cast = listOf(People.TANABE, People.ASAHINA, People.KISARAGI),

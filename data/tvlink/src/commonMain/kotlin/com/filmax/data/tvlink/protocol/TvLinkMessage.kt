@@ -12,10 +12,19 @@ internal sealed interface TvLinkMessage {
 
     // ── Рукопожатие ─────────────────────────────────────────────────────────
 
-    /** ТВ → телефон сразу после подключения: кто он и число, которое телефон должен подписать. */
+    /**
+     * ТВ → телефон сразу после подключения: кто он и число, которое телефон должен подписать. [id] —
+     * постоянный id ТВ: по нему телефон узнаёт запомненный ТВ, даже если подключался по адресу.
+     * Пустой — ТВ на Filmax до 2.6.
+     */
     @Serializable
     @SerialName("hello")
-    data class Hello(val version: Int = 0, val name: String = "", val nonce: String = "") : TvLinkMessage
+    data class Hello(
+        val version: Int = 0,
+        val name: String = "",
+        val nonce: String = "",
+        val id: String = "",
+    ) : TvLinkMessage
 
     /** Телефон → ТВ: подпись числа ТВ и своё число — ТВ тоже докажет, что он из того же аккаунта. */
     @Serializable

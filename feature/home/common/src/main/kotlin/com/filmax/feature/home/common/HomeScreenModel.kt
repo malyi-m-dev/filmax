@@ -1,15 +1,14 @@
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
+import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
@@ -59,24 +58,10 @@ class HomeScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope { current ->
             updateState { it.copy(loading = true, error = null) }
             val feed = getHomeFeed()
-            // Состав, порядок и заголовки ленты — здесь и только здесь.
-            val rows = listOf(
-                HomeRow.Continue(feed.continueWatching),
-                HomeRow.Titles(HomeRowId.TRENDING, "В тренде", "на этой неделе", RowPaging(feed.trending)),
-                HomeRow.Collections(RowPaging(feed.collections)),
-                // Заголовок честный: forYou — топ сериалов по рейтингу, персонализации в фиде нет.
-                HomeRow.Titles(
-                    HomeRowId.FOR_YOU,
-                    "Сериалы с высоким рейтингом",
-                    "КиноПоиск 8+",
-                    RowPaging(feed.forYou),
-                ),
-                // Новинки — сводка двух источников, листать её из каталога нечем.
-                HomeRow.Titles(HomeRowId.FRESH, "Новинки", null, RowPaging(feed.fresh, endReached = true)),
-            )
+            val rows = feedRows(feed) + themeRows(current.rows)
             val hero = feed.heroes.firstOrNull()
             val isEmpty = hero == null && rows.all { it.isEmpty }
             updateState {
@@ -99,7 +84,40 @@ class HomeScreenModel(
                 else -> dismissOfflineBanner()
             }
             loadCollectionPreviews(feed.collections)
+            // Тематические ряды — после фида и параллельно: первый экран их не ждёт, каждый ряд
+            // появляется, как только пришла его страница. Упавший запрос — просто ряд, которого
+            // пока нет (пустой экран пропускает); повторная загрузка Главной попробует его снова.
+            unloadedThemeRows(rows).forEach(::loadTitlesPage)
         }
+    }
+
+    /** Ряды фида в порядке макета; состав и заголовки ленты — здесь и только здесь. */
+    private fun feedRows(feed: HomeFeed): List<HomeRow> = listOf(
+        HomeRow.Continue(feed.continueWatching),
+        titlesRow(HomeRowId.TRENDING, RowPaging(feed.trending)),
+        HomeRow.Collections(RowPaging(feed.collections)),
+        titlesRow(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
+        // Новинки — сводка двух источников, листать её из каталога нечем.
+        titlesRow(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
+    )
+
+    /**
+     * Тематические ряды в порядке [THEME_SOURCES]. Уже пришедший ряд остаётся как был: повторная
+     * загрузка Главной не прячет его до ответа и не сбрасывает пролистанное. Остальные — пустые,
+     * ждут первой страницы.
+     */
+    private fun themeRows(shown: List<HomeRow>): List<HomeRow> = THEME_SOURCES.keys.map { id ->
+        shown.firstOrNull { it.id == id } ?: titlesRow(id, RowPaging())
+    }
+
+    /** Тематические ряды, которым нечего показать и которые никто не грузит: первый заход или сбой. */
+    private fun unloadedThemeRows(rows: List<HomeRow>): List<HomeRow.Titles> = rows
+        .filterIsInstance<HomeRow.Titles>()
+        .filter { it.id in THEME_SOURCES && it.isEmpty && !it.paging.loadingMore }
+
+    private fun titlesRow(id: HomeRowId, paging: RowPaging<Item>): HomeRow.Titles {
+        val heading = ROW_HEADINGS.getValue(id)
+        return HomeRow.Titles(id, heading.title, heading.subtitle, paging)
     }
 
     /**
@@ -114,7 +132,7 @@ class HomeScreenModel(
 
     /** Инициалы для аватара в шапке — best-effort, ошибки не мешают ленте. */
     private fun fetchUserInitials() {
-        screenModelScope {
+        screenModelScope { _ ->
             val profile = user.getProfile() as? RequestResult.Success ?: return@screenModelScope
             val initials = profile.data.initials()
             updateState { it.copy(initials = initials) }
@@ -123,7 +141,7 @@ class HomeScreenModel(
 
     /** Отметки «Буду смотреть» — живой поток: кнопка hero и детали меняют их с разных экранов. */
     private fun observeWatchLater() {
-        screenModelScope {
+        screenModelScope { _ ->
             favorites.favoriteIds.collect { ids -> updateState { it.copy(watchLaterIds = ids) } }
         }
     }
@@ -200,18 +218,21 @@ class HomeScreenModel(
         when (val row = state.rows.firstOrNull { it.id == id }) {
             // История приходит из фида целиком — листать нечего.
             is HomeRow.Continue, null -> Unit
-            is HomeRow.Titles -> loadMoreTitles(row)
+            is HomeRow.Titles -> if (canLoadMore(row.paging)) loadTitlesPage(row)
             is HomeRow.Collections -> loadMoreCollections(row)
         }
     }
 
-    private fun loadMoreTitles(row: HomeRow.Titles) {
+    /**
+     * Следующая страница ряда тайтлов из его источника ([TITLE_SOURCES]); у пустого тематического
+     * ряда — первая. Догрузка по хвосту ряда и первая загрузка тематического — один путь.
+     */
+    private fun loadTitlesPage(row: HomeRow.Titles) {
         val source = TITLE_SOURCES[row.id] ?: return
-        if (!canLoadMore(row.paging)) return
         val nextPage = row.paging.page + 1
         screenModelScope { _ ->
             updateTitlesPaging(row.id, row.paging.copy(loadingMore = true))
-            val result = catalog.getItems(source.type, source.sort, nextPage)
+            val result = catalog.titlesPage(source, nextPage)
             val paging = when (result) {
                 is RequestResult.Success ->
                     appended(row.paging, result.data.items, Item::id, result.data.pagination.hasNextPage)
@@ -222,7 +243,7 @@ class HomeScreenModel(
     }
 
     /**
-     * Догрузка «Подборок» отдельно от [loadMoreTitles]: другой источник, и репозиторий отдаёт
+     * Догрузка «Подборок» отдельно от [loadTitlesPage]: другой источник, и репозиторий отдаёт
      * список без пагинации — конец определяется пустой страницей.
      */
     private fun loadMoreCollections(row: HomeRow.Collections) {
@@ -301,11 +322,3 @@ private const val PREVIEW_POSTERS = 2
  * сотня карточек ещё и держит в памяти постеры. Дальше пусть зовёт Каталог.
  */
 private const val HOME_ROW_MAX = 100
-
-/** Чем наполняется ряд тайтлов при догрузке: фид даёт стартовую горстку, дальше — каталог. */
-private data class TitleSource(val type: ItemType, val sort: CatalogSort)
-
-private val TITLE_SOURCES = mapOf(
-    HomeRowId.TRENDING to TitleSource(ItemType.MOVIE, CatalogSort.VIEWS),
-    HomeRowId.FOR_YOU to TitleSource(ItemType.SERIES, CatalogSort.RATING),
-)

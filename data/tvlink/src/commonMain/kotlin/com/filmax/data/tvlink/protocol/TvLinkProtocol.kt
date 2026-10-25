@@ -15,9 +15,10 @@ internal object TvLinkProtocol {
     /** Тип сервиса DNS-SD, под которым ТВ виден в сети. */
     const val SERVICE_TYPE = "_filmax._tcp"
 
-    /** TXT-атрибуты сервиса: отпечаток аккаунта и версия протокола. */
+    /** TXT-атрибуты сервиса: отпечаток аккаунта, версия протокола и постоянный id ТВ. */
     const val ATTR_FINGERPRINT = "acc"
     const val ATTR_VERSION = "v"
+    const val ATTR_ID = "id"
 
     /** Как часто стороны напоминают о себе, когда сказать нечего. */
     const val HEARTBEAT_MS = 3_000L
