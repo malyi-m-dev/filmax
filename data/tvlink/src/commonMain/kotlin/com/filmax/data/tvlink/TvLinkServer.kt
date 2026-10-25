@@ -41,6 +41,7 @@ internal class TvLinkServer(
     private val account: TvLinkAccount,
     private val advertiser: ServiceAdvertiser,
     private val device: LocalDevice,
+    private val memory: TvLinkMemory,
     private val dispatcher: CoroutineDispatcher,
 ) : TvLinkReceiver {
 
@@ -59,11 +60,26 @@ internal class TvLinkServer(
     }
 
     override suspend fun serve() {
-        val key = account.key() ?: return linkTrail("приёмник не поднят: нет профиля")
+        val key = awaitKey()
         withContext(dispatcher) {
             SelectorManager(dispatcher).use { selector ->
                 bind(selector).use { server -> listen(server, key) }
             }
+        }
+    }
+
+    /**
+     * Ключ аккаунта. Профиль не получен (kino.pub не ответил, пока ТВ просыпался) — просить снова:
+     * раньше приёмник в таком случае не поднимался до следующего запуска Filmax, и телефон не
+     * находил ТВ, хотя тот был на экране.
+     */
+    private suspend fun awaitKey(): TvLinkKey {
+        var pause = PROFILE_RETRY_FIRST_MS
+        while (true) {
+            account.key()?.let { return it }
+            linkTrail("приёмник ждёт профиль, повтор через $pause мс")
+            delay(pause)
+            pause = (pause * 2).coerceAtMost(PROFILE_RETRY_MAX_MS)
         }
     }
 
@@ -78,14 +94,15 @@ internal class TvLinkServer(
     private suspend fun listen(server: ServerSocket, key: TvLinkKey) {
         val port = (server.localAddress as? InetSocketAddress)?.port ?: TvLinkProtocol.DEFAULT_PORT
         val address = device.localAddress()?.let { TvAddress.format(it, port) }
+        val ownId = memory.ownId()
         receiverState.value = ReceiverState(listening = true, address = address)
         linkTrail("приёмник слушает $address")
         try {
             coroutineScope {
-                launch { advertiser.advertise(LinkAdvert(device.name, port, key.fingerprint)) }
+                launch { advertiser.advertise(LinkAdvert(device.name, port, key.fingerprint, ownId)) }
                 while (isActive) {
                     val socket = server.accept()
-                    launch { servePhone(socket, key) }
+                    launch { servePhone(socket, key, ownId) }
                 }
             }
         } finally {
@@ -93,10 +110,10 @@ internal class TvLinkServer(
         }
     }
 
-    private suspend fun servePhone(socket: Socket, key: TvLinkKey) {
+    private suspend fun servePhone(socket: Socket, key: TvLinkKey, ownId: String) {
         val connection = LinkConnection(socket)
         try {
-            val phone = connection.handshakeAsTv(key, device.name) ?: return linkTrail("телефон не пущен")
+            val phone = connection.handshakeAsTv(key, device.name, ownId) ?: return linkTrail("телефон не пущен")
             receiverState.update { it.copy(phones = it.phones + phone) }
             try {
                 exchange(connection)
@@ -134,5 +151,9 @@ internal class TvLinkServer(
 
     private companion object {
         const val COMMAND_BUFFER = 16
+
+        /** Профиль просим снова через 2 с, потом реже — до раза в минуту, пока ТВ без сети. */
+        const val PROFILE_RETRY_FIRST_MS = 2_000L
+        const val PROFILE_RETRY_MAX_MS = 60_000L
     }
 }

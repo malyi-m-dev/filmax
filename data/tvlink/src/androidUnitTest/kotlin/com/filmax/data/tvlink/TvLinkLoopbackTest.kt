@@ -12,8 +12,11 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.tvlink.android.AndroidLinkCrypto
+import com.filmax.data.tvlink.platform.LinkService
 import com.filmax.data.tvlink.platform.LocalDevice
 import com.filmax.data.tvlink.platform.ServiceAdvertiser
+import com.filmax.data.tvlink.platform.ServiceBrowser
+import com.russhwolf.settings.MapSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +26,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -31,17 +36,26 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Телефон и ТВ на настоящих сокетах через localhost: рукопожатие, команды пульта, снимки плеера и
- * обрывы связи. Время настоящее — тайм-ауты протокола идут по часам, а не по виртуальному времени.
+ * Телефон и ТВ на настоящих сокетах через localhost: рукопожатие, команды пульта, снимки плеера,
+ * обрывы связи и память о ТВ. Время настоящее — тайм-ауты протокола и паузы повторов идут по часам,
+ * а не по виртуальному времени.
  */
 class TvLinkLoopbackTest {
 
     private val crypto = AndroidLinkCrypto()
     private val ownUsers = FakeUserRepository(FakeBackend(latency = FakeLatency.None))
+
+    /** Настройки телефона: переживают «перезапуск» — новый клиент на тех же настройках. */
+    private val phoneSettings = MapSettings()
+
+    /** Что телефон видит в mDNS: до ТВ дотягиваются по адресу, пока тест не «объявит» его. */
+    private val network = MutableStateFlow<List<LinkService>>(emptyList())
 
     @Test
     fun `phone of the same account controls the tv`() = linkTest { tv, phone ->
@@ -78,6 +92,7 @@ class TvLinkLoopbackTest {
 
         assertEquals(LinkFailure.OtherAccount, assertIs<RemoteSession.Lost>(phone.session.value).failure)
         assertTrue(tv.state.value.phones.isEmpty())
+        assertNull(phone.paired.value, "ТВ, который не пустил, не запоминается")
     }
 
     @Test
@@ -99,13 +114,71 @@ class TvLinkLoopbackTest {
     }
 
     @Test
-    fun `disconnect is quiet`() = linkTest { tv, phone ->
+    fun `phone remembers the tv by its own id even when connected by address`() = linkTest { tv, phone ->
         assertTrue(phone.connect(tv.device()))
 
-        phone.disconnect()
+        val paired = assertNotNull(phone.paired.value)
+        assertEquals(TV_NAME, paired.name)
+        assertNotEquals(tv.device().id, paired.id, "запоминается постоянный id ТВ, а не введённый адрес")
+        assertEquals(paired, TvLinkMemory(phoneSettings, crypto).paired.value, "память переживает перезапуск")
+    }
+
+    @Test
+    fun `connecting again to the linked tv keeps the link`() = linkTest { tv, phone ->
+        assertTrue(phone.connect(tv.device()))
+        val seen = mutableListOf<RemoteSession>()
+        launch(start = CoroutineStart.UNDISPATCHED) { phone.session.collect { seen += it } }
+
+        assertTrue(phone.connect(assertNotNull(phone.paired.value)))
+        assertTrue(phone.connect(tv.device()))
+
+        assertTrue(seen.none { it is RemoteSession.Connecting }, "связь с тем же ТВ не должна рваться: $seen")
+    }
+
+    @Test
+    fun `remembered tv comes back by itself when filmax on it is reopened`() = linkTest { tv, phone ->
+        assertTrue(phone.connect(tv.device()))
+        launch { phone.stayConnected() }
+
+        stopTv()
+        phone.session.first { it is RemoteSession.Lost }
+        startTv()
+        // Стандартный порт бывает занят (проброс на эмулятор), и ТВ встаёт на другой — его адрес
+        // телефон узнаёт из mDNS, как узнал бы новый адрес от роутера.
+        network.value = listOf(tv.advertised(assertNotNull(phone.paired.value).id))
+
+        phone.session.first { it is RemoteSession.Connected }
+        assertEquals(listOf(PHONE_NAME), tv.state.first { it.phones.isNotEmpty() }.phones)
+    }
+
+    @Test
+    fun `remembered tv connects by itself after the phone app restarts`() = linkTest { tv, phone ->
+        assertTrue(phone.connect(tv.device()))
+        val paired = assertNotNull(phone.paired.value)
+        // Телефон «закрыли»: связь порвалась, а в настройках ТВ остался.
+        phone.forget()
+        TvLinkMemory(phoneSettings, crypto).remember(paired)
+        val restarted = client(ownUsers)
+
+        launch { restarted.stayConnected() }
+
+        restarted.session.first { it is RemoteSession.Connected }
+        tv.state.first { it.phones.isNotEmpty() }
+        restarted.forget()
+    }
+
+    @Test
+    fun `forgotten tv does not come back`() = linkTest { tv, phone ->
+        assertTrue(phone.connect(tv.device()))
+        launch { phone.stayConnected() }
+
+        phone.forget()
+        tv.state.first { it.phones.isEmpty() }
+        delay(QUIET_CHECK_MS)
 
         assertEquals(RemoteSession.Idle, phone.session.value)
-        tv.state.first { it.phones.isEmpty() }
+        assertNull(phone.paired.value)
+        assertTrue(tv.state.value.phones.isEmpty())
     }
 
     /** ТВ с поднятым приёмником и телефон; [phoneUsers] — аккаунт, в который вошёл телефон. */
@@ -117,32 +190,62 @@ class TvLinkLoopbackTest {
             account = TvLinkAccount(ownUsers, crypto),
             advertiser = ServiceAdvertiser { awaitCancellation() },
             device = TestDevice(TV_NAME),
+            memory = TvLinkMemory(MapSettings(), crypto),
             dispatcher = Dispatchers.IO,
         )
-        val phone = TvLinkClient(TvLinkAccount(phoneUsers, crypto), TestDevice(PHONE_NAME), Dispatchers.IO)
-        val serving = launch(Dispatchers.IO) { tv.serve() }
+        val phone = client(phoneUsers)
+        val receiver = TvReceiver(tv, this)
         try {
             withTimeout(TEST_TIMEOUT_MS) {
-                tv.state.first { it.listening }
+                receiver.start()
                 coroutineScope {
-                    LinkScope(this, serving).block(tv, phone)
-                    // Подписки теста (сбор команд) живут до конца сценария.
+                    LinkScope(this, receiver).block(tv, phone)
+                    // Подписки теста (сбор команд, повторы подключения) живут до конца сценария.
                     coroutineContext.cancelChildren()
                 }
             }
         } finally {
-            phone.disconnect()
-            serving.cancelAndJoin()
+            phone.forget()
+            receiver.stop()
         }
     }
 
-    private class LinkScope(scope: CoroutineScope, private val serving: Job) :
+    /** Телефон на общих [phoneSettings] и с общей сетью [network]. */
+    private fun client(users: UserRepository) = TvLinkClient(
+        account = TvLinkAccount(users, crypto),
+        device = TestDevice(PHONE_NAME),
+        memory = TvLinkMemory(phoneSettings, crypto),
+        browser = ServiceBrowser { network },
+        dispatcher = Dispatchers.IO,
+    )
+
+    /** Приёмник, который можно закрыть и открыть снова, как Filmax на ТВ. Живёт в скоупе всего теста. */
+    private class TvReceiver(private val tv: TvLinkServer, private val scope: CoroutineScope) {
+
+        private var serving: Job? = null
+
+        suspend fun start() {
+            serving = scope.launch(Dispatchers.IO) { tv.serve() }
+            tv.state.first { it.listening }
+        }
+
+        suspend fun stop() {
+            serving?.cancelAndJoin()
+        }
+    }
+
+    private class LinkScope(scope: CoroutineScope, private val receiver: TvReceiver) :
         CoroutineScope by scope {
-        suspend fun stopTv() = serving.cancelAndJoin()
+        suspend fun stopTv() = receiver.stop()
+        suspend fun startTv() = receiver.start()
     }
 
     /** Адрес поднятого приёмника — так его ввёл бы человек с экрана ТВ. */
     private fun TvLinkServer.device(): TvDevice = assertNotNull(state.value.address?.let(TvAddress::parse))
+
+    /** Запись mDNS поднятого приёмника с постоянным id [tvId]. */
+    private fun TvLinkServer.advertised(tvId: String): LinkService =
+        device().let { LinkService(id = tvId, name = TV_NAME, host = it.host, port = it.port, fingerprint = null) }
 
     private class TestDevice(override val name: String) : LocalDevice {
         override fun localAddress() = "127.0.0.1"
@@ -162,6 +265,9 @@ class TvLinkLoopbackTest {
         const val TV_NAME = "Гостиная"
         const val PHONE_NAME = "Galaxy S25"
         const val TEST_TIMEOUT_MS = 20_000L
+
+        /** Дольше первой паузы повтора: забытый ТВ за это время успел бы подключиться снова. */
+        const val QUIET_CHECK_MS = 3_000L
 
         val STATUS = PlaybackStatus(
             itemId = 2003,

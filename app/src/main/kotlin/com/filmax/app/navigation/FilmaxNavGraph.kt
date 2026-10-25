@@ -64,6 +64,7 @@ import com.filmax.feature.search.mobile.navigation.browseScreen
 import com.filmax.feature.search.mobile.navigation.catalogScreen
 import com.filmax.feature.search.mobile.navigation.filmographyScreen
 import com.filmax.feature.search.mobile.navigation.searchScreen
+import com.filmax.feature.tvlink.mobile.RemoteLinkKeeper
 import com.filmax.feature.tvlink.mobile.navigation.remoteScreen
 import com.filmax.feature.tvlink.mobile.navigation.tvPickerDialog
 import kotlinx.serialization.Serializable
@@ -108,6 +109,9 @@ fun FilmaxNavGraph(
         homeRoute = HomeRoute,
         onboardingRoute = OnboardingRoute,
     )
+
+    // Телефон как пульт: пока Filmax на экране и вход выполнен, связь с запомненным ТВ возвращается сама.
+    RemoteLinkKeeper(enabled = rootState.isAuthenticated == true)
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDest = backStackEntry?.destination
