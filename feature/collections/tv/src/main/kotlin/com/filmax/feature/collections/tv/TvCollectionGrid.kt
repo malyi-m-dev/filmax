@@ -41,10 +41,10 @@ import com.filmax.core.tv.designsystem.TvPosterSize
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvScrollBar
 import com.filmax.core.tv.designsystem.fxEnter
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 
 /** Верх первой строки под раскрытой шапкой: постеры заходят на растворённый низ полосы. */
 internal val GridTop = 200.dp

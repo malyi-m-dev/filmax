@@ -69,10 +69,10 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxStatusBarGlass
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderScreenModel
 import com.filmax.feature.library.common.FolderSideEffect

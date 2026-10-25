@@ -44,10 +44,10 @@ import com.filmax.core.ui.components.FilmaxFolderCard
 import com.filmax.core.ui.components.FilmaxHistoryRow
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxTextButton
-import com.filmax.core.ui.components.continueMeta
+import com.filmax.core.presentation.labels.continueMeta
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState

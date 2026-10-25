@@ -4,7 +4,7 @@ package com.filmax.feature.home.tv
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.ui.components.durationLabel
+import com.filmax.core.presentation.labels.durationLabel
 
 /** Сколько первых тайтлов «В тренде» несут номер: топ-10, дальше номер теряет смысл. */
 internal const val RANKED_COUNT = 10

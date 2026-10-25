@@ -1,7 +1,7 @@
 package com.filmax.feature.home.tv
 
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.ui.components.isHighRating
+import com.filmax.core.presentation.labels.isHighRating
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

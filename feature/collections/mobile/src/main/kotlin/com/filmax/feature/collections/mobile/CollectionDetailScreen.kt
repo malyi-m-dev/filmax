@@ -71,10 +71,10 @@ import com.filmax.core.ui.components.FilmaxPosterSkeleton
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.bleed
 import com.filmax.core.ui.components.collectionHue
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import com.filmax.feature.collections.common.CollectionDetailState

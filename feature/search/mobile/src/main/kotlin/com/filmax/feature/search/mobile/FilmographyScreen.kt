@@ -40,9 +40,9 @@ import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel

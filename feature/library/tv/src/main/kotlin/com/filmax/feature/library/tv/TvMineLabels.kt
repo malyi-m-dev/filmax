@@ -3,8 +3,8 @@
 package com.filmax.feature.library.tv
 
 import com.filmax.core.domain.watching.model.WatchProgress
-import com.filmax.core.ui.components.durationLabel
-import com.filmax.core.ui.components.titlesLabel
+import com.filmax.core.presentation.labels.durationLabel
+import com.filmax.core.presentation.labels.titlesLabel
 import com.filmax.feature.library.common.MineFolder
 
 private const val SECONDS_IN_MINUTE = 60

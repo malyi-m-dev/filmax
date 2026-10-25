@@ -51,10 +51,10 @@ import com.filmax.core.ui.components.FilmaxTextButton
 import com.filmax.core.ui.components.LocalNavBarPadding
 import com.filmax.core.ui.components.SuggestionKind
 import com.filmax.core.ui.components.VoiceListeningOverlay
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.ui.components.rememberInAppVoiceSearch
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel

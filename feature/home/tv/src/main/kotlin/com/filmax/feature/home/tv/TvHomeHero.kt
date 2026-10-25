@@ -55,7 +55,7 @@ import com.filmax.core.tv.designsystem.fxStaticOverlay
 import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.ui.components.PosterImage
-import com.filmax.core.ui.components.ratingLabel
+import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeState
 
