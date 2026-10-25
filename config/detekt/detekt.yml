@@ -37,6 +37,11 @@ formatting:
 
 complexity:
   active: true
+  # onEvent ScreenModel — один when, по строке на событие: ветки простые, и их число — это число
+  # событий экрана, а не сложность метода. Остальные методы считаются как обычно.
+  CyclomaticComplexMethod:
+    active: true
+    ignoreSimpleWhenEntries: true
   ComplexCondition:
     active: true
     threshold: 4

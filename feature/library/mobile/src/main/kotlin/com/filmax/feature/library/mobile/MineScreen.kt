@@ -1,5 +1,6 @@
 // «Моё»: стеклянная шапка с сегментами и сегменты страницами, которые листаются пальцем. Сами
-// сегменты — в MineSegments, шторки создания папки и подтверждений — в MineSheets.
+// сегменты — в MineSegments, шторки создания папки и подтверждений — в MineSheets. Куда ведут
+// карточки и что подтверждать, решает MineScreenModel: экран шлёт события.
 
 package com.filmax.feature.library.mobile
 
@@ -41,8 +42,6 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.GlassState
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxGlassHeader
 import com.filmax.core.ui.components.FilmaxIconButton
@@ -53,58 +52,26 @@ import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
-
-/** Что «Моё» просит подтвердить — убрать тайтл; [title] — для текста шторки. */
-internal sealed interface MineConfirm {
-    val itemId: Int
-    val title: String
-
-    data class Watchlist(override val itemId: Int, override val title: String) : MineConfirm
-    data class History(override val itemId: Int, override val title: String) : MineConfirm
-}
-
-/** Переходы и события «Моё» одним объектом: порог LongParameterList у detekt — 6. */
-internal data class MineActions(
-    val onEvent: (MineEvent) -> Unit,
-    val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
-    val onOpenFolder: (Int) -> Unit,
-    val onConfirm: (MineConfirm) -> Unit,
-)
 
 @Composable
 fun MineScreen(
     modifier: Modifier = Modifier,
     screenModel: MineScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    var confirm by remember { mutableStateOf<MineConfirm?>(null) }
     // Вернулись из папки, деталей или плеера — история и папки могли измениться.
     LifecycleResumeEffect(Unit) {
         screenModel.dispatch(MineEvent.Refresh)
         onPauseOrDispose { }
     }
-    val actions = remember(screenModel, navigator) {
-        MineActions(
-            onEvent = screenModel::dispatch,
-            onOpenItem = { navigator.open(Destination.Details(it)) },
-            onPlay = { itemId, season, videoId ->
-                navigator.open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-            },
-            onOpenFolder = { navigator.open(Destination.BookmarkFolder(it)) },
-            onConfirm = { confirm = it },
-        )
-    }
     Box(modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
-        MineBody(state = state, actions = actions, onOpenSearch = { navigator.open(Destination.Search) })
+        MineBody(state = state, onEvent = screenModel::dispatch)
     }
-    MineSheets(state = state, confirm = confirm, onEvent = screenModel::dispatch, onDismissConfirm = { confirm = null })
+    MineSheets(state = state, onEvent = screenModel::dispatch)
 }
 
 @Composable
-private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () -> Unit) {
+private fun MineBody(state: MineState, onEvent: (MineEvent) -> Unit) {
     val glass = rememberGlassState()
     val density = LocalDensity.current
     var headerHeight by remember { mutableStateOf(0.dp) }
@@ -112,7 +79,7 @@ private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () ->
     // Сегмент — состояние модели: пролистали пальцем — модель узнаёт, какой сегмент на экране.
     LaunchedEffect(pager.settledPage) {
         val shown = MineSegment.entries[pager.settledPage]
-        if (shown != state.segment) actions.onEvent(MineEvent.SelectSegment(shown))
+        if (shown != state.segment) onEvent(MineEvent.SelectSegment(shown))
     }
     val padding = PaddingValues(
         start = FilmaxMetrics.GridPadding,
@@ -125,21 +92,26 @@ private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () ->
             MineSegmentPage(
                 segment = MineSegment.entries[page],
                 state = state,
-                actions = actions,
+                onEvent = onEvent,
                 contentPadding = padding
             )
         }
         MineHeader(
             pager = pager,
             glass = glass,
-            onOpenSearch = onOpenSearch,
+            onEvent = onEvent,
             modifier = Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } },
         )
     }
 }
 
 @Composable
-private fun MineHeader(pager: PagerState, glass: GlassState, onOpenSearch: () -> Unit, modifier: Modifier = Modifier) {
+private fun MineHeader(
+    pager: PagerState,
+    glass: GlassState,
+    onEvent: (MineEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scope = rememberCoroutineScope()
     FilmaxGlassHeader(glass = glass, modifier = modifier) {
         Row(
@@ -153,7 +125,7 @@ private fun MineHeader(pager: PagerState, glass: GlassState, onOpenSearch: () ->
             FilmaxIconButton(
                 Icons.Filled.Search,
                 contentDescription = "Поиск",
-                onClick = onOpenSearch,
+                onClick = { onEvent(MineEvent.OpenSearch) },
                 size = FilmaxMetrics.IconButtonSmall,
             )
         }

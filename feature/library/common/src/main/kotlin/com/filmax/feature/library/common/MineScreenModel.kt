@@ -11,9 +11,12 @@ import com.filmax.core.domain.user.model.FolderAppearance
 import com.filmax.core.domain.user.model.userFolders
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.labels.titlesLabel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,22 +29,23 @@ import java.time.ZonedDateTime
 
 /**
  * Раздел «Моё» телефона и ТВ: сегменты «Продолжить · Буду смотреть · Папки · История», сортировки,
- * удаление (долгое «ОК» на пульте, долгий тап на телефоне), создание папки и очистка истории.
- * Общие правила вынесены в домен и MineFormat.
+ * удаление (долгое «ОК» на пульте, долгий тап с подтверждением на телефоне), создание папки,
+ * очистка истории и переходы в карточку, плеер, папку и поиск. Общие правила — в MineFormat.
  *
  * Состояние собирается реактивно: избранное и оформление папок — потоки, поэтому смена порядка,
  * перекраска и удаление видны сразу, без перезагрузки. [clock] нужен истории («Сегодня»,
  * «Вчера») и подписям папок — тесты подставляют фиксированное «сейчас».
+ *
+ * Обработчики читают состояние внутри `screenModelScope { current -> }`, в момент выполнения:
+ * события стоят в одной очереди, и правка черновика должна видеть результат предыдущей.
  */
-// Модель держит по короткому обработчику на событие (сегменты, сортировки, удаление, черновик
-// папки, история): дробить их по классам значило бы разнести один экран по нескольким моделям.
-@Suppress("TooManyFunctions")
 class MineScreenModel(
     private val watching: WatchingRepository,
     private val favorites: FavoritesRepository,
     private val folders: BookmarkFolders,
     private val removeFromWatchLater: RemoveFromWatchLaterUseCase,
     private val clock: Clock,
+    private val navigator: Navigator,
 ) : BaseScreenModel<MineState, MineSideEffect, MineEvent>(MineState()) {
 
     /** Последний ответ сервера по папкам — сырьё, поверх которого ложатся оформление и порядок. */
@@ -55,19 +59,26 @@ class MineScreenModel(
 
     override fun onEvent(event: MineEvent) {
         when (event) {
-            is MineEvent.SelectSegment -> update { it.copy(segment = event.segment) }
-            MineEvent.CycleWatchlistSort -> update { it.copy(watchlistSort = it.watchlistSort.next()) }
-            MineEvent.CycleFolderSort -> update { it.copy(folderSort = it.folderSort.next()) }
-            is MineEvent.RemoveFromWatchlist -> screenModelScope { _ -> removeFromWatchLater(event.itemId) }
-            is MineEvent.RemoveFromContinue -> removeFromHistory(event.itemId)
-            MineEvent.AskClearHistory -> update { it.copy(confirmClearHistory = true) }
-            MineEvent.DismissClearHistory -> update { it.copy(confirmClearHistory = false) }
-            MineEvent.ConfirmClearHistory -> clearHistory()
-            MineEvent.StartCreateFolder -> update { it.copy(draft = FolderDraft()) }
-            is MineEvent.EditFolder -> editDraft(event.input)
-            MineEvent.SubmitFolder -> submitFolder()
-            MineEvent.CancelFolder -> update { it.copy(draft = null) }
-            MineEvent.Refresh -> refresh()
+            is MineEvent.SelectSegment -> onSelectSegment(event.segment)
+            MineEvent.CycleWatchlistSort -> onCycleWatchlistSort()
+            MineEvent.CycleFolderSort -> onCycleFolderSort()
+            is MineEvent.RemoveFromWatchlist -> onRemoveFromWatchlist(event.itemId)
+            is MineEvent.RemoveFromContinue -> onRemoveFromContinue(event.itemId)
+            is MineEvent.AskRemoval -> onRemovalSheet(event.removal)
+            MineEvent.DismissRemoval -> onRemovalSheet(removal = null)
+            MineEvent.ConfirmRemoval -> onConfirmRemoval()
+            MineEvent.AskClearHistory -> onClearHistoryDialog(open = true)
+            MineEvent.DismissClearHistory -> onClearHistoryDialog(open = false)
+            MineEvent.ConfirmClearHistory -> onConfirmClearHistory()
+            MineEvent.StartCreateFolder -> onStartCreateFolder()
+            is MineEvent.EditFolder -> onEditFolder(event.input)
+            MineEvent.SubmitFolder -> onSubmitFolder()
+            MineEvent.CancelFolder -> onCancelFolder()
+            is MineEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            is MineEvent.ContinueWatching -> onContinueWatching(event.entry)
+            is MineEvent.OpenFolder -> navigator.open(Destination.BookmarkFolder(event.folderId))
+            MineEvent.OpenSearch -> navigator.open(Destination.Search)
+            MineEvent.Refresh -> onRefresh()
         }
     }
 
@@ -80,13 +91,14 @@ class MineScreenModel(
                 val loaded = shelfRequest.await()
                 applyHistory(history)
                 loaded.getOrNull()?.let { shelf.value = it }
-                updateState { it.copy(loading = false, error = firstErrorMessage(history, loaded)) }
+                val error = firstErrorMessage(history, loaded)
+                updateState { it.copy(loading = false, error = error) }
             }
         }
     }
 
     /** Повторный показ экрана: пока идёт первая загрузка, второй запрос ни к чему. */
-    private fun refresh() {
+    private fun onRefresh() {
         screenModelScope { current -> if (!current.loading) onFetchData() }
     }
 
@@ -110,28 +122,77 @@ class MineScreenModel(
     private fun mineFolders(loaded: FolderShelf, looks: Map<Int, FolderAppearance>): List<MineFolder> {
         val now = now()
         return userFolders(loaded.folders, looks).map { folder ->
-            MineFolder(folder, loaded.posters[folder.id].orEmpty(), changedLabel(folder.updatedAt, now))
+            val changed = changedLabel(folder.updatedAt, now)
+            MineFolder(
+                folder = folder,
+                posters = loaded.posters[folder.id].orEmpty(),
+                changed = changed,
+                caption = listOfNotNull(titlesLabel(folder.count), changed).joinToString(" · "),
+            )
         }
     }
 
     private suspend fun applyHistory(result: RequestResult<List<WatchHistory>>) {
         val entries = result.getOrNull() ?: return
-        updateState { it.copy(continueWatching = continueEntries(entries), history = historyDays(entries, now())) }
+        val continueWatching = continueEntries(entries)
+        val history = historyDays(entries, now())
+        updateState { it.copy(continueWatching = continueWatching, history = history) }
+    }
+
+    private fun onSelectSegment(segment: MineSegment) {
+        screenModelScope { _ -> updateState { it.copy(segment = segment) } }
+    }
+
+    private fun onCycleWatchlistSort() {
+        screenModelScope { current ->
+            val sort = current.watchlistSort.next()
+            updateState { it.copy(watchlistSort = sort) }
+        }
+    }
+
+    private fun onCycleFolderSort() {
+        screenModelScope { current ->
+            val sort = current.folderSort.next()
+            updateState { it.copy(folderSort = sort) }
+        }
+    }
+
+    private fun onRemoveFromWatchlist(itemId: Int) {
+        screenModelScope { _ -> removeFromWatchLater(itemId) }
     }
 
     /** Убирает тайтл из «Продолжить» сразу, затем просит сервер забыть его историю. */
-    private fun removeFromHistory(itemId: Int) {
-        screenModelScope { _ ->
-            updateState { current ->
-                current.copy(continueWatching = current.continueWatching.filterNot { it.itemId == itemId })
-            }
+    private fun onRemoveFromContinue(itemId: Int) {
+        screenModelScope { current ->
+            val continueWatching = current.continueWatching.filterNot { it.itemId == itemId }
+            updateState { it.copy(continueWatching = continueWatching) }
             watching.clearHistory(itemId)
             applyHistory(watching.getHistory())
         }
     }
 
+    private fun onRemovalSheet(removal: MineRemoval?) {
+        screenModelScope { _ -> updateState { it.copy(confirmRemoval = removal) } }
+    }
+
+    /** «Убрать» в шторке телефона — то же, что долгое «ОК» на ТВ, только с подтверждением. */
+    private fun onConfirmRemoval() {
+        screenModelScope { current ->
+            val removal = current.confirmRemoval ?: return@screenModelScope
+            updateState { it.copy(confirmRemoval = null) }
+            when (removal) {
+                is MineRemoval.Watchlist -> onRemoveFromWatchlist(removal.itemId)
+                is MineRemoval.History -> onRemoveFromContinue(removal.itemId)
+            }
+        }
+    }
+
+    private fun onClearHistoryDialog(open: Boolean) {
+        screenModelScope { _ -> updateState { it.copy(confirmClearHistory = open) } }
+    }
+
     /** kino.pub чистит историю по тайтлу — поэтому по запросу на каждый тайтл истории. */
-    private fun clearHistory() {
+    private fun onConfirmClearHistory() {
         screenModelScope { current ->
             val ids = current.history.flatMap { day -> day.entries.map { it.entry.itemId } }
             updateState { it.copy(confirmClearHistory = false, history = emptyList(), continueWatching = emptyList()) }
@@ -139,14 +200,26 @@ class MineScreenModel(
         }
     }
 
-    private fun editDraft(input: FolderInput) = update { current -> current.copy(draft = current.draft?.apply(input)) }
+    private fun onStartCreateFolder() {
+        screenModelScope { _ -> updateState { it.copy(draft = FolderDraft()) } }
+    }
+
+    private fun onEditFolder(input: FolderInput) {
+        screenModelScope { current ->
+            val draft = current.draft?.apply(input)
+            updateState { it.copy(draft = draft) }
+        }
+    }
+
+    private fun onCancelFolder() {
+        screenModelScope { _ -> updateState { it.copy(draft = null) } }
+    }
 
     /**
      * Создаёт папку и перечитывает список: id и порядок задаёт сервер, а угаданный локально id
      * сломал бы открытие новой папки. Панель закрывается сразу — плитка появится с ответом.
-     * Черновик читается при выполнении: правки с клавиатуры стоят в очереди раньше «Создать».
      */
-    private fun submitFolder() {
+    private fun onSubmitFolder() {
         screenModelScope { current ->
             val draft = current.draft?.takeIf { it.canSubmit } ?: return@screenModelScope
             updateState { it.copy(draft = null) }
@@ -155,8 +228,16 @@ class MineScreenModel(
         }
     }
 
-    private fun update(transform: (MineState) -> MineState) {
-        screenModelScope { _ -> updateState(transform) }
+    /** «Продолжить» и история ведут сразу в плеер: недосмотренная серия — сезон и номер из истории. */
+    private fun onContinueWatching(entry: WatchHistory) {
+        val progress = entry.progress
+        navigator.open(
+            Destination.Player(
+                itemId = entry.itemId,
+                videoId = progress?.videoId ?: Destination.Player.UNKNOWN,
+                season = progress?.season ?: Destination.Player.UNKNOWN,
+            ),
+        )
     }
 
     private fun now(): ZonedDateTime = ZonedDateTime.now(clock)

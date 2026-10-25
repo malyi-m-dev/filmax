@@ -17,6 +17,7 @@ val libraryModule = module {
             folders = get(),
             removeFromWatchLater = get(),
             clock = Clock.systemDefaultZone(),
+            navigator = get(),
         )
     }
 }

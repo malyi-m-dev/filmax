@@ -7,10 +7,11 @@ android { namespace = "com.filmax.feature.library.tv" }
 
 dependencies {
     api(project(":feature:library:common"))
+    // Тесты фокуса строят экран на настоящей модели и проверяют переходы через FakeNavigator.
+    testImplementation(project(":core:navigation"))
 
     implementation(project(":core:ui"))
     implementation(project(":core:tv-designsystem"))
-    implementation(project(":core:navigation"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
 

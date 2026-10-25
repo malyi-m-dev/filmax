@@ -9,6 +9,8 @@ android { namespace = "com.filmax.feature.library.common" }
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
+    // Переходы из «Моё» и папки (карточка, плеер, папка, поиск, каталог) решают модели.
+    implementation(project(":core:navigation"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

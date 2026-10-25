@@ -5,6 +5,8 @@ package com.filmax.feature.library.common
 
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.labels.episodeCode
+import com.filmax.core.presentation.labels.watchedShare
 import java.text.Collator
 import java.time.Instant
 import java.time.LocalDate
@@ -43,13 +45,15 @@ fun historyDays(history: List<WatchHistory>, now: ZonedDateTime): List<HistoryDa
         .groupBy { entry -> entry.lastSeenAt?.let { localDate(it, zone) } }
         .entries
         .sortedByDescending { (day, _) -> day ?: LocalDate.MIN }
-        .map { (day, entries) ->
-            HistoryDay(
-                label = dayLabel(day, now.toLocalDate()),
-                entries = entries.map { HistoryEntry(it, it.lastSeenAt?.let { millis -> timeLabel(millis, zone) }) },
-            )
-        }
+        .map { (day, entries) -> HistoryDay(dayLabel(day, now.toLocalDate()), entries.map { historyEntry(it, zone) }) }
 }
+
+private fun historyEntry(entry: WatchHistory, zone: ZoneId) = HistoryEntry(
+    entry = entry,
+    time = entry.lastSeenAt?.let { millis -> timeLabel(millis, zone) },
+    episodeCode = episodeCode(entry.progress),
+    watchedShare = watchedShare(entry.progress),
+)
 
 /** «Сегодня», «Вчера», «12 октября», в прошлые годы — с годом; null — «Раньше». */
 fun dayLabel(day: LocalDate?, today: LocalDate): String = when {

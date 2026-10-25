@@ -32,6 +32,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.labels.episodeCode
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.remainingLabel
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -47,9 +52,6 @@ import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvFolderTint
 import com.filmax.core.tv.designsystem.tvScrollFades
-import com.filmax.core.presentation.labels.isHighRating
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
@@ -77,7 +79,12 @@ private val GridFade = 60.dp
 internal const val FIRST_CARD_ENTER = 2
 
 @Composable
-internal fun MineSegmentContent(state: MineState, actions: MineActions, focus: MineFocus, screenFocus: TvScreenFocus) {
+internal fun MineSegmentContent(
+    state: MineState,
+    onEvent: (MineEvent) -> Unit,
+    focus: MineFocus,
+    screenFocus: TvScreenFocus,
+) {
     AnimatedContent(
         targetState = state.segment,
         transitionSpec = { fadeIn(tween(SEGMENT_FADE_MS)) togetherWith fadeOut(FxMotion.fade()) },
@@ -86,11 +93,11 @@ internal fun MineSegmentContent(state: MineState, actions: MineActions, focus: M
         val cards = GridFocus(screenFocus, rememberCardFocusHandoff())
         when (segment) {
             MineSegment.CONTINUE -> MineGrid(ContinueGrid, cards) {
-                continueItems(state.continueWatching, actions, cards)
+                continueItems(state.continueWatching, onEvent, cards)
             }
-            MineSegment.WATCHLIST -> MineGrid(WatchlistGrid, cards) { watchlistItems(state.watchlist, actions, cards) }
-            MineSegment.FOLDERS -> MineGrid(FoldersGrid, cards) { folderItems(state, actions, focus, screenFocus) }
-            MineSegment.HISTORY -> MineHistory(state.history, actions, screenFocus)
+            MineSegment.WATCHLIST -> MineGrid(WatchlistGrid, cards) { watchlistItems(state.watchlist, onEvent, cards) }
+            MineSegment.FOLDERS -> MineGrid(FoldersGrid, cards) { folderItems(state, onEvent, focus, screenFocus) }
+            MineSegment.HISTORY -> MineHistory(state.history, onEvent, screenFocus)
         }
     }
 }
@@ -128,7 +135,7 @@ private fun MineGrid(spec: GridSpec, cards: GridFocus, content: LazyGridScope.()
 /** Фокус карточек сетки: память экрана и передача фокуса соседу при удалении. */
 private class GridFocus(val screen: TvScreenFocus, val handoff: CardFocusHandoff)
 
-private fun LazyGridScope.continueItems(entries: List<WatchHistory>, actions: MineActions, cards: GridFocus) {
+private fun LazyGridScope.continueItems(entries: List<WatchHistory>, onEvent: (MineEvent) -> Unit, cards: GridFocus) {
     if (entries.isEmpty()) {
         emptyItem(MineEmptyText.Continue, Icons.Rounded.PlayCircleOutline)
         return
@@ -142,23 +149,21 @@ private fun LazyGridScope.continueItems(entries: List<WatchHistory>, actions: Mi
             meta = remainingLabel(entry.progress),
             posterUrl = entry.wideOrPoster,
             progress = entry.progress?.fraction ?: 0f,
-            // OK — сразу в плеер, на ту же серию: номер серии уникален только внутри сезона.
-            onClick = {
-                actions.onPlay(entry.itemId, entry.progress?.season ?: NO_SEASON, entry.progress?.videoId ?: NO_VIDEO)
-            },
+            // OK — сразу в плеер, на ту же серию: модель берёт сезон и номер из истории.
+            onClick = { onEvent(MineEvent.ContinueWatching(entry)) },
             onLongClick = {
                 cards.handoff.handOff(keys, key)
                 removing = true
             },
             size = TvCardSize.Grid,
-            badge = episodeBadge(entry.progress),
+            badge = episodeCode(entry.progress),
             modifier = removableCard(index % ContinueGrid.columns, key, cards)
-                .collapseOnRemove(removing) { actions.onEvent(MineEvent.RemoveFromContinue(entry.itemId)) },
+                .collapseOnRemove(removing) { onEvent(MineEvent.RemoveFromContinue(entry.itemId)) },
         )
     }
 }
 
-private fun LazyGridScope.watchlistItems(items: List<FavoriteItem>, actions: MineActions, cards: GridFocus) {
+private fun LazyGridScope.watchlistItems(items: List<FavoriteItem>, onEvent: (MineEvent) -> Unit, cards: GridFocus) {
     if (items.isEmpty()) {
         emptyItem(MineEmptyText.Watchlist, Icons.Rounded.BookmarkBorder)
         return
@@ -171,7 +176,7 @@ private fun LazyGridScope.watchlistItems(items: List<FavoriteItem>, actions: Min
             title = item.title,
             meta = posterMeta(type = null, year = item.year),
             posterUrl = item.posterSmall,
-            onClick = { actions.onOpenItem(item.id) },
+            onClick = { onEvent(MineEvent.OpenItem(item.id)) },
             // Долгое «ОК» — убрать из списка; фокус переходит на соседа, а не теряется.
             onLongClick = {
                 cards.handoff.handOff(keys, key)
@@ -181,7 +186,7 @@ private fun LazyGridScope.watchlistItems(items: List<FavoriteItem>, actions: Min
             ratingHighlighted = isHighRating(item.rating),
             size = TvPosterSize.Grid,
             modifier = removableCard(index % WatchlistGrid.columns, key, cards)
-                .collapseOnRemove(removing) { actions.onEvent(MineEvent.RemoveFromWatchlist(item.id)) },
+                .collapseOnRemove(removing) { onEvent(MineEvent.RemoveFromWatchlist(item.id)) },
         )
     }
 }
@@ -200,13 +205,13 @@ private fun LazyGridItemScope.removableCard(column: Int, key: String, cards: Gri
 
 private fun LazyGridScope.folderItems(
     state: MineState,
-    actions: MineActions,
+    onEvent: (MineEvent) -> Unit,
     focus: MineFocus,
     screenFocus: TvScreenFocus,
 ) {
     item(key = CREATE_FOLDER_KEY) {
         TvCreateFolderCard(
-            onClick = { actions.onEvent(MineEvent.StartCreateFolder) },
+            onClick = { onEvent(MineEvent.StartCreateFolder) },
             modifier = Modifier
                 .fxEnter(FIRST_CARD_ENTER)
                 .then(screenFocus.item(CREATE_FOLDER_KEY))
@@ -216,10 +221,10 @@ private fun LazyGridScope.folderItems(
     itemsIndexed(state.folders, key = { _, folder -> folder.folder.id }) { index, folder ->
         TvFolderCard(
             title = folder.folder.title,
-            caption = folderCaption(folder),
+            caption = folder.caption,
             posters = folder.posters,
             tint = tvFolderTint(folder.folder.tint).card,
-            onClick = { actions.onOpenFolder(folder.folder.id) },
+            onClick = { onEvent(MineEvent.OpenFolder(folder.folder.id)) },
             // Первая ячейка — «Создать папку»: папки идут в сетке со второй.
             modifier = Modifier
                 .fxEnter(FIRST_CARD_ENTER + (index + 1) % FoldersGrid.columns)
@@ -231,7 +236,3 @@ private fun LazyGridScope.folderItems(
 private fun LazyGridScope.emptyItem(text: MineEmptyText, icon: ImageVector) {
     item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { MineEmpty(text, icon) }
 }
-
-/** Фильм или неизвестная серия: плеер возьмёт первый трек (PlayerRoute = -1). */
-private const val NO_SEASON = -1
-private const val NO_VIDEO = -1

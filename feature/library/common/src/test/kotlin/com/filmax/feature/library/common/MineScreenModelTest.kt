@@ -10,6 +10,7 @@ import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
 import kotlinx.coroutines.Dispatchers
@@ -260,6 +261,7 @@ class MineScreenModelTest {
         folders = BookmarkFolders(user, appearance),
         removeFromWatchLater = RemoveFromWatchLaterUseCase(favorites, watching),
         clock = clock,
+        navigator = FakeNavigator(),
     )
 
     private fun favorite(id: Int, title: String, rating: String? = null) =

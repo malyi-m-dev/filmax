@@ -39,9 +39,16 @@ sealed interface FolderEvent {
     data object AskDelete : FolderEvent
     data object ConfirmDelete : FolderEvent
     data object DismissDelete : FolderEvent
+
+    data object Back : FolderEvent
+    data class OpenItem(val itemId: Int) : FolderEvent
+
+    /** «Смотреть подряд»: первый тайтл папки целиком — фильм или первая серия сериала. */
+    data object PlayAll : FolderEvent
+
+    /** Пустая папка: «Перейти в каталог» — единственное осмысленное действие. */
+    data object OpenCatalog : FolderEvent
 }
 
-sealed interface FolderSideEffect {
-    /** Папку удалили — экрану больше нечего показывать, пора назад в «Моё». */
-    data object Deleted : FolderSideEffect
-}
+/** Одноразовых эффектов у папки нет: удалили — модель сама уводит назад в «Моё». */
+sealed interface FolderSideEffect

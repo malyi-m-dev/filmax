@@ -89,14 +89,14 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
 
 - [x] **0. Правила и план** — этот документ, `CLAUDE.md`, `refactoring-guidelines.md`,
   `FakeNavigator` в `:data:fake`.
-- [ ] **1. Home (пилот).** `HomeActions`/`HeroActions`/`RailActions`/`TvHomeActions` → `onEvent`;
+- [x] **1. Home (пилот).** `HomeActions`/`HeroActions`/`RailActions`/`TvHomeActions` → `onEvent`;
   навигация и `AskFeedback` → модель; заголовки рядов → `HomeRow.title/subtitle`; `hero`,
   `isEmpty` → поля; таймер карусели ТВ → модель (`HeroFocused`); шторка разделов → State;
   `HomeRowsLogic` → методы модели и `RowPaging`; `FeedFocus`/`HeroModel`/`FeedLayout` → убрать.
-- [ ] **2. Details + FolderPicker.** `playTarget`/`PlayLabel`/`overline`/`ratingBadges`/`metaLine`/
+- [x] **2. Details + FolderPicker.** `playTarget`/`PlayLabel`/`overline`/`ratingBadges`/`metaLine`/
   `sheetMeta`/`seasonSummary` → `DetailsState`; `seasonEpisodes` → поле; `*Actions` → `onEvent`;
   навигация (плеер, трейлер, фильмография, похожие, ТВ) → модель; share → SideEffect.
-- [ ] **3. Library (Mine, Folder).** `MineConfirm` → State; `MineLabels` → State; `*Actions` →
+- [x] **3. Library (Mine, Folder).** `MineConfirm` → State; `MineLabels` → State; `*Actions` →
   `onEvent`; `Refresh` при возврате остаётся событием жизненного цикла из вёрстки.
 - [ ] **4. Search / Catalog / Browse / Filmography.** `visibleItems/bestMatch/otherResults` → поля;
   `CatalogSheet` и черновик фильтров → State; `SheetOpeners`/`CatalogVoice` → State + события;
