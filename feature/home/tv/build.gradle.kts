@@ -11,7 +11,6 @@ dependencies {
 
     implementation(project(":core:ui"))
     implementation(project(":core:tv-designsystem"))
-    implementation(project(":core:navigation"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
 

@@ -10,7 +10,6 @@ dependencies {
     api(project(":feature:home:common"))
 
     implementation(project(":core:ui"))
-    implementation(project(":core:navigation"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
 

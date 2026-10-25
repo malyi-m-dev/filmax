@@ -44,3 +44,22 @@ fun TvScrollBar(
         },
     )
 }
+
+/** Бегунок индикатора прокрутки: начало и длина в долях дорожки. */
+data class ScrollThumb(val start: Float, val length: Float) {
+    companion object {
+        /** Всё помещается — бегунок во всю дорожку. */
+        val Whole = ScrollThumb(start = 0f, length = 1f)
+    }
+}
+
+/**
+ * Бегунок ленивого списка из элементов разной высоты. [position] — номер первого видимого
+ * элемента с дробной частью — сколько его уже уехало; длина — доля видимых элементов. Точной
+ * высоты всего списка ленивый список не знает, а для подсказки «где я» хватает и такой оценки.
+ */
+fun scrollThumb(position: Float, visibleCount: Int, total: Int): ScrollThumb {
+    if (total <= 0 || visibleCount >= total) return ScrollThumb.Whole
+    val hidden = (total - visibleCount).toFloat()
+    return ScrollThumb(start = (position / hidden).coerceIn(0f, 1f), length = visibleCount.toFloat() / total)
+}

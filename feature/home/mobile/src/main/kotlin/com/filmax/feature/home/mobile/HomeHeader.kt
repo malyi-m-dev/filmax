@@ -1,5 +1,5 @@
 // Шапка Главной — логотип, «пульт телевизора», чипы разделов — и баннер «нет сети», которым
-// открывается лента после hero. Сама лента и переходы — в HomeScreen.
+// открывается лента после hero. Сама лента — в HomeScreen.
 
 package com.filmax.feature.home.mobile
 
@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -36,6 +35,7 @@ import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxListRow
 import com.filmax.core.ui.components.FilmaxWordmark
 import com.filmax.core.ui.components.label
+import com.filmax.feature.home.common.HomeEvent
 
 /** Разделы чипами под шапкой — самые частые; остальные — в шторке «Разделы». */
 private val HeaderSections = listOf(CatalogSection.MOVIES, CatalogSection.SERIES, CatalogSection.ANIME)
@@ -45,13 +45,7 @@ private val HeaderSections = listOf(CatalogSection.MOVIES, CatalogSection.SERIES
  * а затемнение под статус-баром, нужное только поверх кадра, — гаснет.
  */
 @Composable
-internal fun HomeHeader(
-    glass: GlassState,
-    glassProgress: () -> Float,
-    onOpenTv: () -> Unit,
-    onOpenSection: (CatalogSection) -> Unit,
-    onOpenSections: () -> Unit,
-) {
+internal fun HomeHeader(glass: GlassState, glassProgress: () -> Float, onEvent: (HomeEvent) -> Unit) {
     Box(Modifier.fillMaxWidth()) {
         Box(
             Modifier
@@ -64,15 +58,15 @@ internal fun HomeHeader(
             modifier = Modifier.matchParentSize().graphicsLayer { alpha = glassProgress() }
         ) {}
         Column(Modifier.fillMaxWidth().statusBarsPadding()) {
-            HomeTopBar(onOpenTv = onOpenTv)
-            SectionChips(onOpenSection = onOpenSection, onOpenSections = onOpenSections)
+            HomeTopBar(onEvent)
+            SectionChips(onEvent)
         }
     }
 }
 
 /** Логотип и кнопка телевизора: поиск и профиль теперь вкладки навигации. */
 @Composable
-private fun HomeTopBar(onOpenTv: () -> Unit) {
+private fun HomeTopBar(onEvent: (HomeEvent) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -86,14 +80,14 @@ private fun HomeTopBar(onOpenTv: () -> Unit) {
         FilmaxIconButton(
             Icons.Filled.Cast,
             contentDescription = "Пульт телевизора",
-            onClick = onOpenTv,
+            onClick = { onEvent(HomeEvent.OpenTv) },
             size = FilmaxMetrics.IconButtonSmall,
         )
     }
 }
 
 @Composable
-private fun SectionChips(onOpenSection: (CatalogSection) -> Unit, onOpenSections: () -> Unit) {
+private fun SectionChips(onEvent: (HomeEvent) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -103,12 +97,12 @@ private fun SectionChips(onOpenSection: (CatalogSection) -> Unit, onOpenSections
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         HeaderSections.forEach { section ->
-            FilmaxChip(label = section.label, selected = false, onClick = { onOpenSection(section) })
+            FilmaxChip(label = section.label, selected = false, onClick = { onEvent(HomeEvent.OpenSection(section)) })
         }
         FilmaxChip(
             label = "Разделы",
             selected = false,
-            onClick = onOpenSections,
+            onClick = { onEvent(HomeEvent.OpenSections) },
             trailingIcon = Icons.Filled.KeyboardArrowDown,
         )
     }

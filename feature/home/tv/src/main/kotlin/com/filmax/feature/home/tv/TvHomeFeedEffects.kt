@@ -13,10 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -33,8 +32,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalFxColors
+import com.filmax.core.tv.designsystem.ScrollThumb
 import com.filmax.core.tv.designsystem.TvScrollBar
 import com.filmax.core.tv.designsystem.fxStaticOverlay
+import com.filmax.core.tv.designsystem.scrollThumb
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -63,27 +64,20 @@ private val ScrollBarTop = 110.dp
 private val ScrollBarEnd = 16.dp
 private const val SCROLL_BAR_HIDE_MS = 1_500L
 
-/** Какой ряд ленты в фокусе: ряды выше него приглушаются. */
-@Stable
-internal class FeedFocus {
-    var row by mutableIntStateOf(NO_ROW)
-
-    companion object {
-        const val NO_ROW = -1
-    }
-}
+/** Ни один ряд ленты не в фокусе. */
+internal const val NO_ROW = -1
 
 /** Ряд ленты с номером [index]: сообщает о фокусе внутри себя и приглушается, когда фокус ниже. */
 @Composable
-internal fun Modifier.feedRow(index: Int, feedFocus: FeedFocus): Modifier {
-    val above by remember(index, feedFocus) { derivedStateOf { feedFocus.row > index } }
+internal fun Modifier.feedRow(index: Int, focusedRow: MutableIntState): Modifier {
+    val above by remember(index, focusedRow) { derivedStateOf { focusedRow.intValue > index } }
     val alpha by animateFloatAsState(if (above) ABOVE_FOCUS_ALPHA else 1f, FxMotion.focus(), label = "rowAbove")
-    return trackFeedRow(index, feedFocus).graphicsLayer { this.alpha = alpha }
+    return trackFeedRow(index, focusedRow).graphicsLayer { this.alpha = alpha }
 }
 
 /** Только сообщает о фокусе — hero гаснет сам, параллаксом. */
-internal fun Modifier.trackFeedRow(index: Int, feedFocus: FeedFocus): Modifier =
-    onFocusChanged { if (it.hasFocus) feedFocus.row = index }
+internal fun Modifier.trackFeedRow(index: Int, focusedRow: MutableIntState): Modifier =
+    onFocusChanged { if (it.hasFocus) focusedRow.intValue = index }
 
 /** Насколько лента ушла от hero: 0 — hero на месте, 1 — hero погас (или ленту листнули дальше). */
 @Composable

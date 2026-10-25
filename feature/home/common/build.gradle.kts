@@ -11,6 +11,8 @@ android {
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
+    // Куда ведут карточки и кнопки Главной, решает модель — экраны только рисуют и шлют события.
+    implementation(project(":core:navigation"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

@@ -18,7 +18,6 @@ import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -57,20 +56,8 @@ import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.ratingLabel
-import kotlinx.coroutines.delay
-
-/** Что hero показывает: тайтлы карусели, текущий и его отметка «Буду смотреть». */
-internal data class HeroModel(val heroes: List<Item>, val index: Int, val inWatchLater: Boolean) {
-    val current: Item? get() = heroes.getOrNull(index)
-}
-
-/** Действия hero: смотреть, детали, «Буду смотреть» и смена тайтла карусели. */
-internal data class HeroActions(
-    val onPlay: (Item) -> Unit,
-    val onDetails: (Item) -> Unit,
-    val onToggleWatchLater: (Item) -> Unit,
-    val onNext: () -> Unit,
-)
+import com.filmax.feature.home.common.HomeEvent
+import com.filmax.feature.home.common.HomeState
 
 /** Тег hero для UI-тестов: по нему проверяют, что баннер виден целиком. */
 internal const val HERO_TEST_TAG = "home:hero"
@@ -80,8 +67,6 @@ internal const val HERO_PLAY_KEY = "hero:play"
 private const val HERO_DETAILS_KEY = "hero:details"
 private const val HERO_WATCH_LATER_KEY = "hero:watchLater"
 
-/** Карусель листается сама, пока hero в фокусе: зритель смотрит на него, а не листает ряды. */
-private const val AUTO_ADVANCE_MS = 8_000L
 private const val BACKDROP_CROSSFADE_MS = 600
 
 /**
@@ -102,32 +87,35 @@ private val TextBlockTop = 72.dp
  * Hero Главной. Фон — кадр тайтла с ken-burns, цветной подсветкой палитры сверху справа и
  * затемнением слева и снизу; смена тайтла — кросс-фейд кадра, текст появляется заново по
  * очереди ([fxEnter]). Слева — надзаголовок, название, мета, описание и действия; справа внизу —
- * индикатор страниц.
+ * индикатор страниц. Какой тайтл показан и когда сменить его, решает модель: hero сообщает ей
+ * только о фокусе, а ken-burns идёт, пока фокус здесь.
  */
 @Composable
-internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenFocus, modifier: Modifier = Modifier) {
-    val item = model.current ?: return
+internal fun TvHomeHero(
+    state: HomeState,
+    onEvent: (HomeEvent) -> Unit,
+    focus: TvScreenFocus,
+    modifier: Modifier = Modifier,
+) {
+    val item = state.hero ?: return
     var focused by remember { mutableStateOf(false) }
-    LaunchedEffect(focused, model.index) {
-        if (focused && model.heroes.size > 1) {
-            delay(AUTO_ADVANCE_MS)
-            actions.onNext()
-        }
-    }
     Box(
         modifier
             .fillMaxWidth()
             .height(HeroImageHeight)
             .clipToBounds()
-            .onFocusChanged { focused = it.hasFocus }
+            .onFocusChanged {
+                focused = it.hasFocus
+                onEvent(HomeEvent.HeroFocused(it.hasFocus))
+            }
             .testTag(HERO_TEST_TAG),
     ) {
         HeroBackdrop(item, running = focused)
-        HeroText(item, model.inWatchLater, actions, focus)
-        if (model.heroes.size > 1) {
+        HeroText(item, state.heroInWatchLater, onEvent, focus)
+        if (state.heroes.size > 1) {
             TvPageIndicator(
-                count = model.heroes.size,
-                current = model.index,
+                count = state.heroes.size,
+                current = state.heroIndex,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = TvMetrics.SectionEnd, bottom = 34.dp),
             )
         }
@@ -189,7 +177,7 @@ private const val SCRIM_BOTTOM_CLEAR = 0.5f
  * фокус с собой (он ушёл бы в меню).
  */
 @Composable
-private fun HeroText(item: Item, inWatchLater: Boolean, actions: HeroActions, focus: TvScreenFocus) {
+private fun HeroText(item: Item, inWatchLater: Boolean, onEvent: (HomeEvent) -> Unit, focus: TvScreenFocus) {
     val colors = LocalFxColors.current
     Column(
         Modifier.padding(start = TvMetrics.SectionStart, top = TextBlockTop).widthIn(max = TextBlockWidth),
@@ -217,7 +205,7 @@ private fun HeroText(item: Item, inWatchLater: Boolean, actions: HeroActions, fo
                 )
             }
         }
-        HeroButtons(item, inWatchLater, actions, focus, Modifier.padding(top = 6.dp))
+        HeroButtons(item, inWatchLater, onEvent, focus, Modifier.padding(top = 6.dp))
     }
 }
 
@@ -236,7 +224,7 @@ private fun HeroMeta(item: Item, modifier: Modifier) {
 private fun HeroButtons(
     item: Item,
     inWatchLater: Boolean,
-    actions: HeroActions,
+    onEvent: (HomeEvent) -> Unit,
     focus: TvScreenFocus,
     modifier: Modifier
 ) {
@@ -250,21 +238,21 @@ private fun HeroButtons(
     ) {
         TvButton(
             "Смотреть",
-            onClick = { actions.onPlay(item) },
+            onClick = { onEvent(HomeEvent.Play(item.id)) },
             leadingIcon = Icons.Rounded.PlayArrow,
             focusRequester = play,
             modifier = focus.item(HERO_PLAY_KEY),
         )
         TvButton(
             "Подробнее",
-            onClick = { actions.onDetails(item) },
+            onClick = { onEvent(HomeEvent.OpenItem(item.id)) },
             style = TvButtonStyle.Secondary,
             modifier = focus.item(HERO_DETAILS_KEY)
         )
         TvIconButton(
             icon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
             contentDescription = if (inWatchLater) "Убрать из «Буду смотреть»" else "Буду смотреть",
-            onClick = { actions.onToggleWatchLater(item) },
+            onClick = { onEvent(HomeEvent.ToggleWatchLater(item)) },
             modifier = focus.item(HERO_WATCH_LATER_KEY),
         )
     }

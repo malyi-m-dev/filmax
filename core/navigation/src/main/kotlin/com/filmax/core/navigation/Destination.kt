@@ -40,15 +40,19 @@ sealed interface Destination {
     /**
      * Плеер. [videoId] — НОМЕР видео, а не id трека: тем же числом kino.pub принимает и отдаёт
      * прогресс. [season] обязателен вместе с ним — номер уникален только внутри сезона.
-     * Дефолтные `-1` означают «фильм или неизвестная серия»: плеер возьмёт первый трек.
-     * [startSeconds] — позиция старта, когда просмотр передали с телефона; `-1` — с сохранённого прогресса.
+     * [UNKNOWN] вместо серии и сезона означает «фильм или неизвестная серия»: плеер возьмёт первый трек.
+     * [startSeconds] — позиция старта, когда просмотр передали с телефона; [UNKNOWN] — с сохранённого прогресса.
      */
     data class Player(
         val itemId: Int,
-        val videoId: Int = -1,
-        val season: Int = -1,
-        val startSeconds: Int = -1,
-    ) : Destination
+        val videoId: Int = UNKNOWN,
+        val season: Int = UNKNOWN,
+        val startSeconds: Int = UNKNOWN,
+    ) : Destination {
+        companion object {
+            const val UNKNOWN = -1
+        }
+    }
 
     data class Trailer(val url: String, val title: String) : Destination
 

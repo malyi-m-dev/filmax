@@ -19,5 +19,10 @@ kotlin {
             implementation(koinBom)
             implementation(libs.koin.core)
         }
+        // FakeNavigator для тестов ScreenModel: контракт навигации — JVM-модуль, Apple-таргетам
+        // он не нужен (iOS-презентейшен на SwiftUI со своей навигацией).
+        androidMain.dependencies {
+            implementation(project(":core:navigation"))
+        }
     }
 }

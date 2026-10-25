@@ -1,5 +1,5 @@
 // Hero Главной: карусель «Выбора редакции» — кадр с медленным «Кен Бёрнсом», подсветка палитры,
-// надзаголовок, название, мета и кнопки. Лента и переходы — в HomeScreen.
+// надзаголовок, название, мета и кнопки. Лента — в HomeScreen.
 
 package com.filmax.feature.home.mobile
 
@@ -48,21 +48,18 @@ import com.filmax.core.ui.components.FilmaxRatingPill
 import com.filmax.core.ui.components.KenBurnsImage
 import com.filmax.core.ui.components.durationLabel
 import com.filmax.core.ui.components.ratingLabel
+import com.filmax.feature.home.common.HomeEvent
 import kotlinx.coroutines.delay
-
-/** Действия hero над тайтлом карусели. */
-internal data class HeroActions(
-    val onPlay: (Item) -> Unit,
-    val onOpenItem: (Item) -> Unit,
-    val onToggleWatchLater: (Item) -> Unit,
-)
 
 /**
  * Карусель hero. Листается пальцем и сама — раз в [HERO_INTERVAL_MILLIS], пока её не трогают;
  * «Кен Бёрнс» идёт только у кадра на экране. Тап по кадру — детали тайтла.
+ *
+ * Страница — состояние пейджера, а не модели: на телефоне видны все hero, и автолистание — это
+ * анимация пейджера; на ТВ, где hero один, его индексом и таймером владеет модель.
  */
 @Composable
-internal fun HomeHero(heroes: List<Item>, watchLaterIds: Set<Int>, height: Dp, actions: HeroActions) {
+internal fun HomeHero(heroes: List<Item>, watchLaterIds: Set<Int>, height: Dp, onEvent: (HomeEvent) -> Unit) {
     val pager = rememberPagerState { heroes.size }
     AutoAdvance(pager)
     Box(Modifier.fillMaxWidth().height(height)) {
@@ -72,7 +69,7 @@ internal fun HomeHero(heroes: List<Item>, watchLaterIds: Set<Int>, height: Dp, a
                 item = hero,
                 running = page == pager.settledPage,
                 inWatchLater = hero.id in watchLaterIds,
-                actions = actions,
+                onEvent = onEvent,
             )
         }
         FilmaxPageDots(
@@ -94,12 +91,12 @@ private fun AutoAdvance(pager: PagerState) {
 }
 
 @Composable
-private fun HeroPage(item: Item, running: Boolean, inWatchLater: Boolean, actions: HeroActions) {
+private fun HeroPage(item: Item, running: Boolean, inWatchLater: Boolean, onEvent: (HomeEvent) -> Unit) {
     val palette = FilmaxTheme.palette
     Box(
         Modifier
             .fillMaxSize()
-            .clickable(role = Role.Button) { actions.onOpenItem(item) },
+            .clickable(role = Role.Button) { onEvent(HomeEvent.OpenItem(item.id)) },
     ) {
         // Вертикальный постер, а не широкий кадр: hero на телефоне выше, чем шире, и кадр 16:9
         // резался бы по центру до неузнаваемости.
@@ -118,7 +115,7 @@ private fun HeroPage(item: Item, running: Boolean, inWatchLater: Boolean, action
         HeroContent(
             item = item,
             inWatchLater = inWatchLater,
-            actions = actions,
+            onEvent = onEvent,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
@@ -137,7 +134,12 @@ private const val HERO_FADE_MIDDLE = 0.72f
 private const val HERO_FADE_MIDDLE_ALPHA = 0.78f
 
 @Composable
-private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions, modifier: Modifier = Modifier) {
+private fun HeroContent(
+    item: Item,
+    inWatchLater: Boolean,
+    onEvent: (HomeEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -163,20 +165,20 @@ private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions,
         ) {
             FilmaxButton(
                 text = "Смотреть",
-                onClick = { actions.onPlay(item) },
+                onClick = { onEvent(HomeEvent.Play(item.id)) },
                 icon = Icons.Filled.PlayArrow,
                 modifier = Modifier.weight(1f),
             )
             FilmaxIconButton(
                 if (inWatchLater) Icons.Filled.Check else Icons.Filled.Add,
                 contentDescription = if (inWatchLater) "Убрать из «Буду смотреть»" else "Буду смотреть",
-                onClick = { actions.onToggleWatchLater(item) },
+                onClick = { onEvent(HomeEvent.ToggleWatchLater(item)) },
                 size = FilmaxMetrics.IconButtonLarge,
             )
             FilmaxIconButton(
                 Icons.Outlined.Info,
                 contentDescription = "О тайтле",
-                onClick = { actions.onOpenItem(item) },
+                onClick = { onEvent(HomeEvent.OpenItem(item.id)) },
                 size = FilmaxMetrics.IconButtonLarge,
             )
         }
