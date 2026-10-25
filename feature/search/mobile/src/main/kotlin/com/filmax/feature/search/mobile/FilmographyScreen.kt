@@ -35,14 +35,14 @@ import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel

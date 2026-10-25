@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
@@ -35,9 +38,6 @@ import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel

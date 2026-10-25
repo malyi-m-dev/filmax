@@ -32,6 +32,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -41,10 +45,6 @@ import com.filmax.core.tv.designsystem.TvPosterSize
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvScrollBar
 import com.filmax.core.tv.designsystem.fxEnter
-import com.filmax.core.presentation.labels.isHighRating
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.typeLabel
 
 /** Верх первой строки под раскрытой шапкой: постеры заходят на растворённый низ полосы. */
 internal val GridTop = 200.dp

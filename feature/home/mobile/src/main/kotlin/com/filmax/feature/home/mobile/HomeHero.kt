@@ -40,14 +40,14 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.labels.durationLabel
+import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPageDots
 import com.filmax.core.ui.components.FilmaxRatingPill
 import com.filmax.core.ui.components.KenBurnsImage
-import com.filmax.core.presentation.labels.durationLabel
-import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.feature.home.common.HomeEvent
 import kotlinx.coroutines.delay
 

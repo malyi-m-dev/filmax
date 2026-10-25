@@ -12,6 +12,12 @@ import androidx.compose.ui.Modifier
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.labels.continueMeta
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.posterUrl
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.TvCardSize
 import com.filmax.core.tv.designsystem.TvCollectionCard
 import com.filmax.core.tv.designsystem.TvCollectionTints
@@ -20,12 +26,6 @@ import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.tvRailEntry
-import com.filmax.core.presentation.labels.continueMeta
-import com.filmax.core.presentation.labels.isHighRating
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.posterUrl
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId

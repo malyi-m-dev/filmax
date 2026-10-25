@@ -39,6 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
@@ -52,10 +56,6 @@ import com.filmax.core.tv.designsystem.TvPosterSkeleton
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.bringIntoViewWithAbove
 import com.filmax.core.tv.designsystem.fxEnter
-import com.filmax.core.presentation.labels.isHighRating
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 

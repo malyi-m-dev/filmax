@@ -59,6 +59,10 @@ import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonSize
 import com.filmax.core.ui.components.FilmaxEmptyState
@@ -71,10 +75,6 @@ import com.filmax.core.ui.components.FilmaxPosterSkeleton
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.bleed
 import com.filmax.core.ui.components.collectionHue
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.titlesLabel
-import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import com.filmax.feature.collections.common.CollectionDetailState

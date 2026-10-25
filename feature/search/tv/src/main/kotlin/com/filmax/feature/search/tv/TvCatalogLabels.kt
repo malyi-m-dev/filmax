@@ -10,11 +10,11 @@ import androidx.compose.ui.text.withStyle
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.tv.designsystem.TvSpotlight
 import com.filmax.core.presentation.labels.isHighRating
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
+import com.filmax.core.tv.designsystem.TvSpotlight
 import com.filmax.feature.search.common.CatalogCount
 import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchState
