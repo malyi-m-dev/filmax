@@ -4,10 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.feedback.ClientInfo
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.feedback.FeedbackTrigger
+import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeFeedbackRepository
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeUserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -37,6 +39,7 @@ class FeedbackScreenModelTest {
     private val repository = FakeFeedbackRepository(backend)
     private val store = FakeFeedbackPromptStore()
     private val client = ClientInfo(appVersion = "2.2.0", isTv = true, device = "Xiaomi MIBOX4", os = "Android 9")
+    private val navigator = FakeNavigator()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -94,12 +97,23 @@ class FeedbackScreenModelTest {
         assertNotNull(store.state.lastPromptAt)
     }
 
+    @Test
+    fun `dismiss closes the window`() {
+        val model = model(FeedbackTrigger.Profile)
+        assertEquals("Оцените Filmax", model.states.value.title)
+
+        model.dispatch(FeedbackEvent.Dismiss)
+
+        assertEquals(NavCommand.Back, navigator.sent.last())
+    }
+
     private fun model(trigger: FeedbackTrigger) = FeedbackScreenModel(
         savedStateHandle = SavedStateHandle(mapOf("trigger" to trigger.name)),
         repository = repository,
         prompts = FeedbackPrompts(store, appVersion = client.appVersion, now = { NOW }),
         user = FakeUserRepository(backend),
         client = client,
+        navigator = navigator,
     )
 
     private companion object {

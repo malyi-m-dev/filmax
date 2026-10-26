@@ -32,7 +32,6 @@ import com.filmax.core.ui.components.FilmaxRoundButton
 import com.filmax.core.ui.components.FilmaxSeekBar
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.feature.tvlink.common.RemoteEvent
-import com.filmax.feature.tvlink.common.episodeLabel
 
 /** Шаг перемотки — тот же, что у кнопок плеера (±10 с). */
 private const val SEEK_STEP_MS = 10_000L
@@ -48,8 +47,9 @@ private const val POSTER_ASPECT = 2f / 3f
 @Composable
 internal fun RemotePlayback(
     playback: PlaybackStatus,
+    caption: String?,
     positionMs: Long,
-    dispatch: (RemoteEvent) -> Unit,
+    onEvent: (RemoteEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -74,25 +74,19 @@ internal fun RemotePlayback(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            playbackCaption(playback)?.let {
-                Text(
-                    it,
-                    style = FilmaxType.meta,
-                    color = FilmaxColors.TextSecondary,
-                )
-            }
+            caption?.let { Text(it, style = FilmaxType.meta, color = FilmaxColors.TextSecondary) }
         }
         FilmaxSeekBar(
             positionMs = positionMs,
             durationMs = playback.durationMs,
-            onScrub = { dispatch(RemoteEvent.Scrub(it)) },
-            onScrubFinished = { dispatch(RemoteEvent.ScrubFinished) },
+            onScrub = { onEvent(RemoteEvent.Scrub(it)) },
+            onScrubFinished = { onEvent(RemoteEvent.ScrubFinished) },
         )
-        Transport(playback, dispatch)
-        Episodes(playback, dispatch)
+        Transport(playback, onEvent)
+        Episodes(playback, onEvent)
         FilmaxButton(
             text = "Остановить на телевизоре",
-            onClick = { dispatch(RemoteEvent.StopOnTv) },
+            onClick = { onEvent(RemoteEvent.StopOnTv) },
             icon = Icons.Filled.Stop,
             style = FilmaxButtonStyle.Secondary,
             modifier = Modifier.fillMaxWidth(),
@@ -100,43 +94,37 @@ internal fun RemotePlayback(
     }
 }
 
-/** Серия, а пока поток грузится — «Загружается»: иначе пауза и загрузка на пульте неотличимы. */
-private fun playbackCaption(playback: PlaybackStatus): String? =
-    listOfNotNull(playback.episodeLabel(), "Загружается".takeIf { playback.buffering })
-        .joinToString(" · ")
-        .ifEmpty { null }
-
 @Composable
-private fun Transport(playback: PlaybackStatus, dispatch: (RemoteEvent) -> Unit) {
+private fun Transport(playback: PlaybackStatus, onEvent: (RemoteEvent) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(28.dp), verticalAlignment = Alignment.CenterVertically) {
         FilmaxRoundButton(
             icon = Icons.Filled.Replay10,
             contentDescription = "Назад 10 секунд",
-            onClick = { dispatch(RemoteEvent.SeekBy(-SEEK_STEP_MS)) },
+            onClick = { onEvent(RemoteEvent.SeekBy(-SEEK_STEP_MS)) },
         )
         FilmaxRoundButton(
             icon = if (playback.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             contentDescription = if (playback.playing) "Пауза" else "Смотреть",
-            onClick = { dispatch(RemoteEvent.TogglePlay) },
+            onClick = { onEvent(RemoteEvent.TogglePlay) },
             emphasized = true,
         )
         FilmaxRoundButton(
             icon = Icons.Filled.Forward10,
             contentDescription = "Вперёд 10 секунд",
-            onClick = { dispatch(RemoteEvent.SeekBy(SEEK_STEP_MS)) },
+            onClick = { onEvent(RemoteEvent.SeekBy(SEEK_STEP_MS)) },
         )
     }
 }
 
 /** Соседние серии — только у сериала; кнопки нет, если серии с той стороны нет. */
 @Composable
-private fun Episodes(playback: PlaybackStatus, dispatch: (RemoteEvent) -> Unit) {
+private fun Episodes(playback: PlaybackStatus, onEvent: (RemoteEvent) -> Unit) {
     if (!playback.hasPrevious && !playback.hasNext) return
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         if (playback.hasPrevious) {
             FilmaxButton(
                 text = "Предыдущая",
-                onClick = { dispatch(RemoteEvent.PreviousEpisode) },
+                onClick = { onEvent(RemoteEvent.PreviousEpisode) },
                 icon = Icons.Filled.SkipPrevious,
                 style = FilmaxButtonStyle.Secondary,
                 modifier = Modifier.weight(1f),
@@ -145,7 +133,7 @@ private fun Episodes(playback: PlaybackStatus, dispatch: (RemoteEvent) -> Unit) 
         if (playback.hasNext) {
             FilmaxButton(
                 text = "Следующая",
-                onClick = { dispatch(RemoteEvent.NextEpisode) },
+                onClick = { onEvent(RemoteEvent.NextEpisode) },
                 icon = Icons.Filled.SkipNext,
                 style = FilmaxButtonStyle.Secondary,
                 modifier = Modifier.weight(1f),

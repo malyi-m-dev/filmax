@@ -4,7 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.tvlink.LinkFailure
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvDevice
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeIds
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeTvDiscovery
 import com.filmax.data.fake.FakeTvRemote
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +40,7 @@ class TvPickerScreenModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val discovery = FakeTvDiscovery()
     private val remote = FakeTvRemote()
-    private val effects = mutableListOf<TvPickerSideEffect>()
+    private val navigator = FakeNavigator()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -55,7 +58,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
     }
 
     @Test
@@ -67,9 +70,10 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
 
         assertEquals(TvPickerFailure("Гостиная", LinkFailure.OtherAccount), model.states.value.failure)
+        assertTrue(model.states.value.failure?.message.orEmpty().contains("другой аккаунт"))
         assertNull(model.states.value.connectingTo, "после отказа можно выбрать другой ТВ")
         assertTrue(remote.sent.isEmpty())
-        assertTrue(effects.isEmpty())
+        assertTrue(navigator.sent.isEmpty())
     }
 
     @Test
@@ -87,7 +91,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.ConnectByAddress)
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
     }
 
     @Test
@@ -100,7 +104,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
 
         assertTrue(remote.sent.isEmpty())
-        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
     }
 
     @Test
@@ -114,7 +118,7 @@ class TvPickerScreenModelTest {
         opened(withTitle = true)
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
     }
 
     @Test
@@ -126,7 +130,7 @@ class TvPickerScreenModelTest {
 
         assertEquals(listOf(LIVING_ROOM), remote.connects)
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
+        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
     }
 
     @Test
@@ -141,7 +145,7 @@ class TvPickerScreenModelTest {
 
         assertEquals(listOf(LIVING_ROOM, bedroom), model.states.value.devices)
         assertTrue(remote.connects.isEmpty(), "выключенный ТВ не дёргаем — выбор за зрителем")
-        assertTrue(effects.isEmpty())
+        assertTrue(navigator.sent.isEmpty())
     }
 
     @Test
@@ -162,8 +166,8 @@ class TvPickerScreenModelTest {
             "season" to PLAY.season,
             "startSeconds" to PLAY.startSeconds,
         )
-        val model = TvPickerScreenModel(SavedStateHandle(if (withTitle) route else emptyMap()), discovery, remote)
-        model.observeSideEffects { effects += it }
+        val handle = SavedStateHandle(if (withTitle) route else emptyMap())
+        val model = TvPickerScreenModel(handle, discovery, remote, navigator)
         runCurrent()
         return model
     }

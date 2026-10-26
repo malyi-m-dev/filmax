@@ -1,10 +1,13 @@
 package com.filmax.feature.tvlink.common
 
-import com.filmax.core.domain.tvlink.RemoteCommand
-
 data class TvLinkHostState(
     /** Имя телефона, который только что подключился как пульт, — плашка на пару секунд. */
     val joinedPhone: String? = null,
+    /**
+     * Последнее объявленное имя. Плашка гаснет уже после того, как [joinedPhone] сброшен, и
+     * без этого поля исчезала бы пустой.
+     */
+    val lastJoinedPhone: String = "",
 )
 
 sealed interface TvLinkHostEvent {
@@ -16,10 +19,5 @@ sealed interface TvLinkHostEvent {
     data object Hidden : TvLinkHostEvent
 }
 
-sealed interface TvLinkHostSideEffect {
-    /**
-     * Телефон отдал тайтл: открыть плеер. [replacePlayer] — плеер уже открыт (другой тайтл или серия):
-     * новый встаёт на его место, а не копит стек плееров.
-     */
-    data class OpenPlayer(val play: RemoteCommand.Play, val replacePlayer: Boolean) : TvLinkHostSideEffect
-}
+/** Одноразовых эффектов нет: тайтл с телефона открывает плеер через навигатор в модели. */
+sealed interface TvLinkHostSideEffect

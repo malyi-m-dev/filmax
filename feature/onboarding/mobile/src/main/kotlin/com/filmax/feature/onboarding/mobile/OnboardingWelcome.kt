@@ -33,6 +33,7 @@ import com.filmax.core.designsystem.oklch
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.POSTER_ASPECT
+import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 
 /** Оттенки плейсхолдеров стены — те же, что у плиток разделов: стена узнаётся как «каталог». */
@@ -44,10 +45,10 @@ private val WallHues = listOf(290f, 250f, 330f, 170f, 50f, 200f)
  * случайный тайтл до входа — обещание контента, которого может не оказаться в подписке.
  */
 @Composable
-internal fun WelcomeStep(onLogin: () -> Unit) {
+internal fun WelcomeStep(onEvent: (OnboardingEvent) -> Unit) {
     Box(Modifier.fillMaxSize()) {
         PosterWallBackdrop(Modifier.fillMaxSize())
-        WelcomeContent(onLogin = onLogin)
+        WelcomeContent(onLogin = { onEvent(OnboardingEvent.Login) })
     }
 }
 

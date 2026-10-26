@@ -34,8 +34,6 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.tvlink.RemoteSession
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxEmptyState
@@ -43,26 +41,14 @@ import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.feature.tvlink.common.RemoteEvent
 import com.filmax.feature.tvlink.common.RemoteScreenModel
-import com.filmax.feature.tvlink.common.RemoteSideEffect
-import com.filmax.feature.tvlink.common.message
+import com.filmax.feature.tvlink.common.RemoteState
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 /** Пульт: что играет на подключённом телевизоре и управление им; без связи — как её вернуть. */
 @Composable
-fun RemoteScreen(
-    modifier: Modifier = Modifier,
-    screenModel: RemoteScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
+fun RemoteScreen(modifier: Modifier = Modifier, screenModel: RemoteScreenModel = koinViewModel()) {
     val state by screenModel.collectAsState()
-    screenModel.collectSideEffect { effect ->
-        when (effect) {
-            RemoteSideEffect.OpenPicker -> navigator.open(Destination.TvPicker())
-            RemoteSideEffect.Close -> navigator.back()
-        }
-    }
-    val dispatch = screenModel::dispatch
+    val onEvent: (RemoteEvent) -> Unit = screenModel::dispatch
     Column(
         modifier
             .fillMaxSize()
@@ -71,11 +57,7 @@ fun RemoteScreen(
             .systemBarsPadding()
             .padding(horizontal = FilmaxMetrics.ScreenPadding, vertical = 12.dp),
     ) {
-        RemoteTopBar(
-            session = state.session,
-            onBack = navigator::back,
-            onForget = { dispatch(RemoteEvent.Forget) },
-        )
+        RemoteTopBar(state = state, onEvent = onEvent)
         Box(
             Modifier
                 .weight(1f)
@@ -83,16 +65,27 @@ fun RemoteScreen(
                 .padding(top = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            when (val session = state.session) {
-                is RemoteSession.Connected ->
-                    session.playback
-                        ?.let { RemotePlayback(it, state.positionMs, dispatch, Modifier.fillMaxHeight()) }
-                        ?: NothingPlaying()
-                is RemoteSession.Connecting -> Connecting(session.device.name)
-                is RemoteSession.Lost -> LinkLost(session, reconnectsItself = state.reconnectsItself, dispatch)
-                RemoteSession.Idle -> NotConnected(dispatch)
-            }
+            RemoteBody(state = state, onEvent = onEvent)
         }
+    }
+}
+
+/** Связь есть и что-то играет — управление; иначе — почему пульт молчит и как это поправить. */
+@Composable
+private fun RemoteBody(state: RemoteState, onEvent: (RemoteEvent) -> Unit) {
+    val playback = state.playback
+    when {
+        playback != null -> RemotePlayback(
+            playback = playback,
+            caption = state.playbackCaption,
+            positionMs = state.positionMs,
+            onEvent = onEvent,
+            modifier = Modifier.fillMaxHeight(),
+        )
+        state.session is RemoteSession.Connected -> NothingPlaying()
+        state.session is RemoteSession.Connecting -> Connecting(state.deviceName.orEmpty())
+        state.session is RemoteSession.Lost -> LinkLost(state, onEvent)
+        else -> NotConnected(onEvent)
     }
 }
 
@@ -102,30 +95,31 @@ fun RemoteScreen(
  * запомненный ТВ, который больше не нужен, иначе подключался бы сам.
  */
 @Composable
-private fun RemoteTopBar(session: RemoteSession, onBack: () -> Unit, onForget: () -> Unit) {
+private fun RemoteTopBar(state: RemoteState, onEvent: (RemoteEvent) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-        FilmaxIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", onClick = onBack)
+        FilmaxIconButton(
+            Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Назад",
+            onClick = { onEvent(RemoteEvent.Back) },
+        )
         Column(Modifier.weight(1f)) {
             FilmaxOverline("Пульт")
             Text(
-                session.deviceName() ?: "Телевизор не выбран",
+                state.deviceName ?: "Телевизор не выбран",
                 style = FilmaxType.playerTitle,
                 color = FilmaxColors.Text,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (session !is RemoteSession.Idle) {
-            FilmaxIconButton(Icons.Filled.LinkOff, contentDescription = "Забыть телевизор", onClick = onForget)
+        if (state.deviceName != null) {
+            FilmaxIconButton(
+                Icons.Filled.LinkOff,
+                contentDescription = "Забыть телевизор",
+                onClick = { onEvent(RemoteEvent.Forget) },
+            )
         }
     }
-}
-
-private fun RemoteSession.deviceName(): String? = when (this) {
-    is RemoteSession.Connected -> device.name
-    is RemoteSession.Connecting -> device.name
-    is RemoteSession.Lost -> device.name
-    RemoteSession.Idle -> null
 }
 
 @Composable
@@ -145,22 +139,22 @@ private fun Connecting(deviceName: String) {
             "Подключаемся к «$deviceName»…",
             style = FilmaxType.body,
             color = FilmaxColors.TextSecondary,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }
 
-/** [reconnectsItself] — ТВ запомнен: телефон подключится сам, как только тот ответит. */
+/** Связь пропала: почему — из состояния; запомненный ТВ подключится сам, как только ответит. */
 @Composable
-private fun LinkLost(session: RemoteSession.Lost, reconnectsItself: Boolean, dispatch: (RemoteEvent) -> Unit) {
+private fun LinkLost(state: RemoteState, onEvent: (RemoteEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FilmaxEmptyState(
             icon = Icons.Filled.TvOff,
             title = "Нет связи с телевизором",
-            subtitle = session.failure.message(session.device.name),
+            subtitle = state.failureMessage,
             modifier = Modifier.fillMaxWidth(),
         )
-        if (reconnectsItself) {
+        if (state.reconnectsItself) {
             Text(
                 "Подключимся сами, как только Filmax на телевизоре снова будет на экране",
                 style = FilmaxType.meta,
@@ -169,12 +163,14 @@ private fun LinkLost(session: RemoteSession.Lost, reconnectsItself: Boolean, dis
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-        FilmaxButton(text = "Подключиться снова", onClick = {
-            dispatch(RemoteEvent.Reconnect)
-        }, modifier = Modifier.fillMaxWidth())
+        FilmaxButton(
+            text = "Подключиться снова",
+            onClick = { onEvent(RemoteEvent.Reconnect) },
+            modifier = Modifier.fillMaxWidth(),
+        )
         FilmaxButton(
             text = "Выбрать другой телевизор",
-            onClick = { dispatch(RemoteEvent.ChooseTv) },
+            onClick = { onEvent(RemoteEvent.ChooseTv) },
             style = FilmaxButtonStyle.Secondary,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -182,7 +178,7 @@ private fun LinkLost(session: RemoteSession.Lost, reconnectsItself: Boolean, dis
 }
 
 @Composable
-private fun NotConnected(dispatch: (RemoteEvent) -> Unit) {
+private fun NotConnected(onEvent: (RemoteEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         FilmaxEmptyState(
             icon = Icons.Filled.Tv,
@@ -190,8 +186,10 @@ private fun NotConnected(dispatch: (RemoteEvent) -> Unit) {
             subtitle = "Откройте Filmax на телевизоре в той же Wi-Fi сети — и управляйте им отсюда",
             modifier = Modifier.fillMaxWidth(),
         )
-        FilmaxButton(text = "Выбрать телевизор", onClick = {
-            dispatch(RemoteEvent.ChooseTv)
-        }, modifier = Modifier.fillMaxWidth())
+        FilmaxButton(
+            text = "Выбрать телевизор",
+            onClick = { onEvent(RemoteEvent.ChooseTv) },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

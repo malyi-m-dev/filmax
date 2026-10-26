@@ -2,7 +2,10 @@ package com.filmax.feature.tvlink.common
 
 import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteCommand
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeIds
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeTvLinkReceiver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +30,7 @@ class TvLinkHostScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val receiver = FakeTvLinkReceiver()
-    private val effects = mutableListOf<TvLinkHostSideEffect>()
+    private val navigator = FakeNavigator()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -58,11 +61,8 @@ class TvLinkHostScreenModelTest {
         receiver.receive(PLAY)
         runCurrent()
 
-        val expected = listOf<TvLinkHostSideEffect>(
-            TvLinkHostSideEffect.OpenPlayer(PLAY, replacePlayer = false),
-            TvLinkHostSideEffect.OpenPlayer(PLAY, replacePlayer = true),
-        )
-        assertEquals(expected, effects)
+        val player = Destination.Player(PLAY.itemId, PLAY.videoId, PLAY.season, PLAY.startSeconds)
+        assertEquals(listOf(NavCommand.Open(player), NavCommand.Replace(player)), navigator.sent)
     }
 
     @Test
@@ -72,7 +72,7 @@ class TvLinkHostScreenModelTest {
         receiver.receive(RemoteCommand.Pause)
         runCurrent()
 
-        assertTrue(effects.isEmpty())
+        assertTrue(navigator.sent.isEmpty())
     }
 
     @Test
@@ -82,6 +82,7 @@ class TvLinkHostScreenModelTest {
         receiver.connectPhone("Galaxy S25")
         runCurrent()
         assertEquals("Galaxy S25", model.states.value.joinedPhone)
+        assertEquals("Galaxy S25", model.states.value.lastJoinedPhone)
 
         advanceTimeBy(ANNOUNCE_MS + 1)
         runCurrent()
@@ -89,8 +90,7 @@ class TvLinkHostScreenModelTest {
     }
 
     private fun TestScope.host(): TvLinkHostScreenModel {
-        val model = TvLinkHostScreenModel(receiver)
-        model.observeSideEffects { effects += it }
+        val model = TvLinkHostScreenModel(receiver, navigator)
         runCurrent()
         return model
     }

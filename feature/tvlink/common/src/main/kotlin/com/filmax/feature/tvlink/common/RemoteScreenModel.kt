@@ -3,6 +3,8 @@ package com.filmax.feature.tvlink.common
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.RemoteSession
 import com.filmax.core.domain.tvlink.TvRemote
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.flow.combine
 
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.combine
  */
 class RemoteScreenModel(
     private val remote: TvRemote,
+    private val navigator: Navigator,
 ) : BaseScreenModel<RemoteState, RemoteSideEffect, RemoteEvent>(RemoteState()) {
 
     init {
@@ -21,45 +24,48 @@ class RemoteScreenModel(
     override fun onFetchData() {
         screenModelScope { _ ->
             combine(remote.session, remote.paired) { session, paired -> session to paired?.id }
-                .collect { (session, pairedId) -> updateState { it.copy(session = session, pairedId = pairedId) } }
+                .collect { (session, pairedId) -> updateState { it.withSession(session, pairedId) } }
         }
     }
 
     override fun onEvent(event: RemoteEvent) {
         when (event) {
-            RemoteEvent.TogglePlay -> togglePlay()
+            RemoteEvent.TogglePlay -> onTogglePlay()
             is RemoteEvent.SeekBy -> remote.send(RemoteCommand.SeekBy(event.deltaMs))
-            is RemoteEvent.Scrub -> scrub(event.positionMs)
-            RemoteEvent.ScrubFinished -> finishScrub()
+            is RemoteEvent.Scrub -> onScrub(event.positionMs)
+            RemoteEvent.ScrubFinished -> onScrubFinished()
             RemoteEvent.NextEpisode -> remote.send(RemoteCommand.NextEpisode)
             RemoteEvent.PreviousEpisode -> remote.send(RemoteCommand.PreviousEpisode)
             RemoteEvent.StopOnTv -> remote.send(RemoteCommand.Stop)
-            RemoteEvent.Reconnect -> reconnect()
-            RemoteEvent.ChooseTv -> screenModelScope { _ -> postSideEffect(RemoteSideEffect.OpenPicker) }
-            RemoteEvent.Forget -> {
-                remote.forget()
-                screenModelScope { _ -> postSideEffect(RemoteSideEffect.Close) }
-            }
+            RemoteEvent.Reconnect -> onReconnect()
+            RemoteEvent.ChooseTv -> navigator.open(Destination.TvPicker())
+            RemoteEvent.Forget -> onForget()
+            RemoteEvent.Back -> navigator.back()
         }
     }
 
-    private fun togglePlay() {
+    private fun onTogglePlay() {
         val playback = state.playback ?: return
         remote.send(if (playback.playing) RemoteCommand.Pause else RemoteCommand.Resume)
     }
 
-    private fun scrub(positionMs: Long) {
-        screenModelScope { _ -> updateState { it.copy(scrubPositionMs = positionMs) } }
+    private fun onScrub(positionMs: Long) {
+        screenModelScope { _ -> updateState { it.withScrub(positionMs) } }
     }
 
-    private fun finishScrub() {
+    private fun onScrubFinished() {
         val target = state.scrubPositionMs ?: return
         remote.send(RemoteCommand.SeekTo(target))
-        screenModelScope { _ -> updateState { it.copy(scrubPositionMs = null) } }
+        screenModelScope { _ -> updateState { it.withScrub(null) } }
     }
 
-    private fun reconnect() {
+    private fun onReconnect() {
         val lost = state.session as? RemoteSession.Lost ?: return
         screenModelScope { _ -> remote.connect(lost.device) }
+    }
+
+    private fun onForget() {
+        remote.forget()
+        navigator.back()
     }
 }

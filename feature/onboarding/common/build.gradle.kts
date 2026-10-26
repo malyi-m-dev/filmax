@@ -7,8 +7,12 @@ android { namespace = "com.filmax.feature.onboarding.common" }
 
 dependencies {
     implementation(project(":core:presentation"))
+    implementation(project(":core:navigation"))
     implementation(project(":core:domain"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
+
+    // ScreenModel тестируется на фейковом data-слое — тех же фейках, что у mock-сборки.
+    testImplementation(project(":data:fake"))
 }
