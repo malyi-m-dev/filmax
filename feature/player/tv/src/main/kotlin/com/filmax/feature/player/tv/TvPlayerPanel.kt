@@ -24,10 +24,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Hd
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -40,6 +45,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -57,9 +63,6 @@ import com.filmax.core.tv.designsystem.fxGlass
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
-import com.filmax.feature.player.common.label
-import com.filmax.feature.player.common.openingTab
-import com.filmax.feature.player.common.panelTabs
 import com.filmax.feature.player.common.playerSubtitle
 import com.filmax.feature.player.common.tabValue
 
@@ -89,13 +92,30 @@ private val PanelScrim = Brush.verticalGradient(
     0.62f to Color.Black.copy(alpha = 0.9f),
 )
 
+/** Иконка вкладки — в табах панели и плашках транспорта. */
+internal fun tabIcon(tab: PlayerTab): ImageVector = when (tab) {
+    PlayerTab.Episodes -> Icons.Rounded.VideoLibrary
+    PlayerTab.Audio -> Icons.Rounded.GraphicEq
+    PlayerTab.Subtitles -> Icons.Rounded.Subtitles
+    PlayerTab.Quality -> Icons.Rounded.Hd
+    PlayerTab.Speed -> Icons.Rounded.Speed
+}
+
+/** Что делают ←/→ во вкладке — подсказка внизу панели. */
+private fun tabMoveHint(tab: PlayerTab): String = when (tab) {
+    PlayerTab.Episodes -> "серия"
+    PlayerTab.Audio -> "дорожка"
+    PlayerTab.Subtitles, PlayerTab.Quality -> "вариант"
+    PlayerTab.Speed -> "скорость"
+}
+
 /**
  * Слой открытой панели: затемнение, название с «на паузе», тонкий прогресс и сама панель. Панель
  * выезжает снизу (сниженная анимация — только проявляется), «вверх» со вкладок и «Назад» её
  * закрывают, воспроизведение продолжается.
  */
 @Composable
-internal fun PanelOverlay(state: PlayerState, transport: TvTransportState, actions: PlayerActions) {
+internal fun PanelOverlay(state: PlayerState, onEvent: (PlayerEvent) -> Unit) {
     val reduced = LocalReducedMotion.current
     AnimatedVisibility(
         visible = state.panelOpen,
@@ -106,17 +126,16 @@ internal fun PanelOverlay(state: PlayerState, transport: TvTransportState, actio
             PlayerTitle(
                 state.item?.title.orEmpty(),
                 playerSubtitle(state, paused = true),
-                Modifier.align(Alignment.TopStart)
+                Modifier.align(Alignment.TopStart),
             )
             TvKeyHints(
                 listOf(TvKeyHint(listOf(Icons.Rounded.KeyboardArrowUp), "скрыть панель")),
                 Modifier.align(Alignment.TopEnd).padding(top = HideHintTop, end = HideHintEnd),
             )
-            PanelProgress(transport)
+            PanelProgress(state)
             PlayerPanel(
                 state = state,
-                transport = transport,
-                actions = actions,
+                onEvent = onEvent,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .animateEnterExit(
@@ -130,15 +149,15 @@ internal fun PanelOverlay(state: PlayerState, transport: TvTransportState, actio
 
 /** Тонкий прогресс над панелью: где мы в серии, пока выбирают дорожку. */
 @Composable
-private fun PanelProgress(transport: TvTransportState) {
+private fun PanelProgress(state: PlayerState) {
     Column(Modifier.padding(top = ProgressTop, start = ProgressInset, end = ProgressInset)) {
         TvSeekBar(
-            progress = { fraction(transport.positionMs, transport.durationMs) },
+            progress = { fraction(state.playback.positionMs, state.playback.durationMs) },
             buffered = { 0f },
             thickness = ProgressThickness,
             thumb = false,
         )
-        TransportTimes(transport, Modifier.padding(top = 6.dp))
+        TransportTimes(state, Modifier.padding(top = 6.dp))
     }
 }
 
@@ -147,7 +166,7 @@ private fun PanelProgress(transport: TvTransportState) {
  * текущая дорожка): поменять соседнее — одно нажатие. Вкладка меняется фокусом на ней.
  */
 @Composable
-private fun PlayerPanel(state: PlayerState, transport: TvTransportState, actions: PlayerActions, modifier: Modifier) {
+private fun PlayerPanel(state: PlayerState, onEvent: (PlayerEvent) -> Unit, modifier: Modifier) {
     val tabs = state.panelTabs()
     val tab = state.openingTab()
     val contentFocus = remember { FocusRequester() }
@@ -167,13 +186,13 @@ private fun PlayerPanel(state: PlayerState, transport: TvTransportState, actions
     ) {
         Handle(Modifier.align(Alignment.CenterHorizontally))
         TvPanelTabs(
-            tabs = tabs.map { TvPanelTab(it.label, it.icon, tabValue(it, state)) },
+            tabs = tabs.map { TvPanelTab(it.label, tabIcon(it), tabValue(it, state)) },
             selected = tabs.indexOf(tab),
-            onSelect = { index -> actions.dispatch(PlayerEvent.SelectTab(tabs[index])) },
-            modifier = Modifier.closeOnUp { actions.dispatch(PlayerEvent.ClosePanel) },
+            onSelect = { index -> onEvent(PlayerEvent.SelectTab(tabs[index])) },
+            modifier = Modifier.closeOnUp { onEvent(PlayerEvent.ClosePanel) },
         )
         Box(Modifier.weight(1f).fillMaxWidth().padding(top = ContentTop)) {
-            key(tab) { PanelTabContent(tab, state, transport, actions, contentFocus) }
+            key(tab) { PanelTabContent(tab, state, onEvent, contentFocus) }
         }
         PanelHints(tab)
     }
@@ -210,7 +229,7 @@ private fun PanelHints(tab: PlayerTab) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 12.dp)) {
         TvKeyHints(
             listOf(
-                TvKeyHint(listOf(Icons.Rounded.KeyboardArrowLeft, Icons.Rounded.KeyboardArrowRight), tab.moveHint),
+                TvKeyHint(listOf(Icons.Rounded.KeyboardArrowLeft, Icons.Rounded.KeyboardArrowRight), tabMoveHint(tab)),
                 TvKeyHint(listOf(Icons.Rounded.KeyboardArrowUp, Icons.Rounded.KeyboardArrowDown), "вкладка"),
                 // Выбор применяется по OK, а не фокусом — без подсказки это неочевидно.
                 TvKeyHint(emptyList(), "включить", keyText = "OK"),

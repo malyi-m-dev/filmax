@@ -64,9 +64,9 @@ internal object QualityLadder {
  * его возможностей или не поддержан. Их лечит только качество ниже. Так падали MIBOX4, BRAVIA BF1
  * и TCL на 4K H.264 (avc1.640033, 3840×2160): «MediaCodecVideoRenderer error».
  */
-internal fun PlaybackException.videoDecoderFailureHeight(): Int? =
-    (this as? ExoPlaybackException)
-        ?.takeIf { errorCode in DECODER_ERRORS }
+internal fun videoDecoderFailureHeight(error: PlaybackException): Int? =
+    (error as? ExoPlaybackException)
+        ?.takeIf { it.errorCode in DECODER_ERRORS }
         ?.rendererFormat
         ?.takeIf { MimeTypes.isVideo(it.sampleMimeType) }
         ?.height

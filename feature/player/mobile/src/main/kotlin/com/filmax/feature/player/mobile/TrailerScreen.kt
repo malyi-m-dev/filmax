@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,28 +26,25 @@ import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.filmax.core.designsystem.FilmaxType
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.HideSystemBars
 import com.filmax.core.ui.components.KeepScreenOn
-import org.koin.compose.koinInject
+import com.filmax.feature.player.common.TrailerEvent
+import com.filmax.feature.player.common.TrailerScreenModel
+import org.koin.androidx.compose.koinViewModel
 
 /**
  * Экран трейлера — одноразовый плеер по готовому HLS-URL.
  *
- * [url] — временный .m3u8 с истекающим токеном в query, поэтому плеер намеренно простой: он не
+ * Адрес — временный .m3u8 с истекающим токеном в query, поэтому плеер намеренно простой: он не
  * переживает пересоздание (по протухшему токену воспроизведение не восстановить — для трейлера
- * это допустимо). Отдельного ScreenModel не заводим: играем URL как есть, со штатным
- * контроллером Media3.
+ * это допустимо). Играем URL как есть, со штатным контроллером Media3; модель лишь отдаёт адрес
+ * и название из маршрута и закрывает экран.
  */
 @Composable
-fun TrailerScreen(
-    url: String,
-    title: String,
-    modifier: Modifier = Modifier,
-    navigator: Navigator = koinInject(),
-) {
-    val onBack: () -> Unit = navigator::back
+fun TrailerScreen(modifier: Modifier = Modifier, screenModel: TrailerScreenModel = koinViewModel()) {
+    val state by screenModel.collectAsState()
+    val url = state.url
     val context = LocalContext.current
     // remember(url) пересоздаёт плеер только при смене трейлера; ключ URL связывает жизненный
     // цикл ExoPlayer с конкретным HLS-адресом.
@@ -81,8 +79,8 @@ fun TrailerScreen(
             modifier = Modifier.fillMaxSize(),
         )
         TrailerTopBar(
-            title = title,
-            onBack = onBack,
+            title = state.title,
+            onBack = { screenModel.dispatch(TrailerEvent.Back) },
             modifier = Modifier.align(Alignment.TopStart),
         )
     }
@@ -105,7 +103,7 @@ private fun TrailerTopBar(title: String, onBack: () -> Unit, modifier: Modifier 
                 style = FilmaxType.playerTitle,
                 color = Color.White,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

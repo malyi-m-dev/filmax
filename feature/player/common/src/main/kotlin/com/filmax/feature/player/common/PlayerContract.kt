@@ -2,8 +2,6 @@ package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
-import com.filmax.core.domain.tvlink.RemoteCommand
-import com.filmax.core.presentation.PeriodicEvent
 
 /**
  * Доступное качество потока. [urls] — варианты доставки в порядке предпочтения (hls4 → http → hls):
@@ -104,11 +102,76 @@ data class PlayerState(
     val panelOpen: Boolean = false,
     val panelTab: PlayerTab? = null,
     val panelSeason: Int? = null,
-)
+    /** Снимок воспроизведения — обновляется слушателем плеера и тиком раз в секунду. */
+    val playback: PlaybackSnapshot = PlaybackSnapshot(),
+    /**
+     * Перемотка в процессе: позиция, которую двигает палец или стрелка пульта до подтверждения
+     * seekTo; null — перемотки нет. Пока она идёт, тик плеера позицию не перезаписывает.
+     */
+    val scrubTargetMs: Long? = null,
+    /** Карточка «Далее» и её отсчёт — ведёт тик модели. */
+    val autoNext: AutoNext = AutoNext(),
+) {
+    /** Что показывать на ползунке и часах: палец или пульт, а если перемотки нет — плеер. */
+    val shownPositionMs: Long get() = scrubTargetMs ?: playback.positionMs
+
+    val remainingMs: Long get() = (playback.durationMs - playback.positionMs).coerceAtLeast(0)
+
+    /** Выбранная дорожка: рядом с подписью вкладки и в плашке транспорта. */
+    val selectedAudio: AudioOption? get() = audioTracks.firstOrNull { it.label == currentAudio }
+
+    /** Сериал — серий больше одной: у него вкладка «Серии» и подписи с номером серии. */
+    val isSeries: Boolean get() = item?.tracklist.orEmpty().size > 1
+
+    /**
+     * Вкладки, в которых есть из чего выбрать: серии — у сериала, дорожки и качество — когда их больше
+     * одной. Скорость есть всегда — набор фиксированный.
+     */
+    fun panelTabs(): List<PlayerTab> = buildList {
+        if (isSeries) add(PlayerTab.Episodes)
+        if (audioTracks.size > 1) add(PlayerTab.Audio)
+        if (subtitles.size > 1) add(PlayerTab.Subtitles)
+        if (qualities.size > 1) add(PlayerTab.Quality)
+        add(PlayerTab.Speed)
+    }
+
+    /**
+     * Вкладка, на которой открывается панель: та, что была выбрана в прошлый раз (если она ещё есть),
+     * иначе первая — у сериала это «Серии»: за панелью чаще всего идут переключить серию.
+     */
+    fun openingTab(): PlayerTab {
+        val tabs = panelTabs()
+        return panelTab?.takeIf { it in tabs } ?: tabs.first()
+    }
+
+    /** Сезон, который сейчас листают во вкладке «Серии»; по умолчанию — сезон играющей серии. */
+    fun shownSeason(): PlayerSeason? {
+        val seasons = playerSeasons(item?.tracklist.orEmpty())
+        val number = panelSeason ?: track?.seasonNumber
+        return seasons.firstOrNull { it.number == number } ?: seasons.firstOrNull()
+    }
+}
 
 sealed interface PlayerEvent {
-    /** Тик прогресса раз в секунду — не действие зрителя, в крошки телеметрии не идёт. */
-    data class SaveProgress(val positionMs: Long) : PlayerEvent, PeriodicEvent
+    /** Пауза или воспроизведение — кнопка по центру оверлея телефона и «ОК» пульта. */
+    data object TogglePlay : PlayerEvent
+
+    /** Шаг перемотки кнопками ⟲10 / 10⟳ телефона: сразу seekTo. */
+    data class SeekBy(val deltaMs: Long) : PlayerEvent
+
+    /** Телефон: палец на ползунке — позиция пальца, плеер пока не трогаем. */
+    data class Scrub(val positionMs: Long) : PlayerEvent
+
+    /** Телефон: палец отпущен — перемотка подтверждается. */
+    data object ScrubFinished : PlayerEvent
+
+    /**
+     * ТВ: стрелка перемотки. [repeatCount] и [eventTimeMs] — из события пульта: первое событие
+     * удержания (repeatCount 0) запоминает начало, следующие считают разгон от него. Подтверждение
+     * — паузой в нажатиях ([SCRUB_COMMIT_TIMEOUT_MS]), её ведёт модель.
+     */
+    data class SeekStep(val direction: Int, val repeatCount: Int, val eventTimeMs: Long) : PlayerEvent
+
     data class SelectQuality(val label: String) : PlayerEvent
     data class SelectAudio(val label: String) : PlayerEvent
     data class SelectSubtitle(val label: String) : PlayerEvent
@@ -127,6 +190,15 @@ sealed interface PlayerEvent {
     /** Во вкладке «Серии» листают сезон [season] — без запуска серии. */
     data class ShowSeason(val season: Int) : PlayerEvent
 
+    /** Другая серия того же тайтла — новый экран плеера на месте этого; сезон обязателен. */
+    data class PlayEpisode(val season: Int, val videoId: Int) : PlayerEvent
+
+    /** Следующая серия — с чипа «Далее» телефона или «ОК» на карточке ТВ. */
+    data object PlayNext : PlayerEvent
+
+    /** ТВ: «Назад» при карточке «Далее» — серия дотечёт до конца и остановится. */
+    data object DismissAutoNext : PlayerEvent
+
     /**
      * Экран плеера появился и пропал (HOME, лаунчер, уход с экрана). Скрытый плеер на паузе, и
      * загрузка, закончившаяся за кадром, видео не запускает — иначе звук шёл бы поверх лаунчера.
@@ -136,21 +208,10 @@ sealed interface PlayerEvent {
 
     /** Телефон: «Смотреть на ТВ» — продолжить с этого места на телевизоре. */
     data object ContinueOnTv : PlayerEvent
+
+    /** Выход из плеера: «Назад» и кнопка в оверлее. */
+    data object Exit : PlayerEvent
 }
 
-sealed interface PlayerSideEffect {
-    /** Фильм досмотрен — пора спросить, как смотрелось: экран заменит плеер окном оценки. */
-    data object AskFeedback : PlayerSideEffect
-
-    /**
-     * Пульт телефона попросил другую серию. Это навигация (новый экран плеера), а не подмена потока:
-     * прогресс модель пишет в трек, выбранный при старте.
-     */
-    data class PlayEpisode(val season: Int, val videoId: Int) : PlayerSideEffect
-
-    /** Пульт телефона закрыл плеер. */
-    data object Exit : PlayerSideEffect
-
-    /** Выбрать телевизор и отдать ему [play] — эту серию с текущей позиции. */
-    data class ChooseTv(val play: RemoteCommand.Play) : PlayerSideEffect
-}
+/** Одноразовых эффектов у плеера нет: окно оценки, другая серия, выход и выбор ТВ — навигатор в модели. */
+sealed interface PlayerSideEffect

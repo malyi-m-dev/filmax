@@ -32,10 +32,6 @@ private const val STEREO = 2
 private const val SURROUND_5_1 = 6
 private const val SURROUND_7_1 = 8
 
-/** Выбранная дорожка — свойством: рядом с подписью вкладки и в плашке транспорта. */
-val PlayerState.selectedAudio: AudioOption?
-    get() = audioTracks.firstOrNull { it.label == currentAudio }
-
 /**
  * Язык дорожки и объёмный звук: «RU · 5.1». Стерео не пишем — это норма, а не выбор, и kino.pub
  * подставляет 2 канала, когда не знает точно.

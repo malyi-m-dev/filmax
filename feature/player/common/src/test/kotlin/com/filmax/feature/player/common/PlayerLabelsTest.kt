@@ -1,4 +1,4 @@
-package com.filmax.feature.player.tv
+package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
@@ -7,29 +7,13 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
-import com.filmax.feature.player.common.AudioOption
-import com.filmax.feature.player.common.OptionText
-import com.filmax.feature.player.common.PlayerEvent
-import com.filmax.feature.player.common.PlayerState
-import com.filmax.feature.player.common.PlayerTab
-import com.filmax.feature.player.common.PresetSpeeds
-import com.filmax.feature.player.common.StreamQuality
-import com.filmax.feature.player.common.SubtitleOption
-import com.filmax.feature.player.common.audioOptionText
-import com.filmax.feature.player.common.optionEvent
-import com.filmax.feature.player.common.optionItems
-import com.filmax.feature.player.common.playerSubtitle
-import com.filmax.feature.player.common.speedCaption
-import com.filmax.feature.player.common.speedValue
-import com.filmax.feature.player.common.statusLabel
-import com.filmax.feature.player.common.tabValue
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 /** Подписи плеера: строка под названием, значения вкладок, строки вариантов, серии и скорость. */
-class TvPlayerLabelsTest {
+class PlayerLabelsTest {
 
     private val series: Item = runBlocking {
         val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))
@@ -43,12 +27,7 @@ class TvPlayerLabelsTest {
 
         assertEquals("Сезон 4 · Серия 7 · ${episode.title}", playerSubtitle(state, paused = false))
         assertEquals("Сезон 4 · Серия 7 · на паузе", playerSubtitle(state, paused = true))
-    }
-
-    @Test
-    fun `remaining time counts down and is empty while duration is unknown`() {
-        assertEquals("−21:48", remainingLabel(positionMs = 2_090_000, durationMs = 3_398_000))
-        assertEquals("", remainingLabel(positionMs = 0, durationMs = 0))
+        assertEquals("${series.title} · S4E7", panelTitle(state))
     }
 
     @Test
@@ -56,7 +35,7 @@ class TvPlayerLabelsTest {
         val state = PlayerState(
             audioTracks = listOf(
                 AudioOption("1. Русский", 0, languageCode = "rus"),
-                AudioOption("2. English", 1, "eng")
+                AudioOption("2. English", 1, "eng"),
             ),
             currentAudio = "2. English",
             subtitles = listOf(SubtitleOption("Выкл", null), SubtitleOption("Русский", "rus")),
@@ -82,7 +61,7 @@ class TvPlayerLabelsTest {
             "rus",
             "Многоголосый",
             "LostFilm",
-            channels = 6
+            channels = 6,
         )
 
         assertEquals(OptionText("Русский · Многоголосый", "LostFilm", "5.1"), audioOptionText(option))
@@ -103,16 +82,17 @@ class TvPlayerLabelsTest {
     }
 
     @Test
-    fun `episode captions tell playing, watched and duration apart`() {
+    fun `episode labels tell title, length and progress apart`() {
         val watched = episode.copy(watchStatus = 1)
         val fresh = episode.copy(watchStatus = -1, watchedSeconds = 0, durationSeconds = 58 * 60)
 
-        assertEquals("Идёт · 34:50", episodeMeta(episode, playing = true, positionMs = 2_090_000))
-        assertEquals("Просмотрено", episodeMeta(watched, playing = false, positionMs = 0))
-        assertEquals("58 мин", episodeMeta(fresh, playing = false, positionMs = 0))
+        assertEquals("58 мин", episodeLength(fresh))
+        assertNull(episodeLength(fresh.copy(durationSeconds = 0)))
         assertEquals(1f, episodeProgress(watched))
         assertNull(episodeProgress(fresh))
         assertEquals("7. Серия 7", episodeTitle(episode.copy(title = "")))
+        assertEquals("S4E8", episodeCode(episode.copy(number = 8)))
+        assertEquals("Серия 3", episodeCode(episode.copy(seasonNumber = 0, number = 3)))
     }
 
     @Test

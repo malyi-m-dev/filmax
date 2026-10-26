@@ -48,10 +48,10 @@ import com.filmax.core.ui.components.FilmaxChipSize
 import com.filmax.core.ui.components.FilmaxCountdownChip
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxSeekBar
+import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
-import com.filmax.feature.player.common.label
-import com.filmax.feature.player.common.panelTabs
+import com.filmax.feature.player.common.episodeCode
 import com.filmax.feature.player.common.playerSubtitle
 import com.filmax.feature.player.common.speedValue
 
@@ -62,37 +62,29 @@ private const val SECOND_MS = 1000L
 /** Шаг перемотки кнопками ⟲10 / 10⟳. */
 internal const val SEEK_STEP_MS = 10_000L
 
-/** Что оверлей умеет делать — одним объектом: порог LongParameterList у detekt — 6. */
-internal data class OverlayActions(
-    val onBack: () -> Unit,
-    val onTogglePlay: () -> Unit,
-    val onSeekBy: (Long) -> Unit,
-    val onScrub: (Long) -> Unit,
-    val onScrubFinished: () -> Unit,
-    val onOpenTab: (PlayerTab) -> Unit,
-    val onPlayOnTv: () -> Unit,
-    val onLock: () -> Unit,
-    /** null — следующей серии нет (фильм или последняя серия). */
-    val onNext: (() -> Unit)?,
-)
-
+/** [onLock] — блокировка экрана: дело вёрстки, модель о случайных касаниях не знает. */
 @Composable
-internal fun PlayerOverlay(state: PlayerState, playback: PlaybackUi, actions: OverlayActions) {
+internal fun PlayerOverlay(state: PlayerState, onEvent: (PlayerEvent) -> Unit, onLock: () -> Unit) {
     Box(Modifier.fillMaxSize().background(OverlayScrim)) {
-        TopRow(state = state, actions = actions, modifier = Modifier.align(Alignment.TopStart))
-        CenterControls(playing = playback.playing, actions = actions, modifier = Modifier.align(Alignment.Center))
+        TopRow(state = state, onEvent = onEvent, onLock = onLock, modifier = Modifier.align(Alignment.TopStart))
+        CenterControls(playing = state.playback.playing, onEvent = onEvent, modifier = Modifier.align(Alignment.Center))
         PlayerVolume(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .windowInsetsPadding(OverlayTopInsets)
                 .padding(end = 24.dp),
         )
-        BottomControls(state = state, playback = playback, actions = actions)
+        BottomControls(state = state, onEvent = onEvent)
     }
 }
 
 @Composable
-private fun TopRow(state: PlayerState, actions: OverlayActions, modifier: Modifier = Modifier) {
+private fun TopRow(
+    state: PlayerState,
+    onEvent: (PlayerEvent) -> Unit,
+    onLock: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier
             .fillMaxWidth()
@@ -101,7 +93,11 @@ private fun TopRow(state: PlayerState, actions: OverlayActions, modifier: Modifi
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FilmaxIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", onClick = actions.onBack)
+        FilmaxIconButton(
+            Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Назад",
+            onClick = { onEvent(PlayerEvent.Exit) },
+        )
         Column(Modifier.weight(1f).padding(start = 4.dp)) {
             Text(
                 state.item?.title.orEmpty(),
@@ -116,18 +112,22 @@ private fun TopRow(state: PlayerState, actions: OverlayActions, modifier: Modifi
                     style = FilmaxType.meta,
                     color = FilmaxColors.TextSecondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
         // Продолжить на телевизоре с этого места: модель соберёт серию и позицию.
-        FilmaxIconButton(Icons.Filled.Cast, contentDescription = "Смотреть на телевизоре", onClick = actions.onPlayOnTv)
-        FilmaxIconButton(Icons.Filled.LockOpen, contentDescription = "Заблокировать экран", onClick = actions.onLock)
+        FilmaxIconButton(
+            Icons.Filled.Cast,
+            contentDescription = "Смотреть на телевизоре",
+            onClick = { onEvent(PlayerEvent.ContinueOnTv) },
+        )
+        FilmaxIconButton(Icons.Filled.LockOpen, contentDescription = "Заблокировать экран", onClick = onLock)
     }
 }
 
 @Composable
-private fun CenterControls(playing: Boolean, actions: OverlayActions, modifier: Modifier = Modifier) {
+private fun CenterControls(playing: Boolean, onEvent: (PlayerEvent) -> Unit, modifier: Modifier = Modifier) {
     Row(
         modifier.padding(bottom = 24.dp),
         horizontalArrangement = Arrangement.spacedBy(52.dp),
@@ -136,26 +136,26 @@ private fun CenterControls(playing: Boolean, actions: OverlayActions, modifier: 
         FilmaxIconButton(
             Icons.Filled.Replay10,
             contentDescription = "Назад 10 секунд",
-            onClick = { actions.onSeekBy(-SEEK_STEP_MS) },
+            onClick = { onEvent(PlayerEvent.SeekBy(-SEEK_STEP_MS)) },
             size = SeekSize,
         )
         FilmaxIconButton(
             if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
             contentDescription = if (playing) "Пауза" else "Смотреть",
-            onClick = actions.onTogglePlay,
+            onClick = { onEvent(PlayerEvent.TogglePlay) },
             size = PlaySize,
         )
         FilmaxIconButton(
             Icons.Filled.Forward10,
             contentDescription = "Вперёд 10 секунд",
-            onClick = { actions.onSeekBy(SEEK_STEP_MS) },
+            onClick = { onEvent(PlayerEvent.SeekBy(SEEK_STEP_MS)) },
             size = SeekSize,
         )
     }
 }
 
 @Composable
-private fun BoxScope.BottomControls(state: PlayerState, playback: PlaybackUi, actions: OverlayActions) {
+private fun BoxScope.BottomControls(state: PlayerState, onEvent: (PlayerEvent) -> Unit) {
     Column(
         Modifier
             .align(Alignment.BottomCenter)
@@ -165,11 +165,11 @@ private fun BoxScope.BottomControls(state: PlayerState, playback: PlaybackUi, ac
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         FilmaxSeekBar(
-            positionMs = playback.shownPositionMs,
-            durationMs = playback.durationMs,
-            bufferedMs = playback.bufferedMs,
-            onScrub = actions.onScrub,
-            onScrubFinished = actions.onScrubFinished,
+            positionMs = state.shownPositionMs,
+            durationMs = state.playback.durationMs,
+            bufferedMs = state.playback.bufferedMs,
+            onScrub = { onEvent(PlayerEvent.Scrub(it)) },
+            onScrubFinished = { onEvent(PlayerEvent.ScrubFinished) },
         )
         Row(
             Modifier.fillMaxWidth(),
@@ -184,16 +184,19 @@ private fun BoxScope.BottomControls(state: PlayerState, playback: PlaybackUi, ac
                     FilmaxChip(
                         label = chipLabel(tab, state),
                         selected = false,
-                        onClick = { actions.onOpenTab(tab) },
-                        leadingIcon = tab.icon,
+                        onClick = { onEvent(PlayerEvent.OpenPanelAt(tab)) },
+                        leadingIcon = tabIcon(tab),
                         size = FilmaxChipSize.Large,
                     )
                 }
             }
-            val next = state.nextTrack
-            val onNext = actions.onNext
-            if (next != null && onNext != null) {
-                NextChip(next = next, remainingMs = playback.remainingMs, playing = playback.playing, onClick = onNext)
+            state.nextTrack?.let { next ->
+                NextChip(
+                    next = next,
+                    remainingMs = state.remainingMs,
+                    playing = state.playback.playing,
+                    onClick = { onEvent(PlayerEvent.PlayNext) },
+                )
             }
         }
     }
@@ -206,7 +209,7 @@ private fun BoxScope.BottomControls(state: PlayerState, playback: PlaybackUi, ac
 @Composable
 private fun NextChip(next: MediaTrack, remainingMs: Long, playing: Boolean, onClick: () -> Unit) {
     val counting = playing && remainingMs in 1..NEXT_COUNTDOWN_MS
-    val code = if (next.seasonNumber > 0) "S${next.seasonNumber}E${next.number}" else "Серия ${next.number}"
+    val code = episodeCode(next)
     val seconds = (remainingMs + SECOND_MS - 1) / SECOND_MS
     FilmaxCountdownChip(
         label = if (counting) "Далее · $code через $seconds" else "Далее · $code",
@@ -243,14 +246,14 @@ private fun chipLabel(tab: PlayerTab, state: PlayerState): String = when (tab) {
     else -> tab.label
 }
 
-internal val PlayerTab.icon: ImageVector
-    get() = when (this) {
-        PlayerTab.Episodes -> Icons.Filled.VideoLibrary
-        PlayerTab.Audio -> Icons.Filled.GraphicEq
-        PlayerTab.Subtitles -> Icons.Filled.Subtitles
-        PlayerTab.Quality -> Icons.Filled.Hd
-        PlayerTab.Speed -> Icons.Filled.Speed
-    }
+/** Иконка вкладки — на чипе под видео и в табах панели. */
+internal fun tabIcon(tab: PlayerTab): ImageVector = when (tab) {
+    PlayerTab.Episodes -> Icons.Filled.VideoLibrary
+    PlayerTab.Audio -> Icons.Filled.GraphicEq
+    PlayerTab.Subtitles -> Icons.Filled.Subtitles
+    PlayerTab.Quality -> Icons.Filled.Hd
+    PlayerTab.Speed -> Icons.Filled.Speed
+}
 
 /** Затемнение кадра под контролами: сверху и снизу плотнее — там текст и ползунок. */
 private val OverlayScrim = Brush.verticalGradient(

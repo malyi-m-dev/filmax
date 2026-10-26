@@ -69,7 +69,7 @@ class QualityLadderTest {
     fun `video decoder failure gives the frame height`() {
         val error = rendererError(MimeTypes.VIDEO_H264, UHD, PlaybackException.ERROR_CODE_DECODING_FAILED)
 
-        assertEquals(UHD, error.videoDecoderFailureHeight())
+        assertEquals(UHD, videoDecoderFailureHeight(error))
     }
 
     @Test
@@ -78,8 +78,8 @@ class QualityLadderTest {
         val audio = rendererError(MimeTypes.AUDIO_AAC, height = Format.NO_VALUE, decodingFailed)
         val network = PlaybackException("нет сети", null, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
 
-        assertNull(audio.videoDecoderFailureHeight())
-        assertNull(network.videoDecoderFailureHeight())
+        assertNull(videoDecoderFailureHeight(audio))
+        assertNull(videoDecoderFailureHeight(network))
     }
 
     private fun rendererError(mimeType: String, height: Int, errorCode: Int): ExoPlaybackException =

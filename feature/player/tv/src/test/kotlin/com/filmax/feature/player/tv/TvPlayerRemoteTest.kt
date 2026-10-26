@@ -18,7 +18,6 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
-import androidx.media3.exoplayer.ExoPlayer
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.common.getOrNull
@@ -28,16 +27,19 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.feature.player.common.AUTO_NEXT_COUNTDOWN_SEC
 import com.filmax.feature.player.common.AudioOption
+import com.filmax.feature.player.common.AutoNext
+import com.filmax.feature.player.common.PlaybackSnapshot
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
 import com.filmax.feature.player.common.StreamQuality
 import com.filmax.feature.player.common.SubtitleOption
-import com.filmax.feature.player.common.openingTab
+import com.filmax.feature.player.common.episodeTitle
+import com.filmax.feature.player.common.seekStepSeconds
 import com.filmax.feature.player.common.tabValue
 import kotlinx.coroutines.runBlocking
-import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -69,9 +71,6 @@ class TvPlayerRemoteTest {
     val images = FakeImagesRule()
 
     private val events = mutableListOf<PlayerEvent>()
-    private val calls = mutableListOf<String>()
-    private lateinit var player: ExoPlayer
-    private lateinit var transport: TvTransportState
     private lateinit var series: Item
     private lateinit var playing: MediaTrack
     private var state by mutableStateOf(PlayerState())
@@ -86,24 +85,12 @@ class TvPlayerRemoteTest {
         }
         playing = series.tracklist.first { it.seasonNumber == 4 && it.number == 7 }
         state = loadedState()
-        compose.runOnUiThread {
-            player = ExoPlayer.Builder(compose.activity).build()
-            transport = TvTransportState(player).apply {
-                durationMs = DURATION_MS
-                positionMs = POSITION_MS
-            }
-        }
         compose.setContent {
             FilmaxTvTheme {
-                PlayerContent(PlayerScene(state, transport, error = null), actions()) { Box {} }
+                PlayerContent(state, error = null, onEvent = ::dispatch) { Box {} }
             }
         }
         compose.waitForIdle()
-    }
-
-    @After
-    fun tearDown() {
-        compose.runOnUiThread { player.release() }
     }
 
     @Test
@@ -113,8 +100,7 @@ class TvPlayerRemoteTest {
         pressKey(Key.DirectionLeft)
 
         assertFocusedHas(PLAY)
-        assertTrue(transport.isScrubbing)
-        assertEquals(POSITION_MS - TEN_SECONDS_MS, transport.scrubTargetMs)
+        assertEquals(POSITION_MS - TEN_SECONDS_MS, state.scrubTargetMs)
     }
 
     @Test
@@ -127,7 +113,7 @@ class TvPlayerRemoteTest {
 
         // В панели стрелки ходят по фокусу, а не перематывают.
         pressKey(Key.DirectionRight)
-        assertFalse(transport.isScrubbing)
+        assertEquals(null, state.scrubTargetMs)
         assertFocusedHas(episodeTitle(checkNotNull(state.nextTrack)))
     }
 
@@ -184,7 +170,7 @@ class TvPlayerRemoteTest {
         pressKey(Key.DirectionDown)
         pressKey(Key.DirectionCenter)
 
-        assertEquals("play 5/1", calls.last())
+        assertEquals(PlayerEvent.PlayEpisode(season = 5, videoId = 1), events.last())
     }
 
     @Test
@@ -203,12 +189,12 @@ class TvPlayerRemoteTest {
     }
 
     @Test
-    fun `ok on the next card plays the next episode with its season`() {
+    fun `ok on the next card plays the next episode`() {
         showNextCard()
 
         pressKey(Key.DirectionCenter)
 
-        assertEquals("play 4/8", calls.last())
+        assertEquals(PlayerEvent.PlayNext, events.last())
     }
 
     @Test
@@ -217,14 +203,16 @@ class TvPlayerRemoteTest {
 
         pressBack()
 
-        assertTrue(transport.autoNext.dismissed)
-        assertFalse("exit" in calls, "«Назад» при карточке «Далее» вышел из плеера")
+        assertEquals(PlayerEvent.DismissAutoNext, events.last())
+        assertTrue(state.autoNext.dismissed)
         pressBack()
-        assertEquals("exit", calls.last())
+        assertEquals(PlayerEvent.Exit, events.last())
     }
 
     private fun showNextCard() {
-        compose.runOnUiThread { transport.autoNext = AutoNext(visible = true, secondsLeft = AUTO_NEXT_COUNTDOWN_SEC) }
+        compose.runOnUiThread {
+            state = state.copy(autoNext = AutoNext(visible = true, secondsLeft = AUTO_NEXT_COUNTDOWN_SEC))
+        }
         compose.waitForIdle()
     }
 
@@ -247,6 +235,8 @@ class TvPlayerRemoteTest {
         currentAudio = RUSSIAN_LABEL,
         subtitles = listOf(SubtitleOption("Выкл", null), SubtitleOption("Русский", "rus")),
         currentSubtitle = "Выкл",
+        // Видео стоит: иначе контролы ушли бы по таймеру, а кнопка звалась бы «Пауза».
+        playback = PlaybackSnapshot(playing = false, positionMs = POSITION_MS, durationMs = DURATION_MS),
     )
 
     /** События модели — к состоянию, как их применяет PlayerScreenModel. */
@@ -260,15 +250,17 @@ class TvPlayerRemoteTest {
             is PlayerEvent.ShowSeason -> state.copy(panelSeason = event.season)
             is PlayerEvent.SetSpeed -> state.copy(currentSpeed = event.speed)
             is PlayerEvent.SelectAudio -> state.copy(currentAudio = event.label)
+            is PlayerEvent.SeekStep -> state.copy(scrubTargetMs = scrubbed(event))
+            PlayerEvent.DismissAutoNext -> state.copy(autoNext = state.autoNext.copy(visible = false, dismissed = true))
             else -> state
         }
     }
 
-    private fun actions() = PlayerActions(
-        dispatch = ::dispatch,
-        onPlayEpisode = { season, videoId -> calls += "play $season/$videoId" },
-        onExit = { calls += "exit" },
-    )
+    /** Шаг перемотки, как его считает модель: от текущей цели или позиции плеера. */
+    private fun scrubbed(step: PlayerEvent.SeekStep): Long {
+        val from = state.scrubTargetMs ?: state.playback.positionMs
+        return from + step.direction * seekStepSeconds(0) * MILLIS_IN_SECOND
+    }
 
     /** «Вверх», пока фокус не встанет на [text] — потолок с запасом на ряд сезонов. */
     private fun goUpTo(text: String) {
@@ -315,5 +307,6 @@ class TvPlayerRemoteTest {
         const val DURATION_MS = 3_398_000L
         const val POSITION_MS = 2_090_000L
         const val TEN_SECONDS_MS = 10_000L
+        const val MILLIS_IN_SECOND = 1000L
     }
 }
