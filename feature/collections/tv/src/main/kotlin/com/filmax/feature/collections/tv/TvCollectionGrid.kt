@@ -45,6 +45,11 @@ import com.filmax.core.tv.designsystem.TvPosterSize
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvScrollBar
 import com.filmax.core.tv.designsystem.fxEnter
+import com.filmax.core.tv.designsystem.scrollThumb
+import com.filmax.feature.collections.common.CollectionDetailEvent
+
+/** Колонок в сетке подборки: шесть постеров 132dp с шагом 16dp — ровно ширина экрана без полей. */
+internal const val COLLECTION_COLUMNS = 6
 
 /** Верх первой строки под раскрытой шапкой: постеры заходят на растворённый низ полосы. */
 internal val GridTop = 200.dp
@@ -63,13 +68,6 @@ private val ScrollBarHeight = 400.dp
 /** За сколько карточек до конца сетки просим следующую страницу — две строки. */
 private const val LOAD_MORE_TAIL = COLLECTION_COLUMNS * 2
 
-/** Что сетка умеет: открыть тайтл, догрузить хвост, сообщить строку с фокусом. */
-internal class CollectionGridActions(
-    val onOpenItem: (Int) -> Unit,
-    val onLoadMore: () -> Unit,
-    val onFocusRow: (Int) -> Unit,
-)
-
 /**
  * Сетка постеров. Строка с фокусом встаёт на опорную точку: под раскрытой шапкой — на своё место
  * под ней (первая строка), под свёрнутой — на 112dp. Точка читается из [collapsed] на каждом
@@ -80,7 +78,7 @@ internal fun CollectionGrid(
     items: List<Item>,
     collapsed: Boolean,
     focus: TvScreenFocus,
-    actions: CollectionGridActions,
+    onEvent: (CollectionDetailEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
@@ -89,11 +87,11 @@ internal fun CollectionGrid(
     val pivotSpec = remember(density) {
         CollectionPivotSpec { with(density) { (if (currentCollapsed) CollapsedPivot else GridTop).toPx() } }
     }
-    LoadMoreNearTail(gridState, items.size, actions.onLoadMore)
+    LoadMoreNearTail(gridState, items.size) { onEvent(CollectionDetailEvent.LoadMore) }
     Box(modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalBringIntoViewSpec provides pivotSpec) {
             // В сетке только постеры: фокус в ней — всегда на постере, соседи приглушаются.
-            TvDimGroup { PosterGrid(items, gridState, focus, actions) }
+            TvDimGroup { PosterGrid(items, gridState, focus, onEvent) }
         }
         GridScrollBar(gridState, visible = collapsed, Modifier.align(Alignment.TopEnd))
     }
@@ -104,7 +102,7 @@ private fun PosterGrid(
     items: List<Item>,
     gridState: LazyGridState,
     focus: TvScreenFocus,
-    actions: CollectionGridActions,
+    onEvent: (CollectionDetailEvent) -> Unit,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(COLLECTION_COLUMNS),
@@ -122,11 +120,11 @@ private fun PosterGrid(
         itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
             CollectionPoster(
                 item = item,
-                onClick = { actions.onOpenItem(item.id) },
+                onClick = { onEvent(CollectionDetailEvent.OpenItem(item.id)) },
                 modifier = focus.item(posterKey(item.id))
                     // Сетка поднимается вслед за шапкой: первая колонка — после её надзаголовка.
                     .fxEnter(index % COLLECTION_COLUMNS + GRID_ENTER_AFTER_HEADER)
-                    .onFocusChanged { if (it.hasFocus) actions.onFocusRow(gridRow(index)) },
+                    .onFocusChanged { if (it.hasFocus) onEvent(CollectionDetailEvent.FocusRow(gridRow(index))) },
             )
         }
     }
@@ -134,6 +132,9 @@ private fun PosterGrid(
 
 /** Сдвиг появления сетки в шагах fxEnter: первые постеры — через ≈100 мс после шапки. */
 private const val GRID_ENTER_AFTER_HEADER = 2
+
+/** Строка сетки, в которой стоит карточка с индексом [index]. */
+internal fun gridRow(index: Int): Int = index / COLLECTION_COLUMNS
 
 /** Ключ постера для памяти фокуса: возврат из деталей — на тот же тайтл. */
 internal fun posterKey(itemId: Int): String = "collection:$itemId"
@@ -184,7 +185,8 @@ private fun GridScrollBar(gridState: LazyGridState, visible: Boolean, modifier: 
     val thumb by remember(gridState) {
         derivedStateOf {
             val info = gridState.layoutInfo
-            scrollThumb(gridState.firstVisibleItemIndex, info.visibleItemsInfo.size, info.totalItemsCount)
+            // По строкам, а не по пикселям: строки одной высоты, а ленивая сетка не знает высоту непостроенных.
+            scrollThumb(gridState.firstVisibleItemIndex.toFloat(), info.visibleItemsInfo.size, info.totalItemsCount)
         }
     }
     TvScrollBar(

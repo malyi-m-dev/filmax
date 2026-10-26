@@ -4,7 +4,6 @@ import android.content.pm.PackageManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -28,6 +27,7 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailState
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -73,9 +73,10 @@ class TvCollectionFocusTest {
             val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))
             checkNotNull(catalog.getCollectionItems(FakeIds.LARGE_COLLECTION).getOrNull()).items
         }
-        state = CollectionDetailState(loading = false, items = items, page = 1, hasNextPage = true)
+        state = CollectionDetailState(collectionId = FakeIds.LARGE_COLLECTION, title = TITLE)
+            .withFirstPage(items, hasNextPage = true, cover = null)
         compose.setContent {
-            FilmaxTvTheme { CollectionContent(state, HEADER, actions()) }
+            FilmaxTvTheme { CollectionContent(state, ::record) }
         }
         compose.waitForIdle()
     }
@@ -118,7 +119,7 @@ class TvCollectionFocusTest {
         assertFocusedHas(PLAY)
         assertEquals(null, state.focusedRow)
         pressKey(Key.DirectionCenter)
-        assertEquals("play ${items[0].id}", calls.last())
+        assertEquals("play", calls.last())
     }
 
     @Test
@@ -129,12 +130,16 @@ class TvCollectionFocusTest {
         assertEquals("open ${items[1].id}", calls.last())
     }
 
-    private fun actions() = CollectionActions(
-        onOpenItem = { id -> calls += "open $id" },
-        onPlay = { id -> calls += "play $id" },
-        onLoadMore = { calls += "load more" },
-        onFocusRow = { row -> state = state.copy(focusedRow = row) },
-    )
+    /** Строку с фокусом тест принимает так же, как модель; остальные события только записывает. */
+    private fun record(event: CollectionDetailEvent) {
+        when (event) {
+            is CollectionDetailEvent.FocusRow -> state = state.withFocusedRow(event.row)
+            is CollectionDetailEvent.OpenItem -> calls += "open ${event.itemId}"
+            CollectionDetailEvent.PlayAll -> calls += "play"
+            CollectionDetailEvent.LoadMore -> calls += "load more"
+            CollectionDetailEvent.Back -> calls += "back"
+        }
+    }
 
     private fun focusedMatcher(text: String): SemanticsMatcher {
         val labelled = hasText(text, substring = true) or hasContentDescription(text, substring = true)
@@ -168,11 +173,6 @@ class TvCollectionFocusTest {
 
         /** Масштаб 1.06 поднимает верх постера на ~6dp, остальное — округления раскладки. */
         val PIVOT_TOLERANCE = 10.dp
-        val HEADER = CollectionHeaderModel(
-            title = "Зрители рекомендуют",
-            caption = null,
-            cover = null,
-            tint = Color.DarkGray,
-        )
+        const val TITLE = "Зрители рекомендуют"
     }
 }

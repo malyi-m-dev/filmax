@@ -1,10 +1,13 @@
 package com.filmax.feature.collections.common
 
 import androidx.lifecycle.SavedStateHandle
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -37,6 +40,7 @@ class CollectionDetailScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
+    private val navigator = FakeNavigator()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -80,6 +84,33 @@ class CollectionDetailScreenModelTest {
         val state = loaded(SMALL_COLLECTION).states.value
 
         assertEquals(SMALL_COLLECTION_SIZE, state.titlesCount)
+        assertEquals("6 фильмов", state.caption)
+        assertEquals("Подборка", state.title)
+        assertEquals(SMALL_COLLECTION, state.collectionId)
+    }
+
+    @Test
+    fun `caption agrees the word with the number`() {
+        assertEquals("1 фильм", filmsCaption(1))
+        assertEquals("24 фильма", filmsCaption(24))
+        assertEquals("45 фильмов", filmsCaption(45))
+        assertEquals("11 фильмов", filmsCaption(11))
+        assertEquals("112 фильмов", filmsCaption(112))
+        assertEquals("101 фильм", filmsCaption(101))
+    }
+
+    @Test
+    fun `play all starts the player on the first title, cards open details, back leaves`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LARGE_COLLECTION)
+        val first = model.states.value.items.first().id
+
+        model.dispatch(CollectionDetailEvent.PlayAll)
+        model.dispatch(CollectionDetailEvent.OpenItem(7))
+        model.dispatch(CollectionDetailEvent.Back)
+        advanceUntilIdle()
+
+        assertEquals(listOf(Destination.Player(itemId = first), Destination.Details(7)), navigator.opened)
+        assertEquals(NavCommand.Back, navigator.sent.last())
     }
 
     @Test
@@ -108,6 +139,7 @@ class CollectionDetailScreenModelTest {
         val model = CollectionDetailScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("collectionId" to collectionId, "title" to "Подборка")),
             catalog = FakeCatalogRepository(backend),
+            navigator = navigator,
         )
         advanceUntilIdle()
         return model

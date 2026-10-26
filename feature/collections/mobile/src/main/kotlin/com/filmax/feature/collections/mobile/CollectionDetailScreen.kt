@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -57,8 +58,6 @@ import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.oklch
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.titlesLabel
@@ -79,67 +78,48 @@ import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import com.filmax.feature.collections.common.CollectionDetailState
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 /** За сколько карточек до конца сетки просим следующую страницу (три ряда). */
 private const val LOAD_MORE_TAIL = 9
 private const val SKELETON_COUNT = 9
 
 /**
- * Одна подборка — сетка её тайтлов под шапкой её оттенка. «Смотреть подряд» начинает с первого
- * тайтла подборки ([CollectionDetailState.startItemId]).
+ * Одна подборка — сетка её тайтлов под шапкой её оттенка. Название и id подборки модель берёт из
+ * маршрута, оттенок шапки — дизайн-система по id.
  */
 @Composable
-fun CollectionDetailScreen(
-    collectionId: Int,
-    title: String,
-    modifier: Modifier = Modifier,
-    screenModel: CollectionDetailScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
+fun CollectionDetailScreen(modifier: Modifier = Modifier, screenModel: CollectionDetailScreenModel = koinViewModel()) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
-    val hue = collectionHue(collectionId)
+    val onEvent: (CollectionDetailEvent) -> Unit = screenModel::dispatch
+    val hue = collectionHue(state.collectionId)
     val glass = rememberGlassState()
     val gridState = rememberLazyGridState()
+    // Шапка уехала за верх — её место занимает стеклянная полоса. Решение по прокрутке — дело вёрстки.
     val collapsed by remember { derivedStateOf { gridState.firstVisibleItemIndex > 0 } }
 
     Box(modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
         CollectionGrid(
-            title = title,
-            hue = hue,
             state = state,
+            hue = hue,
             gridState = gridState,
-            actions = CollectionActions(
-                onOpenItem = { navigator.open(Destination.Details(it)) },
-                onPlay = { navigator.open(Destination.Player(itemId = it)) },
-                onLoadMore = { screenModel.dispatch(CollectionDetailEvent.LoadMore) },
-            ),
+            onEvent = onEvent,
             modifier = Modifier.glassSource(glass),
         )
-        CollectionTopBar(title = title, hue = hue, collapsed = collapsed, glass = glass, onBack = navigator::back)
+        CollectionTopBar(title = state.title, hue = hue, collapsed = collapsed, glass = glass, onEvent = onEvent)
         appError?.let { error ->
             FilmaxErrorModal(error = error, onDismiss = screenModel::dismissError, onPrimary = screenModel::retry)
         }
     }
 }
 
-/** Переходы и догрузка подборки одним объектом. */
-private data class CollectionActions(
-    val onOpenItem: (Int) -> Unit,
-    val onPlay: (Int) -> Unit,
-    val onLoadMore: () -> Unit,
-)
-
-// Сетка подборки: шапка, тайтлы, их состояние прокрутки и переходы — одна точка сборки экрана.
-@Suppress("LongParameterList")
+/** Сетка подборки: шапка первым элементом, тайтлы, скелетоны и догрузка с хвоста. */
 @Composable
 private fun CollectionGrid(
-    title: String,
-    hue: Float,
     state: CollectionDetailState,
+    hue: Float,
     gridState: LazyGridState,
-    actions: CollectionActions,
+    onEvent: (CollectionDetailEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Догрузка при подходе к хвосту сетки; повторные вызовы гасит идемпотентность модели.
@@ -150,7 +130,7 @@ private fun CollectionGrid(
             info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
         }
     }
-    LaunchedEffect(loadMore, state.page) { if (loadMore) actions.onLoadMore() }
+    LaunchedEffect(loadMore, state.page) { if (loadMore) onEvent(CollectionDetailEvent.LoadMore) }
     LazyVerticalGrid(
         columns = GridCells.Fixed(FilmaxMetrics.POSTER_COLUMNS),
         state = gridState,
@@ -164,37 +144,39 @@ private fun CollectionGrid(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
-            val onPlay = state.startItemId?.let { id -> { actions.onPlay(id) } }
-            CollectionHeader(title = title, hue = hue, state = state, onPlay = onPlay)
+            CollectionHeader(state = state, hue = hue, onEvent = onEvent)
         }
-        when {
-            state.loading && state.items.isEmpty() -> items(
-                SKELETON_COUNT,
-                key = { "skeleton-$it" }
-            ) { FilmaxPosterSkeleton() }
-            state.items.isEmpty() -> item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
-                FilmaxEmptyState(
-                    icon = if (state.error == null) Icons.Filled.VideoLibrary else Icons.Filled.CloudOff,
-                    title = if (state.error == null) "В подборке пусто" else "Не удалось загрузить",
-                    subtitle = state.error,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                )
-            }
-        }
-        items(
-            state.items,
-            key = { it.id }
-        ) { item -> CollectionPoster(item, onClick = { actions.onOpenItem(item.id) }) }
-        if (state.loadingMore) items(FilmaxMetrics.POSTER_COLUMNS, key = { "more-$it" }) { FilmaxPosterSkeleton() }
+        gridBody(state = state, onEvent = onEvent)
     }
+}
+
+/** Тело сетки: скелетон первой загрузки, пустое состояние или постеры и скелетоны догрузки. */
+private fun LazyGridScope.gridBody(state: CollectionDetailState, onEvent: (CollectionDetailEvent) -> Unit) {
+    when {
+        state.loading && state.items.isEmpty() -> items(SKELETON_COUNT, key = { "skeleton-$it" }) {
+            FilmaxPosterSkeleton()
+        }
+        state.items.isEmpty() -> item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+            FilmaxEmptyState(
+                icon = if (state.error == null) Icons.Filled.VideoLibrary else Icons.Filled.CloudOff,
+                title = if (state.error == null) "В подборке пусто" else "Не удалось загрузить",
+                subtitle = state.error,
+                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+            )
+        }
+    }
+    items(state.items, key = { it.id }) { item ->
+        CollectionPoster(item, onClick = { onEvent(CollectionDetailEvent.OpenItem(item.id)) })
+    }
+    if (state.loadingMore) items(FilmaxMetrics.POSTER_COLUMNS, key = { "more-$it" }) { FilmaxPosterSkeleton() }
 }
 
 /**
  * Шапка: обложка, размытая в цвет фона, поверх — градиент оттенка подборки и веер первых постеров.
- * Обложки нет — остаётся градиент, веер держит шапку сам.
+ * Обложки нет — остаётся градиент, веер держит шапку сам. Кнопки нет, пока смотреть нечего.
  */
 @Composable
-private fun CollectionHeader(title: String, hue: Float, state: CollectionDetailState, onPlay: (() -> Unit)?) {
+private fun CollectionHeader(state: CollectionDetailState, hue: Float, onEvent: (CollectionDetailEvent) -> Unit) {
     Box(Modifier.fillMaxWidth().bleed(FilmaxMetrics.GridPadding)) {
         CollectionBackdrop(cover = state.cover, hue = hue)
         Column(
@@ -209,11 +191,11 @@ private fun CollectionHeader(title: String, hue: Float, state: CollectionDetailS
                 step = 74.dp,
                 modifier = Modifier.height(FanHeight),
             )
-            CollectionHeading(title = title, hue = hue, count = state.titlesCount)
-            onPlay?.let {
+            CollectionHeading(title = state.title, hue = hue, count = state.titlesCount)
+            if (state.startItemId != null) {
                 FilmaxButton(
                     text = "Смотреть подряд",
-                    onClick = it,
+                    onClick = { onEvent(CollectionDetailEvent.PlayAll) },
                     icon = Icons.Filled.PlayArrow,
                     size = FilmaxButtonSize.Compact,
                     modifier = Modifier.padding(top = 14.dp),
@@ -232,7 +214,7 @@ private fun BoxScope.CollectionBackdrop(cover: String?, hue: Float) {
             url = it,
             contentDescription = null,
             modifier = Modifier.matchParentSize().blur(CoverBlur),
-            shape = RectangleShape
+            shape = RectangleShape,
         )
     }
     Box(
@@ -269,14 +251,20 @@ private fun CollectionHeading(title: String, hue: Float, count: Int?) {
             titlesLabel(it),
             style = FilmaxType.meta,
             color = FilmaxColors.TextSecondary,
-            modifier = Modifier.padding(top = 6.dp)
+            modifier = Modifier.padding(top = 6.dp),
         )
     }
 }
 
 /** «Назад» поверх шапки; шапка уехала — стеклянная полоса оттенка подборки с её названием. */
 @Composable
-private fun CollectionTopBar(title: String, hue: Float, collapsed: Boolean, glass: GlassState, onBack: () -> Unit) {
+private fun CollectionTopBar(
+    title: String,
+    hue: Float,
+    collapsed: Boolean,
+    glass: GlassState,
+    onEvent: (CollectionDetailEvent) -> Unit,
+) {
     Box(Modifier.fillMaxWidth()) {
         AnimatedVisibility(visible = collapsed, enter = fadeIn(), exit = fadeOut()) {
             GlassPanel(state = glass, modifier = Modifier.fillMaxWidth(), border = Color.Transparent) {
@@ -286,9 +274,11 @@ private fun CollectionTopBar(title: String, hue: Float, collapsed: Boolean, glas
                         .background(oklch(lightness = 0.42f, chroma = 0.18f, hue = hue, alpha = 0.22f)),
                 )
                 Row(
-                    Modifier.fillMaxWidth().statusBarsPadding().height(
-                        FilmaxMetrics.HeaderRowHeight
-                    ).padding(start = 68.dp, end = 20.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .height(FilmaxMetrics.HeaderRowHeight)
+                        .padding(start = 68.dp, end = 20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
@@ -296,7 +286,7 @@ private fun CollectionTopBar(title: String, hue: Float, collapsed: Boolean, glas
                         style = FilmaxType.playerTitle,
                         color = FilmaxColors.Text,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -304,7 +294,7 @@ private fun CollectionTopBar(title: String, hue: Float, collapsed: Boolean, glas
         FilmaxIconButton(
             Icons.AutoMirrored.Filled.ArrowBack,
             contentDescription = "Назад",
-            onClick = onBack,
+            onClick = { onEvent(CollectionDetailEvent.Back) },
             modifier = Modifier.statusBarsPadding().padding(start = 16.dp, top = 8.dp),
         )
     }
