@@ -42,9 +42,6 @@ internal class CatalogFocus {
     }
 }
 
-@Composable
-internal fun rememberCatalogFocus(): CatalogFocus = remember { CatalogFocus() }
-
 /**
  * Сколько кадров цель пробует взять фокус. Запрос отклоняют, пока окно в первом проходе
  * раскладки; дольше пары кадров это не длится, а вечная заявка украла бы фокус позже, невпопад.

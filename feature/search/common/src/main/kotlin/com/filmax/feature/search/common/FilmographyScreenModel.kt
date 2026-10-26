@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.toRoute
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.search.SearchRepository
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.search.common.navigation.FilmographyRoute
 
@@ -15,6 +17,7 @@ import com.filmax.feature.search.common.navigation.FilmographyRoute
 class FilmographyScreenModel(
     savedStateHandle: SavedStateHandle,
     private val search: SearchRepository,
+    private val navigator: Navigator,
 ) : BaseScreenModel<FilmographyState, FilmographySideEffect, FilmographyEvent>(FilmographyState()) {
 
     private val route = savedStateHandle.toRoute<FilmographyRoute>()
@@ -26,6 +29,8 @@ class FilmographyScreenModel(
     override fun onEvent(event: FilmographyEvent) {
         when (event) {
             FilmographyEvent.Retry -> onFetchData()
+            is FilmographyEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            FilmographyEvent.Back -> navigator.back()
         }
     }
 
@@ -38,10 +43,7 @@ class FilmographyScreenModel(
                 search.searchByActor(route.name)
             }
             when (result) {
-                is RequestResult.Success -> updateState {
-                    it.copy(loading = false, items = result.data)
-                }
-
+                is RequestResult.Success -> updateState { it.copy(loading = false, items = result.data) }
                 is RequestResult.Error -> {
                     updateState { it.copy(loading = false, error = result.message) }
                     showError(result)

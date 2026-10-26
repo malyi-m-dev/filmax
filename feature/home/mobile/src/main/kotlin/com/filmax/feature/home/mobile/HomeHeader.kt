@@ -29,12 +29,12 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.GlassState
 import com.filmax.core.domain.catalog.CatalogSection
+import com.filmax.core.presentation.labels.sectionLabel
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxGlassHeader
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxListRow
 import com.filmax.core.ui.components.FilmaxWordmark
-import com.filmax.core.ui.components.label
 import com.filmax.feature.home.common.HomeEvent
 
 /** Разделы чипами под шапкой — самые частые; остальные — в шторке «Разделы». */
@@ -97,7 +97,11 @@ private fun SectionChips(onEvent: (HomeEvent) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         HeaderSections.forEach { section ->
-            FilmaxChip(label = section.label, selected = false, onClick = { onEvent(HomeEvent.OpenSection(section)) })
+            FilmaxChip(
+                label = sectionLabel(section),
+                selected = false,
+                onClick = { onEvent(HomeEvent.OpenSection(section)) },
+            )
         }
         FilmaxChip(
             label = "Разделы",

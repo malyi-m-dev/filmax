@@ -48,6 +48,9 @@ import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.TypeOptions
+import com.filmax.feature.search.common.catalogSummary
+import com.filmax.feature.search.common.filtersChipLabel
+import com.filmax.feature.search.common.sortChipLabel
 
 private const val SEARCH_PLACEHOLDER = "Название фильма или сериала"
 
@@ -61,16 +64,16 @@ private const val DIVIDER_ALPHA = 0.14f
 @Composable
 internal fun CatalogHeader(
     state: SearchState,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
+    onVoice: () -> Unit,
     focus: CatalogScreenFocus,
-    sheetOpeners: SheetOpeners,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
         CatalogSearchBar(
-            query = "",
-            active = false,
-            actions = actions,
+            state = state,
+            onEvent = onEvent,
+            onVoice = onVoice,
             focus = focus,
             fieldModifier = focus.screen.item(SEARCH_KEY).catalogTarget(focus.jumps, CatalogTarget.SEARCH_FIELD),
         )
@@ -80,8 +83,8 @@ internal fun CatalogHeader(
         val hasGenres = state.genres.isNotEmpty()
         TypeRow(
             state = state,
-            dispatch = actions.dispatch,
-            openers = sheetOpeners,
+            onEvent = onEvent,
+            openers = focus.sheetOpeners,
             below = genreRow.takeIf { hasGenres },
             modifier = Modifier.padding(top = SearchToChips),
         )
@@ -89,7 +92,7 @@ internal fun CatalogHeader(
             GenreRow(
                 genres = state.genres,
                 selectedId = state.selectedGenreId,
-                dispatch = actions.dispatch,
+                onEvent = onEvent,
                 modifier = Modifier.padding(top = TypesToGenres).focusRequester(genreRow),
             )
         }
@@ -110,26 +113,26 @@ private fun CatalogSummary(summary: String, modifier: Modifier) {
 }
 
 /**
- * Строка поиска: поле и кнопка голоса. На витрине поле — кнопка, открывающая поиск; в поиске —
- * [active]: показывает набранное, а фокус остаётся на клавиатуре.
+ * Строка поиска: поле и кнопка голоса. На витрине поле — кнопка, открывающая поиск; в поиске
+ * показывает набранное, а фокус остаётся на клавиатуре.
  */
 @Composable
 internal fun CatalogSearchBar(
-    query: String,
-    active: Boolean,
-    actions: CatalogActions,
+    state: SearchState,
+    onEvent: (SearchEvent) -> Unit,
+    onVoice: () -> Unit,
     focus: CatalogScreenFocus,
     fieldModifier: Modifier = Modifier,
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TvSearchField(
-            query = query,
+            query = if (state.searchOpen) state.query else "",
             placeholder = SEARCH_PLACEHOLDER,
-            onClick = actions.onOpenSearch,
-            mode = if (active) TvSearchFieldMode.Typing else TvSearchFieldMode.Button,
+            onClick = { onEvent(SearchEvent.OpenSearch()) },
+            mode = if (state.searchOpen) TvSearchFieldMode.Typing else TvSearchFieldMode.Button,
             modifier = fieldModifier.weight(1f),
         )
-        TvMicButton(onClick = actions.onVoice, modifier = Modifier.catalogTarget(focus.jumps, CatalogTarget.MIC))
+        TvMicButton(onClick = onVoice, modifier = Modifier.catalogTarget(focus.jumps, CatalogTarget.MIC))
     }
 }
 
@@ -141,7 +144,7 @@ internal fun CatalogSearchBar(
 @Composable
 private fun TypeRow(
     state: SearchState,
-    dispatch: (SearchEvent) -> Unit,
+    onEvent: (SearchEvent) -> Unit,
     openers: SheetOpeners,
     below: FocusRequester?,
     modifier: Modifier,
@@ -158,7 +161,7 @@ private fun TypeRow(
             TvChip(
                 label = label,
                 selected = selected,
-                onClick = { dispatch(SearchEvent.FilterChange(type)) },
+                onClick = { onEvent(SearchEvent.FilterChange(type)) },
                 modifier = if (selected) chip.focusRequester(selectedType) else chip,
             )
         }
@@ -166,7 +169,7 @@ private fun TypeRow(
         TvChip(
             label = sortChipLabel(state.sort),
             selected = false,
-            onClick = { dispatch(SearchEvent.OpenSheet(CatalogSheet.SORT)) },
+            onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.SORT)) },
             leadingIcon = Icons.Rounded.SwapVert,
             trailingIcon = Icons.Rounded.ExpandMore,
             modifier = chip.focusRequester(openers.sort),
@@ -174,7 +177,7 @@ private fun TypeRow(
         TvChip(
             label = filtersChipLabel(state.filters),
             selected = state.filters.activeCount > 0,
-            onClick = { dispatch(SearchEvent.OpenSheet(CatalogSheet.FILTERS)) },
+            onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.FILTERS)) },
             leadingIcon = Icons.Rounded.Tune,
             modifier = chip.focusRequester(openers.filters),
         )
@@ -198,7 +201,7 @@ private fun ChipDivider() {
  * снимает фильтр: отдельного чипа «Все жанры» в ряду нет.
  */
 @Composable
-private fun GenreRow(genres: List<Genre>, selectedId: Int?, dispatch: (SearchEvent) -> Unit, modifier: Modifier) {
+private fun GenreRow(genres: List<Genre>, selectedId: Int?, onEvent: (SearchEvent) -> Unit, modifier: Modifier) {
     val firstGenre = remember { FocusRequester() }
     LazyRow(
         // Список шире колонки на запас под фокус: увеличенный крайний чип и его свечение не
@@ -214,7 +217,7 @@ private fun GenreRow(genres: List<Genre>, selectedId: Int?, dispatch: (SearchEve
             TvChip(
                 label = genre.title,
                 selected = selected,
-                onClick = { dispatch(SearchEvent.GenreChange(if (selected) null else genre.id)) },
+                onClick = { onEvent(SearchEvent.GenreChange(if (selected) null else genre.id)) },
                 style = TvChipStyle.Outlined,
                 modifier = if (index == 0) Modifier.focusRequester(firstGenre) else Modifier,
             )

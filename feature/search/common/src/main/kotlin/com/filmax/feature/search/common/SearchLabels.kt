@@ -1,32 +1,18 @@
-// Подписи ТВ-каталога и поиска — чистые функции без UI: сводка выборки со счётчиком, подписи
-// чипов, «Ещё N результатов», карточка лучшего совпадения с подсветкой запроса.
-package com.filmax.feature.search.tv
+// Подписи каталога и поиска, общие для телефона и ТВ: сводка выборки со счётчиком, чипы сортировки
+// и фильтров, применённые фильтры по одному, «Ещё N результатов», подсказка пустого поиска.
+// Чистые функции: вёрстка их только зовёт, тесты проверяют без Robolectric.
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withStyle
+package com.filmax.feature.search.common
+
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.SortOption
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.presentation.labels.isHighRating
-import com.filmax.core.presentation.labels.posterMeta
-import com.filmax.core.presentation.labels.ratingLabel
-import com.filmax.core.presentation.labels.typeLabel
-import com.filmax.core.tv.designsystem.TvSpotlight
-import com.filmax.feature.search.common.CatalogCount
-import com.filmax.feature.search.common.MIN_QUERY_LENGTH
-import com.filmax.feature.search.common.SearchState
-import com.filmax.feature.search.common.TypeOptions
-import com.filmax.feature.search.common.matchRange
-import com.filmax.feature.search.common.sortLabel
+import com.filmax.core.domain.catalog.model.Country
 
 /**
  * Сводка над сеткой: «Фантастика · 42 результата», «Сериалы · около 60 результатов». Чип «Все»
  * в сводку не попадает — он ничего не сужает. Пока витрина грузится, счётчика нет.
  */
-internal fun catalogSummary(state: SearchState): String = listOfNotNull(
+fun catalogSummary(state: SearchState): String = listOfNotNull(
     TypeOptions.firstOrNull { (type, _) -> type == state.filter && type != null }?.second,
     state.genres.firstOrNull { it.id == state.selectedGenreId }?.title,
     state.catalogCount?.let(::countLabel),
@@ -36,48 +22,63 @@ internal fun catalogSummary(state: SearchState): String = listOfNotNull(
  * Счётчик выдачи. Точный — «42 результата»; оценка по числу страниц — «около 62 результатов»:
  * kino.pub отдаёт страницы, а не тайтлы, и до последней страницы честнее сказать «около».
  */
-internal fun countLabel(count: CatalogCount): String {
+fun countLabel(count: CatalogCount): String {
     val value = count.value
     return if (count.exact) "$value ${resultsWord(value)}" else "около $value ${resultsAfterAbout(value)}"
 }
 
 /** «Ещё 6 результатов» — над постерами под лучшим совпадением. */
-internal fun moreResultsLabel(count: Int): String = "Ещё $count ${resultsWord(count)}"
+fun moreResultsLabel(count: Int): String = "Ещё $count ${resultsWord(count)}"
 
 /** Чип сортировки: поле и стрелка, если порядок обратный привычному («Год ↑»). */
-internal fun sortChipLabel(sort: SortOption): String =
+fun sortChipLabel(sort: SortOption): String =
     if (sort.ascending) "${sortLabel(sort.field)} ↑" else sortLabel(sort.field)
 
 /** Чип фильтров: «Фильтры» или «Фильтры · 2» — сколько применено. */
-internal fun filtersChipLabel(filters: CatalogFilters): String =
+fun filtersChipLabel(filters: CatalogFilters): String =
     if (filters.activeCount > 0) "Фильтры · ${filters.activeCount}" else "Фильтры"
 
-/** Название с подсветкой совпадения с [query] цветом [highlight]; нет совпадения — как есть. */
-internal fun highlightedTitle(title: String, query: String, highlight: Color): AnnotatedString {
-    val match = matchRange(title, query) ?: return AnnotatedString(title)
-    return buildAnnotatedString {
-        append(title.substring(0, match.first))
-        withStyle(SpanStyle(color = highlight)) { append(title.substring(match)) }
-        append(title.substring(match.last + 1))
-    }
-}
-
-/** Лучшее совпадение крупной карточкой: кадр, название с подсветкой, оценка, «Сериал · 2012 · Драма». */
-internal fun bestMatchSpotlight(item: Item, query: String, highlight: Color): TvSpotlight = TvSpotlight(
-    title = highlightedTitle(item.title, query, highlight),
-    meta = listOfNotNull(posterMeta(typeLabel(item.type), item.year), item.genres.firstOrNull()?.title)
-        .joinToString(" · ")
-        .ifBlank { null },
-    imageUrl = item.posters.wide ?: item.posters.big,
-    rating = ratingLabel(item.rating.kinopoisk),
-    ratingHighlighted = isHighRating(item.rating.kinopoisk),
-)
-
 /** Что сказать, пока карточек нет: набрать запрос, подождать или — что ничего не нашлось. */
-internal fun searchHint(state: SearchState): String = when {
+fun searchHint(state: SearchState): String = when {
     state.query.trim().length < MIN_QUERY_LENGTH -> "Наберите название — результаты появятся здесь"
     state.loading -> "Ищем…"
     else -> "По запросу «${state.query.trim()}» ничего не нашлось"
+}
+
+/** Применённый фильтр чипом над сеткой: подпись и фильтры без него — то, что оставит «✕». */
+data class AppliedFilter(val label: String, val without: CatalogFilters)
+
+/**
+ * Применённые фильтры по одному: каждый — свой чип, и «✕» снимает только его. Порядок — как в
+ * шторке фильтров: год, оценки, страна, 4K, завершённость.
+ */
+fun appliedFilters(filters: CatalogFilters, countries: List<Country>): List<AppliedFilter> = buildList {
+    yearLabel(filters)?.let { add(AppliedFilter(it, filters.copy(yearFrom = null, yearTo = null))) }
+    filters.kpRatingFrom?.let { add(AppliedFilter("КП $it+", filters.copy(kpRatingFrom = null))) }
+    filters.imdbRatingFrom?.let { add(AppliedFilter("IMDb $it+", filters.copy(imdbRatingFrom = null))) }
+    filters.countryId?.let { id ->
+        val country = countries.firstOrNull { it.id == id }?.title ?: "Страна"
+        add(AppliedFilter(country, filters.copy(countryId = null)))
+    }
+    if (filters.only4k) add(AppliedFilter("4K", filters.copy(only4k = false)))
+    finishedLabel(filters)?.let { add(AppliedFilter(it, filters.copy(onlyFinished = null))) }
+}
+
+private fun yearLabel(filters: CatalogFilters): String? {
+    val from = filters.yearFrom
+    val to = filters.yearTo
+    return when {
+        from != null && to != null -> if (from == to) "$from" else "$from–$to"
+        from != null -> "С $from"
+        to != null -> "До $to"
+        else -> null
+    }
+}
+
+private fun finishedLabel(filters: CatalogFilters): String? = when (filters.onlyFinished) {
+    true -> "Завершённые"
+    false -> "Продолжаются"
+    null -> null
 }
 
 /** «1 результат», «2 результата», «5 результатов». */

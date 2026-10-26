@@ -1,21 +1,58 @@
-package com.filmax.feature.search.tv
+package com.filmax.feature.search.common
 
-import androidx.compose.ui.graphics.Color
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
+import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.ui.components.VoiceSearchError
-import com.filmax.core.ui.components.voiceErrorText
-import com.filmax.feature.search.common.CatalogCount
-import com.filmax.feature.search.common.SearchState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/** Подписи каталога: сводка со счётчиком, чипы, «Ещё N», подсветка совпадения, подсказки поиска. */
-class TvCatalogLabelsTest {
+/** Подписи каталога и поиска: сводка со счётчиком, чипы, применённые фильтры, разделы с Главной. */
+class SearchLabelsTest {
+
+    @Test
+    fun `section sets the starting selection and the title, no section keeps the default storefront`() {
+        assertEquals(ItemType.MOVIE, SearchState().withSection(CatalogSection.MOVIES).filter)
+        assertEquals(ItemType.ANIME, SearchState().withSection(CatalogSection.ANIME).filter)
+        assertEquals(ItemType.TV_SHOW, SearchState().withSection(CatalogSection.TV_SHOWS).filter)
+        assertEquals(ItemType.CONCERT, SearchState().withSection(CatalogSection.CONCERTS).filter)
+        assertTrue(SearchState().withSection(CatalogSection.UHD).filters.only4k)
+        assertEquals(CatalogSort.CREATED, SearchState().withSection(CatalogSection.FRESH).sort.field)
+        assertEquals("4K и HDR", SearchState().withSection(CatalogSection.UHD).title)
+        assertEquals(SearchState(), SearchState().withSection(null))
+        assertEquals("Каталог", SearchState().title)
+    }
+
+    @Test
+    fun `section name from navigation is read back, an unknown one is ignored`() {
+        assertEquals(CatalogSection.UHD, CatalogSection.from("UHD"))
+        assertNull(CatalogSection.from("CARTOONS"))
+        assertNull(CatalogSection.from(null))
+    }
+
+    @Test
+    fun `every applied filter is its own chip and its cross removes only it`() {
+        val filters = CatalogFilters(yearFrom = 2010, yearTo = 2020, kpRatingFrom = 7, countryId = 3, only4k = true)
+
+        val chips = appliedFilters(filters, listOf(Country(3, "Франция")))
+
+        assertEquals(listOf("2010–2020", "КП 7+", "Франция", "4K"), chips.map { it.label })
+        assertEquals(filters.copy(kpRatingFrom = null), chips[1].without)
+        assertEquals(filters.copy(yearFrom = null, yearTo = null), chips[0].without)
+    }
+
+    @Test
+    fun `open year range and unknown country still read as words`() {
+        assertEquals(listOf("С 2015"), appliedFilters(CatalogFilters(yearFrom = 2015), emptyList()).map { it.label })
+        assertEquals(listOf("До 1999"), appliedFilters(CatalogFilters(yearTo = 1999), emptyList()).map { it.label })
+        assertEquals(listOf("Страна"), appliedFilters(CatalogFilters(countryId = 9), emptyList()).map { it.label })
+        assertTrue(appliedFilters(CatalogFilters(), emptyList()).isEmpty())
+    }
 
     @Test
     fun `exact count uses the nominative plural`() {
@@ -63,40 +100,9 @@ class TvCatalogLabelsTest {
     }
 
     @Test
-    fun `title highlights the typed part in the accent color`() {
-        val title = highlightedTitle("Хроники Пограничья", "хрони", Accent)
-
-        assertEquals("Хроники Пограничья", title.text)
-        val span = title.spanStyles.single()
-        assertEquals(0 until 5, span.start until span.end)
-        assertEquals(Accent, span.item.color)
-    }
-
-    @Test
-    fun `title without a match is left as is`() {
-        assertTrue(highlightedTitle("Хроники Пограничья", "нильсен", Accent).spanStyles.isEmpty())
-    }
-
-    @Test
     fun `search hint tells to type, to wait or that nothing was found`() {
         assertEquals("Наберите название — результаты появятся здесь", searchHint(SearchState(query = "х ")))
         assertEquals("Ищем…", searchHint(SearchState(query = "хрони", loading = true)))
         assertEquals("По запросу «хрони» ничего не нашлось", searchHint(SearchState(query = "хрони")))
-    }
-
-    @Test
-    fun `load more skeletons fill the last row and add one more`() {
-        assertEquals(CATALOG_COLUMNS, loadMoreSkeletons(40))
-        assertEquals(3 + CATALOG_COLUMNS, loadMoreSkeletons(42))
-    }
-
-    @Test
-    fun `voice errors are explained in words`() {
-        assertTrue("интернет" in voiceErrorText(VoiceSearchError.NETWORK))
-        assertTrue("микрофон" in voiceErrorText(VoiceSearchError.PERMISSION))
-    }
-
-    private companion object {
-        val Accent = Color(0xFFBEB2FF)
     }
 }

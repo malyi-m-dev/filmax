@@ -27,9 +27,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -43,6 +52,7 @@ import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvPosterDetails
 import com.filmax.core.tv.designsystem.TvPosterSize
+import com.filmax.core.tv.designsystem.TvSpotlight
 import com.filmax.core.tv.designsystem.TvSpotlightCard
 import com.filmax.core.tv.designsystem.TvTextRow
 import com.filmax.core.tv.designsystem.TvTextRowInset
@@ -53,6 +63,9 @@ import com.filmax.feature.search.common.SPACE_KEY
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.keyboardRows
+import com.filmax.feature.search.common.matchRange
+import com.filmax.feature.search.common.moreResultsLabel
+import com.filmax.feature.search.common.searchHint
 
 /** Результаты справа — по четыре постера 106dp с шагом 16dp на 470dp колонки. */
 private const val RESULT_COLUMNS = 4
@@ -72,25 +85,30 @@ private val LayoutsToRecent = 22.dp
 private val RecentTitleGap = 7.dp
 
 @Composable
-internal fun TvSearchPanel(state: SearchState, actions: CatalogActions, focus: CatalogScreenFocus) {
+internal fun TvSearchPanel(
+    state: SearchState,
+    onEvent: (SearchEvent) -> Unit,
+    onVoice: () -> Unit,
+    focus: CatalogScreenFocus,
+) {
     val bestMatch = remember { FocusRequester() }
     Column(
         Modifier
             .fillMaxSize()
             .padding(start = TvMetrics.SectionStart, end = TvMetrics.SectionEnd, top = TvMetrics.ContentTop),
     ) {
-        CatalogSearchBar(query = state.query, active = true, actions = actions, focus = focus)
+        CatalogSearchBar(state = state, onEvent = onEvent, onVoice = onVoice, focus = focus)
         Row(Modifier.padding(top = BarToColumns)) {
             KeyboardColumn(
                 state = state,
-                dispatch = actions.dispatch,
+                onEvent = onEvent,
                 focus = focus,
                 // «→» с правого края клавиатуры — на лучшее совпадение, а не на ближайший постер.
                 exitRight = bestMatch.takeIf { state.bestMatch != null },
             )
             SearchResults(
                 state = state,
-                actions = actions,
+                onEvent = onEvent,
                 focus = focus,
                 bestMatch = bestMatch,
                 modifier = Modifier.padding(start = ColumnsGap).weight(1f),
@@ -103,15 +121,15 @@ internal fun TvSearchPanel(state: SearchState, actions: CatalogActions, focus: C
 @Composable
 private fun KeyboardColumn(
     state: SearchState,
-    dispatch: (SearchEvent) -> Unit,
+    onEvent: (SearchEvent) -> Unit,
     focus: CatalogScreenFocus,
     exitRight: FocusRequester?,
 ) {
-    val keys = remember(dispatch) {
+    val keys = remember(onEvent) {
         TvKeyboardActions(
-            onKey = { key -> dispatch(SearchEvent.TypeKey(key)) },
-            onSpace = { dispatch(SearchEvent.TypeKey(SPACE_KEY)) },
-            onDelete = { dispatch(SearchEvent.DeleteLast) },
+            onKey = { key -> onEvent(SearchEvent.TypeKey(key)) },
+            onSpace = { onEvent(SearchEvent.TypeKey(SPACE_KEY)) },
+            onDelete = { onEvent(SearchEvent.DeleteLast) },
         )
     }
     Column(Modifier.width(TvKeyboardWidth)) {
@@ -124,24 +142,24 @@ private fun KeyboardColumn(
         TvKeyboardLayouts(
             labels = KeyboardLayoutLabels.map { (_, label) -> label },
             selected = KeyboardLayoutLabels.indexOfFirst { (layout, _) -> layout == state.keyboardLayout },
-            onSelect = { index -> dispatch(SearchEvent.SwitchLayout(KeyboardLayoutLabels[index].first)) },
+            onSelect = { index -> onEvent(SearchEvent.SwitchLayout(KeyboardLayoutLabels[index].first)) },
             modifier = Modifier.padding(top = KeyboardToLayouts),
         )
         if (state.recentQueries.isNotEmpty()) {
-            RecentQueries(state.recentQueries, dispatch, Modifier.padding(top = LayoutsToRecent))
+            RecentQueries(state.recentQueries, onEvent, Modifier.padding(top = LayoutsToRecent))
         }
     }
 }
 
 /** Недавние запросы: «ОК» ищет сразу — и фокус уходит на найденное. */
 @Composable
-private fun RecentQueries(queries: List<String>, dispatch: (SearchEvent) -> Unit, modifier: Modifier) {
+private fun RecentQueries(queries: List<String>, onEvent: (SearchEvent) -> Unit, modifier: Modifier) {
     Column(modifier) {
         TvOverline("Недавние", Modifier.padding(bottom = RecentTitleGap), accent = false)
         // Текст строк — по линии заголовка, подложка фокуса выступает влево.
         Column(Modifier.offset(x = -TvTextRowInset).tvFocusGroup()) {
             queries.forEach { query ->
-                TvTextRow(text = query, onClick = { dispatch(SearchEvent.OpenSearch(query)) }, dense = true)
+                TvTextRow(text = query, onClick = { onEvent(SearchEvent.OpenSearch(query)) }, dense = true)
             }
         }
     }
@@ -155,7 +173,7 @@ private fun RecentQueries(queries: List<String>, dispatch: (SearchEvent) -> Unit
 @Composable
 private fun SearchResults(
     state: SearchState,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
     focus: CatalogScreenFocus,
     bestMatch: FocusRequester,
     modifier: Modifier,
@@ -168,7 +186,7 @@ private fun SearchResults(
         transitionSpec = { resultsTransition(reduced) },
         label = "searchResults",
     ) { shown ->
-        ResultsContent(shown, actions, focus, bestMatch)
+        ResultsContent(shown, onEvent, focus, bestMatch)
     }
 }
 
@@ -183,7 +201,7 @@ private fun resultsTransition(reduced: Boolean): ContentTransform =
 @Composable
 private fun ResultsContent(
     state: SearchState,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
     focus: CatalogScreenFocus,
     bestMatch: FocusRequester,
 ) {
@@ -199,7 +217,7 @@ private fun ResultsContent(
         modifier = Modifier.fillMaxSize().offset(y = -TvMetrics.FocusInset),
         contentPadding = PaddingValues(
             top = TvMetrics.FocusInset,
-            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset
+            bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
         ),
         horizontalArrangement = Arrangement.spacedBy(ResultGap),
         verticalArrangement = Arrangement.spacedBy(ResultRowGap),
@@ -208,18 +226,18 @@ private fun ResultsContent(
         fullWidth("match") {
             TvSpotlightCard(
                 spotlight = bestMatchSpotlight(match, state.query, highlight),
-                onClick = { actions.onOpenResult(match.id) },
+                onClick = { onEvent(SearchEvent.OpenResult(match.id)) },
                 modifier = Modifier
                     .focusRequester(bestMatch)
                     .catalogTarget(focus.jumps, CatalogTarget.BEST_MATCH)
                     .then(focus.screen.item(BEST_MATCH_KEY)),
             )
         }
-        otherResults(state.otherResults, actions, focus)
+        otherResults(state.otherResults, onEvent, focus)
     }
 }
 
-private fun LazyGridScope.otherResults(items: List<Item>, actions: CatalogActions, focus: CatalogScreenFocus) {
+private fun LazyGridScope.otherResults(items: List<Item>, onEvent: (SearchEvent) -> Unit, focus: CatalogScreenFocus) {
     if (items.isEmpty()) return
     fullWidth("more-title") {
         TvOverline(moreResultsLabel(items.size), Modifier.padding(top = MoreResultsTop), accent = false)
@@ -231,7 +249,7 @@ private fun LazyGridScope.otherResults(items: List<Item>, actions: CatalogAction
             title = item.title,
             meta = null,
             posterUrl = posterUrl(item),
-            onClick = { actions.onOpenResult(item.id) },
+            onClick = { onEvent(SearchEvent.OpenResult(item.id)) },
             modifier = Modifier.fxEnter(index % RESULT_COLUMNS).then(focus.screen.item("result:${item.id}")),
             size = TvPosterSize.Compact,
             details = TvPosterDetails.None,
@@ -247,5 +265,26 @@ private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit
 private fun SearchHint(text: String, modifier: Modifier) {
     Box(modifier.padding(top = 4.dp)) {
         Text(text, style = FxType.metaRow, color = LocalFxColors.current.textSecondary)
+    }
+}
+
+/** Лучшее совпадение крупной карточкой: кадр, название с подсветкой, оценка, «Сериал · 2012 · Драма». */
+internal fun bestMatchSpotlight(item: Item, query: String, highlight: Color): TvSpotlight = TvSpotlight(
+    title = highlightedTitle(item.title, query, highlight),
+    meta = listOfNotNull(posterMeta(typeLabel(item.type), item.year), item.genres.firstOrNull()?.title)
+        .joinToString(" · ")
+        .ifBlank { null },
+    imageUrl = item.posters.wide ?: item.posters.big,
+    rating = ratingLabel(item.rating.kinopoisk),
+    ratingHighlighted = isHighRating(item.rating.kinopoisk),
+)
+
+/** Название с подсветкой совпадения с [query] цветом [highlight]; нет совпадения — как есть. */
+internal fun highlightedTitle(title: String, query: String, highlight: Color): AnnotatedString {
+    val match = matchRange(title, query) ?: return AnnotatedString(title)
+    return buildAnnotatedString {
+        append(title.substring(0, match.first))
+        withStyle(SpanStyle(color = highlight)) { append(title.substring(match)) }
+        append(title.substring(match.last + 1))
     }
 }

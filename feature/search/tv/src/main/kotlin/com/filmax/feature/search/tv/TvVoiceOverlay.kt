@@ -19,8 +19,10 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -73,27 +75,23 @@ private const val WASH_RADIUS = 0.6f
  * ведёт открывшийся поиск; закрылось без запроса — фокус возвращается на микрофон.
  */
 @Stable
-internal class CatalogVoice(val controller: VoiceSearchController, private val outcome: VoiceOutcome) {
+internal class CatalogVoice(val controller: VoiceSearchController, private val outcome: MutableState<Boolean>) {
+    /** Дал ли голос запрос — пишется из колбэка распознавателя, читается при закрытии оверлея. */
+    val answered: Boolean get() = outcome.value
+
     /** Слушать заново: прошлый ответ к этому слушанию отношения не имеет. */
     fun start() {
-        outcome.answered = false
+        outcome.value = false
         controller.start()
     }
-
-    internal val answered: Boolean get() = outcome.answered
-}
-
-/** Дал ли голос запрос — пишется из колбэка распознавателя, читается при закрытии оверлея. */
-internal class VoiceOutcome {
-    var answered = false
 }
 
 @Composable
 internal fun rememberCatalogVoice(onQuery: (String) -> Unit): CatalogVoice {
     val currentOnQuery by rememberUpdatedState(onQuery)
-    val outcome = remember { VoiceOutcome() }
+    val outcome = remember { mutableStateOf(false) }
     val controller = rememberInAppVoiceSearch { spoken ->
-        outcome.answered = true
+        outcome.value = true
         currentOnQuery(spoken)
     }
     return remember(controller) { CatalogVoice(controller, outcome) }

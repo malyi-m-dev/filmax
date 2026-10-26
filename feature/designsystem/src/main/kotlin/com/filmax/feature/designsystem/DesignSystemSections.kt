@@ -50,6 +50,7 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.CatalogSection
+import com.filmax.core.presentation.labels.sectionLabel
 import com.filmax.core.ui.components.EpisodeMark
 import com.filmax.core.ui.components.FilmaxActionTile
 import com.filmax.core.ui.components.FilmaxAvatar
@@ -107,7 +108,6 @@ import com.filmax.core.ui.components.collectionHue
 import com.filmax.core.ui.components.folderHue
 import com.filmax.core.ui.components.hue
 import com.filmax.core.ui.components.icon
-import com.filmax.core.ui.components.label
 
 /** Секция каталога: надзаголовок и примеры под ним. */
 @Composable
@@ -317,7 +317,7 @@ internal fun CardsSection() {
         Showcase {
             CatalogSection.entries.take(3).forEach { section ->
                 FilmaxSectionTile(
-                    section.label,
+                    sectionLabel(section),
                     section.icon,
                     section.hue,
                     onClick = {},

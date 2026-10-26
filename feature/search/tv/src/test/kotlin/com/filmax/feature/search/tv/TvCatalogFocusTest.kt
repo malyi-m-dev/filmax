@@ -16,13 +16,13 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import com.filmax.core.domain.catalog.CatalogSort
-import com.filmax.core.navigation.AppNavigator
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeSearchRepository
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
@@ -58,7 +58,11 @@ class TvCatalogFocusTest {
     val images = FakeImagesRule()
 
     private val backend = FakeBackend(latency = FakeLatency.None)
-    private val model = SearchScreenModel(FakeSearchRepository(backend), FakeCatalogRepository(backend))
+    private val model = SearchScreenModel(
+        search = FakeSearchRepository(backend),
+        catalog = FakeCatalogRepository(backend),
+        navigator = FakeNavigator(),
+    )
 
     @Before
     fun leanbackDevice() {
@@ -213,7 +217,7 @@ class TvCatalogFocusTest {
 
     private fun showCatalog() {
         compose.setContent {
-            FilmaxTvTheme { TvCatalogScreen(screenModel = model, navigator = AppNavigator()) }
+            FilmaxTvTheme { TvCatalogScreen(screenModel = model) }
         }
         compose.waitForIdle()
     }

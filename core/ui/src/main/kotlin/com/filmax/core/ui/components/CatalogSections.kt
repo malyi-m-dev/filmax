@@ -12,19 +12,6 @@ import androidx.compose.material.icons.filled._4k
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.filmax.core.domain.catalog.CatalogSection
 
-/** Название раздела: подпись плитки «Разделы», чипа Главной и заголовок открытого раздела. */
-val CatalogSection.label: String
-    get() = when (this) {
-        CatalogSection.MOVIES -> "Фильмы"
-        CatalogSection.SERIES -> "Сериалы"
-        CatalogSection.ANIME -> "Аниме"
-        CatalogSection.DOCUMENTARY -> "Документальное"
-        CatalogSection.TV_SHOWS -> "ТВ-шоу"
-        CatalogSection.CONCERTS -> "Концерты"
-        CatalogSection.UHD -> "4K и HDR"
-        CatalogSection.FRESH -> "Новинки"
-    }
-
 /** Иконка раздела на плитке. */
 val CatalogSection.icon: ImageVector
     get() = when (this) {

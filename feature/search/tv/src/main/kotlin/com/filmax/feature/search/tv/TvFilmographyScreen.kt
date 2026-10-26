@@ -25,8 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
@@ -38,10 +36,10 @@ import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.feature.search.common.FilmographyEvent
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ложатся между safe area, как в TV-Каталоге. */
 private const val GRID_COLUMNS = 4
@@ -55,16 +53,11 @@ private const val GRID_COLUMNS = 4
  * перехватывает [BackHandler] (тот же приём, что в TV-трейлере).
  */
 @Composable
-fun TvFilmographyScreen(
-    modifier: Modifier = Modifier,
-    screenModel: FilmographyScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
-    val onBack: () -> Unit = navigator::back
-    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
+fun TvFilmographyScreen(modifier: Modifier = Modifier, screenModel: FilmographyScreenModel = koinViewModel()) {
     val state by screenModel.collectAsState()
+    val onEvent: (FilmographyEvent) -> Unit = screenModel::dispatch
 
-    BackHandler { onBack() }
+    BackHandler { onEvent(FilmographyEvent.Back) }
 
     // Фон — у окна (FilmaxTvTheme): своя сплошная заливка экрана — лишний слой цвета на каждом кадре.
     Column(
@@ -73,7 +66,7 @@ fun TvFilmographyScreen(
             .padding(top = TvMetrics.SafeVertical),
     ) {
         FilmographyHeading(heading = state.heading)
-        FilmographyBody(state = state, onOpenItem = onOpenItem)
+        FilmographyBody(state = state, onEvent = onEvent)
     }
 }
 
@@ -99,7 +92,7 @@ private fun FilmographyHeading(heading: String) {
 
 /** Тело экрана: индикатор загрузки, пустое состояние или сетка постеров. */
 @Composable
-private fun FilmographyBody(state: FilmographyState, onOpenItem: (Int) -> Unit) {
+private fun FilmographyBody(state: FilmographyState, onEvent: (FilmographyEvent) -> Unit) {
     when {
         state.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = TvOnSurface)
@@ -107,20 +100,20 @@ private fun FilmographyBody(state: FilmographyState, onOpenItem: (Int) -> Unit) 
 
         state.items.isEmpty() -> FilmographyEmpty(error = state.error)
 
-        else -> FilmographyGrid(items = state.items, onOpenItem = onOpenItem)
+        else -> FilmographyGrid(items = state.items, onEvent = onEvent)
     }
 }
 
 @Composable
-private fun FilmographyGrid(items: List<Item>, onOpenItem: (Int) -> Unit) {
+private fun FilmographyGrid(items: List<Item>, onEvent: (FilmographyEvent) -> Unit) {
     val focus = rememberTvScreenFocus()
 
     // В сетке только постеры — фокус в ней всегда на постере, и соседи приглушаются.
-    TvDimGroup { FilmographyPosters(items, focus, onOpenItem) }
+    TvDimGroup { FilmographyPosters(items, focus, onEvent) }
 }
 
 @Composable
-private fun FilmographyPosters(items: List<Item>, focus: TvScreenFocus, onOpenItem: (Int) -> Unit) {
+private fun FilmographyPosters(items: List<Item>, focus: TvScreenFocus, onEvent: (FilmographyEvent) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
         modifier = Modifier.fillMaxSize().then(focus.containerModifier),
@@ -138,7 +131,7 @@ private fun FilmographyPosters(items: List<Item>, focus: TvScreenFocus, onOpenIt
             FilmographyPoster(
                 item = item,
                 modifier = focus.item("filmography:${item.id}"),
-                onClick = { onOpenItem(item.id) },
+                onClick = { onEvent(FilmographyEvent.OpenItem(item.id)) },
             )
         }
     }

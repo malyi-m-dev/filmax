@@ -33,8 +33,6 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
@@ -43,10 +41,10 @@ import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
+import com.filmax.feature.search.common.FilmographyEvent
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 /** Скелетонов, пока грузятся работы: два ряда. */
 private const val SKELETON_COUNT = 6
@@ -56,12 +54,9 @@ private const val SKELETON_COUNT = 6
  * режиссёра; тип запроса (роли или постановки) уже выбран маршрутом, экран лишь рисует выдачу.
  */
 @Composable
-fun FilmographyScreen(
-    modifier: Modifier = Modifier,
-    screenModel: FilmographyScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
+fun FilmographyScreen(modifier: Modifier = Modifier, screenModel: FilmographyScreenModel = koinViewModel()) {
     val state by screenModel.collectAsState()
+    val onEvent: (FilmographyEvent) -> Unit = screenModel::dispatch
     val palette = FilmaxTheme.palette
     Box(
         modifier
@@ -83,9 +78,9 @@ fun FilmographyScreen(
         ) {
             // Шапка едет вместе с сеткой: имя — заголовок страницы, а не панели над ней.
             item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
-                FilmographyHeader(heading = state.heading, onBack = navigator::back)
+                FilmographyHeader(heading = state.heading, onBack = { onEvent(FilmographyEvent.Back) })
             }
-            filmographyItems(state = state, onOpenItem = { navigator.open(Destination.Details(it)) })
+            filmographyItems(state = state, onEvent = onEvent)
         }
     }
 }
@@ -107,7 +102,7 @@ private fun FilmographyHeader(heading: String, onBack: () -> Unit) {
 }
 
 /** Тело сетки: скелетон загрузки, пустое состояние или постеры работ. */
-private fun LazyGridScope.filmographyItems(state: FilmographyState, onOpenItem: (Int) -> Unit) {
+private fun LazyGridScope.filmographyItems(state: FilmographyState, onEvent: (FilmographyEvent) -> Unit) {
     when {
         state.loading && state.items.isEmpty() -> items(
             SKELETON_COUNT,
@@ -123,7 +118,9 @@ private fun LazyGridScope.filmographyItems(state: FilmographyState, onOpenItem: 
             )
         }
     }
-    items(state.items, key = { it.id }) { item -> FilmographyPoster(item = item, onClick = { onOpenItem(item.id) }) }
+    items(state.items, key = { it.id }) { item ->
+        FilmographyPoster(item = item, onClick = { onEvent(FilmographyEvent.OpenItem(item.id)) })
+    }
 }
 
 @Composable
