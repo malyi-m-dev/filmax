@@ -106,17 +106,37 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
   жизненного цикла: экран заявляет, что ему нужна витрина.
 - [x] **5. Collections.** `titlesCount/headerCollapsed/startItemId/caption/title` → поля;
   `TvCollectionLabels` → `scrollThumb` из `core:tv-designsystem`; `*Actions` → `onEvent`.
-- [ ] **6. Profile + DeviceSettings.** `ProfileFormat` → `ProfileState`; `streamingSheet` → State;
-  `SettingRows`/`DeviceToggles` → убрать.
-- [ ] **7. Onboarding, Feedback, TvLink.** `LaunchedEffect(state.step) { dispatch(NextStep) }` →
-  модель; `FeedbackState.title` → поле; `RemoteState.playback/positionMs/reconnectsItself` → поля;
-  `TvLinkTexts` → State.
-- [ ] **8. Player.** Снимок плеера (`isPlaying/isBuffering/positionMs/durationMs/bufferedMs`),
-  перемотка (`scrubTargetMs`) и отсчёт «Далее» → `PlayerState`, один тикер в модели;
-  `PlaybackUi`/`ControlsUi`/`TvTransportState` → убрать (клавиша → событие в ТВ-вёрстке);
-  автоскрытие оверлея остаётся в вёрстке. Проверка на обоих эмуляторах обязательна.
-- [ ] **9. Итог.** Повторный замер таблицы выше, обновление `docs/ARCHITECTURE.md`
-  («Поток данных»), абзац в `CHANGELOG.md`.
+- [x] **6. Profile + DeviceSettings.** `ProfileFormat` → `ProfileLabels` + поля `ProfileState`
+  (инициалы, имя, почта, карточка подписки для обеих платформ, варианты открытой настройки);
+  `streamingSheet` → State; `SettingRows`/`DeviceToggles`/`*Actions` → убраны; `LoggedOut`/`Saved`
+  → навигатор в модели; правки настроек устройства — одна ветка `Edit` без лямбд.
+- [x] **7. Onboarding, Feedback, TvLink.** Шаги входа — enum `WELCOME/AUTH`, промежуточный шаг и
+  `LaunchedEffect`, который его проматывал, убраны; `FeedbackState.title` → поле; `RemoteState`
+  получил `deviceName/playback/playbackCaption/positionMs/failureMessage/reconnectsItself`;
+  `TvLinkTexts` — обычные функции, результат в State; все side-effect'ы трёх фич → навигатор.
+- [x] **8. Player.** `PlaybackSnapshot`, `scrubTargetMs` и `AutoNext` — в `PlayerState`, один тикер
+  в модели (стартует по `STATE_READY`); перемотка пальцем и стрелками пульта (разгон, подтверждение
+  через 700 мс) — события; конец серии, «Далее», окно оценки, выход, выбор ТВ — навигатор;
+  `PlaybackUi`/`ControlsUi`/`TvTransportState`/`*Actions` убраны, `TrailerScreenModel` вместо
+  навигатора в экране трейлера. Автоскрытие и блокировка — в вёрстке. **На эмуляторах не
+  проверялось — обязательно перед мержем.**
+- [x] **9. Итог.** Замер ниже; `docs/ARCHITECTURE.md` («Поток данных»), абзац в `CHANGELOG.md`.
+
+## Что получилось (ветка, 26.10.2026)
+
+| Признак | Было | Стало |
+|---|---|---|
+| `LaunchedEffect` в UI фич | 73 | 63 — фокус, анимации, `LoadCatalog`/`Refresh`/«хвост виден» |
+| `remember { mutableStateOf }` в UI фич | 64 | 17 — фокус, видимость контролов, ползунки до отпускания |
+| `derivedStateOf` / `delay(` в UI фич | 26 / 10 | 26 / 6 — геометрия прокрутки; `delay` только анимации и автоскрытие |
+| Классы в UI-модулях | ~90 | 38 — `*Focus`-связки, `Route`, `OverlayVisibility`, `CatalogVoice`, `YearBucket` |
+| `*Labels.kt` в UI | 9 | 1 (`TvHomeLabels`: бейджи и подписи ряда ТВ, кандидат в `core:tv-designsystem`) |
+| Extension-функции в `feature:*:common` | ~40 | 5 (приватные хелперы `FolderPicker`, `CatalogPager`, `SearchKeyboard`, `browseSection`) |
+| Getter'ы с логикой в State | 7 контрактов | тривиальные предикаты и `PlayerState.panelTabs()/openingTab()/shownSeason()` |
+| Навигация из вёрстки | каждый экран | нет: `Navigator` только в ScreenModel |
+
+Side-effect'ы остались там, где вью умеет то, чего не умеет модель: `Share` (деталей) и переводы
+фокуса ТВ-поиска (`FocusKeyboard/FocusSearchField/FocusBestMatch`).
 
 ## Критерий готовности волны
 

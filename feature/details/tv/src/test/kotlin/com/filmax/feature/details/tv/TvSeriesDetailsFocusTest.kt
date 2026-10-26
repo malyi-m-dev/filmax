@@ -210,9 +210,11 @@ class TvSeriesDetailsFocusTest {
         var state by mutableStateOf(seriesState(longSeries()))
         compose.setContent {
             FilmaxTvTheme {
-                DetailsWithSheet(state, checkNotNull(state.item)) { event ->
-                    state = applied(state, event)
-                }
+                DetailsWithSheet(
+                    state,
+                    checkNotNull(state.item),
+                    onEvent = { event -> state = applied(state, event) },
+                )
             }
         }
         compose.waitForIdle()
@@ -234,7 +236,7 @@ class TvSeriesDetailsFocusTest {
     private fun showSeries() {
         val item = longSeries()
         compose.setContent {
-            FilmaxTvTheme { DetailsWithSheet(seriesState(item), item) { record(it) } }
+            FilmaxTvTheme { DetailsWithSheet(seriesState(item), item, onEvent = ::record) }
         }
         compose.waitForIdle()
     }
@@ -244,10 +246,14 @@ class TvSeriesDetailsFocusTest {
         var state by mutableStateOf(seriesState(item))
         compose.setContent {
             FilmaxTvTheme {
-                DetailsWithSheet(state, item) { event ->
-                    record(event)
-                    state = applied(state, event)
-                }
+                DetailsWithSheet(
+                    state,
+                    item,
+                    onEvent = { event ->
+                        record(event)
+                        state = applied(state, event)
+                    },
+                )
             }
         }
         compose.waitForIdle()

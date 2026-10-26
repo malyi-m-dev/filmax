@@ -223,15 +223,18 @@ private fun SeasonEpisodes(
     val slide = with(LocalDensity.current) { SeasonSlide.roundToPx() }
     val reduced = LocalReducedMotion.current
     val selected = panel.seasons.firstOrNull { it.selected }?.number
+    // Состояние несёт строки только выбранного сезона, а уходящий список должен догореть со
+    // своими: пустой он отпустил бы фокус раньше, чем разместится серия нового сезона, и фокус
+    // упал бы на чип — а это уже выбор сезона чипом.
+    val shownPanels = remember { mutableMapOf<Int?, EpisodesPanel>() }
+    shownPanels[selected] = panel
     AnimatedContent(
         targetState = selected,
         transitionSpec = { seasonTransition(slide, reduced) },
         modifier = modifier.seasonArrows(panel, onEvent, focus),
         label = "season",
     ) { season ->
-        // Уходящий список гаснет пустым: панель уже про новый сезон, а строки старого ушли вместе с фокусом.
-        val shown = if (season == selected) panel else panel.copy(rows = emptyList(), startIndex = 0)
-        EpisodeList(shown, onEvent, focus, exit)
+        EpisodeList(shownPanels.getValue(season), onEvent, focus, exit)
     }
 }
 
