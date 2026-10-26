@@ -98,12 +98,14 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
   навигация (плеер, трейлер, фильмография, похожие, ТВ) → модель; share → SideEffect.
 - [x] **3. Library (Mine, Folder).** `MineConfirm` → State; `MineLabels` → State; `*Actions` →
   `onEvent`; `Refresh` при возврате остаётся событием жизненного цикла из вёрстки.
-- [ ] **4. Search / Catalog / Browse / Filmography.** `visibleItems/bestMatch/otherResults` → поля;
-  `CatalogSheet` и черновик фильтров → State; `SheetOpeners`/`CatalogVoice` → State + события;
-  extension-функции `SearchScreenModel` → методы; `LoadCatalog` из `LaunchedEffect(Unit)` →
-  `init`/маршрут.
-- [ ] **5. Collections.** `titlesCount`/`headerCollapsed`/`startItemId` → поля; `TvCollectionLabels`
-  → State или `core:tv-designsystem` (`scrollThumb` общий с Home); `*Actions` → `onEvent`.
+- [x] **4. Search / Catalog / Browse / Filmography.** `visibleItems/bestMatch/otherResults` → поля;
+  шторки телефона и панели ТВ — одно `sheetOpen/sheet` с общим черновиком фильтров; раздел с
+  Главной → `title/section` из маршрута; extension-функции → методы State и `CatalogArrangement`;
+  подписи → `SearchLabels` в common; переводы фокуса ТВ → SideEffect. `SheetOpeners`/`CatalogVoice`
+  остались связками фокуса и распознавателя (вещи вёрстки); `LoadCatalog` остаётся событием
+  жизненного цикла: экран заявляет, что ему нужна витрина.
+- [x] **5. Collections.** `titlesCount/headerCollapsed/startItemId/caption/title` → поля;
+  `TvCollectionLabels` → `scrollThumb` из `core:tv-designsystem`; `*Actions` → `onEvent`.
 - [ ] **6. Profile + DeviceSettings.** `ProfileFormat` → `ProfileState`; `streamingSheet` → State;
   `SettingRows`/`DeviceToggles` → убрать.
 - [ ] **7. Onboarding, Feedback, TvLink.** `LaunchedEffect(state.step) { dispatch(NextStep) }` →
