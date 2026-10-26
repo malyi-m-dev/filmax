@@ -23,6 +23,7 @@ import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
+import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
 import com.filmax.feature.home.common.HomeState
@@ -63,7 +64,9 @@ class TvHomeThemeRowsFocusTest {
         shadowOf(RuntimeEnvironment.getApplication().packageManager)
             .setSystemFeature(PackageManager.FEATURE_LEANBACK, true)
         restoration.setContent {
-            FilmaxTvTheme { TvHomeFeed(state = fullFeed(), offline = false, actions = actions()) }
+            FilmaxTvTheme {
+                TvHomeFeed(state = fullFeed(), offline = false, onEvent = { if (it is HomeEvent.Play) played = true })
+            }
         }
         compose.waitForIdle()
     }
@@ -96,13 +99,6 @@ class TvHomeThemeRowsFocusTest {
         // она переживает пересоздание экрана, иначе возврат вёл бы на первую карточку ряда.
         assertFocusedHas(cardTitle(HomeRowId.CONCERTS, SECOND_CARD_ID))
     }
-
-    private fun actions() = TvHomeActions(
-        hero = HeroActions(onPlay = { played = true }, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
-        rails = RailActions(onOpenItem = {}, onPlay = { _, _, _ -> }, onOpenCollection = { _, _ -> }, onLoadMore = {}),
-        onReload = {},
-        onOpenCatalog = {},
-    )
 
     /** Карточка в фокусе — поверхность с кадром: название у неё в описании кадра, подпись — соседний узел. */
     private fun assertFocusedHas(text: String, substring: Boolean = false) {
@@ -144,16 +140,18 @@ class TvHomeThemeRowsFocusTest {
 
         fun cardTitle(row: HomeRowId, id: Int) = "${row.name} $id"
 
-        fun fullFeed() = HomeState(
-            loading = false,
-            heroes = listOf(item(id = 1, title = "Дом на краю карты")),
-            rows = ROW_IDS.map(::row),
-        )
+        fun fullFeed(): HomeState {
+            val hero = item(id = 1, title = "Дом на краю карты")
+            return HomeState(loading = false, heroes = listOf(hero), hero = hero, rows = ROW_IDS.map(::row))
+        }
 
         fun row(id: HomeRowId): HomeRow = when (id) {
             HomeRowId.CONTINUE -> HomeRow.Continue(CARD_IDS.map(::started))
             HomeRowId.COLLECTIONS -> HomeRow.Collections(RowPaging(CARD_IDS.map(::collection)))
-            else -> HomeRow.Titles(id, RowPaging(CARD_IDS.map { item(id = it, title = cardTitle(id, it)) }))
+            else -> {
+                val cards = CARD_IDS.map { item(id = it, title = cardTitle(id, it)) }
+                HomeRow.Titles(id, title = id.name, subtitle = null, paging = RowPaging(cards))
+            }
         }
 
         fun started(id: Int) = WatchHistory(itemId = id, title = "Начато $id", posterSmall = "", progress = null)

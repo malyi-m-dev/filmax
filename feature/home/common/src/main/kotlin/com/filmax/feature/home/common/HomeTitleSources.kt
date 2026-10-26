@@ -1,5 +1,5 @@
 // Откуда ряды тайтлов Главной берут страницы: тип, жанр и порядок выдачи — данными, а не ветками
-// кода. Новый тематический ряд — строка в THEME_SOURCES и заголовок в обоих экранах.
+// кода. Новый тематический ряд — строка в THEME_SOURCES и заголовок в ROW_HEADINGS.
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogFilters
@@ -63,3 +63,26 @@ internal val THEME_SOURCES: Map<HomeRowId, TitleSource> = mapOf(
 
 /** Все ряды, которые листаются из каталога. «Новинок» здесь нет: это сводка двух выборок, листать её нечем. */
 internal val TITLE_SOURCES: Map<HomeRowId, TitleSource> = FEED_SOURCES + THEME_SOURCES
+
+/** Заголовок ряда и пояснение рядом с ним — одни на телефон и ТВ. */
+internal data class RowHeading(val title: String, val subtitle: String? = null)
+
+/**
+ * Заголовки рядов тайтлов. Пояснения — там, где без них ряд читается шире, чем он есть: аниме
+ * здесь только сериалы, а «дорама» знакома не каждому. У «Для вас» заголовок честный: это топ
+ * сериалов по рейтингу, персонализации в фиде нет.
+ */
+internal val ROW_HEADINGS: Map<HomeRowId, RowHeading> = mapOf(
+    HomeRowId.TRENDING to RowHeading("В тренде", "на этой неделе"),
+    HomeRowId.FOR_YOU to RowHeading("Сериалы с высоким рейтингом", "КиноПоиск 8+"),
+    HomeRowId.FRESH to RowHeading("Новинки"),
+    HomeRowId.POPULAR_SERIES to RowHeading("Популярные сериалы"),
+    HomeRowId.CARTOONS to RowHeading("Мультфильмы"),
+    HomeRowId.COMEDIES to RowHeading("Комедии"),
+    HomeRowId.SCI_FI to RowHeading("Фантастика"),
+    HomeRowId.ANIME to RowHeading("Аниме", "сериалы"),
+    HomeRowId.DORAMAS to RowHeading("Дорамы", "азиатские сериалы"),
+    HomeRowId.DOCUMENTARY to RowHeading("Документальное кино"),
+    HomeRowId.TV_SHOWS to RowHeading("ТВ-шоу"),
+    HomeRowId.CONCERTS to RowHeading("Концерты"),
+)

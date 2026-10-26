@@ -94,7 +94,7 @@ class RemoteScreenModelTest {
         remote.otherAccount += LIVING_ROOM.id
         remote.connect(LIVING_ROOM)
 
-        val model = RemoteScreenModel(remote)
+        val model = RemoteScreenModel(remote).also { it.observeSideEffects(effects::add) }
 
         assertFalse(model.states.value.reconnectsItself)
     }
@@ -107,13 +107,34 @@ class RemoteScreenModelTest {
 
         assertEquals(RemoteSession.Idle, model.states.value.session)
         assertNull(remote.paired.value, "забытый ТВ не должен подключаться сам")
-        assertEquals(listOf<RemoteSideEffect>(RemoteSideEffect.Close), effects)
+        assertEquals(RemoteSideEffect.Close, effects.last())
+    }
+
+    @Test
+    fun `choose tv opens the picker without a title`() = runTest {
+        val model = connected(STATUS)
+
+        model.dispatch(RemoteEvent.ChooseTv)
+
+        assertEquals(listOf<RemoteSideEffect>(RemoteSideEffect.ChooseTv), effects)
+    }
+
+    @Test
+    fun `state carries the labels the screen shows`() = runTest {
+        val model = connected(STATUS)
+        assertEquals("Гостиная", model.states.value.deviceName)
+        assertEquals("Сезон 4 · Серия 7", model.states.value.playbackCaption)
+
+        remote.drop()
+
+        assertNull(model.states.value.playback)
+        assertTrue(model.states.value.failureMessage.orEmpty().contains("Гостиная"))
     }
 
     private suspend fun connected(status: PlaybackStatus?): RemoteScreenModel {
         remote.connect(LIVING_ROOM)
         remote.showPlayback(status)
-        return RemoteScreenModel(remote).also { model -> model.observeSideEffects { effects += it } }
+        return RemoteScreenModel(remote).also { it.observeSideEffects(effects::add) }
     }
 
     private companion object {

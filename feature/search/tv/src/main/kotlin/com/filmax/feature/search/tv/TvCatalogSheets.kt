@@ -52,10 +52,11 @@ private val ChipGap = 8.dp
 
 /** Содержимое боковой панели — сортировка или фильтры, по [SearchState.sheet]. */
 @Composable
-internal fun CatalogSheetContent(state: SearchState, dispatch: (SearchEvent) -> Unit) {
+internal fun CatalogSheetContent(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     when (state.sheet) {
-        CatalogSheet.SORT -> SortSheet(state.sort, dispatch)
-        CatalogSheet.FILTERS -> FiltersSheet(state.filtersDraft, state.countries, dispatch)
+        // Жанры на ТВ — чипы в шапке; шторку GENRE открывает только телефон, здесь её не бывает.
+        CatalogSheet.SORT, CatalogSheet.GENRE -> SortSheet(state.sort, onEvent)
+        CatalogSheet.FILTERS -> FiltersSheet(state.filtersDraft, state.countries, onEvent)
     }
 }
 
@@ -64,7 +65,7 @@ internal fun CatalogSheetContent(state: SearchState, dispatch: (SearchEvent) -> 
  * тут нечего, а лишнее «Применить» на пульте — лишнее нажатие. Первый вход фокуса — на текущее поле.
  */
 @Composable
-private fun SortSheet(sort: SortOption, dispatch: (SearchEvent) -> Unit) {
+private fun SortSheet(sort: SortOption, onEvent: (SearchEvent) -> Unit) {
     val current = remember { FocusRequester() }
     Column(Modifier.fillMaxSize().padding(SheetPadding)) {
         SheetHeading(overline = "Сортировка", title = "Сначала показывать")
@@ -74,7 +75,7 @@ private fun SortSheet(sort: SortOption, dispatch: (SearchEvent) -> Unit) {
                 TvTextRow(
                     text = label,
                     selected = selected,
-                    onClick = { dispatch(SearchEvent.SortChange(sort.copy(field = field))) },
+                    onClick = { onEvent(SearchEvent.SortChange(sort.copy(field = field))) },
                     modifier = if (selected) Modifier.focusRequester(current) else Modifier,
                 )
             }
@@ -84,12 +85,12 @@ private fun SortSheet(sort: SortOption, dispatch: (SearchEvent) -> Unit) {
             TvChip(
                 label = "По убыванию",
                 selected = !sort.ascending,
-                onClick = { dispatch(SearchEvent.SortChange(sort.copy(ascending = false))) },
+                onClick = { onEvent(SearchEvent.SortChange(sort.copy(ascending = false))) },
             )
             TvChip(
                 label = "По возрастанию",
                 selected = sort.ascending,
-                onClick = { dispatch(SearchEvent.SortChange(sort.copy(ascending = true))) },
+                onClick = { onEvent(SearchEvent.SortChange(sort.copy(ascending = true))) },
             )
         }
     }
@@ -100,8 +101,8 @@ private fun SortSheet(sort: SortOption, dispatch: (SearchEvent) -> Unit) {
  * перебор чипов «ОК»-ом естественен. Правки — черновик в модели; выдачу меняет только «Применить».
  */
 @Composable
-private fun FiltersSheet(draft: CatalogFilters, countries: List<Country>, dispatch: (SearchEvent) -> Unit) {
-    val edit: (CatalogFilters) -> Unit = { dispatch(SearchEvent.EditFilters(it)) }
+private fun FiltersSheet(draft: CatalogFilters, countries: List<Country>, onEvent: (SearchEvent) -> Unit) {
+    val edit: (CatalogFilters) -> Unit = { onEvent(SearchEvent.EditFilters(it)) }
     val firstChip = remember { FocusRequester() }
     Column(
         Modifier
@@ -127,10 +128,10 @@ private fun FiltersSheet(draft: CatalogFilters, countries: List<Country>, dispat
             )
         }
         Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TvButton(text = "Применить", onClick = { dispatch(SearchEvent.ApplyDraftFilters) })
+            TvButton(text = "Применить", onClick = { onEvent(SearchEvent.ApplyDraftFilters) })
             TvButton(
                 text = "Сбросить",
-                onClick = { dispatch(SearchEvent.ResetDraftFilters) },
+                onClick = { onEvent(SearchEvent.ResetDraftFilters) },
                 style = TvButtonStyle.Secondary
             )
         }

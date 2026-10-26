@@ -1,7 +1,7 @@
 package com.filmax.feature.home.tv
 
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.ui.components.isHighRating
+import com.filmax.core.presentation.labels.isHighRating
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,14 +19,6 @@ class TvHomeLabelsTest {
         assertEquals("21 фильм", collectionCaption(21))
         assertEquals("24 фильма", collectionCaption(24))
         assertEquals("112 фильмов", collectionCaption(112))
-    }
-
-    @Test
-    fun `scroll thumb follows the first visible row`() {
-        assertEquals(ScrollThumb.Whole, scrollThumb(position = 0f, visibleCount = 4, total = 4))
-        assertEquals(ScrollThumb(start = 0f, length = 0.25f), scrollThumb(position = 0f, visibleCount = 2, total = 8))
-        assertEquals(ScrollThumb(start = 0.5f, length = 0.25f), scrollThumb(position = 3f, visibleCount = 2, total = 8))
-        assertEquals(1f, scrollThumb(position = 7f, visibleCount = 2, total = 8).start)
     }
 
     @Test

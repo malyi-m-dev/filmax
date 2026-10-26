@@ -67,25 +67,24 @@ class DetailsFormatTest {
     }
 
     @Test
-    fun `adjacent season steps through the sorted seasons and stops at the ends`() {
+    fun `episodes panel points at the neighbour seasons and stops at the ends`() {
         val series = calculateSeriesData(
             listOf(episode(season = 3, number = 1), episode(season = 1, number = 1), episode(season = 2, number = 1)),
         )
-        val state = DetailsState(series = series, selectedSeason = 2)
 
-        assertEquals(3, state.adjacentSeason(1))
-        assertEquals(1, state.adjacentSeason(-1))
-        assertNull(state.copy(selectedSeason = 3).adjacentSeason(1))
-        assertNull(state.copy(selectedSeason = 1).adjacentSeason(-1))
+        val middle = episodesPanel(series, selected = 2)
+        assertEquals(3, middle.next?.season)
+        assertEquals(1, middle.previous?.season)
+        assertNull(episodesPanel(series, selected = 3).next)
+        assertNull(episodesPanel(series, selected = 1).previous)
     }
 
     @Test
-    fun `movie and single season have no adjacent season`() {
+    fun `single season has no neighbours`() {
         val single = calculateSeriesData(listOf(episode(season = 1, number = 1), episode(season = 1, number = 2)))
 
-        assertNull(DetailsState().adjacentSeason(1))
-        assertNull(DetailsState(series = single, selectedSeason = 1).adjacentSeason(1))
-        assertNull(DetailsState(series = single, selectedSeason = 1).adjacentSeason(-1))
+        assertNull(episodesPanel(single, selected = 1).next)
+        assertNull(episodesPanel(single, selected = 1).previous)
     }
 
     @Test
@@ -102,10 +101,10 @@ class DetailsFormatTest {
             ),
         )
 
-        assertEquals(resume, series.startEpisode(2))
-        assertEquals(1 to 2, series.startEpisode(1)?.let { it.seasonNumber to it.number })
-        assertEquals(3 to 1, series.startEpisode(3)?.let { it.seasonNumber to it.number })
-        assertNull(series.startEpisode(4))
+        assertEquals(resume.id, episodesPanel(series, selected = 1).next?.episodeId)
+        assertEquals(episode(season = 1, number = 2).id, episodesPanel(series, selected = 2).previous?.episodeId)
+        assertEquals(episode(season = 3, number = 1).id, episodesPanel(series, selected = 2).next?.episodeId)
+        assertNull(episodesPanel(series, selected = 3).next)
     }
 
     @Test
@@ -164,15 +163,15 @@ class DetailsFormatTest {
 
     @Test
     fun `series is decided by type, not by the number of tracks`() {
-        assertTrue(movie(minutes = 90.0).copy(type = ItemType.ANIME).isSeries())
-        assertFalse(movie(minutes = 90.0).copy(tracklist = listOf(episode(0, 1), episode(0, 2))).isSeries())
+        assertTrue(isSeries(movie(minutes = 90.0).copy(type = ItemType.ANIME)))
+        assertFalse(isSeries(movie(minutes = 90.0).copy(tracklist = listOf(episode(0, 1), episode(0, 2)))))
     }
 
     @Test
     fun `tv show goes by seasons like a series, a concert plays like a film`() {
-        assertTrue(movie(minutes = 50.0).copy(type = ItemType.TV_SHOW).isSeries())
-        assertFalse(movie(minutes = 120.0).copy(type = ItemType.CONCERT).isSeries())
-        assertFalse(movie(minutes = 90.0).copy(type = ItemType.DOCUMENTARY_MOVIE).isSeries())
+        assertTrue(isSeries(movie(minutes = 50.0).copy(type = ItemType.TV_SHOW)))
+        assertFalse(isSeries(movie(minutes = 120.0).copy(type = ItemType.CONCERT)))
+        assertFalse(isSeries(movie(minutes = 90.0).copy(type = ItemType.DOCUMENTARY_MOVIE)))
     }
 
     private fun volumeOf(tracks: List<MediaTrack>): String? {

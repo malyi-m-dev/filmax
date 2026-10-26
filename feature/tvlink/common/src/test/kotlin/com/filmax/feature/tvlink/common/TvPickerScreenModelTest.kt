@@ -67,6 +67,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
 
         assertEquals(TvPickerFailure("Гостиная", LinkFailure.OtherAccount), model.states.value.failure)
+        assertTrue(model.states.value.failure?.message.orEmpty().contains("другой аккаунт"))
         assertNull(model.states.value.connectingTo, "после отказа можно выбрать другой ТВ")
         assertTrue(remote.sent.isEmpty())
         assertTrue(effects.isEmpty())
@@ -162,8 +163,8 @@ class TvPickerScreenModelTest {
             "season" to PLAY.season,
             "startSeconds" to PLAY.startSeconds,
         )
-        val model = TvPickerScreenModel(SavedStateHandle(if (withTitle) route else emptyMap()), discovery, remote)
-        model.observeSideEffects { effects += it }
+        val handle = SavedStateHandle(if (withTitle) route else emptyMap())
+        val model = TvPickerScreenModel(handle, discovery, remote).also { it.observeSideEffects(effects::add) }
         runCurrent()
         return model
     }

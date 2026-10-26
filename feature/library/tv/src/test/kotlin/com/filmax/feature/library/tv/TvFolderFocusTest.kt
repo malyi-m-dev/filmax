@@ -2,20 +2,21 @@ package com.filmax.feature.library.tv
 
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.NavCommand
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.feature.library.common.FolderScreenModel
-import com.filmax.feature.library.common.FolderSideEffect
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -48,7 +49,7 @@ class TvFolderFocusTest {
     val images = FakeImagesRule()
 
     private val remote = TvRemote(compose)
-    private val calls = mutableListOf<String>()
+    private val navigator = FakeNavigator()
 
     @Before
     fun leanbackDevice() {
@@ -63,7 +64,7 @@ class TvFolderFocusTest {
 
         remote.press(Key.DirectionCenter)
 
-        assertEquals("open ${FakeIds.HERO_MOVIE}", calls.last())
+        assertEquals(Destination.Details(FakeIds.HERO_MOVIE), navigator.opened.last())
     }
 
     @Test
@@ -74,7 +75,7 @@ class TvFolderFocusTest {
         remote.assertFocusedHas("Смотреть подряд")
         remote.press(Key.DirectionCenter)
 
-        assertEquals("play ${FakeIds.HERO_MOVIE}", calls.last())
+        assertEquals(Destination.Player(FakeIds.HERO_MOVIE), navigator.opened.last())
     }
 
     @Test
@@ -108,7 +109,7 @@ class TvFolderFocusTest {
         remote.press(Key.DirectionRight)
         remote.press(Key.DirectionCenter)
 
-        assertEquals("back", calls.last())
+        assertEquals(NavCommand.Back, navigator.sent.last())
     }
 
     /** С постера вверх — к кнопкам шапки: первая из них — «Смотреть подряд». */
@@ -123,20 +124,9 @@ class TvFolderFocusTest {
             user = user,
             folders = BookmarkFolders(user, FakeFolderAppearanceRepository()),
         )
+        // Экран целиком, а не FolderContent: переходы исполняет его корень навигатором.
         compose.setContent {
-            FilmaxTvTheme {
-                val state by model.collectAsState()
-                model.collectSideEffect { effect -> if (effect == FolderSideEffect.Deleted) calls += "back" }
-                FolderContent(
-                    state = state,
-                    actions = FolderActions(
-                        onEvent = model::dispatch,
-                        onOpenItem = { id -> calls += "open $id" },
-                        onPlay = { id -> calls += "play $id" },
-                        onOpenCatalog = { calls += "catalog" },
-                    ),
-                )
-            }
+            FilmaxTvTheme { TvFolderScreen(screenModel = model, navigator = navigator) }
         }
         compose.waitForIdle()
         assertNotNull(model.states.value.folder, "папка не загрузилась")

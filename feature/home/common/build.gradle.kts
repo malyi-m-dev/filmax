@@ -11,6 +11,8 @@ android {
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
+    // «Продолжить» без известной серии ведёт в плеер с Destination.Player.UNKNOWN.
+    implementation(project(":core:navigation"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

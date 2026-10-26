@@ -30,9 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,8 +54,8 @@ import org.koin.compose.koinInject
 
 /**
  * «Настройки устройства» — тумблеры возможностей (SSL/HEVC/HDR/4K/смешанный плейлист) и выбор
- * типа потока. Правки локальны, на сервер уходят по «Сохранить» ([DeviceSettingsScreenModel]).
- * После успеха экран закрывается (side-effect [DeviceSettingsSideEffect.Saved] → [onBack]).
+ * типа потока. Правки локальны, на сервер уходят по «Сохранить»; после успеха модель закрывает
+ * экран сама. Какая шторка открыта — тоже в состоянии.
  *
  * Сервер раздачи — справочная строка без выбора: API отдаёт только текущий id локации, без списка
  * доступных, поэтому предлагать выбор не из чего (см. `serverLocationLabel`).
@@ -70,41 +67,20 @@ fun DeviceSettingsScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    val onBack: () -> Unit = navigator::back
-
     screenModel.collectSideEffect { effect ->
         when (effect) {
-            DeviceSettingsSideEffect.Saved -> onBack()
+            DeviceSettingsSideEffect.Close -> navigator.back()
         }
     }
+    val onEvent: (DeviceSettingsEvent) -> Unit = screenModel::dispatch
 
     if (state.loading) {
         LoadingBox(modifier)
         return
     }
-
-    var streamingSheet by remember { mutableStateOf(false) }
-
-    DeviceSettingsContent(
-        state = state,
-        actions = DeviceSettingsActions(
-            toggles = deviceToggles(screenModel),
-            onOpenStreamingSheet = { streamingSheet = true },
-            onSave = { screenModel.dispatch(DeviceSettingsEvent.Save) },
-            onBack = onBack,
-        ),
-        modifier = modifier,
-    )
-
-    if (streamingSheet) {
-        StreamingTypeSheet(
-            selected = state.settings?.streamingType ?: 0,
-            onSelect = {
-                screenModel.dispatch(DeviceSettingsEvent.SetStreamingType(it))
-                streamingSheet = false
-            },
-            onDismiss = { streamingSheet = false },
-        )
+    DeviceSettingsContent(state = state, onEvent = onEvent, modifier = modifier)
+    if (state.streamingSheetOpen) {
+        StreamingTypeSheet(selected = state.settings?.streamingType ?: 0, onEvent = onEvent)
     }
 }
 
@@ -122,34 +98,10 @@ private fun LoadingBox(modifier: Modifier) {
 
 // ── Контент ────────────────────────────────────────────────────────────────
 
-/** Тумблеры возможностей устройства. Отдельная модель — чтобы не раздувать список параметров. */
-private data class DeviceToggles(
-    val onSsl: (Boolean) -> Unit,
-    val onHevc: (Boolean) -> Unit,
-    val onHdr: (Boolean) -> Unit,
-    val on4k: (Boolean) -> Unit,
-    val onMixedPlaylist: (Boolean) -> Unit,
-)
-
-private data class DeviceSettingsActions(
-    val toggles: DeviceToggles,
-    val onOpenStreamingSheet: () -> Unit,
-    val onSave: () -> Unit,
-    val onBack: () -> Unit,
-)
-
-private fun deviceToggles(screenModel: DeviceSettingsScreenModel) = DeviceToggles(
-    onSsl = { screenModel.dispatch(DeviceSettingsEvent.SetSsl(it)) },
-    onHevc = { screenModel.dispatch(DeviceSettingsEvent.SetHevc(it)) },
-    onHdr = { screenModel.dispatch(DeviceSettingsEvent.SetHdr(it)) },
-    on4k = { screenModel.dispatch(DeviceSettingsEvent.Set4k(it)) },
-    onMixedPlaylist = { screenModel.dispatch(DeviceSettingsEvent.SetMixedPlaylist(it)) },
-)
-
 @Composable
 private fun DeviceSettingsContent(
     state: DeviceSettingsState,
-    actions: DeviceSettingsActions,
+    onEvent: (DeviceSettingsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings = state.settings ?: return
@@ -162,16 +114,16 @@ private fun DeviceSettingsContent(
             .padding(horizontal = FilmaxMetrics.ScreenPadding)
             .padding(top = 8.dp, bottom = 24.dp),
     ) {
-        DeviceSettingsHeader(title = settings.title, onBack = actions.onBack)
+        DeviceSettingsHeader(title = settings.title, onBack = { onEvent(DeviceSettingsEvent.Back) })
 
         SectionOverline("ВОЗМОЖНОСТИ")
-        ToggleGroup(settings = settings, toggles = actions.toggles)
+        ToggleGroup(settings = settings, onEvent = onEvent)
 
         SectionOverline("ПОТОК")
-        StreamGroup(settings = settings, onOpenStreamingSheet = actions.onOpenStreamingSheet)
+        StreamGroup(settings = settings, onEvent = onEvent)
 
         Spacer(Modifier.height(24.dp))
-        SaveButton(saving = state.saving, onSave = actions.onSave)
+        SaveButton(saving = state.saving, onSave = { onEvent(DeviceSettingsEvent.Save) })
         // Локальная копия: smart-cast nullable-поля из другого модуля тут невозможен.
         val error = state.error
         if (error != null) {
@@ -221,13 +173,13 @@ private fun SectionOverline(text: String) {
 }
 
 @Composable
-private fun ToggleGroup(settings: DeviceSettings, toggles: DeviceToggles) {
+private fun ToggleGroup(settings: DeviceSettings, onEvent: (DeviceSettingsEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(RowGap)) {
-        ToggleRow("SSL-соединение", settings.supportSsl, toggles.onSsl)
-        ToggleRow("HEVC (H.265)", settings.supportHevc, toggles.onHevc)
-        ToggleRow("HDR", settings.supportHdr, toggles.onHdr)
-        ToggleRow("4K", settings.support4k, toggles.on4k)
-        ToggleRow("Смешанный плейлист", settings.mixedPlaylist, toggles.onMixedPlaylist)
+        ToggleRow("SSL-соединение", settings.supportSsl) { onEvent(DeviceSettingsEvent.SetSsl(it)) }
+        ToggleRow("HEVC (H.265)", settings.supportHevc) { onEvent(DeviceSettingsEvent.SetHevc(it)) }
+        ToggleRow("HDR", settings.supportHdr) { onEvent(DeviceSettingsEvent.SetHdr(it)) }
+        ToggleRow("4K", settings.support4k) { onEvent(DeviceSettingsEvent.Set4k(it)) }
+        ToggleRow("Смешанный плейлист", settings.mixedPlaylist) { onEvent(DeviceSettingsEvent.SetMixedPlaylist(it)) }
     }
 }
 
@@ -254,12 +206,12 @@ private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
 }
 
 @Composable
-private fun StreamGroup(settings: DeviceSettings, onOpenStreamingSheet: () -> Unit) {
+private fun StreamGroup(settings: DeviceSettings, onEvent: (DeviceSettingsEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(RowGap)) {
         NavigationRow(
             label = "Тип потока",
             value = streamingTypeLabel(settings.streamingType),
-            onClick = onOpenStreamingSheet,
+            onClick = { onEvent(DeviceSettingsEvent.OpenStreamingSheet) },
         )
         // Сервер раздачи — справочная строка без шеврона: список локаций API не отдаёт.
         NavigationRow(
@@ -331,11 +283,12 @@ private fun SaveButton(saving: Boolean, onSave: () -> Unit) {
 
 // ── Лист выбора типа потока ──────────────────────────────────────────────────
 
+/** Выбор типа потока применяется и закрывает шторку — так решает модель. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun StreamingTypeSheet(selected: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
+private fun StreamingTypeSheet(selected: Int, onEvent: (DeviceSettingsEvent) -> Unit) {
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { onEvent(DeviceSettingsEvent.CloseStreamingSheet) },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
@@ -346,7 +299,11 @@ private fun StreamingTypeSheet(selected: Int, onSelect: (Int) -> Unit, onDismiss
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 12.dp),
             )
-            DeviceOptionList(options = streamingTypeOptions, selected = selected, onSelect = onSelect)
+            DeviceOptionList(
+                options = streamingTypeOptions,
+                selected = selected,
+                onSelect = { onEvent(DeviceSettingsEvent.SetStreamingType(it)) },
+            )
         }
     }
 }

@@ -13,7 +13,6 @@ import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvErrorState
 import com.filmax.core.ui.components.appErrorText
-import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
 import com.filmax.feature.home.common.HomeSideEffect
 import org.koin.androidx.compose.koinViewModel
@@ -21,7 +20,8 @@ import org.koin.compose.koinInject
 
 /**
  * ТВ-Главная: карусель «Выбор редакции» и ряды. Поверх общего [HomeScreenModel] — данные те же,
- * что и на телефоне; состав и порядок рядов задаёт модель, экран только рисует их.
+ * что и на телефоне; состав и порядок рядов задаёт модель, экран рисует их, шлёт события и
+ * исполняет переходы, которые модель отвечает на них.
  *
  * Плоской ленты «Все» здесь намеренно нет: это работа Каталога с его фильтрами и сортировкой.
  * Бесконечный ряд на пульте — сотни нажатий вправо и ни одного способа найти в нём конкретное.
@@ -33,41 +33,22 @@ fun TvHomeScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    val offline by screenModel.collectOfflineBannerAsState()
+    val appError by screenModel.collectErrorAsState()
+
     screenModel.collectSideEffect { effect ->
         when (effect) {
+            is HomeSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is HomeSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            is HomeSideEffect.OpenSection -> navigator.open(Destination.Browse(effect.section.name))
+            is HomeSideEffect.OpenCollection ->
+                navigator.open(Destination.CollectionDetail(effect.collectionId, effect.title))
+            HomeSideEffect.OpenTvPicker -> navigator.open(Destination.TvPicker())
+            HomeSideEffect.OpenCatalog -> navigator.open(Destination.Catalog)
             HomeSideEffect.AskFeedback -> navigator.open(Destination.Feedback(FeedbackTrigger.AfterUpdate.name))
         }
     }
-    val offline by screenModel.collectOfflineBannerAsState()
-    val appError by screenModel.collectErrorAsState()
-    val actions = TvHomeActions(
-        hero = HeroActions(
-            onPlay = { item ->
-                navigator.open(
-                    Destination.Player(itemId = item.id, videoId = NO_VIDEO_ID, season = NO_SEASON)
-                )
-            },
-            onDetails = { item -> navigator.open(Destination.Details(item.id)) },
-            onToggleWatchLater = { item -> screenModel.dispatch(HomeEvent.ToggleWatchLater(item)) },
-            onNext = { screenModel.dispatch(HomeEvent.NextHero) },
-        ),
-        rails = RailActions(
-            onOpenItem = { id -> navigator.open(Destination.Details(id)) },
-            onPlay = { itemId, season, videoId ->
-                navigator.open(
-                    Destination.Player(itemId = itemId, videoId = videoId, season = season)
-                )
-            },
-            onOpenCollection = { id, title ->
-                navigator.open(
-                    Destination.CollectionDetail(collectionId = id, title = title)
-                )
-            },
-            onLoadMore = { id -> screenModel.dispatch(HomeEvent.LoadMoreRow(id)) },
-        ),
-        onReload = { screenModel.dispatch(HomeEvent.Load) },
-        onOpenCatalog = { navigator.open(Destination.Catalog) },
-    )
 
     // Фон — у окна (FilmaxTvTheme): своя заливка экрана закрашивала бы каждый пиксель лишний раз.
     Box(modifier.fillMaxSize()) {
@@ -86,15 +67,7 @@ fun TvHomeScreen(
                 TvErrorState(title = text.title, message = text.message, onRetry = screenModel::retry)
             }
 
-            else -> TvHomeFeed(state = state, offline = offline, actions = actions)
+            else -> TvHomeFeed(state = state, offline = offline, onEvent = screenModel::dispatch)
         }
     }
 }
-
-/** Действия Главной одним объектом: hero, ряды и служебные (повтор, переход в каталог). */
-internal data class TvHomeActions(
-    val hero: HeroActions,
-    val rails: RailActions,
-    val onReload: () -> Unit,
-    val onOpenCatalog: () -> Unit,
-)

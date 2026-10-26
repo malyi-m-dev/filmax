@@ -33,18 +33,39 @@ enum class FolderSort(val label: String) {
     TITLE("По названию"),
 }
 
-/** Карточка папки: папка с оформлением, постеры веера и когда её меняли («изменена вчера»). */
+/**
+ * Карточка папки: папка с оформлением, постеры веера и подпись — «6 тайтлов · изменена вчера»
+ * ([caption]); [changed] — одна дата изменения, если нужна отдельно.
+ */
 data class MineFolder(
     val folder: UserFolder,
     val posters: List<String>,
     val changed: String?,
+    val caption: String,
 )
 
-/** Запись истории и время просмотра «21:40» — подпись под карточкой. */
-data class HistoryEntry(val entry: WatchHistory, val time: String?)
+/**
+ * Запись истории с готовыми подписями: время просмотра «21:40», серия «S4E7» (null — фильм) и
+ * сколько посмотрели («на 45%», «просмотрено»). Платформы складывают их в свои строки.
+ */
+data class HistoryEntry(
+    val entry: WatchHistory,
+    val time: String?,
+    val episodeCode: String?,
+    val watchedShare: String?,
+)
 
 /** День истории: «Сегодня», «Вчера», «12 октября» или «Раньше» — для записей без времени. */
 data class HistoryDay(val label: String, val entries: List<HistoryEntry>)
+
+/** Что телефон просит подтвердить перед удалением: тайтл из «Буду смотреть» или из истории. */
+sealed interface MineRemoval {
+    val itemId: Int
+    val title: String
+
+    data class Watchlist(override val itemId: Int, override val title: String) : MineRemoval
+    data class History(override val itemId: Int, override val title: String) : MineRemoval
+}
 
 data class MineState(
     val loading: Boolean = true,
@@ -62,6 +83,8 @@ data class MineState(
     val draft: FolderDraft? = null,
     /** Открыт диалог «Очистить историю?». */
     val confirmClearHistory: Boolean = false,
+    /** Открыта шторка «Убрать тайтл?» (телефон); на ТВ долгое «ОК» убирает сразу. */
+    val confirmRemoval: MineRemoval? = null,
     val error: String? = null,
 ) {
     /** Счётчик сегмента; null — у сегмента счётчика нет (так в макете у «Продолжить» и «Истории»). */
@@ -87,6 +110,11 @@ sealed interface MineEvent {
     /** Долгое «ОК» на карточке «Продолжить»: kino.pub убирает тайтл из истории целиком. */
     data class RemoveFromContinue(val itemId: Int) : MineEvent
 
+    /** Телефон: долгий тап спрашивает, прежде чем убрать; «Убрать» в шторке — [ConfirmRemoval]. */
+    data class AskRemoval(val removal: MineRemoval) : MineEvent
+    data object ConfirmRemoval : MineEvent
+    data object DismissRemoval : MineEvent
+
     data object AskClearHistory : MineEvent
     data object ConfirmClearHistory : MineEvent
     data object DismissClearHistory : MineEvent
@@ -97,8 +125,27 @@ sealed interface MineEvent {
     data object SubmitFolder : MineEvent
     data object CancelFolder : MineEvent
 
+    data class OpenItem(val itemId: Int) : MineEvent
+
+    /** Карточка «Продолжить» или строка истории — сразу в плеер на недосмотренную серию. */
+    data class ContinueWatching(val entry: WatchHistory) : MineEvent
+    data class OpenFolder(val folderId: Int) : MineEvent
+
+    /** Поиск из шапки «Моё» (телефон). */
+    data object OpenSearch : MineEvent
+
     /** Экран снова на виду (вернулись из папки, деталей, плеера) — перечитать историю и папки. */
     data object Refresh : MineEvent
 }
 
-sealed interface MineSideEffect
+/** Переходы из «Моё»; исполняет их навигатором экран. */
+sealed interface MineSideEffect {
+    data class OpenDetails(val itemId: Int) : MineSideEffect
+
+    /** Папка-закладка: на ТВ — свой экран, на телефоне граф откроет её внутри Библиотеки. */
+    data class OpenFolder(val folderId: Int) : MineSideEffect
+    data object OpenSearch : MineSideEffect
+
+    /** «Продолжить» и история — сразу в плеер; [videoId] — номер серии внутри [season]. */
+    data class OpenPlayer(val itemId: Int, val videoId: Int, val season: Int) : MineSideEffect
+}

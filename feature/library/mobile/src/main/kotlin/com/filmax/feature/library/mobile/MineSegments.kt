@@ -35,7 +35,9 @@ import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
-import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.labels.continueMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxContinueCard
 import com.filmax.core.ui.components.FilmaxCreateFolderCard
@@ -44,34 +46,30 @@ import com.filmax.core.ui.components.FilmaxFolderCard
 import com.filmax.core.ui.components.FilmaxHistoryRow
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxTextButton
-import com.filmax.core.ui.components.continueMeta
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
+import com.filmax.feature.library.common.HistoryEntry
 import com.filmax.feature.library.common.MineEvent
+import com.filmax.feature.library.common.MineRemoval
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
-
-/** Без сезона и серии: плеер возьмёт фильм или продолжит с сохранённого. */
-private const val NO_EPISODE = -1
 
 @Composable
 internal fun MineSegmentPage(
     segment: MineSegment,
     state: MineState,
-    actions: MineActions,
+    onEvent: (MineEvent) -> Unit,
     contentPadding: PaddingValues
 ) {
     when (segment) {
-        MineSegment.CONTINUE -> ContinuePage(state, actions, contentPadding)
-        MineSegment.WATCHLIST -> WatchlistPage(state, actions, contentPadding)
-        MineSegment.FOLDERS -> FoldersPage(state, actions, contentPadding)
-        MineSegment.HISTORY -> HistoryPage(state, actions, contentPadding)
+        MineSegment.CONTINUE -> ContinuePage(state, onEvent, contentPadding)
+        MineSegment.WATCHLIST -> WatchlistPage(state, onEvent, contentPadding)
+        MineSegment.FOLDERS -> FoldersPage(state, onEvent, contentPadding)
+        MineSegment.HISTORY -> HistoryPage(state, onEvent, contentPadding)
     }
 }
 
 @Composable
-private fun ContinuePage(state: MineState, actions: MineActions, contentPadding: PaddingValues) {
+private fun ContinuePage(state: MineState, onEvent: (MineEvent) -> Unit, contentPadding: PaddingValues) {
     MineGrid(columns = FilmaxMetrics.WIDE_COLUMNS, contentPadding = contentPadding) {
         when {
             state.loading && state.continueWatching.isEmpty() -> loading()
@@ -87,18 +85,18 @@ private fun ContinuePage(state: MineState, actions: MineActions, contentPadding:
                 meta = continueMeta(entry.progress),
                 imageUrl = entry.wideOrPoster,
                 progress = entry.progress?.fraction ?: 0f,
-                onClick = { actions.play(entry) },
-                onLongClick = { actions.onConfirm(MineConfirm.History(entry.itemId, entry.title)) },
+                onClick = { onEvent(MineEvent.ContinueWatching(entry)) },
+                onLongClick = { onEvent(MineEvent.AskRemoval(MineRemoval.History(entry.itemId, entry.title))) },
             )
         }
     }
 }
 
 @Composable
-private fun WatchlistPage(state: MineState, actions: MineActions, contentPadding: PaddingValues) {
+private fun WatchlistPage(state: MineState, onEvent: (MineEvent) -> Unit, contentPadding: PaddingValues) {
     MineGrid(columns = FilmaxMetrics.POSTER_COLUMNS, contentPadding = contentPadding) {
         if (state.watchlist.isNotEmpty()) {
-            sortChip(state.watchlistSort.label) { actions.onEvent(MineEvent.CycleWatchlistSort) }
+            sortChip(state.watchlistSort.label) { onEvent(MineEvent.CycleWatchlistSort) }
         }
         when {
             state.loading && state.watchlist.isEmpty() -> loading()
@@ -112,29 +110,29 @@ private fun WatchlistPage(state: MineState, actions: MineActions, contentPadding
             FilmaxPosterCard(
                 title = item.title,
                 posterUrl = item.posterSmall,
-                onClick = { actions.onOpenItem(item.id) },
+                onClick = { onEvent(MineEvent.OpenItem(item.id)) },
                 rating = ratingLabel(item.rating),
                 meta = item.year.takeIf { it > 0 }?.toString(),
-                onLongClick = { actions.onConfirm(MineConfirm.Watchlist(item.id, item.title)) },
+                onLongClick = { onEvent(MineEvent.AskRemoval(MineRemoval.Watchlist(item.id, item.title))) },
             )
         }
     }
 }
 
 @Composable
-private fun FoldersPage(state: MineState, actions: MineActions, contentPadding: PaddingValues) {
+private fun FoldersPage(state: MineState, onEvent: (MineEvent) -> Unit, contentPadding: PaddingValues) {
     MineGrid(columns = FilmaxMetrics.WIDE_COLUMNS, contentPadding = contentPadding) {
         if (state.folders.isNotEmpty()) {
-            sortChip(state.folderSort.label) { actions.onEvent(MineEvent.CycleFolderSort) }
+            sortChip(state.folderSort.label) { onEvent(MineEvent.CycleFolderSort) }
         }
-        item(key = "create") { FilmaxCreateFolderCard(onClick = { actions.onEvent(MineEvent.StartCreateFolder) }) }
+        item(key = "create") { FilmaxCreateFolderCard(onClick = { onEvent(MineEvent.StartCreateFolder) }) }
         items(state.folders, key = { it.folder.id }) { mine ->
             FilmaxFolderCard(
                 name = mine.folder.title,
                 count = titlesLabel(mine.folder.count),
                 hue = folderHue(mine.folder.tint),
                 posters = mine.posters,
-                onClick = { actions.onOpenFolder(mine.folder.id) },
+                onClick = { onEvent(MineEvent.OpenFolder(mine.folder.id)) },
             )
         }
     }
@@ -142,7 +140,7 @@ private fun FoldersPage(state: MineState, actions: MineActions, contentPadding: 
 
 /** История по дням; «Очистить историю» — над ней, с подтверждением: вернуть её будет нечем. */
 @Composable
-private fun HistoryPage(state: MineState, actions: MineActions, contentPadding: PaddingValues) {
+private fun HistoryPage(state: MineState, onEvent: (MineEvent) -> Unit, contentPadding: PaddingValues) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
@@ -164,9 +162,7 @@ private fun HistoryPage(state: MineState, actions: MineActions, contentPadding: 
                 }
             }
         } else {
-            item(
-                key = "clear"
-            ) { ClearHistory(contentPadding, onClick = { actions.onEvent(MineEvent.AskClearHistory) }) }
+            item(key = "clear") { ClearHistory(contentPadding, onClick = { onEvent(MineEvent.AskClearHistory) }) }
         }
         state.history.forEach { day ->
             item(key = "day-${day.label}") {
@@ -177,19 +173,26 @@ private fun HistoryPage(state: MineState, actions: MineActions, contentPadding: 
                     modifier = Modifier.padding(start = FilmaxMetrics.ScreenPadding, top = 16.dp, bottom = 6.dp),
                 )
             }
-            items(day.entries, key = { "history-${day.label}-${it.entry.itemId}" }) { (entry, time) ->
-                FilmaxHistoryRow(
-                    title = entry.title,
-                    subtitle = historySubtitle(entry.progress),
-                    meta = historyMeta(entry.progress, time),
-                    imageUrl = entry.wideOrPoster,
-                    progress = entry.progress?.fraction ?: 0f,
-                    onClick = { actions.play(entry) },
-                    onMore = { actions.onConfirm(MineConfirm.History(entry.itemId, entry.title)) },
-                )
+            items(day.entries, key = { "history-${day.label}-${it.entry.itemId}" }) { entry ->
+                HistoryRow(entry, onEvent)
             }
         }
     }
+}
+
+/** Строка истории: «S4E7» или «Фильм», когда и сколько — «21:10 · на 45%». */
+@Composable
+private fun HistoryRow(history: HistoryEntry, onEvent: (MineEvent) -> Unit) {
+    val entry = history.entry
+    FilmaxHistoryRow(
+        title = entry.title,
+        subtitle = history.episodeCode ?: "Фильм",
+        meta = listOfNotNull(history.time, history.watchedShare).joinToString(" · ").ifBlank { null },
+        imageUrl = entry.wideOrPoster,
+        progress = entry.progress?.fraction ?: 0f,
+        onClick = { onEvent(MineEvent.ContinueWatching(entry)) },
+        onMore = { onEvent(MineEvent.AskRemoval(MineRemoval.History(entry.itemId, entry.title))) },
+    )
 }
 
 @Composable
@@ -228,11 +231,6 @@ private fun Loading() {
     Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(color = FilmaxTheme.palette.accent)
     }
-}
-
-/** «Продолжить» и история ведут сразу в плеер: недосмотренная серия — сезон и номер из истории. */
-private fun MineActions.play(entry: WatchHistory) {
-    onPlay(entry.itemId, entry.progress?.season ?: NO_EPISODE, entry.progress?.videoId ?: NO_EPISODE)
 }
 
 /** «Очистить историю» над днями — справа, на полях сетки. */

@@ -47,6 +47,11 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.UserFolder
+import com.filmax.core.presentation.labels.durationLabel
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.TvBackHint
 import com.filmax.core.tv.designsystem.TvButton
@@ -61,11 +66,6 @@ import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvScrollFades
-import com.filmax.core.ui.components.durationLabel
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderState
 
@@ -117,7 +117,12 @@ private const val OK_KEY = "OK"
 internal data class FolderHeaderFocus(val targets: FolderFocus, val screen: TvScreenFocus)
 
 @Composable
-internal fun FolderHeader(folder: UserFolder, state: FolderState, actions: FolderActions, focus: FolderHeaderFocus) {
+internal fun FolderHeader(
+    folder: UserFolder,
+    state: FolderState,
+    onEvent: (FolderEvent) -> Unit,
+    focus: FolderHeaderFocus,
+) {
     Column(
         Modifier
             .height(HeaderHeight)
@@ -130,7 +135,7 @@ internal fun FolderHeader(folder: UserFolder, state: FolderState, actions: Folde
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             FolderTitleBlock(folder, Modifier.weight(1f))
-            FolderButtons(state.items.firstOrNull(), actions, focus, Modifier.fxEnter(BUTTONS_ENTER))
+            FolderButtons(hasItems = state.items.isNotEmpty(), onEvent, focus, Modifier.fxEnter(BUTTONS_ENTER))
         }
     }
 }
@@ -171,12 +176,17 @@ private fun FolderTitleBlock(folder: UserFolder, modifier: Modifier) {
  * с цветом папки. «Переименовать» и «Удалить» — круглые, удаление — красным.
  */
 @Composable
-private fun FolderButtons(first: Item?, actions: FolderActions, focus: FolderHeaderFocus, modifier: Modifier) {
+private fun FolderButtons(
+    hasItems: Boolean,
+    onEvent: (FolderEvent) -> Unit,
+    focus: FolderHeaderFocus,
+    modifier: Modifier,
+) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (first != null) {
+        if (hasItems) {
             TvButton(
                 text = "Смотреть подряд",
-                onClick = { actions.onPlay(first.id) },
+                onClick = { onEvent(FolderEvent.PlayAll) },
                 style = TvButtonStyle.Light,
                 leadingIcon = Icons.Rounded.PlayArrow,
                 modifier = focus.screen.item(PLAY_ALL_KEY),
@@ -185,13 +195,13 @@ private fun FolderButtons(first: Item?, actions: FolderActions, focus: FolderHea
         TvIconButton(
             icon = Icons.Rounded.Edit,
             contentDescription = "Переименовать",
-            onClick = { actions.onEvent(FolderEvent.StartRename) },
+            onClick = { onEvent(FolderEvent.StartRename) },
             modifier = Modifier.focusRequester(focus.targets.rename),
         )
         TvIconButton(
             icon = Icons.Rounded.Delete,
             contentDescription = "Удалить папку",
-            onClick = { actions.onEvent(FolderEvent.AskDelete) },
+            onClick = { onEvent(FolderEvent.AskDelete) },
             modifier = Modifier.focusRequester(focus.targets.delete),
             destructive = true,
         )
@@ -203,11 +213,11 @@ private fun FolderButtons(first: Item?, actions: FolderActions, focus: FolderHea
  * подсказками пульта.
  */
 @Composable
-internal fun FolderGrid(state: FolderState, actions: FolderActions, screenFocus: TvScreenFocus) {
+internal fun FolderGrid(state: FolderState, onEvent: (FolderEvent) -> Unit, screenFocus: TvScreenFocus) {
     val gridState = rememberLazyGridState()
     val cards = FolderCards(screenFocus, rememberCardFocusHandoff(), state.items.map { folderItemKey(it.id) })
     val fades = rememberTvScrollFades(gridState)
-    LoadMoreWhenNearEnd(gridState) { actions.onEvent(FolderEvent.LoadMore) }
+    LoadMoreWhenNearEnd(gridState) { onEvent(FolderEvent.LoadMore) }
     Box(Modifier.fillMaxSize()) {
         TvDimGroup(Modifier.fillMaxSize()) {
             LazyVerticalGrid(
@@ -224,10 +234,10 @@ internal fun FolderGrid(state: FolderState, actions: FolderActions, screenFocus:
                 ),
             ) {
                 if (state.items.isEmpty()) {
-                    item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyFolder(actions) }
+                    item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { EmptyFolder(onEvent) }
                 }
                 itemsIndexed(state.items, key = { _, item -> item.id }) { index, item ->
-                    FolderPoster(item, index, actions, cards)
+                    FolderPoster(item, index, onEvent, cards)
                 }
             }
         }
@@ -239,14 +249,14 @@ internal fun FolderGrid(state: FolderState, actions: FolderActions, screenFocus:
 private class FolderCards(val screen: TvScreenFocus, val handoff: CardFocusHandoff, val keys: List<String>)
 
 @Composable
-private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, actions: FolderActions, cards: FolderCards) {
+private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, onEvent: (FolderEvent) -> Unit, cards: FolderCards) {
     val key = folderItemKey(item.id)
     var removing by remember { mutableStateOf(false) }
     TvPosterCard(
         title = item.title,
         meta = posterMeta(type = null, year = item.year).withDuration(item),
         posterUrl = item.posters.medium.ifBlank { item.posters.small },
-        onClick = { actions.onOpenItem(item.id) },
+        onClick = { onEvent(FolderEvent.OpenItem(item.id)) },
         // Долгое «ОК» — убрать из папки; фокус переходит на соседа, а не теряется.
         onLongClick = {
             cards.handoff.handOff(cards.keys, key)
@@ -259,7 +269,7 @@ private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, actions: Fold
             .fxEnter(FIRST_POSTER_ENTER + index % GRID_COLUMNS)
             .then(cards.screen.item(key))
             .then(cards.handoff.card(key))
-            .collapseOnRemove(removing) { actions.onEvent(FolderEvent.RemoveItem(item.id)) },
+            .collapseOnRemove(removing) { onEvent(FolderEvent.RemoveItem(item.id)) },
     )
 }
 
@@ -274,10 +284,14 @@ private fun String?.withDuration(item: Item): String? {
 
 /** Пустая папка: что здесь будет и «Перейти в каталог» — единственное осмысленное действие. */
 @Composable
-private fun EmptyFolder(actions: FolderActions) {
+private fun EmptyFolder(onEvent: (FolderEvent) -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         MineEmpty(MineEmptyText.Folder, Icons.Rounded.FolderOpen)
-        TvButton(text = "Перейти в каталог", onClick = actions.onOpenCatalog, style = TvButtonStyle.Secondary)
+        TvButton(
+            text = "Перейти в каталог",
+            onClick = { onEvent(FolderEvent.OpenCatalog) },
+            style = TvButtonStyle.Secondary,
+        )
     }
 }
 

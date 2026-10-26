@@ -11,15 +11,11 @@ import com.filmax.core.ui.components.FilmaxFolderEditor
 import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.feature.library.common.MineEvent
+import com.filmax.feature.library.common.MineRemoval
 import com.filmax.feature.library.common.MineState
 
 @Composable
-internal fun MineSheets(
-    state: MineState,
-    confirm: MineConfirm?,
-    onEvent: (MineEvent) -> Unit,
-    onDismissConfirm: () -> Unit,
-) {
+internal fun MineSheets(state: MineState, onEvent: (MineEvent) -> Unit) {
     state.draft?.let { draft -> CreateFolderSheet(draft = draft, onEvent = onEvent) }
     if (state.confirmClearHistory) {
         FilmaxConfirmSheet(
@@ -30,23 +26,16 @@ internal fun MineSheets(
             onDismiss = { onEvent(MineEvent.DismissClearHistory) },
         )
     }
-    confirm?.let { asked ->
+    state.confirmRemoval?.let { removal ->
         FilmaxConfirmSheet(
-            title = "Убрать «${asked.title}»?",
-            message = when (asked) {
-                is MineConfirm.Watchlist -> "Тайтл пропадёт из «Буду смотреть». Добавить его обратно можно в карточке."
-                is MineConfirm.History -> "kino.pub забудет просмотр тайтла целиком — и в истории, и в «Продолжить»."
+            title = "Убрать «${removal.title}»?",
+            message = when (removal) {
+                is MineRemoval.Watchlist -> "Тайтл пропадёт из «Буду смотреть». Добавить его обратно можно в карточке."
+                is MineRemoval.History -> "kino.pub забудет просмотр тайтла целиком — и в истории, и в «Продолжить»."
             },
             confirmLabel = "Убрать",
-            onConfirm = {
-                onEvent(
-                    when (asked) {
-                        is MineConfirm.Watchlist -> MineEvent.RemoveFromWatchlist(asked.itemId)
-                        is MineConfirm.History -> MineEvent.RemoveFromContinue(asked.itemId)
-                    },
-                )
-            },
-            onDismiss = onDismissConfirm,
+            onConfirm = { onEvent(MineEvent.ConfirmRemoval) },
+            onDismiss = { onEvent(MineEvent.DismissRemoval) },
         )
     }
 }

@@ -52,6 +52,7 @@ class PlayerScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val models = mutableListOf<PlayerScreenModel>()
     private val tvLink = FakeTvLinkReceiver()
+    private val effects = mutableListOf<PlayerSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -240,9 +241,7 @@ class PlayerScreenModelTest {
 
     @Test
     fun `phone remote switches episodes and closes the player by navigation`() = runTest(dispatcher) {
-        val model = loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
-        val effects = mutableListOf<PlayerSideEffect>()
-        model.observeSideEffects { effects += it }
+        loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
 
         listOf(RemoteCommand.NextEpisode, RemoteCommand.PreviousEpisode, RemoteCommand.Stop).forEach {
             tvLink.receive(it)
@@ -250,11 +249,65 @@ class PlayerScreenModelTest {
         }
 
         val expected = listOf(
-            PlayerSideEffect.PlayEpisode(season = 4, videoId = 8),
-            PlayerSideEffect.PlayEpisode(season = 4, videoId = 6),
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 8, season = 4),
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 6, season = 4),
             PlayerSideEffect.Exit,
         )
         assertEquals(expected, effects)
+    }
+
+    @Test
+    fun `episode from the panel and next card replace the player, exit goes back`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
+
+        model.send(PlayerEvent.PlayEpisode(season = 2, videoId = 3))
+        model.send(PlayerEvent.PlayNext)
+        model.send(PlayerEvent.Exit)
+
+        val expected = listOf(
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 3, season = 2),
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 8, season = 4),
+            PlayerSideEffect.Exit,
+        )
+        assertEquals(expected, effects)
+    }
+
+    @Test
+    fun `remote seek step accelerates while held and a finger scrub commits on release`() = runTest(dispatcher) {
+        val model = created(FakeIds.LONG_SERIES, season = 4, videoId = 7, startSeconds = PHONE_POSITION_S)
+        advanceUntilIdle()
+        val start = PHONE_POSITION_S * 1000L
+
+        // Только runCurrent: advanceUntilIdle промотал бы и паузу, после которой перемотка подтверждается.
+        model.dispatch(PlayerEvent.SeekStep(direction = 1, repeatCount = 0, eventTimeMs = 0))
+        runCurrent()
+        assertEquals(start + 10_000, model.states.value.scrubTargetMs, "первый шаг — 10 секунд")
+        model.dispatch(PlayerEvent.SeekStep(direction = 1, repeatCount = 1, eventTimeMs = 2_500))
+        runCurrent()
+        assertEquals(start + 40_000, model.states.value.scrubTargetMs, "удержание разгоняет до 30 секунд")
+        assertEquals(start, model.player.currentPosition, "пока крутят, плеер стоит на месте")
+
+        advanceTimeBy(SCRUB_COMMIT_TIMEOUT_MS + 1)
+        runCurrent()
+        assertNull(model.states.value.scrubTargetMs, "пауза в нажатиях подтверждает перемотку")
+        assertEquals(start + 40_000, model.player.currentPosition)
+
+        model.send(PlayerEvent.Scrub(start))
+        assertEquals(start, model.states.value.shownPositionMs)
+        model.send(PlayerEvent.ScrubFinished)
+        assertEquals(start, model.player.currentPosition)
+        assertNull(model.states.value.scrubTargetMs)
+    }
+
+    @Test
+    fun `back on the next card dismisses it and the ended episode then stays`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LONG_SERIES, season = 4, videoId = 7)
+
+        model.send(PlayerEvent.DismissAutoNext)
+
+        assertTrue(model.states.value.autoNext.dismissed)
+        assertFalse(model.states.value.autoNext.visible)
+        assertTrue(effects.isEmpty())
     }
 
     @Test
@@ -274,18 +327,16 @@ class PlayerScreenModelTest {
     fun `continue on tv hands over this episode from the current position`() = runTest(dispatcher) {
         val model = created(FakeIds.LONG_SERIES, season = 4, videoId = 7, startSeconds = PHONE_POSITION_S)
         advanceUntilIdle()
-        val effects = mutableListOf<PlayerSideEffect>()
-        model.observeSideEffects { effects += it }
 
         model.send(PlayerEvent.ContinueOnTv)
 
-        val play = RemoteCommand.Play(
+        val picker = PlayerSideEffect.OpenTvPicker(
             itemId = FakeIds.LONG_SERIES,
             videoId = 7,
             season = 4,
             startSeconds = PHONE_POSITION_S,
         )
-        assertEquals(listOf<PlayerSideEffect>(PlayerSideEffect.ChooseTv(play)), effects)
+        assertEquals(listOf<PlayerSideEffect>(picker), effects)
     }
 
     private fun TestScope.loaded(
@@ -325,6 +376,7 @@ class PlayerScreenModelTest {
             tvLink = tvLink,
             context = RuntimeEnvironment.getApplication(),
         )
+        model.observeSideEffects(effects::add)
         models += model
         return model
     }

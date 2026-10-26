@@ -20,6 +20,7 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
@@ -49,7 +50,7 @@ class TvMovieDetailsFocusTest {
     @get:Rule
     val images = FakeImagesRule()
 
-    private val calls = mutableListOf<String>()
+    private val events = mutableListOf<DetailsEvent>()
     private val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))
 
     @Before
@@ -60,12 +61,13 @@ class TvMovieDetailsFocusTest {
 
     @Test
     fun `screen opens on play and plays the movie without a season`() {
-        showMovie()
+        val state = showMovie()
         assertFocusedHas("Смотреть")
 
         pressKey(Key.DirectionCenter)
 
-        val (season, _) = calls.last().removePrefix("play ").split("/").map(String::toInt)
+        assertEquals(DetailsEvent.Play, events.last())
+        val season = checkNotNull(state.play).season
         assertTrue(season <= 0, "фильм запущен с сезоном $season")
     }
 
@@ -76,7 +78,7 @@ class TvMovieDetailsFocusTest {
         pressKey(Key.DirectionRight)
         pressKey(Key.DirectionCenter)
 
-        assertEquals("watch later", calls.last())
+        assertEquals(DetailsEvent.ToggleFav, events.last())
     }
 
     @Test
@@ -85,14 +87,15 @@ class TvMovieDetailsFocusTest {
 
         // Вниз по ленте с «ОК» на каждом ряду: состав открывает актёра, «Похожие» — тайтл.
         repeat(MAX_PRESSES) {
-            if (calls.none { it.startsWith("open") }) {
+            if (events.none { it is DetailsEvent.OpenItem }) {
                 pressKey(Key.DirectionDown)
                 pressKey(Key.DirectionCenter)
             }
         }
 
-        val opened = checkNotNull(calls.lastOrNull { it.startsWith("open") }) { "до «Похожих» не дошли: $calls" }
-        assertTrue(similar.any { it.id == opened.removePrefix("open ").toInt() }, "открыт не тайтл из «Похожих»")
+        val opened = events.filterIsInstance<DetailsEvent.OpenItem>().lastOrNull()
+        checkNotNull(opened) { "до «Похожих» не дошли: $events" }
+        assertTrue(similar.any { it.id == opened.itemId }, "открыт не тайтл из «Похожих»")
     }
 
     @Test
@@ -101,27 +104,28 @@ class TvMovieDetailsFocusTest {
 
         // Вниз до состава: «ОК» на первой карточке ряда открывает актёра.
         repeat(MAX_PRESSES) {
-            if (calls.none { it.startsWith("person") }) {
+            if (events.none { it is DetailsEvent.OpenPerson }) {
                 pressKey(Key.DirectionDown)
                 pressKey(Key.DirectionCenter)
             }
         }
-        val firstActor = checkNotNull(calls.lastOrNull { it.startsWith("person") }) { "до состава не дошли: $calls" }
+        val firstActor = events.filterIsInstance<DetailsEvent.OpenPerson>().lastOrNull()
+        checkNotNull(firstActor) { "до состава не дошли: $events" }
         repeat(CAST_STEPS_RIGHT) { pressKey(Key.DirectionRight) }
         pressKey(Key.DirectionCenter)
-        val thirdActor = calls.last()
-        assertTrue(thirdActor.startsWith("person") && thirdActor != firstActor, "фокус не ушёл вправо по составу")
+        val thirdActor = events.last()
+        assertTrue(thirdActor is DetailsEvent.OpenPerson && thirdActor != firstActor, "фокус не ушёл вправо по составу")
 
         // «Вниз» с третьей карточки состава — в «Похожие» впервые: на первую карточку, а не на
         // ближайшую по горизонтали и не на чип режиссёра в том же ряду.
         pressKey(Key.DirectionDown)
         pressKey(Key.DirectionCenter)
-        assertEquals("open ${similar.first().id}", calls.last())
+        assertEquals(DetailsEvent.OpenItem(similar.first().id), events.last())
 
         // «Вверх» — обратно на того актёра, с которого ушли.
         pressKey(Key.DirectionUp)
         pressKey(Key.DirectionCenter)
-        assertEquals(thirdActor, calls.last())
+        assertEquals(thirdActor, events.last())
     }
 
     @Test
@@ -138,34 +142,23 @@ class TvMovieDetailsFocusTest {
         assertTrue(hintTop >= margin, "подсказка «Назад» прижата к краю: ${hintTop}px от верха")
     }
 
+    /** Состояние, как его собирает модель: фильм с «Похожими», без сериальных данных. */
     private fun showMovie(): DetailsState {
         val state = runBlocking {
-            DetailsState(
-                loading = false,
+            DetailsState().loaded(
                 item = checkNotNull(catalog.getItemDetails(FakeIds.HERO_MOVIE).getOrNull()),
                 similar = catalog.getSimilarItems(FakeIds.HERO_MOVIE).getOrNull().orEmpty(),
+                series = null,
             )
         }
         val item = checkNotNull(state.item)
         assertTrue(state.similar.isNotEmpty(), "у фикстуры нет «Похожих»")
         compose.setContent {
-            FilmaxTvTheme { DetailsWithSheet(state, item, actions()) }
+            FilmaxTvTheme { DetailsWithSheet(state, item, onEvent = events::add) }
         }
         compose.waitForIdle()
         return state
     }
-
-    private fun actions() = DetailsActions(
-        onPlay = { season, videoId -> calls += "play $season/$videoId" },
-        onToggleWatchLater = { calls += "watch later" },
-        onTrailer = null,
-        onOpenItem = { id -> calls += "open $id" },
-        onOpenPerson = { name, _ -> calls += "person $name" },
-        onOpenDescription = { calls += "description" },
-        onCloseDescription = {},
-        onSelectSeason = { number -> calls += "season $number" },
-        onSwitchSeason = { number -> calls += "switch $number" },
-    )
 
     private fun focusedHas(text: String): Boolean = compose.onAllNodes(
         isFocused() and (hasText(text, substring = true) or hasAnyDescendant(hasText(text, substring = true))),

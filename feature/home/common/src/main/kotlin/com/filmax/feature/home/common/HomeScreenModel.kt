@@ -11,7 +11,11 @@ import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
+import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.navigation.Destination
 import com.filmax.core.presentation.BaseScreenModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 class HomeScreenModel(
     private val getHomeFeed: GetHomeFeedUseCase,
@@ -22,6 +26,9 @@ class HomeScreenModel(
     private val feedbackPrompts: FeedbackPrompts,
 ) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
 
+    /** Таймер карусели hero на ТВ: идёт, пока hero в фокусе. */
+    private var heroTimer: Job? = null
+
     init {
         onFetchData()
         fetchUserInitials()
@@ -29,35 +36,39 @@ class HomeScreenModel(
         askFeedbackAfterUpdate()
     }
 
-    /**
-     * Главная — первый экран после входа на обеих платформах: здесь и узнаём, что приложение
-     * обновилось. Окно открывается не чаще, чем разрешает [FeedbackPrompts].
-     */
-    private fun askFeedbackAfterUpdate() {
-        screenModelScope { _ ->
-            if (feedbackPrompts.afterAppStart()) postSideEffect(HomeSideEffect.AskFeedback)
-        }
-    }
-
     override fun onEvent(event: HomeEvent) {
         when (event) {
             HomeEvent.Load -> onFetchData()
-            is HomeEvent.LoadMoreRow -> loadMoreRow(event.id)
-            HomeEvent.NextHero -> screenModelScope { _ -> updateState { current -> current.withNextHero() } }
-            is HomeEvent.ToggleWatchLater -> screenModelScope { _ -> toggleWatchLater(event.item) }
+            is HomeEvent.LoadMoreRow -> onLoadMoreRow(event.id)
+            is HomeEvent.HeroFocused -> onHeroFocused(event.focused)
+            is HomeEvent.ToggleWatchLater -> onToggleWatchLater(event.item)
+            is HomeEvent.OpenItem -> sendSideEffect(HomeSideEffect.OpenDetails(event.itemId))
+            is HomeEvent.Play -> sendSideEffect(HomeSideEffect.OpenPlayer(event.itemId))
+            is HomeEvent.ContinueWatching -> onContinueWatching(event.entry)
+            is HomeEvent.OpenCollection -> onOpenCollection(event.collection)
+            is HomeEvent.OpenSection -> sendSideEffect(HomeSideEffect.OpenSection(event.section))
+            HomeEvent.OpenSections -> onSectionsSheet(open = true)
+            HomeEvent.CloseSections -> onSectionsSheet(open = false)
+            HomeEvent.OpenTv -> sendSideEffect(HomeSideEffect.OpenTvPicker)
+            HomeEvent.OpenCatalog -> sendSideEffect(HomeSideEffect.OpenCatalog)
         }
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope { current ->
             updateState { it.copy(loading = true, error = null) }
             val feed = getHomeFeed()
-            updateState { current ->
-                current.copy(
+            val rows = feedRows(feed) + themeRows(current.rows)
+            val hero = feed.heroes.firstOrNull()
+            val isEmpty = hero == null && rows.all { it.isEmpty }
+            updateState {
+                it.copy(
                     loading = false,
                     heroes = feed.heroes,
                     heroIndex = 0,
-                    rows = current.rowsFor(feed),
+                    hero = hero,
+                    rows = rows,
+                    isEmpty = isEmpty,
                     error = feed.error,
                 )
             }
@@ -73,15 +84,112 @@ class HomeScreenModel(
             // Тематические ряды — после фида и параллельно: первый экран их не ждёт, каждый ряд
             // появляется, как только пришла его страница. Упавший запрос — просто ряд, которого
             // пока нет (пустой экран пропускает); повторная загрузка Главной попробует его снова.
-            state.unloadedThemeRows().forEach(::loadTitlesPage)
+            unloadedThemeRows(rows).forEach(::loadTitlesPage)
+        }
+    }
+
+    /** Ряды фида в порядке макета; состав и заголовки ленты — здесь и только здесь. */
+    private fun feedRows(feed: HomeFeed): List<HomeRow> = listOf(
+        HomeRow.Continue(feed.continueWatching),
+        titlesRow(HomeRowId.TRENDING, RowPaging(feed.trending)),
+        HomeRow.Collections(RowPaging(feed.collections)),
+        titlesRow(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
+        // Новинки — сводка двух источников, листать её из каталога нечем.
+        titlesRow(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
+    )
+
+    /**
+     * Тематические ряды в порядке [THEME_SOURCES]. Уже пришедший ряд остаётся как был: повторная
+     * загрузка Главной не прячет его до ответа и не сбрасывает пролистанное. Остальные — пустые,
+     * ждут первой страницы.
+     */
+    private fun themeRows(shown: List<HomeRow>): List<HomeRow> = THEME_SOURCES.keys.map { id ->
+        shown.firstOrNull { it.id == id } ?: titlesRow(id, RowPaging())
+    }
+
+    /** Тематические ряды, которым нечего показать и которые никто не грузит: первый заход или сбой. */
+    private fun unloadedThemeRows(rows: List<HomeRow>): List<HomeRow.Titles> = rows
+        .filterIsInstance<HomeRow.Titles>()
+        .filter { it.id in THEME_SOURCES && it.isEmpty && !it.paging.loadingMore }
+
+    private fun titlesRow(id: HomeRowId, paging: RowPaging<Item>): HomeRow.Titles {
+        val heading = ROW_HEADINGS.getValue(id)
+        return HomeRow.Titles(id, heading.title, heading.subtitle, paging)
+    }
+
+    /**
+     * Главная — первый экран после входа на обеих платформах: здесь и узнаём, что приложение
+     * обновилось. Окно открывается не чаще, чем разрешает [FeedbackPrompts].
+     */
+    private fun askFeedbackAfterUpdate() {
+        screenModelScope { _ ->
+            if (feedbackPrompts.afterAppStart()) postSideEffect(HomeSideEffect.AskFeedback)
+        }
+    }
+
+    /** Инициалы для аватара в шапке — best-effort, ошибки не мешают ленте. */
+    private fun fetchUserInitials() {
+        screenModelScope { _ ->
+            val profile = user.getProfile() as? RequestResult.Success ?: return@screenModelScope
+            val initials = profile.data.initials()
+            updateState { it.copy(initials = initials) }
         }
     }
 
     /** Отметки «Буду смотреть» — живой поток: кнопка hero и детали меняют их с разных экранов. */
     private fun observeWatchLater() {
-        screenModelScope {
+        screenModelScope { _ ->
             favorites.favoriteIds.collect { ids -> updateState { it.copy(watchLaterIds = ids) } }
         }
+    }
+
+    private fun onToggleWatchLater(item: Item) {
+        screenModelScope { _ -> toggleWatchLater(item) }
+    }
+
+    /**
+     * Карусель листается сама, пока hero в фокусе: зритель смотрит на него, а не на ряды. Ушёл
+     * фокус — таймер стоит; вернулся — отсчёт с нуля. Один тайтл не листается.
+     */
+    private fun onHeroFocused(focused: Boolean) {
+        if (focused && heroTimer?.isActive == true) return
+        heroTimer?.cancel()
+        if (!focused || state.heroes.size < 2) return
+        heroTimer = screenModelScope { _ ->
+            while (true) {
+                delay(HERO_INTERVAL_MS)
+                showNextHero()
+            }
+        }
+    }
+
+    private suspend fun showNextHero() {
+        val heroes = state.heroes
+        if (heroes.size < 2) return
+        val index = (state.heroIndex + 1) % heroes.size
+        updateState { it.copy(heroIndex = index, hero = heroes[index]) }
+    }
+
+    /**
+     * Ряд «Продолжить» ведёт сразу в плеер, минуя детали: недосмотренная серия — это сезон и номер
+     * видео из истории, позицию внутри трека восстановит плеер.
+     */
+    private fun onContinueWatching(entry: WatchHistory) {
+        val progress = entry.progress
+        val effect = HomeSideEffect.OpenPlayer(
+            itemId = entry.itemId,
+            videoId = progress?.videoId ?: Destination.Player.UNKNOWN,
+            season = progress?.season ?: Destination.Player.UNKNOWN,
+        )
+        sendSideEffect(effect)
+    }
+
+    private fun onOpenCollection(collection: Collection) {
+        sendSideEffect(HomeSideEffect.OpenCollection(collection.id, collection.title))
+    }
+
+    private fun onSectionsSheet(open: Boolean) {
+        screenModelScope { _ -> updateState { it.copy(sectionsOpen = open) } }
     }
 
     /**
@@ -91,26 +199,22 @@ class HomeScreenModel(
     private fun loadCollectionPreviews(collections: List<Collection>) {
         collections.take(COLLECTION_PREVIEWS_LIMIT).forEach { collection ->
             screenModelScope { _ ->
-                val preview = catalog.collectionPreview(collection.id) ?: return@screenModelScope
-                updateRows { row -> row.withPreview(collection.id, preview) }
+                val result = catalog.getCollectionItems(collection.id) as? RequestResult.Success
+                val page = result?.data ?: return@screenModelScope
+                val preview = CollectionPreview(
+                    posters = page.items.take(PREVIEW_POSTERS).map { it.posters.medium.ifBlank { it.posters.small } },
+                    count = page.items.size.takeUnless { page.pagination.hasNextPage },
+                )
+                addCollectionPreview(collection.id, preview)
             }
         }
     }
 
-    /** Инициалы для аватара в шапке — best-effort, ошибки не мешают ленте. */
-    private fun fetchUserInitials() {
-        screenModelScope {
-            (user.getProfile() as? RequestResult.Success)?.let { result ->
-                updateState { it.copy(initials = result.data.initials()) }
-            }
-        }
-    }
-
-    private fun loadMoreRow(id: HomeRowId) {
+    private fun onLoadMoreRow(id: HomeRowId) {
         when (val row = state.rows.firstOrNull { it.id == id }) {
             // История приходит из фида целиком — листать нечего.
             is HomeRow.Continue, null -> Unit
-            is HomeRow.Titles -> if (row.paging.canLoadMore) loadTitlesPage(row)
+            is HomeRow.Titles -> if (canLoadMore(row.paging)) loadTitlesPage(row)
             is HomeRow.Collections -> loadMoreCollections(row)
         }
     }
@@ -123,17 +227,14 @@ class HomeScreenModel(
         val source = TITLE_SOURCES[row.id] ?: return
         val nextPage = row.paging.page + 1
         screenModelScope { _ ->
-            updateRows { current -> current.withTitlesPaging(row.id) { paging -> paging.copy(loadingMore = true) } }
+            updateTitlesPaging(row.id, row.paging.copy(loadingMore = true))
             val result = catalog.titlesPage(source, nextPage)
-            updateRows { current ->
-                current.withTitlesPaging(row.id) { paging ->
-                    when (result) {
-                        is RequestResult.Success ->
-                            paging.append(result.data.items, Item::id, result.data.pagination.hasNextPage)
-                        is RequestResult.Error -> paging.copy(loadingMore = false)
-                    }
-                }
+            val paging = when (result) {
+                is RequestResult.Success ->
+                    appended(row.paging, result.data.items, Item::id, result.data.pagination.hasNextPage)
+                is RequestResult.Error -> row.paging.copy(loadingMore = false)
             }
+            updateTitlesPaging(row.id, paging)
         }
     }
 
@@ -142,65 +243,78 @@ class HomeScreenModel(
      * список без пагинации — конец определяется пустой страницей.
      */
     private fun loadMoreCollections(row: HomeRow.Collections) {
-        if (!row.paging.canLoadMore) return
+        if (!canLoadMore(row.paging)) return
         val nextPage = row.paging.page + 1
         screenModelScope { _ ->
-            updateRows { current -> current.withCollectionsPaging { paging -> paging.copy(loadingMore = true) } }
+            updateCollectionsPaging(row.paging.copy(loadingMore = true))
             val result = catalog.getCollections(nextPage)
-            updateRows { current ->
-                current.withCollectionsPaging { paging ->
-                    when (result) {
-                        is RequestResult.Success ->
-                            paging.append(result.data, Collection::id, hasNextPage = result.data.isNotEmpty())
-                        is RequestResult.Error -> paging.copy(loadingMore = false)
-                    }
+            val paging = when (result) {
+                is RequestResult.Success -> {
+                    val page = result.data
+                    appended(row.paging, page, Collection::id, hasNextPage = page.isNotEmpty())
                 }
+                is RequestResult.Error -> row.paging.copy(loadingMore = false)
             }
+            updateCollectionsPaging(paging)
         }
     }
 
-    private suspend fun updateRows(transform: (HomeRow) -> HomeRow) {
-        updateState { it.copy(rows = it.rows.map(transform)) }
+    /** Ряд можно листать дальше: не занят, не кончился, не упёрся в потолок и вообще не пуст. */
+    private fun canLoadMore(paging: RowPaging<*>): Boolean =
+        !paging.loadingMore && !paging.endReached && paging.items.isNotEmpty() && paging.items.size < HOME_ROW_MAX
+
+    /**
+     * Приклеивает страницу к ряду: дедуп по [key] (страницы kino.pub пересекаются) и потолок ряда.
+     * Пустая страница, отсутствие следующей или упёршийся потолок означают конец.
+     */
+    private fun <T> appended(
+        paging: RowPaging<T>,
+        page: List<T>,
+        key: (T) -> Int,
+        hasNextPage: Boolean,
+    ): RowPaging<T> {
+        val seen = paging.items.mapTo(HashSet(), key)
+        val merged = (paging.items + page.filterNot { key(it) in seen }).take(HOME_ROW_MAX)
+        return paging.copy(
+            items = merged,
+            page = paging.page + 1,
+            loadingMore = false,
+            endReached = page.isEmpty() || !hasNextPage || merged.size >= HOME_ROW_MAX,
+        )
+    }
+
+    /** Ряды меняются по одному, из текущего состояния: превью и страницы приезжают параллельно. */
+    private suspend fun updateTitlesPaging(id: HomeRowId, paging: RowPaging<Item>) {
+        val rows = state.rows.map { row ->
+            if (row is HomeRow.Titles && row.id == id) row.copy(paging = paging) else row
+        }
+        updateState { it.copy(rows = rows) }
+    }
+
+    private suspend fun updateCollectionsPaging(paging: RowPaging<Collection>) {
+        val rows = state.rows.map { row -> if (row is HomeRow.Collections) row.copy(paging = paging) else row }
+        updateState { it.copy(rows = rows) }
+    }
+
+    private suspend fun addCollectionPreview(collectionId: Int, preview: CollectionPreview) {
+        val rows = state.rows.map { row ->
+            if (row is HomeRow.Collections) row.copy(previews = row.previews + (collectionId to preview)) else row
+        }
+        updateState { it.copy(rows = rows) }
     }
 }
+
+/** Карусель hero листается сама раз в восемь секунд, пока hero в фокусе. */
+internal const val HERO_INTERVAL_MS = 8_000L
 
 /** Сколько подборок получают превью — столько видно в ряду до первой прокрутки и чуть дальше. */
 private const val COLLECTION_PREVIEWS_LIMIT = 6
 
-/**
- * Лента: ряды фида, за ними тематические. Состав и порядок ленты — здесь и только здесь (порядок
- * тематических рядов — [THEME_SOURCES]).
- */
-private fun HomeState.rowsFor(feed: HomeFeed): List<HomeRow> = listOf(
-    HomeRow.Continue(feed.continueWatching),
-    HomeRow.Titles(HomeRowId.TRENDING, RowPaging(feed.trending)),
-    HomeRow.Collections(RowPaging(feed.collections)),
-    HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
-    // Новинки — сводка двух источников, листать её из каталога нечем.
-    HomeRow.Titles(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
-) + themeRows()
+/** Постеров веером на карточке подборки. */
+private const val PREVIEW_POSTERS = 2
 
 /**
  * Потолок карточек в одном ряду: бесконечный ряд на пульте — сотни нажатий вправо, а каждая
  * сотня карточек ещё и держит в памяти постеры. Дальше пусть зовёт Каталог.
  */
 private const val HOME_ROW_MAX = 100
-
-/** Ряд можно листать дальше: не занят, не кончился, не упёрся в потолок и вообще не пуст. */
-private val RowPaging<*>.canLoadMore: Boolean
-    get() = !loadingMore && !endReached && items.isNotEmpty() && items.size < HOME_ROW_MAX
-
-/**
- * Приклеивает страницу к ряду: дедуп по id (страницы kino.pub пересекаются) и потолок ряда.
- * Пустая страница, отсутствие следующей или упёршийся потолок означают конец.
- */
-private fun <T> RowPaging<T>.append(page: List<T>, key: (T) -> Int, hasNextPage: Boolean): RowPaging<T> {
-    val seen = items.mapTo(HashSet(), key)
-    val merged = (items + page.filterNot { key(it) in seen }).take(HOME_ROW_MAX)
-    return copy(
-        items = merged,
-        page = this.page + 1,
-        loadingMore = false,
-        endReached = page.isEmpty() || !hasNextPage || merged.size >= HOME_ROW_MAX,
-    )
-}

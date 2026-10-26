@@ -40,8 +40,10 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxSearchField
@@ -51,11 +53,7 @@ import com.filmax.core.ui.components.FilmaxTextButton
 import com.filmax.core.ui.components.LocalNavBarPadding
 import com.filmax.core.ui.components.SuggestionKind
 import com.filmax.core.ui.components.VoiceListeningOverlay
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.rememberInAppVoiceSearch
-import com.filmax.core.ui.components.typeLabel
-import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
@@ -67,20 +65,11 @@ private val SearchTypes = listOf(
     null to "Всё",
     ItemType.MOVIE to "Фильмы",
     ItemType.SERIES to "Сериалы",
-    ItemType.ANIME to "Аниме"
+    ItemType.ANIME to "Аниме",
 )
 
 /** Сколько примеров предложить в голосовом оверлее. */
 private const val VOICE_EXAMPLES = 3
-
-/** Переходы и правки запроса одним объектом: порог LongParameterList у detekt — 6. */
-private data class SearchActions(
-    val onQueryChange: (String) -> Unit,
-    val onSubmit: (String) -> Unit,
-    val onFilter: (ItemType?) -> Unit,
-    val onClearRecent: () -> Unit,
-    val onOpenItem: (Int) -> Unit,
-)
 
 @Composable
 fun SearchScreen(
@@ -89,21 +78,10 @@ fun SearchScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    val onEvent: (SearchEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect -> openSearchEffect(navigator, effect) }
     val keyboard = LocalSoftwareKeyboardController.current
-    val actions = remember(screenModel, navigator) {
-        SearchActions(
-            onQueryChange = { screenModel.dispatch(SearchEvent.QueryChange(it)) },
-            onSubmit = { screenModel.dispatch(SearchEvent.SubmitQuery(it)) },
-            onFilter = { screenModel.dispatch(SearchEvent.FilterChange(it)) },
-            onClearRecent = { screenModel.dispatch(SearchEvent.ClearRecent) },
-            onOpenItem = { itemId ->
-                // Открытый результат — повод запомнить запрос в недавних.
-                screenModel.dispatch(SearchEvent.ResultOpened)
-                navigator.open(Destination.Details(itemId))
-            },
-        )
-    }
-    val voice = rememberInAppVoiceSearch(onResult = actions.onSubmit)
+    val voice = rememberInAppVoiceSearch(onResult = { onEvent(SearchEvent.SubmitQuery(it)) })
     val focus = remember { FocusRequester() }
     // Вкладку открывают, чтобы искать: клавиатура — сразу, если запроса ещё нет.
     LaunchedEffect(Unit) { if (state.query.isEmpty()) focus.requestFocus() }
@@ -118,28 +96,28 @@ fun SearchScreen(
         Column(Modifier.fillMaxSize().statusBarsPadding()) {
             FilmaxSearchField(
                 query = state.query,
-                onQueryChange = actions.onQueryChange,
+                onQueryChange = { onEvent(SearchEvent.QueryChange(it)) },
                 onVoice = voice::start,
                 onSearch = {
                     keyboard?.hide()
-                    actions.onSubmit(state.query)
+                    onEvent(SearchEvent.SubmitQuery(state.query))
                 },
                 focusRequester = focus,
                 modifier = Modifier.padding(horizontal = FilmaxMetrics.GridPadding).padding(top = 8.dp),
             )
-            TypeChips(selected = state.filter, onFilter = actions.onFilter)
-            SearchBody(state = state, actions = actions)
+            TypeChips(selected = state.filter, onEvent = onEvent)
+            SearchBody(state = state, onEvent = onEvent)
         }
     }
     VoiceListeningOverlay(
         controller = voice,
         examples = state.trendingQueries.take(VOICE_EXAMPLES),
-        onExample = actions.onSubmit,
+        onExample = { onEvent(SearchEvent.SubmitQuery(it)) },
     )
 }
 
 @Composable
-private fun TypeChips(selected: ItemType?, onFilter: (ItemType?) -> Unit) {
+private fun TypeChips(selected: ItemType?, onEvent: (SearchEvent) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -148,40 +126,48 @@ private fun TypeChips(selected: ItemType?, onFilter: (ItemType?) -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         SearchTypes.forEach { (type, label) ->
-            FilmaxChip(label = label, selected = selected == type, onClick = { onFilter(type) })
+            FilmaxChip(
+                label = label,
+                selected = selected == type,
+                onClick = { onEvent(SearchEvent.FilterChange(type)) },
+            )
         }
     }
 }
 
 /** Пустой запрос — подсказки, набранный — выдача; клавиатура не закрывает последние строки. */
 @Composable
-private fun SearchBody(state: SearchState, actions: SearchActions) {
+private fun SearchBody(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().imePadding(),
         contentPadding = PaddingValues(bottom = LocalNavBarPadding.current),
     ) {
-        if (state.query.length < MIN_QUERY_LENGTH) {
-            suggestions(state = state, actions = actions)
-        } else {
-            results(state = state, actions = actions)
-        }
+        if (state.searching) results(state, onEvent) else suggestions(state, onEvent)
     }
 }
 
-private fun LazyListScope.suggestions(state: SearchState, actions: SearchActions) {
+private fun LazyListScope.suggestions(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     if (state.recentQueries.isNotEmpty()) {
-        item(key = "recent-title") { SuggestionTitle("Недавние", onClear = actions.onClearRecent) }
+        item(key = "recent-title") { SuggestionTitle("Недавние", onClear = { onEvent(SearchEvent.ClearRecent) }) }
         items(state.recentQueries, key = { "recent-$it" }) { query ->
-            FilmaxSuggestionRow(text = query, kind = SuggestionKind.Recent, onClick = { actions.onSubmit(query) })
+            FilmaxSuggestionRow(
+                text = query,
+                kind = SuggestionKind.Recent,
+                onClick = { onEvent(SearchEvent.SubmitQuery(query)) },
+            )
         }
     }
     item(key = "trending-title") { SuggestionTitle("Часто ищут", onClear = null) }
     items(state.trendingQueries, key = { "trending-$it" }) { query ->
-        FilmaxSuggestionRow(text = query, kind = SuggestionKind.Trending, onClick = { actions.onSubmit(query) })
+        FilmaxSuggestionRow(
+            text = query,
+            kind = SuggestionKind.Trending,
+            onClick = { onEvent(SearchEvent.SubmitQuery(query)) },
+        )
     }
 }
 
-private fun LazyListScope.results(state: SearchState, actions: SearchActions) {
+private fun LazyListScope.results(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     when {
         state.loading && state.results.isEmpty() -> item(key = "loading") {
             Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
@@ -206,20 +192,20 @@ private fun LazyListScope.results(state: SearchState, actions: SearchActions) {
         }
     }
     items(state.results, key = { it.id }) { item ->
-        ResultRow(item = item, query = state.query, actions = actions)
+        ResultRow(item = item, query = state.query, onEvent = onEvent)
     }
 }
 
 @Composable
-private fun ResultRow(item: Item, query: String, actions: SearchActions) {
+private fun ResultRow(item: Item, query: String, onEvent: (SearchEvent) -> Unit) {
     FilmaxSearchResultRow(
         title = item.title,
         query = query,
         posterUrl = item.posters.small.ifEmpty { item.posters.medium },
-        onClick = { actions.onOpenItem(item.id) },
+        onClick = { onEvent(SearchEvent.OpenResult(item.id)) },
         rating = ratingLabel(item.rating.external),
         meta = posterMeta(typeLabel(item.type), item.year),
-        onInsert = { actions.onQueryChange(item.title) },
+        onInsert = { onEvent(SearchEvent.QueryChange(item.title)) },
     )
 }
 
@@ -236,7 +222,7 @@ private fun SuggestionTitle(title: String, onClear: (() -> Unit)?) {
             title.uppercase(),
             style = FilmaxType.overline,
             color = FilmaxColors.TextDim,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
         )
         onClear?.let {
             FilmaxTextButton(text = "Очистить", onClick = it)

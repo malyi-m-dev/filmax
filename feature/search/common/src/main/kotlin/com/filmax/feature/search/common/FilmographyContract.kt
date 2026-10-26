@@ -13,9 +13,17 @@ data class FilmographyState(
     val error: String? = null,
 )
 
-/** Retry — повтор загрузки после сбоя сети. */
 sealed interface FilmographyEvent {
+    /** Повтор загрузки после сбоя сети. */
     data object Retry : FilmographyEvent
+
+    /** Работа из сетки — в детали. */
+    data class OpenItem(val itemId: Int) : FilmographyEvent
+    data object Back : FilmographyEvent
 }
 
-sealed interface FilmographySideEffect
+/** Переходы из фильмографии; исполняет их навигатором экран. */
+sealed interface FilmographySideEffect {
+    data class OpenDetails(val itemId: Int) : FilmographySideEffect
+    data object Back : FilmographySideEffect
+}

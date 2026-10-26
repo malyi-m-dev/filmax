@@ -37,6 +37,11 @@ formatting:
 
 complexity:
   active: true
+  # onEvent ScreenModel — один when, по строке на событие: ветки простые, и их число — это число
+  # событий экрана, а не сложность метода. Остальные методы считаются как обычно.
+  CyclomaticComplexMethod:
+    active: true
+    ignoreSimpleWhenEntries: true
   ComplexCondition:
     active: true
     threshold: 4
@@ -46,7 +51,9 @@ complexity:
   LongParameterList:
     active: true
     functionThreshold: 6
-    constructorThreshold: 7
+    # ScreenModel получает репозитории, use-case-ы и Navigator через конструктор — семь зависимостей
+    # у Главной легитимны, восьмую уже стоит сгруппировать.
+    constructorThreshold: 8
     ignoreDefaultParameters: false
     ignoreDataClasses: true
     ignoreAnnotatedParameter: []
@@ -60,6 +67,9 @@ complexity:
   TooManyFunctions:
     active: true
     ignoreAnnotatedFunctions: ['Composable']
+    # ScreenModel разбирает события по одному приватному обработчику на событие — это и есть его
+    # устройство, а не признак несвязности. Считаем только то, что модуль показывает наружу.
+    ignorePrivate: true
 
 naming:
   active: true

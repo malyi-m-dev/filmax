@@ -136,7 +136,7 @@ class TvProfileFocusTest {
         compose.setContent {
             FilmaxTvTheme {
                 val state by model.collectAsState()
-                ProfileContent(state, ProfileActions(onEvent = model::dispatch, onCheckUpdates = {}))
+                ProfileContent(state, onEvent = model::dispatch, onCheckUpdates = {})
             }
         }
         compose.waitForIdle()

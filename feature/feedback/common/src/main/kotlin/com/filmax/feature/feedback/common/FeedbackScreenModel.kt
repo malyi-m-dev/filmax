@@ -11,9 +11,6 @@ import com.filmax.core.domain.feedback.FeedbackRepository
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.presentation.BaseScreenModel
-import com.filmax.core.presentation.input.SPACE_KEY
-import com.filmax.core.presentation.input.erasedText
-import com.filmax.core.presentation.input.typedText
 import com.filmax.feature.feedback.common.navigation.FeedbackRoute
 
 /**
@@ -42,17 +39,29 @@ class FeedbackScreenModel(
 
     override fun onEvent(event: FeedbackEvent) {
         when (event) {
-            is FeedbackEvent.Rate -> update {
-                it.copy(rating = event.rating.coerceIn(Feedback.RATING_RANGE), error = null)
-            }
-            is FeedbackEvent.Comment -> update { it.copy(comment = event.text.take(Feedback.COMMENT_MAX_LENGTH)) }
-            is FeedbackEvent.Key -> update { it.applied(event.input) }
-            FeedbackEvent.Send -> send()
-            FeedbackEvent.Dismiss -> screenModelScope { _ -> postSideEffect(FeedbackSideEffect.Close) }
+            is FeedbackEvent.Rate -> onRate(event.rating)
+            is FeedbackEvent.Comment -> onComment(event.text)
+            is FeedbackEvent.Key -> onKey(event.input)
+            FeedbackEvent.Send -> onSend()
+            FeedbackEvent.Dismiss -> sendSideEffect(FeedbackSideEffect.Close)
         }
     }
 
-    private fun send() {
+    private fun onRate(rating: Int) {
+        val clamped = rating.coerceIn(Feedback.RATING_RANGE)
+        screenModelScope { _ -> updateState { it.copy(rating = clamped, error = null) } }
+    }
+
+    private fun onComment(text: String) {
+        val trimmed = text.take(Feedback.COMMENT_MAX_LENGTH)
+        screenModelScope { _ -> updateState { it.copy(comment = trimmed) } }
+    }
+
+    private fun onKey(input: FeedbackInput) {
+        screenModelScope { _ -> updateState { it.withInput(input) } }
+    }
+
+    private fun onSend() {
         screenModelScope { current ->
             when {
                 // На ТВ «Отправить» нажимается и без оценки — подсказываем, чего не хватает.
@@ -76,12 +85,9 @@ class FeedbackScreenModel(
                 prompts.onSent()
                 updateState { it.copy(sending = false, sent = true) }
             }
+
             is RequestResult.Error -> updateState { it.copy(sending = false, error = SEND_ERROR) }
         }
-    }
-
-    private fun update(transform: (FeedbackState) -> FeedbackState) {
-        screenModelScope { _ -> updateState(transform) }
     }
 
     private companion object {
@@ -91,12 +97,4 @@ class FeedbackScreenModel(
         fun triggerOf(route: FeedbackRoute): FeedbackTrigger =
             FeedbackTrigger.entries.firstOrNull { it.name == route.trigger } ?: FeedbackTrigger.Profile
     }
-}
-
-/** Клавиша экранной клавиатуры — в комментарий. */
-private fun FeedbackState.applied(input: FeedbackInput): FeedbackState = when (input) {
-    is FeedbackInput.Letter -> copy(comment = typedText(comment, input.key, Feedback.COMMENT_MAX_LENGTH))
-    FeedbackInput.Space -> copy(comment = typedText(comment, SPACE_KEY, Feedback.COMMENT_MAX_LENGTH))
-    FeedbackInput.Erase -> copy(comment = erasedText(comment))
-    is FeedbackInput.Layout -> copy(layout = input.layout)
 }

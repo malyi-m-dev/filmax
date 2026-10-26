@@ -14,18 +14,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.domain.catalog.CatalogSection
+import com.filmax.core.presentation.labels.sectionLabel
 import com.filmax.core.ui.components.FilmaxSectionTile
 import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.hue
 import com.filmax.core.ui.components.icon
-import com.filmax.core.ui.components.label
+import com.filmax.feature.home.common.HomeEvent
 
 /** Плиток в ряду: три — подпись «Документальное» ещё помещается на узком телефоне. */
 private const val TILES_PER_ROW = 3
 
 @Composable
-internal fun HomeSectionsSheet(onOpenSection: (CatalogSection) -> Unit, onDismiss: () -> Unit) {
-    FilmaxSheet(onDismiss = onDismiss, title = "Разделы", subtitle = "Всё, что есть в Filmax") {
+internal fun HomeSectionsSheet(onEvent: (HomeEvent) -> Unit) {
+    FilmaxSheet(
+        onDismiss = { onEvent(HomeEvent.CloseSections) },
+        title = "Разделы",
+        subtitle = "Всё, что есть в Filmax",
+    ) {
         val sheet = this
         Column(
             Modifier
@@ -39,11 +44,11 @@ internal fun HomeSectionsSheet(onOpenSection: (CatalogSection) -> Unit, onDismis
                 Row(horizontalArrangement = Arrangement.spacedBy(TileGap)) {
                     rowSections.forEach { section ->
                         FilmaxSectionTile(
-                            label = section.label,
+                            label = sectionLabel(section),
                             icon = section.icon,
                             hue = section.hue,
                             onClick = {
-                                onOpenSection(section)
+                                onEvent(HomeEvent.OpenSection(section))
                                 sheet.dismiss()
                             },
                             modifier = Modifier.weight(1f),

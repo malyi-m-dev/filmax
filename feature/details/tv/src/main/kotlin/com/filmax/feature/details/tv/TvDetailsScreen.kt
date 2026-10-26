@@ -17,6 +17,7 @@ import com.filmax.core.tv.designsystem.TvSheetHost
 import com.filmax.core.tv.designsystem.TvTextSheet
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
+import com.filmax.feature.details.common.DetailsSideEffect
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerScreenModel
@@ -26,7 +27,9 @@ import org.koin.compose.koinInject
 /**
  * ТВ-детали тайтла. Фильм — вертикальная лента поверх кадра на весь экран: шапка с действиями,
  * состав, «Похожие», «О фильме». Сериал — две колонки: информация слева, панель «Эпизоды»
- * справа. Полное описание — в боковой панели поверх экрана, без смены маршрута.
+ * справа. Полное описание — в боковой панели поверх экрана, без смены маршрута. Куда ведут
+ * кнопки и карточки, решает [DetailsScreenModel]: экран шлёт события и исполняет переходы,
+ * которыми модель на них отвечает.
  */
 @Composable
 fun TvDetailsScreen(
@@ -37,6 +40,21 @@ fun TvDetailsScreen(
 ) {
     val state by screenModel.collectAsState()
     val picker by pickerModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            DetailsSideEffect.Back -> navigator.back()
+            is DetailsSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is DetailsSideEffect.OpenFilmography ->
+                navigator.open(Destination.Filmography(effect.name, effect.isDirector))
+            is DetailsSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            is DetailsSideEffect.OpenTvPicker ->
+                navigator.open(Destination.TvPicker(effect.itemId, effect.videoId, effect.season))
+            is DetailsSideEffect.OpenTrailer -> navigator.open(Destination.Trailer(effect.url, effect.title))
+            // Кнопки «Поделиться» на ТВ нет: системного диалога шаринга на телевизоре не ждут.
+            is DetailsSideEffect.Share -> Unit
+        }
+    }
     val folderButtonFocus = remember { FocusRequester() }
     // Фон — у окна (FilmaxTvTheme): своя заливка экрана закрашивала бы каждый пиксель лишний раз.
     Box(modifier.fillMaxSize()) {
@@ -49,7 +67,7 @@ fun TvDetailsScreen(
             item != null -> DetailsWithSheet(
                 state = state,
                 item = item,
-                actions = detailsActions(item, screenModel, navigator),
+                onEvent = screenModel::dispatch,
                 folders = DetailsFolders(picker, pickerModel::dispatch, folderButtonFocus),
             )
         }
@@ -65,41 +83,46 @@ fun TvDetailsScreen(
 internal fun DetailsWithSheet(
     state: DetailsState,
     item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     folders: DetailsFolders = DetailsFolders.Unused,
 ) {
     TvSheetHost(
         open = folders.state.open,
         onClose = { folders.onEvent(FolderPickerEvent.Close) },
         returnFocus = folders.buttonFocus,
-        sheet = { FolderPickerSheet(item, folders, WatchlistMark(state.isFav, actions.onToggleWatchLater)) },
+        sheet = { FolderPickerSheet(item, folders, WatchlistMark(state.isFav) { onEvent(DetailsEvent.ToggleFav) }) },
     ) {
-        DescriptionSheet(state, item, actions, folders)
+        DescriptionSheet(state, item, onEvent, folders)
     }
 }
 
 @Composable
-private fun DescriptionSheet(state: DetailsState, item: Item, actions: DetailsActions, folders: DetailsFolders) {
+private fun DescriptionSheet(
+    state: DetailsState,
+    item: Item,
+    onEvent: (DetailsEvent) -> Unit,
+    folders: DetailsFolders,
+) {
     val descriptionFocus = remember { FocusRequester() }
     TvSheetHost(
         open = state.descriptionOpen,
-        onClose = actions.onCloseDescription,
+        onClose = { onEvent(DetailsEvent.CloseDescription) },
         returnFocus = descriptionFocus,
         sheet = {
             TvTextSheet(
                 overline = "Описание",
                 title = item.title,
-                meta = sheetMeta(item, state.series).ifBlank { null },
+                meta = state.heading.sheetMeta,
                 text = item.plot,
-                onClose = actions.onCloseDescription,
+                onClose = { onEvent(DetailsEvent.CloseDescription) },
             )
         },
     ) {
         val focus = DetailsSheetFocus(description = descriptionFocus, folders = folders)
         if (state.series != null) {
-            TvSeriesDetails(state, item, actions, focus)
+            TvSeriesDetails(state, item, onEvent, focus)
         } else {
-            TvMovieDetails(state, item, actions, focus)
+            TvMovieDetails(state, item, onEvent, focus)
         }
     }
 }
@@ -109,39 +132,3 @@ private fun DescriptionSheet(state: DetailsState, item: Item, actions: DetailsAc
  * состояние кнопки, её фокус и открытие панели.
  */
 internal data class DetailsSheetFocus(val description: FocusRequester, val folders: DetailsFolders)
-
-/** Действия экрана одним объектом — вложенные секции не тащат длинные списки параметров. */
-internal data class DetailsActions(
-    /** [season] ≤ 0 — фильм или сезон неизвестен; номер серии уникален только внутри сезона. */
-    val onPlay: (season: Int, videoId: Int) -> Unit,
-    val onToggleWatchLater: () -> Unit,
-    /** null — у тайтла нет играбельного трейлера, кнопки нет. */
-    val onTrailer: (() -> Unit)?,
-    val onOpenItem: (Int) -> Unit,
-    val onOpenPerson: (name: String, isDirector: Boolean) -> Unit,
-    val onOpenDescription: () -> Unit,
-    val onCloseDescription: () -> Unit,
-    val onSelectSeason: (Int) -> Unit,
-    /** Сезон стрелкой с серии — применяется сразу, без паузы выбора чипом. */
-    val onSwitchSeason: (Int) -> Unit,
-)
-
-private fun detailsActions(item: Item, screenModel: DetailsScreenModel, navigator: Navigator): DetailsActions {
-    // Трейлер — только если url играбельный http(s): kino.pub отдаёт прямой HLS.
-    val trailerUrl = item.trailer?.url?.takeIf { it.startsWith("http") }
-    return DetailsActions(
-        onPlay = { season, videoId ->
-            navigator.open(Destination.Player(itemId = item.id, videoId = videoId, season = season))
-        },
-        onToggleWatchLater = { screenModel.dispatch(DetailsEvent.ToggleFav) },
-        onTrailer = trailerUrl?.let { url -> { navigator.open(Destination.Trailer(url = url, title = item.title)) } },
-        onOpenItem = { id -> navigator.open(Destination.Details(id)) },
-        onOpenPerson = { name, isDirector ->
-            navigator.open(Destination.Filmography(name = name, isDirector = isDirector))
-        },
-        onOpenDescription = { screenModel.dispatch(DetailsEvent.OpenDescription) },
-        onCloseDescription = { screenModel.dispatch(DetailsEvent.CloseDescription) },
-        onSelectSeason = { number -> screenModel.dispatch(DetailsEvent.SelectSeason(number)) },
-        onSwitchSeason = { number -> screenModel.dispatch(DetailsEvent.SwitchSeason(number)) },
-    )
-}

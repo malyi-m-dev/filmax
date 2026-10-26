@@ -19,15 +19,15 @@ import com.filmax.core.tv.designsystem.TvConfirmSpec
 import com.filmax.core.tv.designsystem.TvOption
 import com.filmax.core.tv.designsystem.TvOptionSheet
 import com.filmax.core.tv.designsystem.TvOptionSheetState
+import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSheetHost
+import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvSectionBackground
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSetting
 import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
-import com.filmax.feature.profile.common.optionsOf
-import com.filmax.feature.profile.common.valueOf
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -39,8 +39,8 @@ import org.koin.compose.koinInject
  *
  * Блока «Настройки устройства» здесь нет намеренно: device/info и device/settings отвечают 500.
  *
- * [remoteCard] — карточка «Пульт с телефона» под подпиской. Её даёт граф (фича связи с телефоном),
- * а не этот экран: фичи друг от друга не зависят.
+ * [onCheckUpdates] — действие `:app` (обновления из GitHub Releases), а [remoteCard] — карточка
+ * «Пульт с телефона» под подпиской. Их даёт граф: фичи друг от друга не зависят.
  */
 @Composable
 fun TvProfileScreen(
@@ -53,26 +53,21 @@ fun TvProfileScreen(
     val state by screenModel.collectAsState()
     screenModel.collectSideEffect { effect ->
         when (effect) {
+            ProfileSideEffect.OpenRate -> navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name))
+            ProfileSideEffect.OpenRemote -> navigator.open(Destination.Remote)
+            ProfileSideEffect.OpenDesignSystem -> navigator.open(Destination.DesignSystem)
+            // Вход становится единственным корнем: «Назад» не возвращает в аккаунт, из которого вышли.
             ProfileSideEffect.LoggedOut -> navigator.root(Destination.Onboarding)
         }
     }
-    val onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) }
-    ProfileContent(state, ProfileActions(screenModel::dispatch, onCheckUpdates, onRate), modifier, remoteCard)
+    ProfileContent(state, screenModel::dispatch, onCheckUpdates, modifier, remoteCard)
 }
-
-/** Действия экрана: события модели, ручная проверка обновлений (её модель живёт в :app) и оценка. */
-internal data class ProfileActions(
-    val onEvent: (ProfileEvent) -> Unit,
-    val onCheckUpdates: () -> Unit,
-    /** Окно оценки приложения. */
-    val onRate: () -> Unit = {},
-)
 
 /**
  * Куда вернуть фокус: на строку настройки, чья панель закрылась, и на «Выйти», когда закрылся
- * диалог.
+ * диалог. [screen] — вход на экран и возврат из других экранов.
  */
-internal class ProfileFocus {
+internal class ProfileFocus(val screen: TvScreenFocus) {
     val settings: Map<ProfileSetting, FocusRequester> = ProfileSetting.entries.associateWith { FocusRequester() }
     val logout = FocusRequester()
 }
@@ -81,11 +76,13 @@ internal class ProfileFocus {
 @Composable
 internal fun ProfileContent(
     state: ProfileState,
-    actions: ProfileActions,
+    onEvent: (ProfileEvent) -> Unit,
+    onCheckUpdates: () -> Unit,
     modifier: Modifier = Modifier,
     remoteCard: @Composable (Modifier) -> Unit = {},
 ) {
-    val focus = remember { ProfileFocus() }
+    val screenFocus = rememberTvScreenFocus(startAt = settingKey(ProfileSetting.QUALITY))
+    val focus = remember(screenFocus) { ProfileFocus(screenFocus) }
     Box(modifier.fillMaxSize().tvSectionBackground()) {
         if (state.loading) {
             CircularProgressIndicator(color = LocalFxColors.current.accent, modifier = Modifier.align(Alignment.Center))
@@ -93,18 +90,16 @@ internal fun ProfileContent(
         }
         TvSheetHost(
             open = state.settingOpen,
-            onClose = { actions.onEvent(ProfileEvent.CloseSetting) },
+            onClose = { onEvent(ProfileEvent.CloseSetting) },
             returnFocus = focus.settings.getValue(state.setting),
-            sheet = {
-                TvOptionSheet(optionSheet(state)) { index -> actions.onEvent(ProfileEvent.ChooseOption(index)) }
-            },
+            sheet = { TvOptionSheet(optionSheet(state)) { index -> onEvent(ProfileEvent.ChooseOption(index)) } },
         ) {
-            ProfileBody(state, actions, focus, remoteCard)
+            ProfileBody(state, onEvent, onCheckUpdates, focus, remoteCard)
         }
         TvConfirmDialog(
             spec = LogoutSpec.takeIf { state.confirmLogout },
-            onConfirm = { actions.onEvent(ProfileEvent.Logout) },
-            onDismiss = { actions.onEvent(ProfileEvent.DismissLogout) },
+            onConfirm = { onEvent(ProfileEvent.Logout) },
+            onDismiss = { onEvent(ProfileEvent.DismissLogout) },
             returnFocus = focus.logout,
         )
     }
@@ -116,15 +111,14 @@ private val LogoutSpec = TvConfirmSpec(
     confirmLabel = "Выйти",
 )
 
-/** Панель вариантов открытой настройки; у палитры — кружки её цветов. */
+/** Панель вариантов открытой настройки в терминах дизайн-системы; у палитры — кружки её цветов. */
 private fun optionSheet(state: ProfileState): TvOptionSheetState {
-    val setting = state.setting
-    val labels = optionsOf(setting)
-    val swatches = if (setting == ProfileSetting.PALETTE) ThemePalette.entries.map { it.toFxColors().accent } else null
+    val palette = state.setting == ProfileSetting.PALETTE
+    val swatches = if (palette) ThemePalette.entries.map { it.toFxColors().accent } else null
     return TvOptionSheetState(
-        overline = if (setting == ProfileSetting.PALETTE) "Оформление" else "Просмотр",
-        title = setting.label,
-        options = labels.mapIndexed { index, label -> TvOption(label, swatches?.getOrNull(index)) },
-        selectedIndex = labels.indexOf(state.valueOf(setting)),
+        overline = state.setting.group,
+        title = state.setting.label,
+        options = state.options.mapIndexed { index, label -> TvOption(label, swatches?.getOrNull(index)) },
+        selectedIndex = state.selectedOption,
     )
 }

@@ -37,6 +37,7 @@ class CollectionDetailScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
+    private val effects = mutableListOf<CollectionDetailSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -80,6 +81,39 @@ class CollectionDetailScreenModelTest {
         val state = loaded(SMALL_COLLECTION).states.value
 
         assertEquals(SMALL_COLLECTION_SIZE, state.titlesCount)
+        assertEquals("6 фильмов", state.caption)
+        assertEquals("Подборка", state.title)
+        assertEquals(SMALL_COLLECTION, state.collectionId)
+    }
+
+    @Test
+    fun `caption agrees the word with the number`() {
+        assertEquals("1 фильм", filmsCaption(1))
+        assertEquals("24 фильма", filmsCaption(24))
+        assertEquals("45 фильмов", filmsCaption(45))
+        assertEquals("11 фильмов", filmsCaption(11))
+        assertEquals("112 фильмов", filmsCaption(112))
+        assertEquals("101 фильм", filmsCaption(101))
+    }
+
+    @Test
+    fun `play all starts the player on the first title, cards open details, back leaves`() = runTest(dispatcher) {
+        val model = loaded(FakeIds.LARGE_COLLECTION)
+        val first = model.states.value.items.first().id
+
+        model.dispatch(CollectionDetailEvent.PlayAll)
+        model.dispatch(CollectionDetailEvent.OpenItem(7))
+        model.dispatch(CollectionDetailEvent.Back)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(
+                CollectionDetailSideEffect.OpenPlayer(first),
+                CollectionDetailSideEffect.OpenDetails(7),
+                CollectionDetailSideEffect.Back,
+            ),
+            effects,
+        )
     }
 
     @Test
@@ -109,6 +143,7 @@ class CollectionDetailScreenModelTest {
             savedStateHandle = SavedStateHandle(mapOf("collectionId" to collectionId, "title" to "Подборка")),
             catalog = FakeCatalogRepository(backend),
         )
+        model.observeSideEffects(effects::add)
         advanceUntilIdle()
         return model
     }

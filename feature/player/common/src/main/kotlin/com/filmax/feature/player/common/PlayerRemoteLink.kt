@@ -8,7 +8,8 @@ import com.filmax.core.domain.tvlink.TvLinkReceiver
 
 /**
  * Плеер глазами пульта на телефоне: снимки — приёмнику ТВ, команды пульта — плееру. Транспорт
- * (пауза, перемотка) исполняется на месте, а другая серия и выход — это навигация, их делает экран.
+ * (пауза, перемотка) исполняется на месте, а другая серия и выход — это навигация, её делает
+ * модель через [onPlayEpisode] и [onStop].
  *
  * Плеер сообщает о себе всегда, на телефоне тоже: приёмник там не поднят, снимки никому не уходят
  * и команд не приходит. Зато модели не нужно знать, на каком она устройстве.
@@ -22,16 +23,16 @@ internal class PlayerRemoteLink(
     /** Последний снимок этого плеера — чтобы, уходя, не стереть снимок плеера следующей серии. */
     private var published: PlaybackStatus? = null
 
-    suspend fun listen(navigate: suspend (PlayerSideEffect) -> Unit) {
+    suspend fun listen(onPlayEpisode: (MediaTrack) -> Unit, onStop: () -> Unit) {
         receiver.commands.collect { command ->
             when (command) {
                 RemoteCommand.Pause -> player.pause()
                 RemoteCommand.Resume -> player.play()
                 is RemoteCommand.SeekBy -> seekTo(player.currentPosition + command.deltaMs)
                 is RemoteCommand.SeekTo -> seekTo(command.positionMs)
-                RemoteCommand.NextEpisode -> state().nextTrack?.let { navigate(it.playEffect()) }
-                RemoteCommand.PreviousEpisode -> state().previousTrack?.let { navigate(it.playEffect()) }
-                RemoteCommand.Stop -> navigate(PlayerSideEffect.Exit)
+                RemoteCommand.NextEpisode -> state().nextTrack?.let(onPlayEpisode)
+                RemoteCommand.PreviousEpisode -> state().previousTrack?.let(onPlayEpisode)
+                RemoteCommand.Stop -> onStop()
                 // Новый тайтл открывает граф ТВ (приёмник в :app), а не этот плеер.
                 is RemoteCommand.Play -> Unit
             }
@@ -39,7 +40,7 @@ internal class PlayerRemoteLink(
     }
 
     fun publish() {
-        val status = state().toPlaybackStatus(player) ?: return
+        val status = playbackStatus(state(), player) ?: return
         published = status
         receiver.publish(status)
     }
@@ -56,13 +57,12 @@ internal class PlayerRemoteLink(
         val end = player.duration.takeIf { it > 0 } ?: Long.MAX_VALUE
         player.seekTo(positionMs.coerceIn(0, end))
     }
-
-    private fun MediaTrack.playEffect() = PlayerSideEffect.PlayEpisode(season = seasonNumber, videoId = number)
 }
 
 /** Снимок для пульта; null — тайтл ещё не загрузился. */
-internal fun PlayerState.toPlaybackStatus(player: Player): PlaybackStatus? {
-    val item = item ?: return null
+internal fun playbackStatus(state: PlayerState, player: Player): PlaybackStatus? {
+    val item = state.item ?: return null
+    val track = state.track
     return PlaybackStatus(
         itemId = item.id,
         title = item.title,
@@ -74,7 +74,7 @@ internal fun PlayerState.toPlaybackStatus(player: Player): PlaybackStatus? {
         buffering = player.playbackState == Player.STATE_BUFFERING,
         positionMs = player.currentPosition.coerceAtLeast(0),
         durationMs = player.duration.coerceAtLeast(0),
-        hasNext = nextTrack != null,
-        hasPrevious = previousTrack != null,
+        hasNext = state.nextTrack != null,
+        hasPrevious = state.previousTrack != null,
     )
 }

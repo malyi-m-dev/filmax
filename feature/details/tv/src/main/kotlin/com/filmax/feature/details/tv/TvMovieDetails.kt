@@ -35,6 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
@@ -50,14 +54,10 @@ import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvRailEntry
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsFact
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
-import com.filmax.feature.details.common.detailsFacts
 
 /** Ключ кнопки «Смотреть» — стартовая цель фокуса деталей. */
 internal const val PLAY_KEY = "details:play"
@@ -75,7 +75,7 @@ private const val MAX_DIM = 0.9f
 internal fun TvMovieDetails(
     state: DetailsState,
     item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     sheets: DetailsSheetFocus,
 ) {
     val listState = rememberLazyListState()
@@ -93,8 +93,8 @@ internal fun TvMovieDetails(
                 contentPadding = PaddingValues(bottom = TvMetrics.SafeVertical),
                 verticalArrangement = Arrangement.spacedBy(TvMetrics.RowGap - TvMetrics.FocusInset),
             ) {
-                item(key = "heading") { MovieHeading(state, item, actions, sheets, focus) }
-                movieSections(state, item, actions, focus, similarRow)
+                item(key = "heading") { MovieHeading(state, item, onEvent, sheets, focus) }
+                movieSections(state, onEvent, focus, similarRow)
             }
         }
     }
@@ -105,17 +105,14 @@ private fun scrolledFraction(listState: LazyListState, distance: Float): Float =
     if (listState.firstVisibleItemIndex > 0) {
         1f
     } else {
-        (listState.firstVisibleItemScrollOffset / distance).coerceIn(
-            0f,
-            1f
-        )
+        (listState.firstVisibleItemScrollOffset / distance).coerceIn(0f, 1f)
     }
 
 @Composable
 private fun MovieHeading(
     state: DetailsState,
     item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     sheets: DetailsSheetFocus,
     focus: TvScreenFocus,
 ) {
@@ -128,12 +125,12 @@ private fun MovieHeading(
         TvBackHint("Назад")
         DetailsHeading(
             item = item,
-            series = null,
-            description = HeadingDescription(actions.onOpenDescription, sheets.description),
+            heading = state.heading,
+            description = HeadingDescription({ onEvent(DetailsEvent.OpenDescription) }, sheets.description),
             style = MovieHeadingStyle,
             modifier = Modifier.width(HeadingWidth).padding(top = 18.dp),
         )
-        MovieButtons(state.isFav, actions, sheets.folders, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
+        MovieButtons(state, onEvent, sheets.folders, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
     }
 }
 
@@ -143,8 +140,8 @@ private const val BUTTONS_ENTER_INDEX = 4
 /** «Смотреть», «Буду смотреть» / «В списке», «В папку», «Трейлер» — если он есть. */
 @Composable
 private fun MovieButtons(
-    inWatchLater: Boolean,
-    actions: DetailsActions,
+    state: DetailsState,
+    onEvent: (DetailsEvent) -> Unit,
     folders: DetailsFolders,
     focus: TvScreenFocus,
     modifier: Modifier = Modifier,
@@ -152,16 +149,15 @@ private fun MovieButtons(
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TvButton(
             "Смотреть",
-            // Фильм играется целиком, без выбора дорожки: плееру нужны videoId и сезон = -1.
-            onClick = { actions.onPlay(NO_SEASON, MOVIE_VIDEO_ID) },
+            onClick = { onEvent(DetailsEvent.Play) },
             leadingIcon = Icons.Rounded.PlayArrow,
             modifier = focus.item(PLAY_KEY),
         )
         TvButton(
-            if (inWatchLater) "В списке" else "Буду смотреть",
-            onClick = actions.onToggleWatchLater,
+            if (state.isFav) "В списке" else "Буду смотреть",
+            onClick = { onEvent(DetailsEvent.ToggleFav) },
             style = TvButtonStyle.Secondary,
-            leadingIcon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+            leadingIcon = if (state.isFav) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
         )
         TvButton(
             "В папку",
@@ -170,8 +166,13 @@ private fun MovieButtons(
             leadingIcon = folderIcon(folders.state.inAnyFolder),
             focusRequester = folders.buttonFocus,
         )
-        actions.onTrailer?.let { onTrailer ->
-            TvButton("Трейлер", onClick = onTrailer, style = TvButtonStyle.Secondary, leadingIcon = Icons.Rounded.Movie)
+        if (state.trailerUrl != null) {
+            TvButton(
+                "Трейлер",
+                onClick = { onEvent(DetailsEvent.PlayTrailer) },
+                style = TvButtonStyle.Secondary,
+                leadingIcon = Icons.Rounded.Movie,
+            )
         }
     }
 }
@@ -179,29 +180,32 @@ private fun MovieButtons(
 /** Секции под шапкой; пустые выпадают целиком. */
 private fun LazyListScope.movieSections(
     state: DetailsState,
-    item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     focus: TvScreenFocus,
     similarRow: FocusRequester,
 ) {
     // «Вниз» с состава — в «Похожие», а их нет — по обычному поиску.
-    castRail(state, item, actions, focus, below = if (state.similar.isEmpty()) FocusRequester.Default else similarRow)
+    castRail(state, onEvent, focus, below = if (state.similar.isEmpty()) FocusRequester.Default else similarRow)
     if (state.similar.isNotEmpty()) {
-        item(key = "similar") { SimilarRail(state.similar, actions, focus, Modifier.focusRequester(similarRow)) }
+        item(key = "similar") { SimilarRail(state.similar, onEvent, focus, Modifier.focusRequester(similarRow)) }
     }
-    val facts = detailsFacts(item, null)
-    if (facts.isNotEmpty()) item(key = "facts") { FactsGrid(facts) }
+    if (state.facts.isNotEmpty()) item(key = "facts") { FactsGrid(state.factsTitle, state.facts) }
 }
 
 @Composable
-private fun SimilarRail(similar: List<Item>, actions: DetailsActions, focus: TvScreenFocus, modifier: Modifier) {
+private fun SimilarRail(
+    similar: List<Item>,
+    onEvent: (DetailsEvent) -> Unit,
+    focus: TvScreenFocus,
+    modifier: Modifier,
+) {
     TvRail(title = "Похожие", modifier = modifier, count = similar.size, contentStart = TvMetrics.SafeHorizontal) {
         itemsIndexed(similar, key = { _, similarItem -> similarItem.id }) { index, similarItem ->
             TvPosterCard(
                 title = similarItem.title,
                 meta = posterMeta(typeLabel(similarItem.type), similarItem.year),
                 posterUrl = similarItem.posters.medium.ifEmpty { similarItem.posters.big },
-                onClick = { actions.onOpenItem(similarItem.id) },
+                onClick = { onEvent(DetailsEvent.OpenItem(similarItem.id)) },
                 rating = ratingLabel(similarItem.rating.kinopoisk),
                 ratingHighlighted = isHighRating(similarItem.rating.kinopoisk),
                 modifier = focus.item("similar:${similarItem.id}").tvRailEntry(index),
@@ -222,9 +226,9 @@ private val FactValueStyle = FxType.chip.copy(fontSize = 15.sp, lineHeight = 20.
 
 /** «О фильме» — факты в три колонки: подпись мелким надзаголовком, значение под ней. */
 @Composable
-private fun FactsGrid(facts: List<DetailsFact>) {
+private fun FactsGrid(title: String, facts: List<DetailsFact>) {
     Column(Modifier.padding(start = TvMetrics.SafeHorizontal).width(FactsWidth)) {
-        Text("О фильме", style = FxType.rowTitle, color = LocalFxColors.current.text)
+        Text(title, style = FxType.rowTitle, color = LocalFxColors.current.text)
         Column(Modifier.padding(top = FactsTitleGap), verticalArrangement = Arrangement.spacedBy(FactRowGap)) {
             facts.chunked(FACT_COLUMNS).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(FactColumnGap)) {
@@ -244,9 +248,3 @@ private fun FactCell(fact: DetailsFact, modifier: Modifier) {
         Text(fact.value, style = FactValueStyle, color = colors.text)
     }
 }
-
-/** «Сезона нет» — фильм или сезон неизвестен (PlayerRoute.season = -1). */
-internal const val NO_SEASON = -1
-
-/** Фильм играется целиком, без выбора дорожки: плеер ждёт videoId = -1. */
-private const val MOVIE_VIDEO_ID = -1

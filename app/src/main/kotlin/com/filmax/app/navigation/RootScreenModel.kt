@@ -7,7 +7,7 @@ import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.deviceDescription
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.presentation.BaseScreenModel
-import com.filmax.feature.profile.common.label
+import com.filmax.feature.profile.common.subscriptionLabel
 
 class RootScreenModel(
     private val auth: AuthRepository,
@@ -52,7 +52,7 @@ class RootScreenModel(
                 it.copy(
                     account = AccountSummary(
                         name = profile.username,
-                        subscription = profile.subscription.label(),
+                        subscription = subscriptionLabel(profile.subscription),
                         initials = profile.initials(),
                     ),
                 )

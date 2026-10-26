@@ -47,11 +47,12 @@ import com.filmax.core.designsystem.glassFill
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonSize
 import com.filmax.core.ui.components.FilmaxButtonStyle
+import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingState
 import kotlinx.coroutines.delay
 
 @Composable
-internal fun AuthStep(state: OnboardingState, onRetry: () -> Unit) {
+internal fun AuthStep(state: OnboardingState, onEvent: (OnboardingEvent) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -67,11 +68,8 @@ internal fun AuthStep(state: OnboardingState, onRetry: () -> Unit) {
         val error = state.error
         val userCode = state.userCode
         when {
-            error != null -> AuthError(error = error, onRetry = onRetry)
-            userCode != null -> AuthCode(
-                userCode = userCode,
-                verificationUri = state.verificationUri ?: DEFAULT_VERIFICATION_URI,
-            )
+            error != null -> AuthError(error = error, onRetry = { onEvent(OnboardingEvent.RetryDeviceCode) })
+            userCode != null -> AuthCode(userCode = userCode, verificationUri = state.verificationUri)
 
             else -> GeneratingCode()
         }
@@ -165,7 +163,6 @@ private fun AuthError(error: String, onRetry: () -> Unit) {
     FilmaxButton(text = "Попробовать снова", onClick = onRetry, icon = Icons.Filled.Refresh)
 }
 
-private const val DEFAULT_VERIFICATION_URI = "kinopub.me/device"
 private const val COPY_RESET_DELAY_MILLIS = 2000L
 
 private val CodeShape = RoundedCornerShape(22.dp)

@@ -32,6 +32,8 @@ import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.tv.designsystem.tvScrollFades
 import com.filmax.feature.library.common.HistoryDay
+import com.filmax.feature.library.common.HistoryEntry
+import com.filmax.feature.library.common.MineEvent
 
 /** День в фокусе встаёт заголовком на 78dp от верха списка — как ряды Главной. */
 private val DayPivot = 78.dp
@@ -60,7 +62,7 @@ private val ListTop = 20.dp
  * с которой ушли; в ряду карточка в фокусе встаёт к полю раздела, соседи приглушены.
  */
 @Composable
-internal fun MineHistory(days: List<HistoryDay>, actions: MineActions, screenFocus: TvScreenFocus) {
+internal fun MineHistory(days: List<HistoryDay>, onEvent: (MineEvent) -> Unit, screenFocus: TvScreenFocus) {
     if (days.isEmpty()) {
         MineEmpty(MineEmptyText.History, Icons.Rounded.History)
         return
@@ -76,18 +78,22 @@ internal fun MineHistory(days: List<HistoryDay>, actions: MineActions, screenFoc
             verticalArrangement = Arrangement.spacedBy(DayGap),
         ) {
             days.forEachIndexed { dayIndex, day ->
-                item(key = "day:${day.label}") { HistoryDayRow(day, dayIndex, actions, screenFocus) }
+                item(key = "day:${day.label}") { HistoryDayRow(day, dayIndex, onEvent, screenFocus) }
             }
         }
     }
 }
+
+/** «S4E7 · 21:40» — что и когда смотрели; оба неизвестны — без меты. */
+private fun historyMeta(history: HistoryEntry): String? =
+    listOfNotNull(history.episodeCode, history.time).joinToString(" · ").ifBlank { null }
 
 /**
  * День: надзаголовок и ряд карточек — на опорную точку встаёт весь блок, а не карточка. Первый
  * вход в ряд — на первую карточку дня, а не на ближайшую к той, с которой пришли.
  */
 @Composable
-private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, screenFocus: TvScreenFocus) {
+private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, onEvent: (MineEvent) -> Unit, screenFocus: TvScreenFocus) {
     val firstCard = remember { FocusRequester() }
     Column(Modifier.bringIntoViewAsWhole()) {
         TvOverline(day.label, accent = false, modifier = Modifier.padding(start = TvMetrics.SectionStart))
@@ -102,13 +108,15 @@ private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, 
                     ),
                     horizontalArrangement = Arrangement.spacedBy(CardGap),
                 ) {
-                    itemsIndexed(day.entries, key = { _, dayEntry -> dayEntry.entry.itemId }) { index, (entry, time) ->
+                    itemsIndexed(day.entries, key = { _, dayEntry -> dayEntry.entry.itemId }) { index, history ->
+                        val entry = history.entry
                         TvProgressCard(
                             title = entry.title,
-                            meta = historyMeta(entry.progress, time),
+                            // «S4E7 · 21:40» — что и когда смотрели.
+                            meta = historyMeta(history),
                             posterUrl = entry.wideOrPoster,
                             progress = entry.progress?.fraction ?: 0f,
-                            onClick = { actions.onOpenItem(entry.itemId) },
+                            onClick = { onEvent(MineEvent.OpenItem(entry.itemId)) },
                             size = TvCardSize.Small,
                             modifier = Modifier
                                 .fxEnter(FIRST_CARD_ENTER + enterStep(dayIndex, index))

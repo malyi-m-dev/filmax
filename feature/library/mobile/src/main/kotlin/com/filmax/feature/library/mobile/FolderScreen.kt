@@ -1,5 +1,6 @@
 // Открытая папка: шапка её цвета — плитка-иконка, название, счётчик и действия, ниже — сетка
-// тайтлов с догрузкой страниц. Переименование и удаление — шторками, решает FolderScreenModel.
+// тайтлов с догрузкой страниц. Переименование и удаление — шторками; что открыто и куда вести,
+// решает FolderScreenModel.
 
 package com.filmax.feature.library.mobile
 
@@ -57,6 +58,10 @@ import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.titlesLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonSize
 import com.filmax.core.ui.components.FilmaxConfirmSheet
@@ -69,10 +74,6 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxStatusBarGlass
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderScreenModel
 import com.filmax.feature.library.common.FolderSideEffect
@@ -93,7 +94,10 @@ fun FolderScreen(
     val state by screenModel.collectAsState()
     screenModel.collectSideEffect { effect ->
         when (effect) {
-            FolderSideEffect.Deleted -> navigator.back()
+            FolderSideEffect.Back -> navigator.back()
+            is FolderSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is FolderSideEffect.OpenPlayer -> navigator.open(Destination.Player(effect.itemId))
+            FolderSideEffect.OpenCatalog -> navigator.open(Destination.Catalog)
         }
     }
     val hue = folderHue(state.folder?.tint ?: 0)
@@ -109,26 +113,14 @@ fun FolderScreen(
                 radiusY = 0.4f,
             ),
     ) {
-        FolderGrid(
-            state = state,
-            hue = hue,
-            onEvent = screenModel::dispatch,
-            onOpenItem = { navigator.open(Destination.Details(it)) },
-            onPlay = { navigator.open(Destination.Player(itemId = it)) },
-        )
-        FolderTopBar(onBack = navigator::back, onDelete = { screenModel.dispatch(FolderEvent.AskDelete) })
+        FolderGrid(state = state, hue = hue, onEvent = screenModel::dispatch)
+        FolderTopBar(onEvent = screenModel::dispatch)
     }
     FolderSheets(state = state, onEvent = screenModel::dispatch)
 }
 
 @Composable
-private fun FolderGrid(
-    state: FolderState,
-    hue: Float,
-    onEvent: (FolderEvent) -> Unit,
-    onOpenItem: (Int) -> Unit,
-    onPlay: (Int) -> Unit,
-) {
+private fun FolderGrid(state: FolderState, hue: Float, onEvent: (FolderEvent) -> Unit) {
     val gridState = rememberLazyGridState()
     val loadMore by remember {
         derivedStateOf {
@@ -157,19 +149,14 @@ private fun FolderGrid(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
-            FolderHeader(
-                state = state,
-                hue = hue,
-                onPlay = state.items.firstOrNull()?.let { first -> { onPlay(first.id) } },
-                onRename = { onEvent(FolderEvent.StartRename) },
-            )
+            FolderHeader(state = state, hue = hue, onEvent = onEvent)
         }
-        folderItems(state = state, onEvent = onEvent, onOpenItem = onOpenItem)
+        folderItems(state = state, onEvent = onEvent)
     }
 }
 
 /** Тайтлы папки: скелетон первой загрузки, пустая папка или постеры с догрузкой по хвосту. */
-private fun LazyGridScope.folderItems(state: FolderState, onEvent: (FolderEvent) -> Unit, onOpenItem: (Int) -> Unit) {
+private fun LazyGridScope.folderItems(state: FolderState, onEvent: (FolderEvent) -> Unit) {
     when {
         state.loading && state.items.isEmpty() -> items(
             SKELETON_COUNT,
@@ -188,7 +175,7 @@ private fun LazyGridScope.folderItems(state: FolderState, onEvent: (FolderEvent)
         FilmaxPosterCard(
             title = item.title,
             posterUrl = item.posters.medium,
-            onClick = { onOpenItem(item.id) },
+            onClick = { onEvent(FolderEvent.OpenItem(item.id)) },
             rating = ratingLabel(item.rating.kinopoisk),
             meta = posterMeta(typeLabel(item.type), item.year),
             // Долгий тап убирает тайтл из папки — так же, как долгое «ОК» на пульте.
@@ -202,7 +189,7 @@ private fun LazyGridScope.folderItems(state: FolderState, onEvent: (FolderEvent)
 
 /** Шапка папки: плитка её цвета со свечением, название, счётчик и действия. */
 @Composable
-private fun FolderHeader(state: FolderState, hue: Float, onPlay: (() -> Unit)?, onRename: () -> Unit) {
+private fun FolderHeader(state: FolderState, hue: Float, onEvent: (FolderEvent) -> Unit) {
     val tile = oklch(lightness = 0.62f, chroma = 0.2f, hue = hue)
     Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = FolderTop, start = 4.dp, bottom = 8.dp)) {
         Box(
@@ -236,16 +223,26 @@ private fun FolderHeader(state: FolderState, hue: Float, onPlay: (() -> Unit)?, 
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            onPlay?.let {
-                FilmaxButton("Смотреть", onClick = it, icon = Icons.Filled.PlayArrow, size = FilmaxButtonSize.Compact)
+            // Смотреть есть что, только если в папке есть тайтлы.
+            if (state.items.isNotEmpty()) {
+                FilmaxButton(
+                    "Смотреть",
+                    onClick = { onEvent(FolderEvent.PlayAll) },
+                    icon = Icons.Filled.PlayArrow,
+                    size = FilmaxButtonSize.Compact,
+                )
             }
-            FilmaxIconButton(Icons.Filled.Edit, contentDescription = "Переименовать", onClick = onRename)
+            FilmaxIconButton(
+                Icons.Filled.Edit,
+                contentDescription = "Переименовать",
+                onClick = { onEvent(FolderEvent.StartRename) },
+            )
         }
     }
 }
 
 @Composable
-private fun FolderTopBar(onBack: () -> Unit, onDelete: () -> Unit) {
+private fun FolderTopBar(onEvent: (FolderEvent) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -253,8 +250,16 @@ private fun FolderTopBar(onBack: () -> Unit, onDelete: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        FilmaxIconButton(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад", onClick = onBack)
-        FilmaxIconButton(Icons.Filled.Delete, contentDescription = "Удалить папку", onClick = onDelete)
+        FilmaxIconButton(
+            Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Назад",
+            onClick = { onEvent(FolderEvent.Back) },
+        )
+        FilmaxIconButton(
+            Icons.Filled.Delete,
+            contentDescription = "Удалить папку",
+            onClick = { onEvent(FolderEvent.AskDelete) },
+        )
     }
 }
 
@@ -268,9 +273,11 @@ private fun FolderSheets(state: FolderState, onEvent: (FolderEvent) -> Unit) {
                 onSubmit = { onEvent(FolderEvent.SubmitRename) },
             )
         }
-        FilmaxSheet(onDismiss = {
-            onEvent(FolderEvent.CancelRename)
-        }, title = "Переименовать", subtitle = "Название и цвет — на этом устройстве") {
+        FilmaxSheet(
+            onDismiss = { onEvent(FolderEvent.CancelRename) },
+            title = "Переименовать",
+            subtitle = "Название и цвет — на этом устройстве",
+        ) {
             FilmaxFolderEditor(
                 title = draft.title,
                 tint = draft.tint,

@@ -1,6 +1,6 @@
-// Каталог: состояние экрана, сетка постеров со скелетоном, пустым состоянием и догрузкой страниц.
-// Стеклянная шапка с типами и чипами выборки — в CatalogHeader, шторки сортировки, жанра и
-// фильтров — в CatalogSheets.
+// Каталог: сетка постеров со скелетоном, пустым состоянием и догрузкой страниц. Стеклянная шапка
+// с типами и чипами выборки — в CatalogHeader, шторки сортировки, жанра и фильтров — в CatalogSheets.
+// Что открыто и какая выборка — целиком в SearchState; экран только рисует и отдаёт события.
 
 package com.filmax.feature.search.mobile
 
@@ -29,7 +29,6 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -40,21 +39,15 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
-import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.CatalogSection
-import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
 import com.filmax.core.ui.components.LocalNavBarPadding
-import com.filmax.core.ui.components.label
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
@@ -67,81 +60,40 @@ private const val LOAD_MORE_TAIL = 9
 /** Скелетонов, пока витрина грузится впервые: четыре ряда заполняют экран телефона. */
 private const val SKELETON_COUNT = 12
 
-/** Какая шторка каталога открыта. */
-internal enum class CatalogSheet { Sort, Genre, Filters }
-
-/** Действия каталога одним объектом: у detekt порог LongParameterList — 6. */
-internal data class CatalogActions(
-    val onFilter: (ItemType?) -> Unit,
-    val onSort: (SortOption) -> Unit,
-    val onGenre: (Int?) -> Unit,
-    val onFilters: (CatalogFilters) -> Unit,
-    val onOpenSheet: (CatalogSheet) -> Unit,
-    val onBack: (() -> Unit)?,
-)
-
 /**
  * Каталог — витрина: сетка постеров наполнена выборкой тип/жанр/сортировка/фильтры ещё до
- * первого касания. [section] — раздел с Главной («Фильмы», «4K и HDR»): тогда это тот же экран
- * поверх раздела, с названием раздела и кнопкой «назад», а выборку раздела уже применила модель.
+ * первого касания. Открытый разделом с Главной («Фильмы», «4K и HDR») — тот же экран поверх
+ * раздела: название раздела и кнопку «назад» модель уже положила в состояние вместе с выборкой.
  */
 @Composable
 fun CatalogScreen(
     modifier: Modifier = Modifier,
-    section: CatalogSection? = null,
     screenModel: SearchScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    var sheet by rememberSaveable { mutableStateOf<CatalogSheet?>(null) }
+    screenModel.collectSideEffect { effect -> openSearchEffect(navigator, effect) }
     // Витрину и жанры общий ScreenModel тянет только по заявке экрана — без этого сетка пуста.
     LaunchedEffect(Unit) { screenModel.dispatch(SearchEvent.LoadCatalog) }
 
-    val actions = remember(screenModel, navigator, section) {
-        CatalogActions(
-            onFilter = { screenModel.dispatch(SearchEvent.FilterChange(it)) },
-            onSort = { screenModel.dispatch(SearchEvent.SortChange(it)) },
-            onGenre = { screenModel.dispatch(SearchEvent.GenreChange(it)) },
-            onFilters = { screenModel.dispatch(SearchEvent.ApplyFilters(it)) },
-            onOpenSheet = { sheet = it },
-            onBack = if (section != null) navigator::back else null,
-        )
-    }
     Box(modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
-        CatalogBody(
-            state = state,
-            title = section?.label ?: "Каталог",
-            actions = actions,
-            onOpenItem = { navigator.open(Destination.Details(it)) },
-            onLoadMore = { screenModel.dispatch(SearchEvent.LoadMoreCatalog) },
-            // Раздел открыт поверх вкладки — навигации под ним нет, отступаем только от системной панели.
-            bottomPadding = if (section == null) LocalNavBarPadding.current else systemBottomInset(),
-        )
+        CatalogBody(state = state, onEvent = screenModel::dispatch)
     }
-    sheet?.let { open ->
-        CatalogSheetHost(sheet = open, state = state, actions = actions, onDismiss = { sheet = null })
-    }
+    if (state.sheetOpen) CatalogSheetHost(state = state, onEvent = screenModel::dispatch)
 }
 
-// Сетка и шапка над ней: состояние, выборка, переходы и отступ под навигацию.
-@Suppress("LongParameterList")
+/** Сетка и шапка над ней: шапка меряет себя, сетка отступает на её высоту. */
 @Composable
-private fun CatalogBody(
-    state: SearchState,
-    title: String,
-    actions: CatalogActions,
-    onOpenItem: (Int) -> Unit,
-    onLoadMore: () -> Unit,
-    bottomPadding: Dp,
-) {
+private fun CatalogBody(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     val glass = rememberGlassState()
     val density = LocalDensity.current
     var headerHeight by remember { mutableStateOf(0.dp) }
+    // Раздел открыт поверх вкладки — навигации под ним нет, отступаем только от системной панели.
+    val bottomPadding = if (state.section == null) LocalNavBarPadding.current else systemBottomInset()
     Box(Modifier.fillMaxSize()) {
         CatalogGrid(
             state = state,
-            onOpenItem = onOpenItem,
-            onLoadMore = onLoadMore,
+            onEvent = onEvent,
             contentPadding = PaddingValues(
                 start = FilmaxMetrics.GridPadding,
                 end = FilmaxMetrics.GridPadding,
@@ -151,9 +103,8 @@ private fun CatalogBody(
             modifier = Modifier.glassSource(glass),
         )
         CatalogHeader(
-            title = title,
             state = state,
-            actions = actions,
+            onEvent = onEvent,
             glass = glass,
             modifier = Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } },
         )
@@ -163,8 +114,7 @@ private fun CatalogBody(
 @Composable
 private fun CatalogGrid(
     state: SearchState,
-    onOpenItem: (Int) -> Unit,
-    onLoadMore: () -> Unit,
+    onEvent: (SearchEvent) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -178,7 +128,7 @@ private fun CatalogGrid(
             info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
         }
     }
-    LaunchedEffect(loadMore) { if (loadMore) onLoadMore() }
+    LaunchedEffect(loadMore) { if (loadMore) onEvent(SearchEvent.LoadMoreCatalog) }
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(FilmaxMetrics.POSTER_COLUMNS),
@@ -188,7 +138,7 @@ private fun CatalogGrid(
         horizontalArrangement = Arrangement.spacedBy(FilmaxMetrics.CardGap),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        posterItems(state = state, onOpenItem = onOpenItem)
+        posterItems(state = state, onEvent = onEvent)
         if (state.catalogLoadingMore) {
             items(FilmaxMetrics.POSTER_COLUMNS, key = { "more-$it" }) { FilmaxPosterSkeleton() }
         }
@@ -196,7 +146,7 @@ private fun CatalogGrid(
 }
 
 /** Тело сетки: скелетон первой загрузки, пустое состояние или постеры. */
-internal fun LazyGridScope.posterItems(state: SearchState, onOpenItem: (Int) -> Unit) {
+private fun LazyGridScope.posterItems(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     val posters = state.visibleItems
     when {
         state.loading && posters.isEmpty() -> items(SKELETON_COUNT, key = { "skeleton-$it" }) { FilmaxPosterSkeleton() }
@@ -205,7 +155,7 @@ internal fun LazyGridScope.posterItems(state: SearchState, onOpenItem: (Int) -> 
         }
     }
     items(posters, key = { it.id }) { item ->
-        CatalogPoster(item = item, onClick = { onOpenItem(item.id) })
+        CatalogPoster(item = item, onClick = { onEvent(SearchEvent.OpenItem(item.id)) })
     }
 }
 

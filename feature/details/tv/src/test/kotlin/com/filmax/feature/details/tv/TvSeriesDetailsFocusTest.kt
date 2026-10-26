@@ -23,6 +23,7 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.WATCH_STATUS_FINISHED
 import com.filmax.feature.details.common.calculateSeriesData
@@ -43,7 +44,8 @@ import kotlin.test.assertTrue
  * Фокус в деталях сериала с пульта: старт на серии «продолжить», «←/→» с серии листают сезоны,
  * «←» с первого сезона — на главную кнопку, сезон — и фокусом на чипе, «ОК» на серии — плеер с
  * сезоном и номером серии. Сериал — «Хроники Пограничья» из фейкового бэкенда: 7 сезонов,
- * S1–S3 и S4E1–E6 досмотрены, S4E7 начата.
+ * S1–S3 и S4E1–E6 досмотрены, S4E7 начата. Модели нет: экран собирается из состояния, события
+ * записываются, а смену сезона тест применяет к состоянию сам — как это делает модель.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w960dp-h540dp-land-xhdpi")
@@ -174,14 +176,7 @@ class TvSeriesDetailsFocusTest {
 
     @Test
     fun `after a season change down leads into the new season's episodes`() {
-        val item = longSeries()
-        var state by mutableStateOf(seriesState(item))
-        compose.setContent {
-            FilmaxTvTheme {
-                DetailsWithSheet(state, item, actions(onSeason = { state = state.copy(selectedSeason = it) }))
-            }
-        }
-        compose.waitForIdle()
+        showSwitchableSeries()
 
         // Смена сезона анимирована: старый список гаснет, новый проявляется. Фокус остаётся на
         // чипе, а «вниз» ведёт уже в серии нового сезона, а не в гаснущий список.
@@ -196,14 +191,7 @@ class TvSeriesDetailsFocusTest {
 
     @Test
     fun `left from the last season chip goes back through the seasons`() {
-        val item = longSeries()
-        var state by mutableStateOf(seriesState(item))
-        compose.setContent {
-            FilmaxTvTheme {
-                DetailsWithSheet(state, item, actions(onSeason = { state = state.copy(selectedSeason = it) }))
-            }
-        }
-        compose.waitForIdle()
+        showSwitchableSeries()
 
         // До последнего сезона и обратно: «←» с чипа листает сезоны, на кнопки уводит только с первого.
         repeat(MAX_PRESSES) { if (!focusedHas("Сезон 4")) pressKey(Key.DirectionUp) }
@@ -219,18 +207,13 @@ class TvSeriesDetailsFocusTest {
 
     @Test
     fun `description sheet closes on left and gives focus back to the description`() {
-        val item = longSeries()
-        var state by mutableStateOf(seriesState(item))
+        var state by mutableStateOf(seriesState(longSeries()))
         compose.setContent {
             FilmaxTvTheme {
                 DetailsWithSheet(
                     state,
-                    item,
-                    actions(
-                        onOpen = { state = state.copy(descriptionOpen = true) },
-                        onClose = { state = state.copy(descriptionOpen = false) },
-                        onSeason = { state = state.copy(selectedSeason = it) },
-                    ),
+                    checkNotNull(state.item),
+                    onEvent = { event -> state = applied(state, event) },
                 )
             }
         }
@@ -253,7 +236,7 @@ class TvSeriesDetailsFocusTest {
     private fun showSeries() {
         val item = longSeries()
         compose.setContent {
-            FilmaxTvTheme { DetailsWithSheet(seriesState(item), item, actions()) }
+            FilmaxTvTheme { DetailsWithSheet(seriesState(item), item, onEvent = ::record) }
         }
         compose.waitForIdle()
     }
@@ -263,7 +246,14 @@ class TvSeriesDetailsFocusTest {
         var state by mutableStateOf(seriesState(item))
         compose.setContent {
             FilmaxTvTheme {
-                DetailsWithSheet(state, item, actions(onSeason = { state = state.copy(selectedSeason = it) }))
+                DetailsWithSheet(
+                    state,
+                    item,
+                    onEvent = { event ->
+                        record(event)
+                        state = applied(state, event)
+                    },
+                )
             }
         }
         compose.waitForIdle()
@@ -291,37 +281,29 @@ class TvSeriesDetailsFocusTest {
     }
 
     /** Состояние, как его собирает модель: сериал открыт на сезоне серии «продолжить». */
-    private fun seriesState(item: Item): DetailsState {
-        val series = calculateSeriesData(item.tracklist)
-        return DetailsState(
-            loading = false,
-            item = item,
-            series = series,
-            selectedSeason = series.seasons[series.resumeSeasonIndex].first,
-        )
+    private fun seriesState(item: Item): DetailsState =
+        DetailsState().loaded(item, similar = emptyList(), series = calculateSeriesData(item.tracklist))
+
+    /** Что делает модель с событием — ровно та часть, которую проверяет фокус-тест. */
+    private fun applied(state: DetailsState, event: DetailsEvent): DetailsState = when (event) {
+        is DetailsEvent.SelectSeason -> state.withSeason(event.number)
+        is DetailsEvent.SwitchSeason -> state.withSeason(event.number)
+        DetailsEvent.OpenDescription -> state.copy(descriptionOpen = true)
+        DetailsEvent.CloseDescription -> state.copy(descriptionOpen = false)
+        else -> state
     }
 
-    private fun actions(
-        onOpen: () -> Unit = {},
-        onClose: () -> Unit = {},
-        onSeason: (Int) -> Unit = {},
-    ) = DetailsActions(
-        onPlay = { season, videoId -> calls += "play $season/$videoId" },
-        onToggleWatchLater = { calls += "watch later" },
-        onTrailer = null,
-        onOpenItem = { id -> calls += "open $id" },
-        onOpenPerson = { name, _ -> calls += "person $name" },
-        onOpenDescription = onOpen,
-        onCloseDescription = onClose,
-        onSelectSeason = { number ->
-            calls += "season $number"
-            onSeason(number)
-        },
-        onSwitchSeason = { number ->
-            calls += "switch $number"
-            onSeason(number)
-        },
-    )
+    private fun record(event: DetailsEvent) {
+        calls += when (event) {
+            is DetailsEvent.PlayEpisode -> "play ${event.season}/${event.videoId}"
+            DetailsEvent.ToggleFav -> "watch later"
+            is DetailsEvent.OpenItem -> "open ${event.itemId}"
+            is DetailsEvent.OpenPerson -> "person ${event.name}"
+            is DetailsEvent.SelectSeason -> "season ${event.number}"
+            is DetailsEvent.SwitchSeason -> "switch ${event.number}"
+            else -> event.toString()
+        }
+    }
 
     private fun focusedMatcher(text: String): SemanticsMatcher =
         isFocused() and (hasText(text, substring = true) or hasAnyDescendant(hasText(text, substring = true)))

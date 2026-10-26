@@ -36,6 +36,7 @@ class ProfileScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val playback = FakePlaybackSettingsRepository()
     private val theme = FakeThemeSettingsRepository()
+    private val effects = mutableListOf<ProfileSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -152,6 +153,36 @@ class ProfileScreenModelTest {
         advanceUntilIdle()
         assertFalse(model.states.value.confirmLogout)
         assertFalse(auth.isAuthenticated.first())
+        assertEquals(ProfileSideEffect.LoggedOut, effects.last())
+    }
+
+    @Test
+    fun `profile labels are ready for both screens`() = runTest(dispatcher) {
+        val model = model()
+        advanceUntilIdle()
+
+        val state = model.states.value
+        assertTrue(state.initials.isNotBlank())
+        assertEquals(state.profile?.username, state.username)
+        assertTrue(state.subscription.active)
+        assertEquals("Filmax Премиум", state.subscription.title)
+        assertEquals(optionsOf(ProfileSetting.QUALITY), state.options)
+        assertEquals(state.options.indexOf(state.playback.quality), state.selectedOption)
+    }
+
+    @Test
+    fun `rate, remote and design system lead to their screens`() = runTest(dispatcher) {
+        val model = model()
+
+        model.dispatch(ProfileEvent.OpenRate)
+        model.dispatch(ProfileEvent.OpenRemote)
+        model.dispatch(ProfileEvent.OpenDesignSystem)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(ProfileSideEffect.OpenRate, ProfileSideEffect.OpenRemote, ProfileSideEffect.OpenDesignSystem),
+            effects,
+        )
     }
 
     private fun model(auth: FakeAuthRepository = FakeAuthRepository(backend)) = ProfileScreenModel(
@@ -161,5 +192,5 @@ class ProfileScreenModelTest {
         favorites = FakeFavoritesRepository(),
         playbackSettings = playback,
         themeSettings = theme,
-    )
+    ).also { it.observeSideEffects(effects::add) }
 }

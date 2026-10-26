@@ -58,11 +58,7 @@ class TvLinkHostScreenModelTest {
         receiver.receive(PLAY)
         runCurrent()
 
-        val expected = listOf<TvLinkHostSideEffect>(
-            TvLinkHostSideEffect.OpenPlayer(PLAY, replacePlayer = false),
-            TvLinkHostSideEffect.OpenPlayer(PLAY, replacePlayer = true),
-        )
-        assertEquals(expected, effects)
+        assertEquals(listOf(TvLinkHostSideEffect.OpenPlayer(PLAY), TvLinkHostSideEffect.ReplacePlayer(PLAY)), effects)
     }
 
     @Test
@@ -82,6 +78,7 @@ class TvLinkHostScreenModelTest {
         receiver.connectPhone("Galaxy S25")
         runCurrent()
         assertEquals("Galaxy S25", model.states.value.joinedPhone)
+        assertEquals("Galaxy S25", model.states.value.lastJoinedPhone)
 
         advanceTimeBy(ANNOUNCE_MS + 1)
         runCurrent()
@@ -89,8 +86,7 @@ class TvLinkHostScreenModelTest {
     }
 
     private fun TestScope.host(): TvLinkHostScreenModel {
-        val model = TvLinkHostScreenModel(receiver)
-        model.observeSideEffects { effects += it }
+        val model = TvLinkHostScreenModel(receiver).also { it.observeSideEffects(effects::add) }
         runCurrent()
         return model
     }

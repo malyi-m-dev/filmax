@@ -1,4 +1,5 @@
 // Панель «Эпизоды» в деталях сериала: сезоны чипами и серии списком. Прокручивается только она.
+// Что в ней показано (строки, чипы, соседние сезоны), считает модель — DetailsState.episodes.
 @file:OptIn(ExperimentalFoundationApi::class)
 
 package com.filmax.feature.details.tv
@@ -50,7 +51,6 @@ import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
-import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -59,14 +59,16 @@ import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvChipStyle
 import com.filmax.core.tv.designsystem.TvEpisodeRow
+import com.filmax.core.tv.designsystem.TvEpisodeRowModel
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.tv.designsystem.tvScrollFades
-import com.filmax.feature.details.common.DetailsState
-import com.filmax.feature.details.common.startEpisode
-import com.filmax.feature.details.common.startEpisodeIndex
+import com.filmax.feature.details.common.DetailsEvent
+import com.filmax.feature.details.common.EpisodeRow
+import com.filmax.feature.details.common.EpisodesPanel
+import com.filmax.feature.details.common.SeasonStart
 
 /** Серия в фокусе держится третьей сверху: видно и что было, и что дальше. */
 private val EpisodePivot = 162.dp
@@ -96,9 +98,6 @@ private const val ROWS_ABOVE_START = 2
 private val SeasonSlide = 12.dp
 private const val SEASON_EXIT_MS = 120
 
-/** Стрелки пульта, листающие сезоны с серии: шаг по списку сезонов. */
-private val SeasonArrowSteps = mapOf(Key.DirectionLeft to -1, Key.DirectionRight to 1)
-
 /**
  * Стеклянная панель «Эпизоды»: шапка с числом серий, сезоны компактными чипами и серии
  * списком. Сезон выбирается фокусом на чипе — модель выжидает 250 мс, прежде чем его сменить, —
@@ -109,8 +108,8 @@ private val SeasonArrowSteps = mapOf(Key.DirectionLeft to -1, Key.DirectionRight
  */
 @Composable
 internal fun TvEpisodesPanel(
-    state: DetailsState,
-    actions: DetailsActions,
+    panel: EpisodesPanel,
+    onEvent: (DetailsEvent) -> Unit,
     focus: TvScreenFocus,
     exitLeft: FocusRequester,
     modifier: Modifier = Modifier,
@@ -125,52 +124,51 @@ internal fun TvEpisodesPanel(
             .padding(top = PanelPaddingTop),
     ) {
         val exit = Modifier.focusProperties { left = exitLeft }
-        PanelHeader(state)
-        SeasonChips(state, actions, exit)
-        SeasonEpisodes(state, actions, focus, exit, Modifier.weight(1f))
+        PanelHeader(panel.summary)
+        SeasonChips(panel, onEvent, exit)
+        SeasonEpisodes(panel, onEvent, focus, exit, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun PanelHeader(state: DetailsState) {
+private fun PanelHeader(summary: String?) {
     val colors = LocalFxColors.current
     Row(
         Modifier.fillMaxWidth().padding(horizontal = PanelPadding + HeaderInset),
         verticalAlignment = Alignment.Bottom
     ) {
         Text("Эпизоды", style = FxType.rowTitle, color = colors.text, modifier = Modifier.weight(1f))
-        seasonSummary(state.seasonEpisodes)?.let { Text(it, style = FxType.metaOnImage, color = colors.textDim) }
+        summary?.let { Text(it, style = FxType.metaOnImage, color = colors.textDim) }
     }
 }
 
 @Composable
-private fun SeasonChips(state: DetailsState, actions: DetailsActions, exit: Modifier) {
-    val seasons = state.series?.seasons.orEmpty()
+private fun SeasonChips(panel: EpisodesPanel, onEvent: (DetailsEvent) -> Unit, exit: Modifier) {
+    val seasons = panel.seasons
     if (seasons.size < 2) return
     val selectedChip = remember { FocusRequester() }
-    val selectedIndex = seasons.indexOfFirst { it.first == state.selectedSeason }
+    val selectedIndex = seasons.indexOfFirst { it.selected }
     val rowState = rememberLazyListState()
     KeepChipInView(rowState, selectedIndex)
-    val firstSeason = seasons.first().first
+    val firstSeason = seasons.first().number
     LazyRow(
         state = rowState,
         modifier = Modifier.enterOnSelected(rowState, selectedIndex, selectedChip),
         contentPadding = PaddingValues(vertical = 12.dp, horizontal = PanelPadding),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        items(seasons, key = { it.first }) { (number, _) ->
-            val selected = number == state.selectedSeason
+        items(seasons, key = { it.number }) { season ->
             TvChip(
-                label = seasonChipLabel(number, selected),
-                selected = selected,
-                onClick = { actions.onSelectSeason(number) },
+                label = if (season.selected) season.label else season.compactLabel,
+                selected = season.selected,
+                onClick = { onEvent(DetailsEvent.SelectSeason(season.number)) },
                 style = TvChipStyle.Compact,
                 // Сезон меняется фокусом, без «ОК»: модель гасит быстрое пролистывание задержкой.
                 // «←» уводит на кнопки только с первого чипа — с остальных листает сезоны назад.
                 modifier = Modifier
-                    .then(if (number == firstSeason) exit else Modifier)
-                    .then(if (selected) Modifier.focusRequester(selectedChip) else Modifier)
-                    .onFocusChanged { if (it.isFocused) actions.onSelectSeason(number) },
+                    .then(if (season.number == firstSeason) exit else Modifier)
+                    .then(if (season.selected) Modifier.focusRequester(selectedChip) else Modifier)
+                    .onFocusChanged { if (it.isFocused) onEvent(DetailsEvent.SelectSeason(season.number)) },
             )
         }
     }
@@ -216,22 +214,27 @@ private fun LazyListState.isFullyVisible(index: Int): Boolean {
  */
 @Composable
 private fun SeasonEpisodes(
-    state: DetailsState,
-    actions: DetailsActions,
+    panel: EpisodesPanel,
+    onEvent: (DetailsEvent) -> Unit,
     focus: TvScreenFocus,
     exit: Modifier,
     modifier: Modifier,
 ) {
     val slide = with(LocalDensity.current) { SeasonSlide.roundToPx() }
     val reduced = LocalReducedMotion.current
+    val selected = panel.seasons.firstOrNull { it.selected }?.number
+    // Состояние несёт строки только выбранного сезона, а уходящий список должен догореть со
+    // своими: пустой он отпустил бы фокус раньше, чем разместится серия нового сезона, и фокус
+    // упал бы на чип — а это уже выбор сезона чипом.
+    val shownPanels = remember { mutableMapOf<Int?, EpisodesPanel>() }
+    shownPanels[selected] = panel
     AnimatedContent(
-        targetState = state.selectedSeason,
+        targetState = selected,
         transitionSpec = { seasonTransition(slide, reduced) },
-        modifier = modifier.seasonArrows(state, actions, focus),
+        modifier = modifier.seasonArrows(panel, onEvent, focus),
         label = "season",
     ) { season ->
-        val episodes = state.series?.seasons?.firstOrNull { it.first == season }?.second.orEmpty()
-        EpisodeList(episodes, state.series?.resume?.id, EpisodeListActions(actions, focus, exit))
+        EpisodeList(shownPanels.getValue(season), onEvent, focus, exit)
     }
 }
 
@@ -241,13 +244,20 @@ private fun SeasonEpisodes(
  * разместится. Листать некуда — стрелка не перехвачена и работает как обычно: «←» с первого
  * сезона уводит на кнопки.
  */
-private fun Modifier.seasonArrows(state: DetailsState, actions: DetailsActions, focus: TvScreenFocus): Modifier =
+private fun Modifier.seasonArrows(
+    panel: EpisodesPanel,
+    onEvent: (DetailsEvent) -> Unit,
+    focus: TvScreenFocus,
+): Modifier =
     onKeyEvent { event ->
         if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-        val step = SeasonArrowSteps[event.key] ?: return@onKeyEvent false
-        val season = state.adjacentSeason(step) ?: return@onKeyEvent false
-        state.series?.startEpisode(season)?.let { focus.focusOn(episodeKey(it)) }
-        actions.onSwitchSeason(season)
+        val target: SeasonStart = when (event.key) {
+            Key.DirectionLeft -> panel.previous
+            Key.DirectionRight -> panel.next
+            else -> null
+        } ?: return@onKeyEvent false
+        focus.focusOn(episodeKey(target.episodeId))
+        onEvent(DetailsEvent.SwitchSeason(target.season))
         true
     }
 
@@ -259,20 +269,18 @@ private fun AnimatedContentTransitionScope<Int?>.seasonTransition(slide: Int, re
             fadeOut(tween(SEASON_EXIT_MS))
     }
 
-/** Что списку серий нужно от экрана: запуск серии, память фокуса и выход «←» на кнопки. */
-private class EpisodeListActions(val actions: DetailsActions, val focus: TvScreenFocus, val exit: Modifier)
-
 /**
  * Список серий сезона, открытый на серии «продолжить» или первой недосмотренной. Края списка
  * затухают там, где за ними есть ещё серии ([tvScrollFades]); последняя серия проскролливается
  * выше нижнего затухания.
  */
 @Composable
-private fun EpisodeList(episodes: List<MediaTrack>, resumeId: Int?, list: EpisodeListActions) {
+private fun EpisodeList(panel: EpisodesPanel, onEvent: (DetailsEvent) -> Unit, focus: TvScreenFocus, exit: Modifier) {
     val pivot = with(LocalDensity.current) { EpisodePivot.toPx() }
     val spec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
-    val start = startEpisodeIndex(episodes, resumeId)
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (start - ROWS_ABOVE_START).coerceAtLeast(0))
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = (panel.startIndex - ROWS_ABOVE_START).coerceAtLeast(0),
+    )
     val fades = rememberTvScrollFades(listState)
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec) {
         LazyColumn(
@@ -286,14 +294,25 @@ private fun EpisodeList(episodes: List<MediaTrack>, resumeId: Int?, list: Episod
             ),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            items(episodes, key = { it.id }) { episode ->
+            items(panel.rows, key = { it.episode.id }) { row ->
+                val episode = row.episode
                 TvEpisodeRow(
-                    model = episodeRow(episode, resumeId),
+                    model = row.toTvModel(),
                     // Плееру нужны номер серии (API `video`) и сезон, а не id трека.
-                    onClick = { list.actions.onPlay(episode.seasonNumber, episode.number) },
-                    modifier = list.focus.item(episodeKey(episode)).then(list.exit),
+                    onClick = { onEvent(DetailsEvent.PlayEpisode(episode.seasonNumber, episode.number)) },
+                    modifier = focus.item(episodeKey(episode.id)).then(exit),
                 )
             }
         }
     }
 }
+
+/** Строка серии из State — в модель строки дизайн-системы: те же поля, другой модуль. */
+private fun EpisodeRow.toTvModel() = TvEpisodeRowModel(
+    title = title,
+    meta = meta,
+    imageUrl = episode.thumbnail,
+    progress = progress,
+    watched = watched,
+    resume = resume,
+)

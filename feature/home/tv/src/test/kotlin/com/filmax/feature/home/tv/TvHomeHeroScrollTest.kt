@@ -17,6 +17,7 @@ import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
+import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
 import com.filmax.feature.home.common.HomeState
@@ -56,7 +57,7 @@ class TvHomeHeroScrollTest {
     @Test
     fun `hero is fully visible again when focus comes back to it from the rows`() {
         compose.setContent {
-            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = NoActions) }
+            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, onEvent = {}) }
         }
         compose.waitForIdle()
 
@@ -71,9 +72,10 @@ class TvHomeHeroScrollTest {
     @Test
     fun `up from the first row returns focus to the hero`() {
         var played = false
-        val actions = NoActions.copy(hero = NoActions.hero.copy(onPlay = { played = true }))
         compose.setContent {
-            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = actions) }
+            FilmaxTvTheme {
+                TvHomeFeed(state = homeState(), offline = false, onEvent = { if (it is HomeEvent.Play) played = true })
+            }
         }
         compose.waitForIdle()
 
@@ -89,7 +91,7 @@ class TvHomeHeroScrollTest {
     @Test
     fun `hero is fully visible on the first open`() {
         compose.setContent {
-            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, actions = NoActions) }
+            FilmaxTvTheme { TvHomeFeed(state = homeState(), offline = false, onEvent = {}) }
         }
         compose.waitForIdle()
 
@@ -119,27 +121,21 @@ class TvHomeHeroScrollTest {
         /** Сколько рядов вниз уйти от hero: глубже экрана, чтобы лента прокрутилась. */
         const val ROWS_TO_DIVE = 3
 
-        val NoActions = TvHomeActions(
-            hero = HeroActions(onPlay = {}, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
-            rails = RailActions(
-                onOpenItem = {},
-                onPlay = { _, _, _ -> },
-                onOpenCollection = { _, _ -> },
-                onLoadMore = {}
-            ),
-            onReload = {},
-            onOpenCatalog = {},
-        )
-
-        fun homeState() = HomeState(
-            loading = false,
-            heroes = listOf(item(id = 1, title = "Дом на краю карты")),
-            rows = listOf(
-                HomeRow.Continue((40..45).map(::started)),
-                HomeRow.Titles(HomeRowId.TRENDING, RowPaging((10..17).map { item(id = it, title = "Тайтл $it") })),
-                HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging((20..27).map { item(id = it, title = "Сериал $it") })),
-            ),
-        )
+        fun homeState(): HomeState {
+            val hero = item(id = 1, title = "Дом на краю карты")
+            val trending = RowPaging((10..17).map { item(id = it, title = "Тайтл $it") })
+            val forYou = RowPaging((20..27).map { item(id = it, title = "Сериал $it") })
+            return HomeState(
+                loading = false,
+                heroes = listOf(hero),
+                hero = hero,
+                rows = listOf(
+                    HomeRow.Continue((40..45).map(::started)),
+                    HomeRow.Titles(HomeRowId.TRENDING, "В тренде", "на этой неделе", trending),
+                    HomeRow.Titles(HomeRowId.FOR_YOU, "Сериалы с высоким рейтингом", null, forYou),
+                ),
+            )
+        }
 
         fun started(id: Int) = WatchHistory(itemId = id, title = "Начато $id", posterSmall = "", progress = null)
 

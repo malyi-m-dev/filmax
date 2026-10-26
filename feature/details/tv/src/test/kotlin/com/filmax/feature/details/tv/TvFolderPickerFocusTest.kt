@@ -164,7 +164,7 @@ class TvFolderPickerFocusTest {
     private fun show(itemId: Int): FolderPickerScreenModel {
         val catalog = FakeCatalogRepository(backend)
         val item = runBlocking { checkNotNull(catalog.getItemDetails(itemId).getOrNull()) }
-        val series = item.takeIf { it.isSeries() }?.let { calculateSeriesData(it.tracklist) }
+        val series = item.takeIf(::isSeries)?.let { calculateSeriesData(it.tracklist) }
         val picker = FolderPickerScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
             user = user,
@@ -176,14 +176,9 @@ class TvFolderPickerFocusTest {
                 val pickerState by picker.collectAsState()
                 val buttonFocus = remember { FocusRequester() }
                 DetailsWithSheet(
-                    state = DetailsState(
-                        loading = false,
-                        item = item,
-                        series = series,
-                        selectedSeason = series?.let { it.seasons[it.resumeSeasonIndex].first },
-                    ),
+                    state = DetailsState().loaded(item, similar = emptyList(), series = series),
                     item = item,
-                    actions = actions(),
+                    onEvent = {},
                     folders = DetailsFolders(pickerState, picker::dispatch, buttonFocus),
                 )
             }
@@ -191,18 +186,6 @@ class TvFolderPickerFocusTest {
         compose.waitForIdle()
         return picker
     }
-
-    private fun actions() = DetailsActions(
-        onPlay = { _, _ -> },
-        onToggleWatchLater = {},
-        onTrailer = null,
-        onOpenItem = {},
-        onOpenPerson = { _, _ -> },
-        onOpenDescription = {},
-        onCloseDescription = {},
-        onSelectSeason = {},
-        onSwitchSeason = {},
-    )
 
     private fun focusedMatcher(text: String): SemanticsMatcher {
         val has = hasText(text, substring = true) or hasContentDescription(text, substring = true)

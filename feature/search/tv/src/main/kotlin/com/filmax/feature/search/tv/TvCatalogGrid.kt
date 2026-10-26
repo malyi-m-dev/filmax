@@ -39,6 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.labels.isHighRating
+import com.filmax.core.presentation.labels.posterMeta
+import com.filmax.core.presentation.labels.ratingLabel
+import com.filmax.core.presentation.labels.typeLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
@@ -52,10 +56,6 @@ import com.filmax.core.tv.designsystem.TvPosterSkeleton
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.bringIntoViewWithAbove
 import com.filmax.core.tv.designsystem.fxEnter
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 
@@ -76,10 +76,6 @@ private const val HEADER_KEY = "header"
 /** Старая выдача при смене фильтра гаснет быстро — новая уже идёт за ней скелетонами и fxEnter. */
 private const val FILTER_FADE_OUT_MS = 120
 
-/** Прокрутка сетки и чипы панелей — живут над сеткой, чтобы пережить поиск. */
-@Stable
-internal class CatalogGridChrome(val gridState: LazyGridState, val sheetOpeners: SheetOpeners)
-
 /**
  * Фокус на постерах: внутри сетки, но не в её шапке. Только тогда соседи постера в фокусе
  * приглушаются — фокус на чипах шапки тоже внутри сетки, а приглушать постеры там не за что.
@@ -94,17 +90,18 @@ private class PosterFocus {
 /**
  * Витрина: шапка и постеры в одной сетке. Строка в фокусе встаёт на опорную точку [RowPivot];
  * первая строка показывается вместе с шапкой — «вверх» со второй строки возвращает экран к началу.
+ * [gridState] живёт над режимами экрана: прокрутка переживает открытый поиск.
  */
 @Composable
 internal fun TvCatalogGrid(
     state: SearchState,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
+    onVoice: () -> Unit,
     focus: CatalogScreenFocus,
-    chrome: CatalogGridChrome,
+    gridState: LazyGridState,
 ) {
-    val gridState = chrome.gridState
     ScrollToTopOnNavFocus(gridState)
-    LoadMoreNearEnd(gridState) { actions.dispatch(SearchEvent.LoadMoreCatalog) }
+    LoadMoreNearEnd(gridState) { onEvent(SearchEvent.LoadMoreCatalog) }
     val density = LocalDensity.current
     val spec = remember(density) { PivotBringIntoViewSpec(with(density) { RowPivot.toPx() }) }
     var headerHeight by remember { mutableIntStateOf(0) }
@@ -127,16 +124,16 @@ internal fun TvCatalogGrid(
                 item(key = HEADER_KEY, span = { GridItemSpan(maxLineSpan) }) {
                     CatalogHeader(
                         state = state,
-                        actions = actions,
+                        onEvent = onEvent,
+                        onVoice = onVoice,
                         focus = focus,
-                        sheetOpeners = chrome.sheetOpeners,
                         modifier = Modifier
                             .onSizeChanged { headerHeight = it.height }
                             .onFocusChanged { posterFocus.inHeader = it.hasFocus }
                             .bringIntoViewAsWhole(),
                     )
                 }
-                catalogCells(state, actions, focus, aboveFirstRow)
+                catalogCells(state, onEvent, focus, aboveFirstRow)
             }
         }
     }
@@ -152,15 +149,15 @@ private val GridPadding = PaddingValues(
 /** Что под шапкой: скелетоны первой загрузки, пустое состояние, ошибка или постеры. */
 private fun LazyGridScope.catalogCells(
     state: SearchState,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
     focus: CatalogScreenFocus,
     aboveFirstRow: () -> Float,
 ) {
     when {
         state.loading -> skeletons(INITIAL_SKELETONS)
-        state.catalogItems.isEmpty() -> fullWidth("status") { CatalogStatus(state, actions) }
+        state.catalogItems.isEmpty() -> fullWidth("status") { CatalogStatus(state, onEvent) }
         else -> {
-            posters(state.catalogItems, actions, focus, aboveFirstRow)
+            posters(state.catalogItems, onEvent, focus, aboveFirstRow)
             if (state.catalogLoadingMore) skeletons(loadMoreSkeletons(state.catalogItems.size))
         }
     }
@@ -168,16 +165,14 @@ private fun LazyGridScope.catalogCells(
 
 private fun LazyGridScope.posters(
     items: List<Item>,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
     focus: CatalogScreenFocus,
     aboveFirstRow: () -> Float,
 ) {
     itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
         // Первая строка показывается с шапкой, остальные — целиком с подписью, на опорной точке.
         val reveal = if (index < CATALOG_COLUMNS) {
-            Modifier.bringIntoViewWithAbove(
-                aboveFirstRow
-            )
+            Modifier.bringIntoViewWithAbove(aboveFirstRow)
         } else {
             Modifier.bringIntoViewAsWhole()
         }
@@ -185,7 +180,7 @@ private fun LazyGridScope.posters(
             title = item.title,
             meta = posterMeta(typeLabel(item.type), item.year),
             posterUrl = posterUrl(item),
-            onClick = { actions.onOpenItem(item.id) },
+            onClick = { onEvent(SearchEvent.OpenItem(item.id)) },
             modifier = filterChangeFade()
                 .then(reveal)
                 .fxEnter(index % CATALOG_COLUMNS)
@@ -224,16 +219,15 @@ internal fun posterUrl(item: Item): String = item.posters.medium.ifEmpty { item.
  * Скелетоны догрузки: добить неполную последнюю строку и ещё строка — столько места займёт
  * страница, и сетка не прыгнет, когда вместо заглушек встанут постеры.
  */
-internal fun loadMoreSkeletons(
-    shown: Int
-): Int = (CATALOG_COLUMNS - shown % CATALOG_COLUMNS) % CATALOG_COLUMNS + CATALOG_COLUMNS
+internal fun loadMoreSkeletons(shown: Int): Int =
+    (CATALOG_COLUMNS - shown % CATALOG_COLUMNS) % CATALOG_COLUMNS + CATALOG_COLUMNS
 
 /**
  * Пустая витрина: ничего не подошло под фильтры или выдача не загрузилась. Фокусу есть куда
  * встать и без кнопки — чипы шапки прямо над сообщением.
  */
 @Composable
-private fun CatalogStatus(state: SearchState, actions: CatalogActions) {
+private fun CatalogStatus(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     val colors = LocalFxColors.current
     val failed = state.error != null
     Column(
@@ -255,7 +249,7 @@ private fun CatalogStatus(state: SearchState, actions: CatalogActions) {
         if (failed) {
             TvButton(
                 text = "Повторить",
-                onClick = { actions.dispatch(SearchEvent.RetryCatalog) },
+                onClick = { onEvent(SearchEvent.RetryCatalog) },
                 modifier = Modifier.padding(top = 14.dp),
             )
         }

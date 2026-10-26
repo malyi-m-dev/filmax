@@ -31,9 +31,11 @@ import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxGlassHeader
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxSegmentedControl
+import com.filmax.feature.search.common.CatalogSheet
+import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.TypeOptions
-import com.filmax.feature.search.common.applied
+import com.filmax.feature.search.common.appliedFilters
 import com.filmax.feature.search.common.sortLabel
 
 /**
@@ -46,14 +48,13 @@ private val SegmentOptions: List<Pair<ItemType?, String>> = TypeOptions.map { (t
 
 @Composable
 internal fun CatalogHeader(
-    title: String,
     state: SearchState,
-    actions: CatalogActions,
+    onEvent: (SearchEvent) -> Unit,
     glass: GlassState,
     modifier: Modifier = Modifier,
 ) {
     FilmaxGlassHeader(glass = glass, modifier = modifier) {
-        TitleRow(title = title, actions = actions)
+        TitleRow(title = state.title, canGoBack = state.section != null, onEvent = onEvent)
         val selectedSegment = SegmentOptions.indexOfFirst { it.first == state.filter }
         // Раздел вне сегментов («ТВ-шоу», «Концерты» из «Разделов»): ни один сегмент такую выборку
         // не описывает, а подсвеченное «Все» соврало бы. Тип здесь задал раздел, и его называет заголовок.
@@ -61,29 +62,29 @@ internal fun CatalogHeader(
             FilmaxSegmentedControl(
                 options = SegmentOptions.map { it.second },
                 selectedIndex = selectedSegment,
-                onSelect = { index -> actions.onFilter(SegmentOptions[index].first) },
+                onSelect = { index -> onEvent(SearchEvent.FilterChange(SegmentOptions[index].first)) },
                 modifier = Modifier.fillMaxWidth().padding(horizontal = FilmaxMetrics.GridPadding),
             )
         }
-        SelectionChips(state = state, actions = actions)
+        SelectionChips(state = state, onEvent = onEvent)
     }
 }
 
 @Composable
-private fun TitleRow(title: String, actions: CatalogActions) {
+private fun TitleRow(title: String, canGoBack: Boolean, onEvent: (SearchEvent) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .height(FilmaxMetrics.HeaderRowHeight)
-            .padding(start = if (actions.onBack != null) 12.dp else FilmaxMetrics.ScreenPadding, end = 16.dp),
+            .padding(start = if (canGoBack) 12.dp else FilmaxMetrics.ScreenPadding, end = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        actions.onBack?.let {
+        if (canGoBack) {
             FilmaxIconButton(
                 Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Назад",
-                onClick = it,
+                onClick = { onEvent(SearchEvent.Back) },
                 size = FilmaxMetrics.IconButtonSmall,
             )
         }
@@ -98,13 +99,13 @@ private fun TitleRow(title: String, actions: CatalogActions) {
         FilmaxIconButton(
             Icons.Filled.SwapVert,
             contentDescription = "Сортировка",
-            onClick = { actions.onOpenSheet(CatalogSheet.Sort) },
+            onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.SORT)) },
             size = FilmaxMetrics.IconButtonSmall,
         )
         FilmaxIconButton(
             Icons.Filled.Tune,
             contentDescription = "Фильтры",
-            onClick = { actions.onOpenSheet(CatalogSheet.Filters) },
+            onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.FILTERS)) },
             size = FilmaxMetrics.IconButtonSmall,
         )
     }
@@ -115,7 +116,7 @@ private fun TitleRow(title: String, actions: CatalogActions) {
  * Тап по чипу сортировки или жанра — шторка с вариантами.
  */
 @Composable
-private fun SelectionChips(state: SearchState, actions: CatalogActions) {
+private fun SelectionChips(state: SearchState, onEvent: (SearchEvent) -> Unit) {
     val genre = state.genres.firstOrNull { it.id == state.selectedGenreId }
     Row(
         Modifier
@@ -128,14 +129,14 @@ private fun SelectionChips(state: SearchState, actions: CatalogActions) {
         FilmaxChip(
             label = sortLabel(state.sort.field),
             selected = false,
-            onClick = { actions.onOpenSheet(CatalogSheet.Sort) },
+            onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.SORT)) },
             trailingIcon = Icons.Filled.KeyboardArrowDown,
         )
-        state.filters.applied(state.countries).forEach { filter ->
+        appliedFilters(state.filters, state.countries).forEach { filter ->
             FilmaxChip(
                 label = filter.label,
                 selected = true,
-                onClick = { actions.onFilters(filter.without) },
+                onClick = { onEvent(SearchEvent.ApplyFilters(filter.without)) },
                 trailingIcon = Icons.Filled.Close,
             )
         }
@@ -143,15 +144,15 @@ private fun SelectionChips(state: SearchState, actions: CatalogActions) {
             FilmaxChip(
                 label = genre.title,
                 selected = true,
-                onClick = { actions.onGenre(null) },
-                trailingIcon = Icons.Filled.Close
+                onClick = { onEvent(SearchEvent.GenreChange(null)) },
+                trailingIcon = Icons.Filled.Close,
             )
         } else if (state.genres.isNotEmpty() && state.filter != ItemType.ANIME) {
             // У «Аниме» жанр уже задан самим типом — второй параметр genre API не принимает.
             FilmaxChip(
                 label = "Жанр",
                 selected = false,
-                onClick = { actions.onOpenSheet(CatalogSheet.Genre) },
+                onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.GENRE)) },
                 trailingIcon = Icons.Filled.KeyboardArrowDown,
             )
         }
@@ -159,7 +160,7 @@ private fun SelectionChips(state: SearchState, actions: CatalogActions) {
             FilmaxChip(
                 label = "Год и рейтинг",
                 selected = false,
-                onClick = { actions.onOpenSheet(CatalogSheet.Filters) },
+                onClick = { onEvent(SearchEvent.OpenSheet(CatalogSheet.FILTERS)) },
                 trailingIcon = Icons.Filled.KeyboardArrowDown,
             )
         }

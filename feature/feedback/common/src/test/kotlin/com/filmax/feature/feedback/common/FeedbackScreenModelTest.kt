@@ -37,6 +37,7 @@ class FeedbackScreenModelTest {
     private val repository = FakeFeedbackRepository(backend)
     private val store = FakeFeedbackPromptStore()
     private val client = ClientInfo(appVersion = "2.2.0", isTv = true, device = "Xiaomi MIBOX4", os = "Android 9")
+    private val effects = mutableListOf<FeedbackSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -94,13 +95,23 @@ class FeedbackScreenModelTest {
         assertNotNull(store.state.lastPromptAt)
     }
 
+    @Test
+    fun `dismiss closes the window`() {
+        val model = model(FeedbackTrigger.Profile)
+        assertEquals("Оцените Filmax", model.states.value.title)
+
+        model.dispatch(FeedbackEvent.Dismiss)
+
+        assertEquals(listOf<FeedbackSideEffect>(FeedbackSideEffect.Close), effects)
+    }
+
     private fun model(trigger: FeedbackTrigger) = FeedbackScreenModel(
         savedStateHandle = SavedStateHandle(mapOf("trigger" to trigger.name)),
         repository = repository,
         prompts = FeedbackPrompts(store, appVersion = client.appVersion, now = { NOW }),
         user = FakeUserRepository(backend),
         client = client,
-    )
+    ).also { it.observeSideEffects(effects::add) }
 
     private companion object {
         const val NOW = 1_800_000_000_000L

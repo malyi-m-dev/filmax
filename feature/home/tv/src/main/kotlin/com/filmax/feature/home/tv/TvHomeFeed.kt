@@ -20,8 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +48,7 @@ import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeState
 
 /** Ряд с фокусом встаёт заголовком на эту высоту от верха экрана. */
@@ -74,11 +77,12 @@ private const val FEED_END_TEXT_ALPHA = 0.55f
  * прокрутки. Часы — вне скролла.
  */
 @Composable
-internal fun TvHomeFeed(state: HomeState, offline: Boolean, actions: TvHomeActions) {
+internal fun TvHomeFeed(state: HomeState, offline: Boolean, onEvent: (HomeEvent) -> Unit) {
     val listState = rememberLazyListState()
     ScrollToTopOnNavFocus(listState)
     val focus = rememberTvScreenFocus()
-    val feedFocus = remember { FeedFocus() }
+    // Номер ряда в фокусе — только для приглушения рядов над ним; модели про это знать незачем.
+    val focusedRow = remember { mutableIntStateOf(NO_ROW) }
     val scrolled = rememberScrolledShare(listState)
     val pivot = with(LocalDensity.current) { RowPivot.toPx() }
     val spec = remember(pivot) { PivotBringIntoViewSpec(pivot) }
@@ -92,11 +96,14 @@ internal fun TvHomeFeed(state: HomeState, offline: Boolean, actions: TvHomeActio
                 verticalArrangement = Arrangement.spacedBy(RowSpacing),
             ) {
                 // Офлайн-деградация (issue #42): кэшированный контент + баннер «нет сети» вместо ошибки.
-                if (offline) item(key = "offline") { OfflineBanner(actions.onReload) }
-                heroItem(state, listState, actions.hero, FeedItemFocus(focus, feedFocus))
-                homeRails(state.rows, actions.rails, FeedItemFocus(focus, feedFocus))
+                if (offline) item(key = "offline") { OfflineBanner(onReload = { onEvent(HomeEvent.Load) }) }
+                heroItem(state, listState, onEvent, focus, focusedRow)
+                homeRails(state.rows, onEvent, focus, focusedRow)
                 item(key = "end") {
-                    FeedEnd(actions.onOpenCatalog, Modifier.feedRow(state.rows.size + 1, feedFocus))
+                    FeedEnd(
+                        onOpenCatalog = { onEvent(HomeEvent.OpenCatalog) },
+                        modifier = Modifier.feedRow(state.rows.size + 1, focusedRow),
+                    )
                 }
             }
         }
@@ -106,32 +113,25 @@ internal fun TvHomeFeed(state: HomeState, offline: Boolean, actions: TvHomeActio
     }
 }
 
-/** Фокус элемента ленты: память экрана и номер ряда в фокусе — для приглушения рядов над ним. */
-internal class FeedItemFocus(val screen: TvScreenFocus, val feed: FeedFocus)
-
 /** Номер hero среди рядов ленты: ряды считаются с 1. */
 private const val HERO_ROW = 0
 
 private fun LazyListScope.heroItem(
     state: HomeState,
     listState: LazyListState,
-    actions: HeroActions,
-    focus: FeedItemFocus,
+    onEvent: (HomeEvent) -> Unit,
+    focus: TvScreenFocus,
+    focusedRow: MutableIntState,
 ) {
-    val hero = HeroModel(
-        heroes = state.heroes,
-        index = state.heroIndex,
-        inWatchLater = state.hero?.id in state.watchLaterIds
-    )
-    if (hero.current == null) return
+    if (state.hero == null) return
     item(key = "hero") {
         TvHomeHero(
-            hero,
-            actions,
-            focus.screen,
+            state,
+            onEvent,
+            focus,
             Modifier
                 .heroFootprint(FirstRailTop - RowSpacing)
-                .trackFeedRow(HERO_ROW, focus.feed)
+                .trackFeedRow(HERO_ROW, focusedRow)
                 .heroParallax(listState)
                 .bringIntoViewAsWhole(),
         )

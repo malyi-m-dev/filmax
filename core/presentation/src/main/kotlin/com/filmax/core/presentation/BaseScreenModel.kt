@@ -118,6 +118,15 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
         }
     }
 
+    /**
+     * [postSideEffect] прямо из обработчика события. Тап «открыть тайтл» или «назад» — не
+     * корутина, а эффект должен уйти экрану в порядке событий: запуск на main.immediate отдаёт
+     * его сразу, без очереди диспетчера.
+     */
+    protected fun sendSideEffect(effect: SIDE_EFFECT) {
+        screenModelScope.launch(mainThreadDispatcher) { postSideEffect(effect) }
+    }
+
     /** Атомарно обновляет состояние на main-потоке. */
     protected suspend fun updateState(call: (STATE) -> STATE) {
         updateStateLock.withLock {

@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -70,6 +69,8 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.feature.collections.common.CollectionDetailEvent
+import com.filmax.feature.collections.common.CollectionDetailState
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -121,45 +122,35 @@ private val TitleStyle = FxType.hero.copy(
     letterSpacing = (-0.03).em,
 )
 
-/** Что шапка показывает: название, подпись с числом тайтлов, кадр и цвет полосы. */
-@Immutable
-internal data class CollectionHeaderModel(
-    val title: String,
-    val caption: String?,
-    val cover: String?,
-    val tint: Color,
-)
-
 /**
- * Шапка подборки. [collapsed] приходит из модели (фокус ниже первой строки), а всё движение — одна
+ * Шапка подборки. Свёрнутость приходит из модели (фокус ниже первой строки), а всё движение — одна
  * `updateTransition`: высота полосы, масштаб и сдвиг названия, кроссфейд подписи, кнопка, тень.
  * Значения читаются в фазах раскладки и отрисовки — анимация не перекомпоновывает шапку.
  *
- * [onPlay] == null — смотреть нечего (подборка пуста), кнопки нет. [onFocused] — фокус пришёл на
- * кнопку шапки: модель раскрывает шапку.
+ * Смотреть нечего (подборка пуста) — кнопки нет. Фокус пришёл на кнопку шапки — модель раскрывает её.
  */
 @Composable
 internal fun CollectionHeader(
-    model: CollectionHeaderModel,
-    collapsed: Boolean,
-    onPlay: (() -> Unit)?,
-    onFocused: () -> Unit,
+    state: CollectionDetailState,
+    tint: Color,
+    onEvent: (CollectionDetailEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val collapsed = state.headerCollapsed
     val transition = updateTransition(collapsed, label = "collectionHeader")
     val progress = transition.collapseProgress()
     val overline = transition.overlineAlpha()
     val collapse = remember(progress) { { progress.value } }
     Box(modifier.fillMaxSize().zIndex(if (collapsed) HEADER_OVER_GRID else HEADER_UNDER_GRID)) {
         PreviousRowFade(collapse)
-        HeaderBand(model, running = !collapsed, collapse)
-        HeaderTexts(model, collapse, overline)
-        if (onPlay != null) {
+        HeaderBand(state.cover, tint, running = !collapsed, collapse)
+        HeaderTexts(state, collapse, overline)
+        if (state.startItemId != null) {
             // Белая кнопка: акцентная сливалась бы с цветной полосой подборки.
             TvCollapsibleButton(
                 text = "Смотреть подряд",
                 icon = Icons.Rounded.PlayArrow,
-                onClick = onPlay,
+                onClick = { onEvent(CollectionDetailEvent.PlayAll) },
                 collapse = collapse,
                 style = TvButtonStyle.Light,
                 modifier = Modifier
@@ -167,7 +158,7 @@ internal fun CollectionHeader(
                     .padding(end = ActionsEnd)
                     .centeredAt { lerp(ActionsExpandedCenter, ActionsCollapsedCenter, collapse()) }
                     .fxEnter(ACTIONS_ENTER)
-                    .onFocusChanged { if (it.hasFocus) onFocused() },
+                    .onFocusChanged { if (it.hasFocus) onEvent(CollectionDetailEvent.FocusRow(null)) },
             )
         }
     }
@@ -213,7 +204,7 @@ private fun PreviousRowFade(collapse: () -> Float) {
 
 /** Цветная полоса с кадром: высота 230 → 72dp, тень в свёрнутом виде, ken-burns — только в раскрытом. */
 @Composable
-private fun HeaderBand(model: CollectionHeaderModel, running: Boolean, collapse: () -> Float) {
+private fun HeaderBand(cover: String?, tint: Color, running: Boolean, collapse: () -> Float) {
     val background = LocalFxColors.current.background
     Box(
         Modifier
@@ -224,9 +215,9 @@ private fun HeaderBand(model: CollectionHeaderModel, running: Boolean, collapse:
                 shape = RectangleShape
                 clip = true
             }
-            .background(model.tint),
+            .background(tint),
     ) {
-        model.cover?.let { url ->
+        cover?.let { url ->
             PosterImage(
                 url = url,
                 contentDescription = null,
@@ -250,7 +241,7 @@ private fun HeaderBand(model: CollectionHeaderModel, running: Boolean, collapse:
  * полосы; подпись под ним гаснет, а такая же справа от уменьшенного названия — проявляется.
  */
 @Composable
-private fun BoxScope.HeaderTexts(model: CollectionHeaderModel, collapse: () -> Float, overline: State<Float>) {
+private fun BoxScope.HeaderTexts(state: CollectionDetailState, collapse: () -> Float, overline: State<Float>) {
     val colors = LocalFxColors.current
     var titleWidth by remember { mutableIntStateOf(0) }
     // Подборки на ТВ открываются только с Главной — туда «назад» и ведёт. В свёрнутой полосе
@@ -270,7 +261,7 @@ private fun BoxScope.HeaderTexts(model: CollectionHeaderModel, collapse: () -> F
             .graphicsLayer { alpha = overline.value },
     )
     Text(
-        model.title,
+        state.title,
         style = TitleStyle,
         color = colors.text,
         maxLines = 1,
@@ -290,7 +281,7 @@ private fun BoxScope.HeaderTexts(model: CollectionHeaderModel, collapse: () -> F
             }
             .fxEnter(TITLE_ENTER),
     )
-    model.caption?.let { caption ->
+    state.caption?.let { caption ->
         HeaderCaption(caption, collapse) { progress ->
             val backWidth = TvKeyCapSize.Regular.size.roundToPx()
             val collapsedX = backWidth + InlineGap.roundToPx() + (titleWidth * TITLE_COLLAPSED_SCALE).roundToInt()

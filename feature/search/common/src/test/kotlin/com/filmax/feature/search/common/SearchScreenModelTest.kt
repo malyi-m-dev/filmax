@@ -78,16 +78,18 @@ class SearchScreenModelTest {
     @Test
     fun `tv shows section from the home sheet shows only tv shows`() = runTest(dispatcher) {
         val model = SearchScreenModel(
-            FakeSearchRepository(backend),
-            catalog,
-            SavedStateHandle(mapOf("section" to CatalogSection.TV_SHOWS.name)),
+            search = FakeSearchRepository(backend),
+            catalog = catalog,
+            savedStateHandle = SavedStateHandle(mapOf("section" to CatalogSection.TV_SHOWS.name)),
         )
         model.dispatch(SearchEvent.LoadCatalog)
         advanceUntilIdle()
 
-        val items = model.states.value.catalogItems
-        assertTrue(items.isNotEmpty())
-        assertTrue(items.all { it.type == ItemType.TV_SHOW })
+        val state = model.states.value
+        assertTrue(state.catalogItems.isNotEmpty())
+        assertTrue(state.catalogItems.all { it.type == ItemType.TV_SHOW })
+        assertEquals("ТВ-шоу", state.title)
+        assertEquals(CatalogSection.TV_SHOWS, state.section)
     }
 
     @Test
@@ -302,11 +304,28 @@ class SearchScreenModelTest {
         advanceUntilIdle()
         assertTrue(model.states.value.recentQueries.isEmpty(), "набранный запрос попал в недавние")
 
-        model.dispatch(SearchEvent.ResultOpened)
+        model.dispatch(SearchEvent.OpenResult(FakeIds.LONG_SERIES))
         model.dispatch(SearchEvent.SubmitQuery("северный"))
         advanceUntilIdle()
 
         assertEquals(listOf("северный", "хрони"), model.states.value.recentQueries)
+    }
+
+    @Test
+    fun `cards and results lead to details, back leaves the section`() = runTest(dispatcher) {
+        val model = catalogModel()
+        val effects = mutableListOf<SearchSideEffect>()
+        model.observeSideEffects(effects::add)
+
+        model.dispatch(SearchEvent.OpenItem(itemId = 7))
+        model.dispatch(SearchEvent.OpenResult(itemId = 9))
+        model.dispatch(SearchEvent.Back)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(SearchSideEffect.OpenDetails(7), SearchSideEffect.OpenDetails(9), SearchSideEffect.Back),
+            effects,
+        )
     }
 
     /** Модель с витриной: экран каталога уже заявил о себе ([SearchEvent.LoadCatalog]). */

@@ -32,10 +32,7 @@ private const val COMMENT_LINES = 4
 
 /** Окно оценки поверх экрана: звёзды, комментарий системной клавиатурой и отправка. */
 @Composable
-fun FeedbackDialog(
-    screenModel: FeedbackScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
+fun FeedbackDialog(screenModel: FeedbackScreenModel = koinViewModel(), navigator: Navigator = koinInject()) {
     val state by screenModel.collectAsState()
     screenModel.collectSideEffect { effect ->
         when (effect) {
@@ -55,12 +52,12 @@ fun FeedbackDialog(
 }
 
 @Composable
-private fun Form(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit) {
+private fun Form(state: FeedbackState, onEvent: (FeedbackEvent) -> Unit) {
     Text(state.title, style = FilmaxType.sheetTitle, color = FilmaxColors.Text)
-    FilmaxRatingStars(rating = state.rating, onRate = { dispatch(FeedbackEvent.Rate(it)) })
+    FilmaxRatingStars(rating = state.rating, onRate = { onEvent(FeedbackEvent.Rate(it)) })
     FilmaxTextArea(
         value = state.comment,
-        onValueChange = { dispatch(FeedbackEvent.Comment(it)) },
+        onValueChange = { onEvent(FeedbackEvent.Comment(it)) },
         placeholder = "Что нравится, чего не хватает — по желанию",
         minLines = COMMENT_LINES,
     )
@@ -68,13 +65,13 @@ private fun Form(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         FilmaxButton(
             text = "Не сейчас",
-            onClick = { dispatch(FeedbackEvent.Dismiss) },
+            onClick = { onEvent(FeedbackEvent.Dismiss) },
             style = FilmaxButtonStyle.Secondary,
             modifier = Modifier.weight(1f),
         )
         FilmaxButton(
             text = if (state.sending) "Отправляем…" else "Отправить",
-            onClick = { dispatch(FeedbackEvent.Send) },
+            onClick = { onEvent(FeedbackEvent.Send) },
             enabled = state.rating > 0 && !state.sending,
             modifier = Modifier.weight(1f),
         )
@@ -82,8 +79,8 @@ private fun Form(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit) {
 }
 
 @Composable
-private fun ThankYou(dispatch: (FeedbackEvent) -> Unit) {
+private fun ThankYou(onEvent: (FeedbackEvent) -> Unit) {
     Text("Спасибо!", style = FilmaxType.sheetTitle, color = FilmaxColors.Text)
     Text("Отзыв отправлен — мы его прочитаем.", style = FilmaxType.body, color = FilmaxColors.TextSecondary)
-    FilmaxButton(text = "Готово", onClick = { dispatch(FeedbackEvent.Dismiss) }, modifier = Modifier.fillMaxWidth())
+    FilmaxButton(text = "Готово", onClick = { onEvent(FeedbackEvent.Dismiss) }, modifier = Modifier.fillMaxWidth())
 }

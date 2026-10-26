@@ -10,6 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,24 +24,33 @@ import androidx.media3.ui.PlayerView
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.ui.components.KeepScreenOn
+import com.filmax.feature.player.common.TrailerEvent
+import com.filmax.feature.player.common.TrailerScreenModel
+import com.filmax.feature.player.common.TrailerSideEffect
+import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /**
  * TV-экран трейлера — одноразовый плеер по готовому HLS-URL.
  *
- * [url] — временный .m3u8 с истекающим токеном в query, поэтому плеер намеренно простой: он не
+ * Адрес — временный .m3u8 с истекающим токеном в query, поэтому плеер намеренно простой: он не
  * переживает пересоздание (по протухшему токену воспроизведение не восстановить — для трейлера
- * это допустимо). Отдельного ScreenModel не заводим: играем URL как есть, со штатным контроллером
- * Media3 (на TV он управляется D-pad пульта).
+ * это допустимо). Играем URL как есть, со штатным контроллером Media3 (на TV он управляется D-pad
+ * пульта); модель лишь отдаёт адрес и название из маршрута и закрывает экран по «Назад».
  */
 @Composable
 fun TvTrailerScreen(
-    url: String,
-    title: String,
     modifier: Modifier = Modifier,
+    screenModel: TrailerScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
-    val onBack: () -> Unit = navigator::back
+    val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            TrailerSideEffect.Close -> navigator.back()
+        }
+    }
+    val url = state.url
     val context = LocalContext.current
     // remember(url) пересоздаёт плеер только при смене трейлера; ключ URL связывает жизненный
     // цикл ExoPlayer с конкретным HLS-адресом.
@@ -56,7 +66,7 @@ fun TvTrailerScreen(
     }
 
     // На TV «Назад» — системная кнопка пульта: перехватываем её, чтобы выйти из трейлера.
-    BackHandler { onBack() }
+    BackHandler { screenModel.dispatch(TrailerEvent.Back) }
 
     // Трейлер короткий — держим экран, пока он на экране, без слежения за паузой.
     KeepScreenOn()
@@ -67,9 +77,9 @@ fun TvTrailerScreen(
             .background(Color.Black),
     ) {
         TvTrailerSurface(player = exoPlayer, modifier = Modifier.fillMaxSize())
-        if (title.isNotBlank()) {
+        if (state.title.isNotBlank()) {
             Text(
-                text = title,
+                text = state.title,
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
                 modifier = Modifier

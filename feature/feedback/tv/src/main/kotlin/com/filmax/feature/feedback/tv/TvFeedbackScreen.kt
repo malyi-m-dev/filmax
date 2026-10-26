@@ -53,10 +53,7 @@ private const val FIELD_FILL_ALPHA = 0.06f
 
 /** Окно оценки поверх тёмного фона. «Назад» закрывает его, как и «Не сейчас». */
 @Composable
-fun TvFeedbackScreen(
-    screenModel: FeedbackScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
+fun TvFeedbackScreen(screenModel: FeedbackScreenModel = koinViewModel(), navigator: Navigator = koinInject()) {
     val state by screenModel.collectAsState()
     screenModel.collectSideEffect { effect ->
         when (effect) {
@@ -72,20 +69,20 @@ fun TvFeedbackScreen(
 }
 
 @Composable
-private fun FeedbackForm(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit) {
+private fun FeedbackForm(state: FeedbackState, onEvent: (FeedbackEvent) -> Unit) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = TvMetrics.SafeHorizontal),
         horizontalArrangement = Arrangement.spacedBy(ColumnGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RatingColumn(state, dispatch, Modifier.width(FormWidth))
-        CommentKeyboard(state, dispatch, Modifier.weight(1f))
+        RatingColumn(state, onEvent, Modifier.width(FormWidth))
+        CommentKeyboard(state, onEvent, Modifier.weight(1f))
     }
 }
 
 /** Заголовок, звёзды, комментарий и кнопки. Фокус при открытии — на первой звезде. */
 @Composable
-private fun RatingColumn(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit, modifier: Modifier) {
+private fun RatingColumn(state: FeedbackState, onEvent: (FeedbackEvent) -> Unit, modifier: Modifier) {
     val colors = LocalFxColors.current
     val firstStar = remember { FocusRequester() }
     val send = remember { FocusRequester() }
@@ -95,7 +92,7 @@ private fun RatingColumn(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit
         Text(state.title, style = FxType.screenTitle, color = colors.text)
         TvRatingStars(
             rating = state.rating,
-            onRate = { dispatch(FeedbackEvent.Rate(it)) },
+            onRate = { onEvent(FeedbackEvent.Rate(it)) },
             firstStar = firstStar,
             exitDown = send,
             // Звёзды разместились — фокус на первую, один раз.
@@ -106,10 +103,10 @@ private fun RatingColumn(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit
         Row(Modifier.tvFocusGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TvButton(
                 text = if (state.sending) "Отправляем…" else "Отправить",
-                onClick = { dispatch(FeedbackEvent.Send) },
+                onClick = { onEvent(FeedbackEvent.Send) },
                 focusRequester = send,
             )
-            TvButton("Не сейчас", onClick = { dispatch(FeedbackEvent.Dismiss) }, style = TvButtonStyle.Secondary)
+            TvButton("Не сейчас", onClick = { onEvent(FeedbackEvent.Dismiss) }, style = TvButtonStyle.Secondary)
         }
     }
 }
@@ -132,8 +129,8 @@ private fun CommentField(comment: String) {
 }
 
 @Composable
-private fun CommentKeyboard(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit, modifier: Modifier) {
-    val key = { input: FeedbackInput -> dispatch(FeedbackEvent.Key(input)) }
+private fun CommentKeyboard(state: FeedbackState, onEvent: (FeedbackEvent) -> Unit, modifier: Modifier) {
+    val key = { input: FeedbackInput -> onEvent(FeedbackEvent.Key(input)) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         TvKeyboard(
             rows = keyboardRows(state.layout),
@@ -156,7 +153,7 @@ private fun CommentKeyboard(state: FeedbackState, dispatch: (FeedbackEvent) -> U
 
 /** Отзыв ушёл: благодарность и «Готово». */
 @Composable
-private fun ThankYou(dispatch: (FeedbackEvent) -> Unit) {
+private fun ThankYou(onEvent: (FeedbackEvent) -> Unit) {
     val colors = LocalFxColors.current
     val done = remember { FocusRequester() }
     var focusPlaced by remember { mutableStateOf(false) }
@@ -165,7 +162,7 @@ private fun ThankYou(dispatch: (FeedbackEvent) -> Unit) {
         Text("Отзыв отправлен — мы его прочитаем.", style = FxType.body, color = colors.textSecondary)
         TvButton(
             "Готово",
-            onClick = { dispatch(FeedbackEvent.Dismiss) },
+            onClick = { onEvent(FeedbackEvent.Dismiss) },
             focusRequester = done,
             modifier = Modifier.onPlaced { if (!focusPlaced) focusPlaced = done.requestFocus() },
         )

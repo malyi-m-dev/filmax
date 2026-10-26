@@ -14,19 +14,33 @@ data class DeviceSettingsState(
     val loading: Boolean = true,
     val saving: Boolean = false,
     val error: String? = null,
+    /** Телефон: открыта шторка выбора типа потока. */
+    val streamingSheetOpen: Boolean = false,
 )
 
 sealed interface DeviceSettingsEvent {
-    data class SetSsl(val enabled: Boolean) : DeviceSettingsEvent
-    data class SetHevc(val enabled: Boolean) : DeviceSettingsEvent
-    data class SetHdr(val enabled: Boolean) : DeviceSettingsEvent
-    data class Set4k(val enabled: Boolean) : DeviceSettingsEvent
-    data class SetMixedPlaylist(val enabled: Boolean) : DeviceSettingsEvent
-    data class SetStreamingType(val streamingType: Int) : DeviceSettingsEvent
+    /** Правка рабочей копии; до загрузки настроек события просто игнорируются. */
+    sealed interface Edit : DeviceSettingsEvent
+
+    data class SetSsl(val enabled: Boolean) : Edit
+    data class SetHevc(val enabled: Boolean) : Edit
+    data class SetHdr(val enabled: Boolean) : Edit
+    data class Set4k(val enabled: Boolean) : Edit
+    data class SetMixedPlaylist(val enabled: Boolean) : Edit
+    data class SetStreamingType(val streamingType: Int) : Edit
+
+    /** ТВ: тип потока по кругу — селектора с пульта нет, «ОК» на строке листает варианты. */
+    data object CycleStreamingType : DeviceSettingsEvent
+
+    data object OpenStreamingSheet : DeviceSettingsEvent
+    data object CloseStreamingSheet : DeviceSettingsEvent
+
+    /** На сервер — и после успеха назад в Профиль. */
     data object Save : DeviceSettingsEvent
+    data object Back : DeviceSettingsEvent
 }
 
+/** Экран закрывается — «Назад» или сохранённые настройки; уводит назад навигатором экран. */
 sealed interface DeviceSettingsSideEffect {
-    /** Настройки сохранены — экран должен закрыться и вернуть пользователя в Профиль. */
-    data object Saved : DeviceSettingsSideEffect
+    data object Close : DeviceSettingsSideEffect
 }

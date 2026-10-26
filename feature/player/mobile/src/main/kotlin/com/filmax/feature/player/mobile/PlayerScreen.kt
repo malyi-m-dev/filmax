@@ -1,6 +1,7 @@
 // Экран плеера: поверхность ExoPlayer, оверлей контролов с автоскрытием и блокировкой экрана,
-// боковая панель, плашка «нужна подписка» и эффекты воспроизведения (прогресс, экран не гаснет,
-// пауза за кадром). Контролы — в PlayerOverlay, панель — в PlayerSidePanel.
+// боковая панель, плашка «нужна подписка» и эффекты экрана (экран не гаснет, пауза за кадром).
+// Снимок воспроизведения, перемотка и переходы — у модели; контролы — в PlayerOverlay, панель —
+// в PlayerSidePanel.
 
 package com.filmax.feature.player.mobile
 
@@ -19,7 +20,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,7 +45,6 @@ import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
 import com.filmax.feature.player.common.PlayerSideEffect
-import com.filmax.feature.player.common.PlayerState
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -53,38 +52,32 @@ import org.koin.compose.koinInject
 private const val AUTO_HIDE_DELAY_MS = 4500L
 
 /**
- * Плеер. [itemId] — из маршрута: экрану он нужен, чтобы попросить другую серию — это НАВИГАЦИЯ на
- * новый экран плеера, а не подмена потока: прогресс модель пишет в трек, выбранный при старте.
+ * Плеер. Другая серия — это НАВИГАЦИЯ на новый экран плеера, а не подмена потока: прогресс модель
+ * пишет в трек, выбранный при старте, и переход делает она сама.
  */
 @Composable
 fun PlayerScreen(
-    itemId: Int,
     modifier: Modifier = Modifier,
     screenModel: PlayerScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    screenModel.collectSideEffect { effect -> navigator.onPlayerEffect(itemId, effect) }
+    PlayerNavigation(screenModel = screenModel, navigator = navigator)
+    val onEvent: (PlayerEvent) -> Unit = screenModel::dispatch
     val appError by screenModel.collectErrorAsState()
-    // Другая серия — замена текущего экрана: перещёлкивание серий не копит стек.
-    val playEpisode: (Int, Int) -> Unit = { season, videoId ->
-        navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
+    PlayerEffects(screenModel = screenModel, playing = state.playback.playing)
+
+    // Видны ли контролы и заблокирован ли экран — дело вёрстки: модель о касаниях не знает.
+    var controlsVisible by remember { mutableStateOf(true) }
+    var locked by remember { mutableStateOf(false) }
+    val scrubbing = state.scrubTargetMs != null
+    // Контролы прячутся сами, но не пока тянут ползунок и не при открытой панели.
+    LaunchedEffect(controlsVisible, scrubbing, state.panelOpen) {
+        if (controlsVisible && !scrubbing && !state.panelOpen) {
+            delay(AUTO_HIDE_DELAY_MS)
+            controlsVisible = false
+        }
     }
-    val playNext = state.nextTrack?.let { next -> { playEpisode(next.seasonNumber, next.number) } }
-    val playback = rememberPlayback(
-        player = screenModel.player,
-        onEnded = { playNext?.invoke() },
-        onTick = { screenModel.dispatch(PlayerEvent.SaveProgress(it)) },
-    )
-    PlayerEffects(screenModel = screenModel, playing = playback.playing)
-    val controls = rememberControls(scrubbing = playback.scrubMs != null, panelOpen = state.panelOpen)
-    val actions = overlayActions(
-        screenModel,
-        playback,
-        onBack = navigator::back,
-        onLock = controls::lock,
-        onNext = playNext
-    )
 
     Box(
         modifier = modifier
@@ -93,22 +86,31 @@ fun PlayerScreen(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = controls::toggle
+                onClick = { controlsVisible = !controlsVisible },
             ),
     ) {
         PlayerSurface(screenModel.player)
         // Загрузка тайтла или буферизация потока; под модалкой ошибки не крутим.
-        if ((state.loading || playback.buffering) && appError == null) {
+        if ((state.loading || state.playback.buffering) && appError == null) {
             CircularProgressIndicator(color = FilmaxTheme.palette.accent, modifier = Modifier.align(Alignment.Center))
         }
         // Плашка подписки — вне оверлея: без неё kino.pub не отдаст поток, и объяснение должно
         // быть видно всегда, а не только пока контролы на экране.
         if (state.subscriptionRequired && appError == null) SubscriptionBanner(Modifier.align(Alignment.TopCenter))
-        Controls(state = state, playback = playback, controls = controls, actions = actions)
-        PlayerSidePanel(
-            state = state,
-            actions = PanelActions(onEvent = screenModel::dispatch, onPlayEpisode = playEpisode)
-        )
+        AnimatedVisibility(
+            // При открытой панели контролы прячутся: панель сама управляет, а сквозь неё они мешают читать.
+            visible = controlsVisible && !state.loading && !state.panelOpen,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (locked) {
+                LockedOverlay(onUnlock = { locked = false })
+            } else {
+                PlayerOverlay(state = state, onEvent = onEvent, onLock = { locked = true })
+            }
+        }
+        PlayerSidePanel(state = state, onEvent = onEvent)
         appError?.let { error ->
             FilmaxErrorModal(
                 error = error,
@@ -116,7 +118,7 @@ fun PlayerScreen(
                 // «Повторить» перезапускает загрузку и воспроизведение (retry сбрасывает ошибку и
                 // зовёт onFetchData).
                 onPrimary = screenModel::retry,
-                onSecondary = navigator::back,
+                onSecondary = { onEvent(PlayerEvent.Exit) },
             )
         }
     }
@@ -136,72 +138,6 @@ private fun PlayerEffects(screenModel: PlayerScreenModel, playing: Boolean) {
     PlayerFullscreenEffects()
 }
 
-/** Видны ли контролы и заблокирован ли экран; тап по видео переключает видимость. */
-@Stable
-internal class ControlsUi {
-    var visible by mutableStateOf(true)
-        private set
-    var locked by mutableStateOf(false)
-        private set
-
-    fun toggle() {
-        visible = !visible
-    }
-
-    fun hide() {
-        visible = false
-    }
-
-    fun lock() {
-        locked = true
-    }
-
-    fun unlock() {
-        locked = false
-    }
-}
-
-/** Контролы прячутся сами, но не пока тянут ползунок и не при открытой панели. */
-@Composable
-private fun rememberControls(scrubbing: Boolean, panelOpen: Boolean): ControlsUi {
-    val controls = remember { ControlsUi() }
-    LaunchedEffect(controls.visible, scrubbing, panelOpen) {
-        if (controls.visible && !scrubbing && !panelOpen) {
-            delay(AUTO_HIDE_DELAY_MS)
-            controls.hide()
-        }
-    }
-    return controls
-}
-
-/** Что умеют контролы: транспорт — сам плеер, панель и «на ТВ» — события модели. */
-private fun overlayActions(
-    screenModel: PlayerScreenModel,
-    playback: PlaybackUi,
-    onBack: () -> Unit,
-    onLock: () -> Unit,
-    onNext: (() -> Unit)?,
-): OverlayActions {
-    val player = screenModel.player
-    return OverlayActions(
-        onBack = onBack,
-        onTogglePlay = { if (player.isPlaying) player.pause() else player.play() },
-        onSeekBy = { delta -> player.seekTo((player.currentPosition + delta).coerceAtLeast(0)) },
-        onScrub = { playback.scrubMs = it },
-        onScrubFinished = {
-            playback.scrubMs?.let { target ->
-                player.seekTo(target)
-                playback.positionMs = target
-            }
-            playback.scrubMs = null
-        },
-        onOpenTab = { screenModel.dispatch(PlayerEvent.OpenPanelAt(it)) },
-        onPlayOnTv = { screenModel.dispatch(PlayerEvent.ContinueOnTv) },
-        onLock = onLock,
-        onNext = onNext,
-    )
-}
-
 @Composable
 private fun PlayerSurface(player: Player) {
     AndroidView(
@@ -213,24 +149,6 @@ private fun PlayerSurface(player: Player) {
         },
         modifier = Modifier.fillMaxSize(),
     )
-}
-
-/** Оверлей или «замок» — по состоянию экрана: что видно, что блокировано и что умеют контролы. */
-@Composable
-private fun Controls(state: PlayerState, playback: PlaybackUi, controls: ControlsUi, actions: OverlayActions) {
-    AnimatedVisibility(
-        // При открытой панели контролы прячутся: панель сама управляет, а сквозь неё они мешают читать.
-        visible = controls.visible && !state.loading && !state.panelOpen,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        if (controls.locked) {
-            LockedOverlay(onUnlock = controls::unlock)
-        } else {
-            PlayerOverlay(state = state, playback = playback, actions = actions)
-        }
-    }
 }
 
 /** Плашка «нужна подписка»: без неё kino.pub не отдаст поток, и экран остался бы просто чёрным. */
@@ -248,23 +166,25 @@ private fun SubscriptionBanner(modifier: Modifier = Modifier) {
         Text(
             "Просмотр доступен только с активной подпиской kino.pub",
             style = FilmaxType.meta,
-            color = FilmaxColors.TextSecondary
+            color = FilmaxColors.TextSecondary,
         )
     }
 }
 
-/** Эффекты модели — это навигация: окно оценки, серия и выход по пульту, выбор телевизора. */
-private fun Navigator.onPlayerEffect(itemId: Int, effect: PlayerSideEffect) {
-    when (effect) {
-        // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
-        PlayerSideEffect.AskFeedback -> replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
-        is PlayerSideEffect.PlayEpisode ->
-            replace(Destination.Player(itemId = itemId, videoId = effect.videoId, season = effect.season))
-        PlayerSideEffect.Exit -> back()
-        is PlayerSideEffect.ChooseTv -> effect.play.let { play ->
-            open(Destination.TvPicker(play.itemId, play.videoId, play.season, play.startSeconds))
+private val BannerFill = Color.Black.copy(alpha = 0.7f)
+
+/** Переходы плеера: куда — решает модель, исполняет экран навигатором. */
+@Composable
+private fun PlayerNavigation(screenModel: PlayerScreenModel, navigator: Navigator) {
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is PlayerSideEffect.OpenEpisode ->
+                navigator.replace(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+            is PlayerSideEffect.OpenTvPicker -> navigator.open(
+                Destination.TvPicker(effect.itemId, effect.videoId, effect.season, effect.startSeconds),
+            )
+            PlayerSideEffect.Exit -> navigator.back()
         }
     }
 }
-
-private val BannerFill = Color.Black.copy(alpha = 0.7f)

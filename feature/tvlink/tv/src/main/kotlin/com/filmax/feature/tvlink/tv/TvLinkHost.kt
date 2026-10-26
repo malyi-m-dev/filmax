@@ -4,12 +4,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.LifecycleStartEffect
+import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMessageCard
@@ -21,7 +19,7 @@ import org.koin.compose.koinInject
 
 /**
  * Приёмник телефонов поверх ТВ-графа. Пока Filmax на экране и [enabled] (вход выполнен), ТВ виден в
- * сети. Тайтл с телефона открывает плеер, подключившийся телефон объявляется плашкой.
+ * сети. Тайтл с телефона открывает плеер (это делает модель), подключившийся телефон объявляется плашкой.
  *
  * Свёрнутый Filmax телефоны не принимает: открыть плеер поверх лаунчера Android всё равно не даст,
  * и телефон «подключался» бы к приложению, которого не видно.
@@ -35,10 +33,8 @@ fun TvLinkHost(
 ) {
     screenModel.collectSideEffect { effect ->
         when (effect) {
-            is TvLinkHostSideEffect.OpenPlayer -> {
-                val destination = with(effect.play) { Destination.Player(itemId, videoId, season, startSeconds) }
-                if (effect.replacePlayer) navigator.replace(destination) else navigator.open(destination)
-            }
+            is TvLinkHostSideEffect.OpenPlayer -> navigator.open(playerOf(effect.play))
+            is TvLinkHostSideEffect.ReplacePlayer -> navigator.replace(playerOf(effect.play))
         }
     }
     LifecycleStartEffect(enabled, screenModel) {
@@ -47,16 +43,16 @@ fun TvLinkHost(
     }
 
     val state by screenModel.collectAsState()
-    // Имя держим и после того, как плашка начала гаснуть: иначе она исчезала бы пустой.
-    val lastPhone = remember { mutableStateOf("") }
-    val phone = state.joinedPhone ?: lastPhone.value
-    SideEffect { state.joinedPhone?.let { lastPhone.value = it } }
     AnimatedVisibility(
         visible = state.joinedPhone != null,
         modifier = modifier,
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
-        TvMessageCard(title = "Пульт подключён", message = "«$phone» управляет этим телевизором")
+        TvMessageCard(title = "Пульт подключён", message = "«${state.lastJoinedPhone}» управляет этим телевизором")
     }
 }
+
+/** Плеер на тайтл с телефона — с той серии и секунды, что телефон передал. */
+private fun playerOf(play: RemoteCommand.Play) =
+    Destination.Player(play.itemId, play.videoId, play.season, play.startSeconds)

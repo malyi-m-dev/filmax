@@ -41,16 +41,20 @@ import com.filmax.core.tv.designsystem.TvOptionRow
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvValueTile
 import com.filmax.core.tv.designsystem.tvFocusGroup
+import com.filmax.core.ui.components.formatPlayerTime
 import com.filmax.feature.player.common.OptionItem
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerSeason
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
 import com.filmax.feature.player.common.PresetSpeeds
+import com.filmax.feature.player.common.WATCH_STATUS_FINISHED
+import com.filmax.feature.player.common.episodeLength
+import com.filmax.feature.player.common.episodeProgress
+import com.filmax.feature.player.common.episodeTitle
 import com.filmax.feature.player.common.optionEvent
 import com.filmax.feature.player.common.optionItems
 import com.filmax.feature.player.common.playerSeasons
-import com.filmax.feature.player.common.shownSeason
 import com.filmax.feature.player.common.speedCaption
 import com.filmax.feature.player.common.speedValue
 import com.filmax.feature.player.common.tabNote
@@ -72,35 +76,33 @@ private val EpisodesInset = 8.dp
 internal fun PanelTabContent(
     tab: PlayerTab,
     state: PlayerState,
-    transport: TvTransportState,
-    actions: PlayerActions,
+    onEvent: (PlayerEvent) -> Unit,
     contentFocus: FocusRequester,
 ) {
-    val series = state.item?.tracklist.orEmpty().size > 1
     when (tab) {
-        PlayerTab.Episodes -> EpisodesTab(state, transport.positionMs, actions, contentFocus)
-        PlayerTab.Speed -> SpeedTab(state.currentSpeed, actions, contentFocus, tabNote(tab, series))
+        PlayerTab.Episodes -> EpisodesTab(state, onEvent, contentFocus)
+        PlayerTab.Speed -> SpeedTab(state.currentSpeed, onEvent, contentFocus, tabNote(tab, state.isSeries))
         PlayerTab.Audio, PlayerTab.Subtitles, PlayerTab.Quality -> OptionsTab(
             items = optionItems(tab, state),
-            onSelect = { key -> optionEvent(tab, key)?.let(actions.dispatch) },
+            onSelect = { key -> optionEvent(tab, key)?.let(onEvent) },
             contentFocus = contentFocus,
-            note = tabNote(tab, series),
+            note = tabNote(tab, state.isSeries),
         )
     }
 }
 
 /** Серии: сезоны чипами (сезон меняется фокусом на чипе), под ними — серии выбранного сезона. */
 @Composable
-private fun EpisodesTab(state: PlayerState, positionMs: Long, actions: PlayerActions, contentFocus: FocusRequester) {
+private fun EpisodesTab(state: PlayerState, onEvent: (PlayerEvent) -> Unit, contentFocus: FocusRequester) {
     val seasons = remember(state.item) { playerSeasons(state.item?.tracklist.orEmpty()) }
     val shown = state.shownSeason() ?: return
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
         if (seasons.size > 1) {
-            SeasonChips(seasons, shown.number) { season -> actions.dispatch(PlayerEvent.ShowSeason(season)) }
+            SeasonChips(seasons, shown.number) { season -> onEvent(PlayerEvent.ShowSeason(season)) }
         }
         // Другой сезон — другой набор данных: ряд и его прокрутка собираются заново.
         key(shown.number) {
-            EpisodesRow(shown, EpisodesContext(state.track, positionMs, actions), contentFocus)
+            EpisodesRow(shown, state, onEvent, contentFocus)
         }
     }
 }
@@ -132,22 +134,30 @@ private fun SeasonChips(seasons: List<PlayerSeason>, shown: Int, onShow: (Int) -
     }
 }
 
-/** Что ряд серий знает о воспроизведении: играющая серия, её позиция и как включить другую. */
-private class EpisodesContext(val playing: MediaTrack?, val positionMs: Long, val actions: PlayerActions)
-
 /**
  * Ряд серий сезона. Фокус-цель — играющая серия, а в другом сезоне — первая. OK на играющей просто
  * закрывает панель; на другой — новый экран плеера с её сезоном и номером. Серии без фокуса
  * приглушены, играющая — слабее остальных: её ищут глазами первой.
  */
 @Composable
-private fun EpisodesRow(season: PlayerSeason, context: EpisodesContext, contentFocus: FocusRequester) {
-    TvDimGroup { EpisodeCards(season, context, contentFocus) }
+private fun EpisodesRow(
+    season: PlayerSeason,
+    state: PlayerState,
+    onEvent: (PlayerEvent) -> Unit,
+    contentFocus: FocusRequester,
+) {
+    TvDimGroup { EpisodeCards(season, state, onEvent, contentFocus) }
 }
 
 @Composable
-private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, contentFocus: FocusRequester) {
-    val target = season.episodes.indexOfFirst { it.id == context.playing?.id }.coerceAtLeast(0)
+private fun EpisodeCards(
+    season: PlayerSeason,
+    state: PlayerState,
+    onEvent: (PlayerEvent) -> Unit,
+    contentFocus: FocusRequester,
+) {
+    val playingId = state.track?.id
+    val target = season.episodes.indexOfFirst { it.id == playingId }.coerceAtLeast(0)
     LazyRow(
         state = rememberLazyListState(initialFirstVisibleItemIndex = target),
         modifier = Modifier.tvFocusGroup(contentFocus),
@@ -155,17 +165,17 @@ private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, content
         contentPadding = PaddingValues(EpisodesInset),
     ) {
         itemsIndexed(season.episodes, key = { _, episode -> episode.id }) { index, episode ->
-            val playing = episode.id == context.playing?.id
+            val playing = episode.id == playingId
             TvProgressCard(
                 title = episodeTitle(episode),
-                meta = episodeMeta(episode, playing, context.positionMs),
+                meta = episodeMeta(episode, playing, state.playback.positionMs),
                 posterUrl = episode.thumbnail,
                 progress = episodeProgress(episode),
                 onClick = {
                     if (playing) {
-                        context.actions.dispatch(PlayerEvent.ClosePanel)
+                        onEvent(PlayerEvent.ClosePanel)
                     } else {
-                        context.actions.onPlayEpisode(episode.seasonNumber, episode.number)
+                        onEvent(PlayerEvent.PlayEpisode(episode.seasonNumber, episode.number))
                     }
                 },
                 size = TvCardSize.Panel,
@@ -178,13 +188,23 @@ private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, content
     }
 }
 
+/**
+ * Подпись под кадром серии: играющая — «Идёт · 34:50», досмотренная — «Просмотрено», остальные —
+ * длительность. Длительности нет — подписи нет.
+ */
+internal fun episodeMeta(episode: MediaTrack, playing: Boolean, positionMs: Long): String? = when {
+    playing -> "Идёт · ${formatPlayerTime(positionMs)}"
+    episode.watchStatus == WATCH_STATUS_FINISHED -> "Просмотрено"
+    else -> episodeLength(episode)
+}
+
 /** Дорожки, субтитры, качество — сеткой в две колонки, выбранный вариант с галочкой. */
 @Composable
 private fun OptionsTab(
     items: List<OptionItem>,
     onSelect: (String) -> Unit,
     contentFocus: FocusRequester,
-    note: String?
+    note: String?,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
         LazyVerticalGrid(
@@ -211,7 +231,7 @@ private fun OptionsTab(
 
 /** Скорость — ряд крупных плиток: значение видно издалека, выбор — заливкой. */
 @Composable
-private fun SpeedTab(current: Float, actions: PlayerActions, contentFocus: FocusRequester, note: String?) {
+private fun SpeedTab(current: Float, onEvent: (PlayerEvent) -> Unit, contentFocus: FocusRequester, note: String?) {
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
         Row(Modifier.fillMaxWidth().tvFocusGroup(contentFocus), horizontalArrangement = Arrangement.spacedBy(TileGap)) {
             PresetSpeeds.forEach { speed ->
@@ -220,10 +240,10 @@ private fun SpeedTab(current: Float, actions: PlayerActions, contentFocus: Focus
                     value = speedValue(speed),
                     caption = speedCaption(speed),
                     selected = selected,
-                    onClick = { actions.dispatch(PlayerEvent.SetSpeed(speed)) },
-                    modifier = Modifier.weight(
-                        1f
-                    ).then(if (selected) Modifier.focusRequester(contentFocus) else Modifier),
+                    onClick = { onEvent(PlayerEvent.SetSpeed(speed)) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(if (selected) Modifier.focusRequester(contentFocus) else Modifier),
                 )
             }
         }

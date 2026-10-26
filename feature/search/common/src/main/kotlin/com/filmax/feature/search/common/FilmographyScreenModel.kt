@@ -26,6 +26,8 @@ class FilmographyScreenModel(
     override fun onEvent(event: FilmographyEvent) {
         when (event) {
             FilmographyEvent.Retry -> onFetchData()
+            is FilmographyEvent.OpenItem -> sendSideEffect(FilmographySideEffect.OpenDetails(event.itemId))
+            FilmographyEvent.Back -> sendSideEffect(FilmographySideEffect.Back)
         }
     }
 
@@ -38,10 +40,7 @@ class FilmographyScreenModel(
                 search.searchByActor(route.name)
             }
             when (result) {
-                is RequestResult.Success -> updateState {
-                    it.copy(loading = false, items = result.data)
-                }
-
+                is RequestResult.Success -> updateState { it.copy(loading = false, items = result.data) }
                 is RequestResult.Error -> {
                     updateState { it.copy(loading = false, error = result.message) }
                     showError(result)

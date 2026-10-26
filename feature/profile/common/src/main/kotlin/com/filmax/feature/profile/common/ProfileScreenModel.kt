@@ -11,12 +11,10 @@ import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 
 /**
- * Профиль: аккаунт, настройки воспроизведения, палитра ТВ и выход. Общий для телефона и ТВ;
- * панель вариантов и диалог выхода — ТВ-сценарий (на телефоне свои листы), но их состояние
- * тоже здесь: экран только рисует и отдаёт события.
+ * Профиль: аккаунт, настройки воспроизведения, палитра и выход. Общий для телефона и ТВ;
+ * шторка вариантов и диалог выхода на обеих платформах — состояние здесь: экран только рисует
+ * и отдаёт события. Переходы (оценка, пульт, дизайн-система, онбординг после выхода) — тоже здесь.
  */
-// По короткому обработчику на событие: настройки, панель вариантов, выход.
-@Suppress("TooManyFunctions")
 class ProfileScreenModel(
     private val user: UserRepository,
     private val watching: WatchingRepository,
@@ -33,48 +31,22 @@ class ProfileScreenModel(
         observeTheme()
     }
 
-    private fun observeFavorites() {
-        screenModelScope {
-            favorites.favorites.collect { items ->
-                updateState { it.copy(favoritesCount = items.size) }
-            }
-        }
-    }
-
-    private fun observePlaybackSettings() {
-        screenModelScope {
-            playbackSettings.settings.collect { settings ->
-                updateState { it.copy(playback = settings) }
-            }
-        }
-    }
-
-    /** Оформление — живыми потоками: его меняют здесь же, а значение должно сразу дойти до строк. */
-    private fun observeTheme() {
-        screenModelScope {
-            themeSettings.palette.collect { palette -> updateState { current -> current.copy(palette = palette) } }
-        }
-        screenModelScope {
-            themeSettings.plainFocus.collect { plain -> updateState { current -> current.copy(plainFocus = plain) } }
-        }
-    }
-
     override fun onEvent(event: ProfileEvent) {
         when (event) {
-            ProfileEvent.Logout -> logout()
-            is ProfileEvent.SetQuality -> screenModelScope { _ -> playbackSettings.setQuality(event.quality) }
-            is ProfileEvent.SetAudioLanguage ->
-                screenModelScope { _ -> playbackSettings.setAudioLanguage(event.language) }
-            is ProfileEvent.SetSubtitleLanguage ->
-                screenModelScope { _ -> playbackSettings.setSubtitleLanguage(event.language) }
-            is ProfileEvent.SetSubtitlesEnabled ->
-                screenModelScope { _ -> playbackSettings.setSubtitleLanguage(subtitleLanguageFor(event.enabled)) }
-            is ProfileEvent.SetPlainFocus -> screenModelScope { _ -> themeSettings.setPlainFocus(event.enabled) }
-            is ProfileEvent.OpenSetting -> update { it.copy(setting = event.setting, settingOpen = true) }
-            ProfileEvent.CloseSetting -> update { it.copy(settingOpen = false) }
-            is ProfileEvent.ChooseOption -> chooseOption(event.index)
-            ProfileEvent.AskLogout -> update { it.copy(confirmLogout = true) }
-            ProfileEvent.DismissLogout -> update { it.copy(confirmLogout = false) }
+            ProfileEvent.Logout -> onLogout()
+            is ProfileEvent.SetQuality -> onSetQuality(event.quality)
+            is ProfileEvent.SetAudioLanguage -> onSetAudioLanguage(event.language)
+            is ProfileEvent.SetSubtitleLanguage -> onSetSubtitleLanguage(event.language)
+            is ProfileEvent.SetSubtitlesEnabled -> onSetSubtitleLanguage(subtitleLanguageFor(event.enabled))
+            is ProfileEvent.SetPlainFocus -> onSetPlainFocus(event.enabled)
+            is ProfileEvent.OpenSetting -> onSettingSheet(event.setting, open = true)
+            ProfileEvent.CloseSetting -> onCloseSetting()
+            is ProfileEvent.ChooseOption -> onChooseOption(event.index)
+            ProfileEvent.AskLogout -> onLogoutDialog(open = true)
+            ProfileEvent.DismissLogout -> onLogoutDialog(open = false)
+            ProfileEvent.OpenRate -> sendSideEffect(ProfileSideEffect.OpenRate)
+            ProfileEvent.OpenRemote -> sendSideEffect(ProfileSideEffect.OpenRemote)
+            ProfileEvent.OpenDesignSystem -> sendSideEffect(ProfileSideEffect.OpenDesignSystem)
         }
     }
 
@@ -82,32 +54,75 @@ class ProfileScreenModel(
         screenModelScope { _ ->
             // Профиль — основной запрос: от него зависит отрисовка экрана.
             when (val result = user.getProfile()) {
-                is RequestResult.Success ->
-                    updateState { it.copy(loading = false, profile = result.data) }
-
+                is RequestResult.Success -> updateState { it.withProfile(result.data) }
                 is RequestResult.Error -> {
                     updateState { it.copy(loading = false, error = result.message) }
                     return@screenModelScope
                 }
             }
-
             // Статистика — best-effort: ошибки не блокируют экран, поля остаются по умолчанию.
-            (watching.getHistory() as? RequestResult.Success)?.let { history ->
-                updateState { it.copy(watchedCount = history.data.size) }
-            }
+            val history = watching.getHistory() as? RequestResult.Success ?: return@screenModelScope
+            val watchedCount = history.data.size
+            updateState { it.copy(watchedCount = watchedCount) }
             // device/info не запрашиваем: бэкенд отвечает 500, а блок «Устройство» с экранов
             // временно убран. Вернуть вместе с блоком, когда бэкенд починят.
         }
     }
 
+    private fun observeFavorites() {
+        screenModelScope { _ ->
+            favorites.favorites.collect { items -> updateState { it.copy(favoritesCount = items.size) } }
+        }
+    }
+
+    private fun observePlaybackSettings() {
+        screenModelScope { _ ->
+            playbackSettings.settings.collect { settings -> updateState { it.withPlayback(settings) } }
+        }
+    }
+
+    /** Оформление — живыми потоками: его меняют здесь же, а значение должно сразу дойти до строк. */
+    private fun observeTheme() {
+        screenModelScope { _ ->
+            themeSettings.palette.collect { palette -> updateState { it.withPalette(palette) } }
+        }
+        screenModelScope { _ ->
+            themeSettings.plainFocus.collect { plain -> updateState { it.copy(plainFocus = plain) } }
+        }
+    }
+
+    private fun onSetQuality(quality: String) {
+        screenModelScope { _ -> playbackSettings.setQuality(quality) }
+    }
+
+    private fun onSetAudioLanguage(language: String) {
+        screenModelScope { _ -> playbackSettings.setAudioLanguage(language) }
+    }
+
+    private fun onSetSubtitleLanguage(language: String) {
+        screenModelScope { _ -> playbackSettings.setSubtitleLanguage(language) }
+    }
+
+    private fun onSetPlainFocus(enabled: Boolean) {
+        screenModelScope { _ -> themeSettings.setPlainFocus(enabled) }
+    }
+
+    private fun onSettingSheet(setting: ProfileSetting, open: Boolean) {
+        screenModelScope { _ -> updateState { it.withSetting(setting, open) } }
+    }
+
+    private fun onCloseSetting() {
+        screenModelScope { current -> updateState { it.withSetting(current.setting, open = false) } }
+    }
+
     /**
-     * Применяет вариант открытой настройки и закрывает панель. Настройка читается при выполнении,
+     * Применяет вариант открытой настройки и закрывает шторку. Настройка читается при выполнении,
      * а не при отправке: «открыть» стоит в той же очереди раньше.
      */
-    private fun chooseOption(index: Int) {
+    private fun onChooseOption(index: Int) {
         screenModelScope { current ->
-            val option = optionsOf(current.setting).getOrNull(index) ?: return@screenModelScope
-            updateState { it.copy(settingOpen = false) }
+            val option = current.options.getOrNull(index) ?: return@screenModelScope
+            updateState { it.withSetting(current.setting, open = false) }
             when (current.setting) {
                 ProfileSetting.QUALITY -> playbackSettings.setQuality(option)
                 ProfileSetting.AUDIO -> playbackSettings.setAudioLanguage(option)
@@ -117,15 +132,15 @@ class ProfileScreenModel(
         }
     }
 
-    private fun logout() {
+    private fun onLogoutDialog(open: Boolean) {
+        screenModelScope { _ -> updateState { it.copy(confirmLogout = open) } }
+    }
+
+    private fun onLogout() {
         screenModelScope { _ ->
             updateState { it.copy(confirmLogout = false) }
             auth.logout()
             postSideEffect(ProfileSideEffect.LoggedOut)
         }
-    }
-
-    private fun update(transform: (ProfileState) -> ProfileState) {
-        screenModelScope { _ -> updateState(transform) }
     }
 }

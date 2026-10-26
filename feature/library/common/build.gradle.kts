@@ -9,6 +9,8 @@ android { namespace = "com.filmax.feature.library.common" }
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
+    // «Продолжить» и история без известной серии ведут в плеер с Destination.Player.UNKNOWN.
+    implementation(project(":core:navigation"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

@@ -1,5 +1,6 @@
 // Кадр плеера и слои над ним: контролы транспорта, нижняя панель, карточка «Далее» и состояния
-// (загрузка, ошибка, нет подписки). Разбор клавиш пульта в транспорте — здесь же.
+// (загрузка, ошибка, нет подписки). Разбор клавиш пульта в транспорте — здесь же; видимость
+// контролов и их автоскрытие — единственное, что экран решает сам.
 package com.filmax.feature.player.tv
 
 import androidx.activity.compose.BackHandler
@@ -18,9 +19,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,9 +48,11 @@ import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvNextUpCard
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.KeepScreenOn
+import com.filmax.feature.player.common.AutoNext
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.nextUpTitle
+import kotlinx.coroutines.delay
 
 private val SubscriptionCardTop = 96.dp
 private val NextUpTop = 220.dp
@@ -66,9 +70,28 @@ private val NextUpEnd = 40.dp
 /** Ключ кнопки паузы в памяти фокуса экрана: на неё фокус встаёт при входе. */
 private const val PAUSE_KEY = "pause"
 
-/** Что показывает плеер: состояние модели, транспорт поверх кадра и ошибка воспроизведения. */
-@Immutable
-internal data class PlayerScene(val state: PlayerState, val transport: TvTransportState, val error: AppError?)
+/** Бездействие, после которого контролы уходят с кадра (на паузе не уходят). */
+private const val OVERLAY_AUTO_HIDE_MS = 5000L
+
+/** Полоса отсчёта «Далее» плавно едет между тиками секунды модели, а не прыгает. */
+private const val COUNTDOWN_TICK_MS = 1000
+
+/**
+ * Видимость контролов — вещь вёрстки: модель о нажатиях ради «показать контролы» не знает.
+ * [interactionTick] — счётчик действий зрителя, он перезапускает таймер автоскрытия.
+ */
+@Stable
+internal class OverlayVisibility {
+    var visible by mutableStateOf(true)
+    var interactionTick by mutableIntStateOf(0)
+        private set
+
+    /** Было действие пользователя: контролы на экран, таймер автоскрытия — с нуля. */
+    fun touch() {
+        visible = true
+        interactionTick++
+    }
+}
 
 /**
  * Кадр и слои над ним. internal — UI-тест пульта собирает плеер из состояния, без Koin и
@@ -80,37 +103,49 @@ internal data class PlayerScene(val state: PlayerState, val transport: TvTranspo
  */
 @Composable
 internal fun PlayerContent(
-    scene: PlayerScene,
-    actions: PlayerActions,
+    state: PlayerState,
+    error: AppError?,
+    onEvent: (PlayerEvent) -> Unit,
     modifier: Modifier = Modifier,
     videoSurface: @Composable () -> Unit,
 ) {
-    val (state, transport, error) = scene
     val focus = rememberTvScreenFocus(startAt = PAUSE_KEY)
     val pauseFocus = remember { FocusRequester() }
-    ReturnFocusOnPanelClose(state.panelOpen, pauseFocus, onClosed = transport::touch)
-    PlayerBackHandler(state, transport, actions)
+    val overlay = remember { OverlayVisibility() }
+    ReturnFocusOnPanelClose(state.panelOpen, pauseFocus, onClosed = overlay::touch)
+    AutoHideOverlay(overlay, state)
+    PlayerBackHandler(state, onEvent)
     // Пока идёт воспроизведение, экран не гаснет; на паузе — обычный таймаут системы.
-    KeepScreenOn(enabled = transport.isPlaying)
+    KeepScreenOn(enabled = state.playback.playing)
     Box(
         modifier
             .fillMaxSize()
             .background(Color.Black)
-            .onPreviewKeyEvent { event ->
-                !state.panelOpen && onTransportKey(event, state.nextTrack, transport, actions)
-            }
+            .onPreviewKeyEvent { event -> !state.panelOpen && onTransportKey(event, state, overlay, onEvent) }
             .then(focus.containerModifier),
     ) {
         videoSurface()
-        PlayerStatus(state, transport, error)
+        PlayerStatus(state, error)
         TransportOverlay(
             state = state,
-            transport = transport,
-            visible = transport.visible && !state.panelOpen,
+            onEvent = onEvent,
+            visible = overlay.visible && !state.panelOpen,
             pauseModifier = focus.item(PAUSE_KEY).focusRequester(pauseFocus),
         )
-        PanelOverlay(state, transport, actions)
-        NextUpOverlay(state.nextTrack, transport)
+        PanelOverlay(state, onEvent)
+        NextUpOverlay(state.nextTrack, state.autoNext)
+    }
+}
+
+/** Контролы уходят сами, только пока видео идёт и пульт не перематывает. */
+@Composable
+private fun AutoHideOverlay(overlay: OverlayVisibility, state: PlayerState) {
+    val idleHides = overlay.visible && state.playback.playing && state.scrubTargetMs == null
+    LaunchedEffect(overlay.interactionTick, idleHides) {
+        if (idleHides) {
+            delay(OVERLAY_AUTO_HIDE_MS)
+            overlay.visible = false
+        }
     }
 }
 
@@ -119,12 +154,12 @@ internal fun PlayerContent(
  * контролы слоем не считаются — прятать за ними выход значило бы лишнее нажатие.
  */
 @Composable
-private fun PlayerBackHandler(state: PlayerState, transport: TvTransportState, actions: PlayerActions) {
+private fun PlayerBackHandler(state: PlayerState, onEvent: (PlayerEvent) -> Unit) {
     BackHandler {
         when {
-            state.panelOpen -> actions.dispatch(PlayerEvent.ClosePanel)
-            transport.dismissAutoNext() -> Unit
-            else -> actions.onExit()
+            state.panelOpen -> onEvent(PlayerEvent.ClosePanel)
+            state.autoNext.visible -> onEvent(PlayerEvent.DismissAutoNext)
+            else -> onEvent(PlayerEvent.Exit)
         }
     }
 }
@@ -136,27 +171,22 @@ private fun PlayerBackHandler(state: PlayerState, transport: TvTransportState, a
  */
 private fun onTransportKey(
     event: KeyEvent,
-    next: MediaTrack?,
-    transport: TvTransportState,
-    actions: PlayerActions
+    state: PlayerState,
+    overlay: OverlayVisibility,
+    onEvent: (PlayerEvent) -> Unit,
 ): Boolean {
-    val command = transportCommand(event.key, transport.autoNext.visible) ?: return false
+    val command = transportCommand(event.key, state.autoNext.visible) ?: return false
     val native = event.nativeKeyEvent
     val fresh = native.repeatCount == 0 || command.repeats
     if (event.type == KeyEventType.KeyDown && fresh) {
+        overlay.touch()
         when (command) {
-            TransportCommand.SeekBack -> transport.seek(-1, native.repeatCount, native.eventTime)
-            TransportCommand.SeekForward -> transport.seek(1, native.repeatCount, native.eventTime)
-            TransportCommand.TogglePlay -> transport.togglePlay()
-            TransportCommand.Peek -> transport.touch()
-            TransportCommand.OpenPanel -> {
-                transport.commitScrub()
-                actions.dispatch(PlayerEvent.OpenPanel)
-            }
-            TransportCommand.PlayNext -> {
-                transport.autoNext = transport.autoNext.copy(visible = false)
-                actions.playNext(next)
-            }
+            TransportCommand.SeekBack -> onEvent(PlayerEvent.SeekStep(-1, native.repeatCount, native.eventTime))
+            TransportCommand.SeekForward -> onEvent(PlayerEvent.SeekStep(1, native.repeatCount, native.eventTime))
+            TransportCommand.TogglePlay -> onEvent(PlayerEvent.TogglePlay)
+            TransportCommand.Peek -> Unit
+            TransportCommand.OpenPanel -> onEvent(PlayerEvent.OpenPanel)
+            TransportCommand.PlayNext -> onEvent(PlayerEvent.PlayNext)
         }
     }
     return true
@@ -186,8 +216,8 @@ private fun ReturnFocusOnPanelClose(panelOpen: Boolean, pauseFocus: FocusRequest
  * не идёт, и объяснение видно всегда.
  */
 @Composable
-private fun BoxScope.PlayerStatus(state: PlayerState, transport: TvTransportState, error: AppError?) {
-    if ((state.loading || transport.isBuffering) && error == null) {
+private fun BoxScope.PlayerStatus(state: PlayerState, error: AppError?) {
+    if ((state.loading || state.playback.buffering) && error == null) {
         CircularProgressIndicator(color = LocalFxColors.current.accent, modifier = Modifier.align(Alignment.Center))
     }
     error?.let { PlayerErrorCard(error = it, modifier = Modifier.align(Alignment.Center)) }
@@ -201,8 +231,7 @@ private fun BoxScope.PlayerStatus(state: PlayerState, transport: TvTransportStat
  * Полоса отсчёта плавно едет между тиками секунды, а не прыгает.
  */
 @Composable
-private fun BoxScope.NextUpOverlay(next: MediaTrack?, transport: TvTransportState) {
-    val autoNext = transport.autoNext
+private fun BoxScope.NextUpOverlay(next: MediaTrack?, autoNext: AutoNext) {
     val reduced = LocalReducedMotion.current
     val slideFrom = with(LocalDensity.current) { -NextUpSlide.roundToPx() }
     AnimatedVisibility(
@@ -214,7 +243,7 @@ private fun BoxScope.NextUpOverlay(next: MediaTrack?, transport: TvTransportStat
     ) {
         val elapsed by animateFloatAsState(
             autoNext.elapsed,
-            tween(PROGRESS_TICK_MS.toInt(), easing = LinearEasing),
+            tween(COUNTDOWN_TICK_MS, easing = LinearEasing),
             label = "nextUpCountdown",
         )
         next?.let { track ->

@@ -1,5 +1,6 @@
-// Главная: состояние экрана, лента и куда из неё ведут переходы. Ряды ленты — в HomeRows,
-// hero — в HomeHero, шапка, чипы и баннер «нет сети» — в HomeHeader, шторка разделов — в HomeSections.
+// Главная: состояние экрана и лента. Ряды ленты — в HomeRows, hero — в HomeHero, шапка, чипы и
+// баннер «нет сети» — в HomeHeader, шторка разделов — в HomeSections. Вёрстка шлёт события,
+// модель отвечает переходом, а исполняет его навигатором корень экрана.
 
 package com.filmax.feature.home.mobile
 
@@ -14,18 +15,13 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
-import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -38,21 +34,6 @@ import com.filmax.feature.home.common.HomeState
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-/**
- * Переходы и события главной одним типом: отдельные лямбды плюс `modifier` и `screenModel` вывели бы
- * сигнатуру приватных composable за порог detekt (LongParameterList = 6). Строится из
- * [Navigator] — граф про эти переходы больше ничего не знает.
- */
-internal data class HomeActions(
-    val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
-    val onOpenCollection: (id: Int, title: String) -> Unit,
-    val onOpenSection: (CatalogSection) -> Unit,
-    val onOpenTv: () -> Unit,
-    /** События ленты: догрузка рядов, «Буду смотреть», повтор загрузки. */
-    val onEvent: (HomeEvent) -> Unit,
-)
-
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
@@ -60,15 +41,22 @@ fun HomeScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    val appError by screenModel.collectErrorAsState()
+    val offline by screenModel.collectOfflineBannerAsState()
+
     screenModel.collectSideEffect { effect ->
         when (effect) {
+            is HomeSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is HomeSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            is HomeSideEffect.OpenSection -> navigator.open(Destination.Browse(effect.section.name))
+            is HomeSideEffect.OpenCollection ->
+                navigator.open(Destination.CollectionDetail(effect.collectionId, effect.title))
+            HomeSideEffect.OpenTvPicker -> navigator.open(Destination.TvPicker())
+            HomeSideEffect.OpenCatalog -> navigator.open(Destination.Catalog)
             HomeSideEffect.AskFeedback -> navigator.open(Destination.Feedback(FeedbackTrigger.AfterUpdate.name))
         }
     }
-    val appError by screenModel.collectErrorAsState()
-    val offline by screenModel.collectOfflineBannerAsState()
-    val actions = remember(navigator, screenModel) { navigator.homeActions(onEvent = screenModel::dispatch) }
-    var sectionsOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -78,15 +66,10 @@ fun HomeScreen(
         if (state.loading) {
             CircularProgressIndicator(color = FilmaxTheme.palette.accent, modifier = Modifier.align(Alignment.Center))
         } else {
-            HomeFeedWithHeader(
-                state = state,
-                offline = offline,
-                actions = actions,
-                onOpenSections = { sectionsOpen = true },
-            )
+            HomeFeedWithHeader(state = state, offline = offline, onEvent = screenModel::dispatch)
         }
-        if (sectionsOpen) {
-            HomeSectionsSheet(onOpenSection = actions.onOpenSection, onDismiss = { sectionsOpen = false })
+        if (state.sectionsOpen) {
+            HomeSectionsSheet(onEvent = screenModel::dispatch)
         }
         appError?.let { error ->
             FilmaxErrorModal(
@@ -103,16 +86,10 @@ fun HomeScreen(
  * под неё, проявляется стекло — лента размывается под шапкой, а не обрезается её краем.
  */
 @Composable
-private fun HomeFeedWithHeader(
-    state: HomeState,
-    offline: Boolean,
-    actions: HomeActions,
-    onOpenSections: () -> Unit,
-) {
+private fun HomeFeedWithHeader(state: HomeState, offline: Boolean, onEvent: (HomeEvent) -> Unit) {
     val glass = rememberGlassState()
     val listState = rememberLazyListState()
-    val heroHeight = rememberHeroHeight()
-    val heroHeightPx = with(LocalDensity.current) { heroHeight.toPx() }
+    val heroHeightPx = with(LocalDensity.current) { rememberHeroHeight().toPx() }
     val glassProgress by remember(listState, heroHeightPx) {
         derivedStateOf { listState.scrolledPast(heroHeightPx * GLASS_FROM, heroHeightPx * GLASS_TO) }
     }
@@ -120,59 +97,43 @@ private fun HomeFeedWithHeader(
         HomeFeed(
             state = state,
             offline = offline,
-            actions = actions,
-            layout = FeedLayout(listState, heroHeight),
+            onEvent = onEvent,
+            listState = listState,
             modifier = Modifier.glassSource(glass),
         )
-        HomeHeader(
-            glass = glass,
-            glassProgress = { glassProgress },
-            onOpenTv = actions.onOpenTv,
-            onOpenSection = actions.onOpenSection,
-            onOpenSections = onOpenSections,
-        )
+        HomeHeader(glass = glass, glassProgress = { glassProgress }, onEvent = onEvent)
     }
 }
-
-/** Прокрутка ленты и высота hero — от них зависит, когда проявляется стекло шапки. */
-private data class FeedLayout(val listState: LazyListState, val heroHeight: Dp)
 
 @Composable
 private fun HomeFeed(
     state: HomeState,
     offline: Boolean,
-    actions: HomeActions,
-    layout: FeedLayout,
+    onEvent: (HomeEvent) -> Unit,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
+    val heroHeight = rememberHeroHeight()
     LazyColumn(
-        state = layout.listState,
+        state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = LocalNavBarPadding.current),
     ) {
         if (state.heroes.isNotEmpty()) {
             item(key = "hero") {
-                val heroActions = remember(actions) {
-                    HeroActions(
-                        // Без серии и сезона: плеер возьмёт первый трек или продолжит с сохранённого.
-                        onPlay = { hero -> actions.onPlay(hero.id, NO_SEASON, NO_VIDEO_ID) },
-                        onOpenItem = { hero -> actions.onOpenItem(hero.id) },
-                        onToggleWatchLater = { hero -> actions.onEvent(HomeEvent.ToggleWatchLater(hero)) },
-                    )
-                }
                 HomeHero(
                     heroes = state.heroes,
                     watchLaterIds = state.watchLaterIds,
-                    height = layout.heroHeight,
-                    actions = heroActions,
+                    height = heroHeight,
+                    onEvent = onEvent,
                 )
             }
         }
         // Офлайн-деградация (issue #42): контент из кэша + ненавязчивый баннер вместо модалки.
         if (offline) {
-            item(key = "offline") { OfflineBanner(onReload = { actions.onEvent(HomeEvent.Load) }) }
+            item(key = "offline") { OfflineBanner(onReload = { onEvent(HomeEvent.Load) }) }
         }
-        homeRows(state = state, actions = actions)
+        homeRows(state = state, onEvent = onEvent)
     }
 }
 
@@ -185,28 +146,6 @@ private fun LazyListState.scrolledPast(from: Float, to: Float): Float = when {
     else -> ((firstVisibleItemScrollOffset - from) / (to - from)).coerceIn(0f, 1f)
 }
 
-/**
- * Куда ведёт главная. Ряд «Продолжить» и кнопка hero открывают плеер напрямую, минуя детали:
- * недосмотренный эпизод — это сезон и номер видео из истории.
- */
-private fun Navigator.homeActions(onEvent: (HomeEvent) -> Unit) = HomeActions(
-    onOpenItem = { itemId -> open(Destination.Details(itemId)) },
-    onPlay = { itemId, season, videoId ->
-        open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-    },
-    onOpenCollection = { id, title -> open(Destination.CollectionDetail(id, title)) },
-    onOpenSection = { section -> open(Destination.Browse(section.name)) },
-    // Без тайтла: телевизор выбирают ради пульта.
-    onOpenTv = { open(Destination.TvPicker()) },
-    onEvent = onEvent,
-)
-
 /** Стекло шапки проявляется, пока hero уезжает с 55% до 85% своей высоты. */
 private const val GLASS_FROM = 0.55f
 private const val GLASS_TO = 0.85f
-
-/** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
-internal const val NO_VIDEO_ID = -1
-
-/** `PlayerRoute.season` для фильма/неизвестного сезона. */
-internal const val NO_SEASON = -1

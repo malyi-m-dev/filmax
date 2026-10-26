@@ -2,7 +2,6 @@ package com.filmax.feature.collections.tv.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import androidx.navigation.toRoute
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 import com.filmax.feature.collections.tv.TvCollectionDetailScreen
 
@@ -13,8 +12,7 @@ import com.filmax.feature.collections.tv.TvCollectionDetailScreen
  * Каталога, откуда и открывается конкретная подборка.
  */
 fun NavGraphBuilder.tvCollectionDetailScreen() {
-    composable<CollectionDetailRoute> { entry ->
-        val route = entry.toRoute<CollectionDetailRoute>()
-        TvCollectionDetailScreen(collectionId = route.collectionId, title = route.title)
+    composable<CollectionDetailRoute> {
+        TvCollectionDetailScreen()
     }
 }

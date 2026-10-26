@@ -52,18 +52,17 @@ import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
 import com.filmax.feature.onboarding.common.OnboardingState
+import com.filmax.feature.onboarding.common.OnboardingStep
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-
-private const val DEFAULT_VERIFICATION_URI = "kinopub.me/device"
 
 /** Ширина текстового блока. Строка длиннее ~460dp заставляет глаз искать начало следующей. */
 private val TextMaxWidth = 460.dp
 
 /**
  * TV-экран входа. Центрированная колонка поверх общего [OnboardingScreenModel]: шаг приветствия
- * с одной фокус-кнопкой «Войти», затем экран активации с device-кодом. Поллинг и регистрация
- * устройства живут в общей модели — здесь только вёрстка под пульт.
+ * с одной фокус-кнопкой «Войти», затем экран активации с device-кодом. Поллинг, регистрация
+ * устройства и переход на Главную живут в общей модели — здесь только вёрстка под пульт.
  *
  * На экране нет ни одной картинки: с 3 метров работает только типографика, а системный
  * emoji-шрифт в крупном кегле на TV-боксах растрируется в кашу.
@@ -74,18 +73,14 @@ fun TvOnboardingScreen(
     screenModel: OnboardingScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
-    val onAuthenticated: () -> Unit = { navigator.root(Destination.Home) }
     val state by screenModel.collectAsState()
-
+    val onEvent: (OnboardingEvent) -> Unit = screenModel::dispatch
     screenModel.collectSideEffect { effect ->
         when (effect) {
-            OnboardingSideEffect.Authenticated -> onAuthenticated()
+            // Главная становится единственным корнем: «Назад» с неё закрывает приложение, а не
+            // возвращает ко входу.
+            OnboardingSideEffect.SignedIn -> navigator.root(Destination.Home)
         }
-    }
-
-    // На TV пропускаем промежуточный шаг «фичи» (1) мобильного флоу — сразу к активации.
-    LaunchedEffect(state.step) {
-        if (state.step == 1) screenModel.dispatch(OnboardingEvent.NextStep)
     }
 
     Box(
@@ -94,24 +89,20 @@ fun TvOnboardingScreen(
             .background(TvSurface),
     ) {
         AnimatedContent(
-            targetState = state.step == 2,
+            targetState = state.step,
             transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(200)) },
             label = "tv_onboarding_step",
             modifier = Modifier.fillMaxSize(),
-        ) { onAuthStep ->
-            if (onAuthStep) {
-                TvAuthStep(
-                    state = state,
-                    onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
-                )
-            } else {
-                TvWelcomeStep(onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) })
+        ) { step ->
+            when (step) {
+                OnboardingStep.WELCOME -> TvWelcomeStep(onLogin = { onEvent(OnboardingEvent.Login) })
+                OnboardingStep.AUTH -> TvAuthStep(state = state, onRetry = { onEvent(OnboardingEvent.RetryDeviceCode) })
             }
         }
     }
 }
 
-// ── Step 0: приветствие ───────────────────────────────────────────────────────
+// ── Шаг приветствия ──────────────────────────────────────────────────────────
 
 @Composable
 private fun TvWelcomeStep(onLogin: () -> Unit) {
@@ -145,7 +136,7 @@ private fun TvWelcomeStep(onLogin: () -> Unit) {
     }
 }
 
-// ── Step 2: активация устройства ─────────────────────────────────────────────
+// ── Шаг активации устройства ─────────────────────────────────────────────────
 
 @Composable
 private fun TvAuthStep(state: OnboardingState, onRetry: () -> Unit) {
@@ -157,11 +148,7 @@ private fun TvAuthStep(state: OnboardingState, onRetry: () -> Unit) {
         val userCode = state.userCode
         when {
             error != null -> AuthError(error = error, onRetry = onRetry)
-            userCode != null -> AuthCode(
-                userCode = userCode,
-                verificationUri = state.verificationUri ?: DEFAULT_VERIFICATION_URI,
-            )
-
+            userCode != null -> AuthCode(userCode = userCode, verificationUri = state.verificationUri)
             else -> GeneratingCode()
         }
     }

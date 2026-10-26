@@ -45,23 +45,19 @@ import com.filmax.feature.tvlink.common.TvPickerEvent
 import com.filmax.feature.tvlink.common.TvPickerScreenModel
 import com.filmax.feature.tvlink.common.TvPickerSideEffect
 import com.filmax.feature.tvlink.common.TvPickerState
-import com.filmax.feature.tvlink.common.message
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /**
  * Окно «Смотреть на телевизоре» поверх деталей или плеера: свои ТВ в сети и ввод адреса вручную.
- * Выбрали ТВ — окно уступает место пульту ([Navigator.replace]): «Назад» с пульта ведёт туда, откуда
- * пришли, а не в это окно.
+ * Выбрали ТВ — модель уступает место пульту; «Назад» с пульта ведёт туда, откуда пришли, а не сюда.
  */
 @Composable
-fun TvPickerDialog(
-    screenModel: TvPickerScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
+fun TvPickerDialog(screenModel: TvPickerScreenModel = koinViewModel(), navigator: Navigator = koinInject()) {
     val state by screenModel.collectAsState()
     screenModel.collectSideEffect { effect ->
         when (effect) {
+            // Замена, а не переход: «Назад» с пульта ведёт туда, откуда пришли, а не в это окно.
             TvPickerSideEffect.OpenRemote -> navigator.replace(Destination.Remote)
             TvPickerSideEffect.Close -> navigator.back()
         }
@@ -82,19 +78,14 @@ fun TvPickerDialog(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text(
-                if (state.withTitle) "Смотреть на телевизоре" else "Подключить телевизор",
-                style = FilmaxType.sheetTitle,
-            )
+            Text(state.title, style = FilmaxType.sheetTitle)
             Text(
                 "Телевизоры с Filmax вашего аккаунта kino.pub в этой Wi-Fi сети",
                 style = FilmaxType.meta,
                 color = FilmaxColors.TextSecondary,
             )
             Devices(state, screenModel::dispatch)
-            state.failure?.let { failure ->
-                ErrorText(failure.reason.message(failure.deviceName))
-            }
+            state.failure?.let { failure -> ErrorText(failure.message) }
             ManualAddress(state, screenModel::dispatch)
             FilmaxButton(
                 text = "Отмена",
@@ -107,7 +98,7 @@ fun TvPickerDialog(
 }
 
 @Composable
-private fun Devices(state: TvPickerState, dispatch: (TvPickerEvent) -> Unit) {
+private fun Devices(state: TvPickerState, onEvent: (TvPickerEvent) -> Unit) {
     if (state.devices.isEmpty()) {
         Searching(explain = state.searchTakesLong)
         return
@@ -119,7 +110,7 @@ private fun Devices(state: TvPickerState, dispatch: (TvPickerEvent) -> Unit) {
                 subtitle = if (device.id == state.connectedTo) "Подключён" else device.host,
                 icon = Icons.Filled.Tv,
                 busy = device.id == state.connectingTo,
-                onClick = { dispatch(TvPickerEvent.Choose(device.id)) },
+                onClick = { onEvent(TvPickerEvent.Choose(device.id)) },
             )
         }
     }
@@ -148,11 +139,11 @@ private fun Searching(explain: Boolean) {
 
 /** Адрес вручную — для сетей, где роутер режет поиск (гостевой Wi-Fi, «изоляция клиентов»). */
 @Composable
-private fun ManualAddress(state: TvPickerState, dispatch: (TvPickerEvent) -> Unit) {
+private fun ManualAddress(state: TvPickerState, onEvent: (TvPickerEvent) -> Unit) {
     if (!state.manualOpen) {
         FilmaxButton(
             text = "Ввести адрес вручную",
-            onClick = { dispatch(TvPickerEvent.OpenManual) },
+            onClick = { onEvent(TvPickerEvent.OpenManual) },
             style = FilmaxButtonStyle.Secondary,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -163,7 +154,7 @@ private fun ManualAddress(state: TvPickerState, dispatch: (TvPickerEvent) -> Uni
         style = FilmaxType.meta,
         color = FilmaxColors.TextSecondary,
     )
-    AddressInput(state, dispatch)
+    AddressInput(state, onEvent)
 }
 
 /**
@@ -172,7 +163,7 @@ private fun ManualAddress(state: TvPickerState, dispatch: (TvPickerEvent) -> Uni
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AddressInput(state: TvPickerState, dispatch: (TvPickerEvent) -> Unit) {
+private fun AddressInput(state: TvPickerState, onEvent: (TvPickerEvent) -> Unit) {
     val block = remember { BringIntoViewRequester() }
     val keyboardShown = WindowInsets.isImeVisible
     LaunchedEffect(keyboardShown, state.addressInvalid) {
@@ -181,16 +172,16 @@ private fun AddressInput(state: TvPickerState, dispatch: (TvPickerEvent) -> Unit
     Column(Modifier.bringIntoViewRequester(block), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         FilmaxTextField(
             value = state.address,
-            onValueChange = { dispatch(TvPickerEvent.EditAddress(it)) },
+            onValueChange = { onEvent(TvPickerEvent.EditAddress(it)) },
             placeholder = "Например, 192.168.1.50",
-            onDone = { dispatch(TvPickerEvent.ConnectByAddress) },
+            onDone = { onEvent(TvPickerEvent.ConnectByAddress) },
             isError = state.addressInvalid,
             keyboardType = KeyboardType.Uri,
         )
         if (state.addressInvalid) ErrorText("Это не похоже на адрес — он выглядит как 192.168.1.50")
         FilmaxButton(
             text = if (state.connectingTo != null) "Подключаемся…" else "Подключиться",
-            onClick = { dispatch(TvPickerEvent.ConnectByAddress) },
+            onClick = { onEvent(TvPickerEvent.ConnectByAddress) },
             modifier = Modifier.fillMaxWidth(),
         )
     }

@@ -34,7 +34,7 @@ import com.filmax.feature.library.common.MineState
 private val HeaderTop = 36.dp
 
 @Composable
-internal fun MineHeader(state: MineState, actions: MineActions, focus: MineFocus) {
+internal fun MineHeader(state: MineState, onEvent: (MineEvent) -> Unit, focus: MineFocus) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -50,35 +50,36 @@ internal fun MineHeader(state: MineState, actions: MineActions, focus: MineFocus
             TvSegmentedTabs(
                 segments = MineSegment.entries.map { TvSegment(it.label, state.countOf(it)) },
                 selectedIndex = state.segment.ordinal,
-                onSelect = { index -> actions.onEvent(MineEvent.SelectSegment(MineSegment.entries[index])) },
+                onSelect = { index -> onEvent(MineEvent.SelectSegment(MineSegment.entries[index])) },
             )
             Spacer(Modifier.weight(1f))
-            SegmentAction(state, actions, focus)
+            SegmentAction(state, onEvent, focus)
         }
     }
 }
 
-/** Действие справа от сегментов; у «Продолжить» его нет, у пустой истории — тоже. */
+/**
+ * Действие справа от сегментов — чип сортировки или «Очистить историю»; у «Продолжить» его нет,
+ * у пустой истории — тоже. Какой чип рисовать, зависит только от сегмента — это раскладка шапки.
+ */
 @Composable
-private fun SegmentAction(state: MineState, actions: MineActions, focus: MineFocus) {
-    val action = segmentAction(state) ?: return
-    TvChip(
-        label = action.label,
-        selected = false,
-        onClick = { actions.onEvent(action.event) },
-        leadingIcon = action.icon,
-        modifier = Modifier.focusRequester(focus.segmentAction),
-    )
+private fun SegmentAction(state: MineState, onEvent: (MineEvent) -> Unit, focus: MineFocus) {
+    val chip = Modifier.focusRequester(focus.segmentAction)
+    when (state.segment) {
+        MineSegment.CONTINUE -> Unit
+        MineSegment.WATCHLIST -> ActionChip(state.watchlistSort.label, Icons.Rounded.SwapVert, chip) {
+            onEvent(MineEvent.CycleWatchlistSort)
+        }
+        MineSegment.FOLDERS -> ActionChip(state.folderSort.label, Icons.AutoMirrored.Rounded.Sort, chip) {
+            onEvent(MineEvent.CycleFolderSort)
+        }
+        MineSegment.HISTORY -> if (state.history.isNotEmpty()) {
+            ActionChip("Очистить историю", Icons.Rounded.DeleteSweep, chip) { onEvent(MineEvent.AskClearHistory) }
+        }
+    }
 }
 
-private data class SegmentAction(val label: String, val icon: ImageVector, val event: MineEvent)
-
-private fun segmentAction(state: MineState): SegmentAction? = when (state.segment) {
-    MineSegment.CONTINUE -> null
-    MineSegment.WATCHLIST ->
-        SegmentAction(state.watchlistSort.label, Icons.Rounded.SwapVert, MineEvent.CycleWatchlistSort)
-    MineSegment.FOLDERS ->
-        SegmentAction(state.folderSort.label, Icons.AutoMirrored.Rounded.Sort, MineEvent.CycleFolderSort)
-    MineSegment.HISTORY -> SegmentAction("Очистить историю", Icons.Rounded.DeleteSweep, MineEvent.AskClearHistory)
-        .takeIf { state.history.isNotEmpty() }
+@Composable
+private fun ActionChip(label: String, icon: ImageVector, modifier: Modifier, onClick: () -> Unit) {
+    TvChip(label = label, selected = false, onClick = onClick, leadingIcon = icon, modifier = modifier)
 }

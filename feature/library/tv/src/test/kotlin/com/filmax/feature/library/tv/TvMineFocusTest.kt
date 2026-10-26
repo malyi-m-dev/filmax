@@ -2,18 +2,19 @@ package com.filmax.feature.library.tv
 
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
+import com.filmax.core.navigation.Destination
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
 import com.filmax.feature.library.common.MineScreenModel
@@ -53,7 +54,7 @@ class TvMineFocusTest {
     val images = FakeImagesRule()
 
     private val remote = TvRemote(compose)
-    private val calls = mutableListOf<String>()
+    private val navigator = FakeNavigator()
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val watching = FakeWatchingRepository(backend)
     private val favorites = FakeFavoritesRepository()
@@ -71,7 +72,7 @@ class TvMineFocusTest {
 
         remote.press(Key.DirectionCenter)
 
-        assertEquals("play 2003 4/7", calls.last())
+        assertEquals(Destination.Player(itemId = 2003, videoId = 7, season = 4), navigator.opened.last())
     }
 
     @Test
@@ -96,7 +97,7 @@ class TvMineFocusTest {
 
         remote.assertFocusedHas(FIRST_POSTER)
         remote.press(Key.DirectionCenter)
-        assertEquals("open $FIRST_POSTER_ID", calls.last())
+        assertEquals(Destination.Details(FIRST_POSTER_ID), navigator.opened.last())
     }
 
     @Test
@@ -112,7 +113,8 @@ class TvMineFocusTest {
         remote.longPressOk()
 
         assertEquals(listOf(SECOND_POSTER_ID), model.states.value.watchlist.map { it.id })
-        assertTrue(calls.none { it.startsWith("open") }, "долгое «ОК» ещё и открыло тайтл: $calls")
+        val opened = navigator.opened
+        assertTrue(opened.none { it is Destination.Details }, "долгое «ОК» ещё и открыло тайтл: $opened")
         remote.assertFocusedHas(SECOND_POSTER)
     }
 
@@ -175,22 +177,13 @@ class TvMineFocusTest {
             removeFromWatchLater = RemoveFromWatchLaterUseCase(favorites, watching),
             clock = Clock.systemDefaultZone(),
         )
+        // Экран целиком, а не MineContent: переходы исполняет его корень навигатором.
         compose.setContent {
-            FilmaxTvTheme {
-                val state by model.collectAsState()
-                MineContent(state, actions(model))
-            }
+            FilmaxTvTheme { TvMineScreen(screenModel = model, navigator = navigator) }
         }
         compose.waitForIdle()
         return model
     }
-
-    private fun actions(model: MineScreenModel) = MineActions(
-        onEvent = model::dispatch,
-        onOpenItem = { id -> calls += "open $id" },
-        onPlay = { itemId, season, videoId -> calls += "play $itemId $season/$videoId" },
-        onOpenFolder = { id -> calls += "folder $id" },
-    )
 
     private companion object {
         /** Первая карточка «Продолжить» в фикстуре — «Хроники Пограничья», начатая S4E7. */

@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.TvChip
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOverline
@@ -20,9 +19,9 @@ import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.tvRailEntry
+import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.initials
-import com.filmax.feature.details.common.resolveCast
 
 /** Состав появляется следом за кнопками шапки (у них fxEnter 4). */
 private const val CAST_ENTER_FROM = 5
@@ -35,19 +34,18 @@ private const val CAST_ENTER_COUNT = 6
 
 /**
  * «В ролях»: актёры с фото (TMDB, если доехали; иначе — имена из строки kino.pub) и режиссёр
- * чипом в конце ряда. По «ОК» — фильмография человека.
+ * чипом в конце ряда. По «ОК» — фильмография человека. Режиссёр — только первый: kino.pub ищет
+ * фильмографию по одному имени.
  */
 internal fun LazyListScope.castRail(
     state: DetailsState,
-    item: Item,
-    actions: DetailsActions,
+    onEvent: (DetailsEvent) -> Unit,
     focus: TvScreenFocus,
     below: FocusRequester,
 ) {
-    val people = resolveCast(state.cast, item.cast)
-    // По запятой — только первый режиссёр: kino.pub ищет фильмографию по одному имени.
-    val director = item.director.substringBefore(',').trim()
-    if (people.isEmpty() && director.isBlank()) return
+    val people = state.people
+    val director = state.directors.firstOrNull()
+    if (people.isEmpty() && director == null) return
     item(key = "cast") {
         TvRail(title = "В ролях", contentStart = TvMetrics.SafeHorizontal) {
             // Без key: имена в составе kino.pub повторяются, позиционного ключа достаточно.
@@ -56,7 +54,7 @@ internal fun LazyListScope.castRail(
                     name = member.name,
                     photoUrl = member.photoUrl,
                     initials = initials(member.name),
-                    onClick = { actions.onOpenPerson(member.name, false) },
+                    onClick = { onEvent(DetailsEvent.OpenPerson(member.name, isDirector = false)) },
                     modifier = focus.item("cast:$index")
                         .tvRailEntry(index)
                         // Чип режиссёра в том же ряду ниже фото, и штатный поиск счёл бы его
@@ -65,9 +63,9 @@ internal fun LazyListScope.castRail(
                         .castEnter(index),
                 )
             }
-            if (director.isNotBlank()) {
+            if (director != null) {
                 item(key = "director") {
-                    DirectorChip(director, actions, focus.item("director").tvRailEntry(people.size), people.size)
+                    DirectorChip(director, onEvent, focus.item("director").tvRailEntry(people.size), people.size)
                 }
             }
         }
@@ -80,7 +78,7 @@ private fun Modifier.castEnter(index: Int): Modifier =
 
 /** Режиссёр после актёров; [chipModifier] — память фокуса экрана и ряда, [index] — место в ряду. */
 @Composable
-private fun DirectorChip(name: String, actions: DetailsActions, chipModifier: Modifier, index: Int) {
+private fun DirectorChip(name: String, onEvent: (DetailsEvent) -> Unit, chipModifier: Modifier, index: Int) {
     Column(
         Modifier.castEnter(index).padding(start = 24.dp, top = 14.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -89,7 +87,7 @@ private fun DirectorChip(name: String, actions: DetailsActions, chipModifier: Mo
         TvChip(
             label = name,
             selected = false,
-            onClick = { actions.onOpenPerson(name, true) },
+            onClick = { onEvent(DetailsEvent.OpenPerson(name, isDirector = true)) },
             modifier = chipModifier,
         )
     }

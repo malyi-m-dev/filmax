@@ -4,6 +4,7 @@
 package com.filmax.feature.details.common
 
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.presentation.labels.durationLabel
 
 private const val SECONDS_IN_MINUTE = 60
 
@@ -54,12 +55,6 @@ fun startEpisodeIndex(episodes: List<MediaTrack>, resumeId: Int?): Int {
     val resumeIndex = episodes.indexOfFirst { it.id == resumeId }
     if (resumeIndex >= 0) return resumeIndex
     return episodes.indexOfFirst { it.watchStatus != WATCH_STATUS_FINISHED }.coerceAtLeast(0)
-}
-
-/** Серия, на которой откроется сезон [season] (см. [startEpisodeIndex]); null — такого сезона нет. */
-fun SeriesData.startEpisode(season: Int): MediaTrack? {
-    val episodes = seasons.firstOrNull { it.first == season }?.second.orEmpty()
-    return episodes.getOrNull(startEpisodeIndex(episodes, resume?.id))
 }
 
 /** «Сезон 1»; у тайтла без сезонов (kino.pub отдаёт 0) сезона нет — есть просто серии. */
