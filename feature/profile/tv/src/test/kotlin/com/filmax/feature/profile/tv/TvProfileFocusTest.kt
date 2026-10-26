@@ -22,6 +22,7 @@ import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakePlaybackSettingsRepository
 import com.filmax.data.fake.FakeThemeSettingsRepository
 import com.filmax.data.fake.FakeUserRepository
@@ -132,11 +133,12 @@ class TvProfileFocusTest {
             favorites = FakeFavoritesRepository(),
             playbackSettings = playback,
             themeSettings = theme,
+            navigator = FakeNavigator(),
         )
         compose.setContent {
             FilmaxTvTheme {
                 val state by model.collectAsState()
-                ProfileContent(state, ProfileActions(onEvent = model::dispatch, onCheckUpdates = {}))
+                ProfileContent(state, onEvent = model::dispatch, onCheckUpdates = {})
             }
         }
         compose.waitForIdle()

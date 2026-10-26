@@ -33,8 +33,6 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.serverLocationLabel
 import com.filmax.core.domain.user.model.streamingTypeLabel
-import com.filmax.core.domain.user.model.streamingTypeOptions
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvError
@@ -48,10 +46,8 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.tvFocusOutline
 import com.filmax.feature.profile.common.DeviceSettingsEvent
 import com.filmax.feature.profile.common.DeviceSettingsScreenModel
-import com.filmax.feature.profile.common.DeviceSettingsSideEffect
 import com.filmax.feature.profile.common.DeviceSettingsState
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
 
 /** Ширина колонки настроек: строку во весь экран с 3 метров читать невозможно. */
 private val ContentMaxWidth = 640.dp
@@ -62,24 +58,13 @@ private val RowGap = 10.dp
 /**
  * TV-экран «Настройки устройства». Тумблеры (SSL/HEVC/HDR/4K/смешанный плейлист) переключаются
  * кликом, тип потока циклически меняется по кругу — как настройки воспроизведения в TV-Профиле.
- * Правки локальны, на сервер уходят по кнопке «Сохранить». После успеха экран закрывается.
+ * Правки локальны, на сервер уходят по кнопке «Сохранить»; после успеха модель закрывает экран.
  *
  * Сервер раздачи — справочная строка без выбора: список локаций API не отдаёт (см. serverLocationLabel).
  */
 @Composable
-fun TvDeviceSettingsScreen(
-    modifier: Modifier = Modifier,
-    screenModel: DeviceSettingsScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
-) {
-    val onBack: () -> Unit = navigator::back
+fun TvDeviceSettingsScreen(modifier: Modifier = Modifier, screenModel: DeviceSettingsScreenModel = koinViewModel()) {
     val state by screenModel.collectAsState()
-
-    screenModel.collectSideEffect { effect ->
-        when (effect) {
-            DeviceSettingsSideEffect.Saved -> onBack()
-        }
-    }
 
     if (state.loading) {
         Box(modifier.fillMaxSize().background(TvSurface), contentAlignment = Alignment.Center) {
@@ -87,51 +72,15 @@ fun TvDeviceSettingsScreen(
         }
         return
     }
-
-    DeviceSettingsContent(
-        state = state,
-        actions = deviceActions(screenModel, state),
-        modifier = modifier,
-    )
+    DeviceSettingsContent(state = state, onEvent = screenModel::dispatch, modifier = modifier)
 }
 
 // ── Контент ────────────────────────────────────────────────────────────────
 
-private data class DeviceToggles(
-    val onSsl: (Boolean) -> Unit,
-    val onHevc: (Boolean) -> Unit,
-    val onHdr: (Boolean) -> Unit,
-    val on4k: (Boolean) -> Unit,
-    val onMixedPlaylist: (Boolean) -> Unit,
-)
-
-private data class DeviceActions(
-    val toggles: DeviceToggles,
-    val onCycleStreaming: () -> Unit,
-    val onSave: () -> Unit,
-)
-
-/** Лямбды замыкают текущий [state], поэтому пересобираются вместе с ним — без remember. */
-private fun deviceActions(screenModel: DeviceSettingsScreenModel, state: DeviceSettingsState) = DeviceActions(
-    toggles = DeviceToggles(
-        onSsl = { screenModel.dispatch(DeviceSettingsEvent.SetSsl(it)) },
-        onHevc = { screenModel.dispatch(DeviceSettingsEvent.SetHevc(it)) },
-        onHdr = { screenModel.dispatch(DeviceSettingsEvent.SetHdr(it)) },
-        on4k = { screenModel.dispatch(DeviceSettingsEvent.Set4k(it)) },
-        onMixedPlaylist = { screenModel.dispatch(DeviceSettingsEvent.SetMixedPlaylist(it)) },
-    ),
-    onCycleStreaming = {
-        val current = state.settings?.streamingType ?: 0
-        val ids = streamingTypeOptions.map { it.id }
-        screenModel.dispatch(DeviceSettingsEvent.SetStreamingType(next(ids, current)))
-    },
-    onSave = { screenModel.dispatch(DeviceSettingsEvent.Save) },
-)
-
 @Composable
 private fun DeviceSettingsContent(
     state: DeviceSettingsState,
-    actions: DeviceActions,
+    onEvent: (DeviceSettingsEvent) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings = state.settings ?: return
@@ -155,13 +104,13 @@ private fun DeviceSettingsContent(
             Spacer(Modifier.height(28.dp))
             TvOverline("Возможности", accent = false)
             Spacer(Modifier.height(12.dp))
-            ToggleRows(settings = settings, toggles = actions.toggles, firstRow = firstRow)
+            ToggleRows(settings = settings, onEvent = onEvent, firstRow = firstRow)
             Spacer(Modifier.height(26.dp))
             TvOverline("Поток", accent = false)
             Spacer(Modifier.height(12.dp))
-            StreamRows(settings = settings, onCycleStreaming = actions.onCycleStreaming)
+            StreamRows(settings = settings, onEvent = onEvent)
             Spacer(Modifier.height(28.dp))
-            SaveRow(saving = state.saving, error = state.error, onSave = actions.onSave)
+            SaveRow(saving = state.saving, error = state.error, onSave = { onEvent(DeviceSettingsEvent.Save) })
         }
     }
 
@@ -184,24 +133,37 @@ private fun DeviceSettingsHeader(title: String) {
 }
 
 @Composable
-private fun ToggleRows(settings: DeviceSettings, toggles: DeviceToggles, firstRow: FocusRequester) {
+private fun ToggleRows(settings: DeviceSettings, onEvent: (DeviceSettingsEvent) -> Unit, firstRow: FocusRequester) {
     Column(verticalArrangement = Arrangement.spacedBy(RowGap)) {
-        SettingRow("SSL-соединение", onOff(settings.supportSsl), { toggles.onSsl(!settings.supportSsl) }, firstRow)
-        SettingRow("HEVC (H.265)", onOff(settings.supportHevc), { toggles.onHevc(!settings.supportHevc) })
-        SettingRow("HDR", onOff(settings.supportHdr), { toggles.onHdr(!settings.supportHdr) })
-        SettingRow("4K", onOff(settings.support4k), { toggles.on4k(!settings.support4k) })
+        SettingRow(
+            "SSL-соединение",
+            onOff(settings.supportSsl),
+            { onEvent(DeviceSettingsEvent.SetSsl(!settings.supportSsl)) },
+            firstRow,
+        )
+        SettingRow(
+            "HEVC (H.265)",
+            onOff(settings.supportHevc),
+            { onEvent(DeviceSettingsEvent.SetHevc(!settings.supportHevc)) },
+        )
+        SettingRow("HDR", onOff(settings.supportHdr), { onEvent(DeviceSettingsEvent.SetHdr(!settings.supportHdr)) })
+        SettingRow("4K", onOff(settings.support4k), { onEvent(DeviceSettingsEvent.Set4k(!settings.support4k)) })
         SettingRow(
             "Смешанный плейлист",
             onOff(settings.mixedPlaylist),
-            { toggles.onMixedPlaylist(!settings.mixedPlaylist) },
+            { onEvent(DeviceSettingsEvent.SetMixedPlaylist(!settings.mixedPlaylist)) },
         )
     }
 }
 
 @Composable
-private fun StreamRows(settings: DeviceSettings, onCycleStreaming: () -> Unit) {
+private fun StreamRows(settings: DeviceSettings, onEvent: (DeviceSettingsEvent) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(RowGap)) {
-        SettingRow("Тип потока", streamingTypeLabel(settings.streamingType), onCycleStreaming)
+        SettingRow(
+            "Тип потока",
+            streamingTypeLabel(settings.streamingType),
+            { onEvent(DeviceSettingsEvent.CycleStreamingType) },
+        )
         // Сервер раздачи — справочная строка: список локаций API не отдаёт, менять не из чего.
         SettingRow("Сервер раздачи", serverLocationLabel(settings.serverLocation), null)
     }
@@ -266,12 +228,4 @@ private fun SettingRow(
     }
 }
 
-// ── Вспомогательное ──────────────────────────────────────────────────────────
-
 private fun onOff(enabled: Boolean): String = if (enabled) "Вкл" else "Выкл"
-
-/** Следующее значение в списке по кругу. */
-private fun next(ids: List<Int>, current: Int): Int {
-    val index = ids.indexOf(current)
-    return ids[(index + 1).mod(ids.size)]
-}

@@ -39,10 +39,6 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.designsystem.rememberGlassState
-import com.filmax.core.domain.feedback.FeedbackTrigger
-import com.filmax.core.domain.user.model.UserProfile
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxAvatar
 import com.filmax.core.ui.components.FilmaxSettingsDivider
 import com.filmax.core.ui.components.FilmaxSettingsGroup
@@ -54,29 +50,13 @@ import com.filmax.core.ui.components.LocalNavBarPadding
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSetting
-import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
-import com.filmax.feature.profile.common.activeUntil
-import com.filmax.feature.profile.common.daysLabel
-import com.filmax.feature.profile.common.initialsOrFallback
-import com.filmax.feature.profile.common.valueOf
 import org.koin.androidx.compose.koinViewModel
-import org.koin.compose.koinInject
-
-/** Переходы и действия Профиля одним объектом: порог LongParameterList у detekt — 6. */
-private data class ProfileActions(
-    val onEvent: (ProfileEvent) -> Unit,
-    val onCheckUpdates: () -> Unit,
-    val onRate: () -> Unit,
-    /** Пульт телевизора в той же сети. */
-    val onOpenRemote: () -> Unit,
-    val onOpenDesignSystem: (() -> Unit)?,
-)
 
 /**
  * [onCheckUpdates] — не навигация, а действие: обновления живут в `:app` (GitHub Releases),
  * и фича до них не дотягивается. [showDesignSystem] включает строку каталога компонентов —
- * граф отдаёт её только debug-сборке.
+ * граф отдаёт её только debug-сборке. Остальное — события модели.
  */
 @Composable
 fun ProfileScreen(
@@ -84,15 +64,9 @@ fun ProfileScreen(
     showDesignSystem: Boolean = false,
     modifier: Modifier = Modifier,
     screenModel: ProfileScreenModel = koinViewModel(),
-    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    screenModel.collectSideEffect { effect ->
-        when (effect) {
-            // Вход становится единственным корнем: «Назад» не возвращает в аккаунт, из которого вышли.
-            ProfileSideEffect.LoggedOut -> navigator.root(Destination.Onboarding)
-        }
-    }
+    val onEvent: (ProfileEvent) -> Unit = screenModel::dispatch
     val palette = FilmaxTheme.palette
     Box(
         modifier
@@ -103,107 +77,82 @@ fun ProfileScreen(
         if (state.loading) {
             CircularProgressIndicator(color = palette.accent, modifier = Modifier.align(Alignment.Center))
         } else {
-            ProfileContent(
-                state = state,
-                actions = ProfileActions(
-                    onEvent = screenModel::dispatch,
-                    onCheckUpdates = onCheckUpdates,
-                    onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) },
-                    onOpenRemote = { navigator.open(Destination.Remote) },
-                    onOpenDesignSystem = if (showDesignSystem) {
-                        { navigator.open(Destination.DesignSystem) }
-                    } else {
-                        null
-                    },
-                ),
-            )
+            ProfileContent(state, onEvent, onCheckUpdates, showDesignSystem)
         }
     }
-    ProfileSheets(state = state, onEvent = screenModel::dispatch)
+    ProfileSheets(state = state, onEvent = onEvent)
 }
 
 @Composable
-private fun ProfileContent(state: ProfileState, actions: ProfileActions) {
+private fun ProfileContent(
+    state: ProfileState,
+    onEvent: (ProfileEvent) -> Unit,
+    onCheckUpdates: () -> Unit,
+    showDesignSystem: Boolean,
+) {
     val glass = rememberGlassState()
     val scroll = rememberScrollState()
     Box(Modifier.fillMaxSize()) {
-        ProfileColumn(state = state, actions = actions, modifier = Modifier.glassSource(glass).verticalScroll(scroll))
+        Column(
+            Modifier
+                .glassSource(glass)
+                .verticalScroll(scroll)
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = FilmaxMetrics.GridPadding)
+                .padding(top = 28.dp, bottom = LocalNavBarPadding.current),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            ProfileHeader(state)
+            // Подписка — справочная карточка: менять её из приложения kino.pub не даёт.
+            FilmaxSubscriptionCard(
+                title = state.subscription.title,
+                subtitle = state.subscription.subtitle,
+                active = state.subscription.active,
+            )
+            PlaybackGroup(state = state, onEvent = onEvent)
+            // Телефон как пульт телевизора с Filmax в той же Wi-Fi: выбор ТВ — на самом экране пульта.
+            FilmaxSettingsGroup(title = "Телевизор") {
+                FilmaxSettingsRow(Icons.Filled.Cast, "Пульт телевизора", onClick = { onEvent(ProfileEvent.OpenRemote) })
+            }
+            // Блока «Устройство» временно нет: device/info и device/settings отвечают 500,
+            // и строка вела на нерабочий экран. Вернуть, когда бэкенд починят.
+            AppGroup(onEvent = onEvent, onCheckUpdates = onCheckUpdates, showDesignSystem = showDesignSystem)
+            FilmaxSettingsGroup(title = "Аккаунт") {
+                FilmaxSettingsRow(
+                    Icons.AutoMirrored.Filled.Logout,
+                    "Выйти",
+                    onClick = { onEvent(ProfileEvent.AskLogout) },
+                    destructive = true,
+                )
+            }
+            FilmaxVersionLabel(color = FilmaxColors.TextDim, modifier = Modifier.align(Alignment.CenterHorizontally))
+        }
         FilmaxStatusBarGlass(glass = glass, visible = scroll.value > 0)
     }
 }
 
 @Composable
-private fun ProfileColumn(state: ProfileState, actions: ProfileActions, modifier: Modifier) {
-    Column(
-        modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(horizontal = FilmaxMetrics.GridPadding)
-            .padding(top = 28.dp, bottom = LocalNavBarPadding.current),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
-    ) {
-        ProfileHeader(state.profile)
-        SubscriptionCard(state.profile)
-        PlaybackGroup(state = state, onEvent = actions.onEvent)
-        // Телефон как пульт телевизора с Filmax в той же Wi-Fi: выбор ТВ — на самом экране пульта.
-        FilmaxSettingsGroup(title = "Телевизор") {
-            FilmaxSettingsRow(Icons.Filled.Cast, "Пульт телевизора", onClick = actions.onOpenRemote)
-        }
-        // Блока «Устройство» временно нет: device/info и device/settings отвечают 500,
-        // и строка вела на нерабочий экран. Вернуть, когда бэкенд починят.
-        AppGroup(actions = actions)
-        FilmaxSettingsGroup(title = "Аккаунт") {
-            FilmaxSettingsRow(
-                Icons.AutoMirrored.Filled.Logout,
-                "Выйти",
-                onClick = { actions.onEvent(ProfileEvent.AskLogout) },
-                destructive = true,
-            )
-        }
-        FilmaxVersionLabel(color = FilmaxColors.TextDim, modifier = Modifier.align(Alignment.CenterHorizontally))
-    }
-}
-
-@Composable
-private fun ProfileHeader(profile: UserProfile?) {
+private fun ProfileHeader(state: ProfileState) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        FilmaxAvatar(initials = profile.initialsOrFallback())
+        FilmaxAvatar(initials = state.initials)
         Text(
-            profile?.username ?: "Гость",
+            state.username,
             style = FilmaxType.profileName,
             color = FilmaxColors.Text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 16.dp),
         )
-        profile?.email?.takeIf { it.isNotBlank() }?.let {
+        state.email?.let {
             Text(
                 it,
                 style = FilmaxType.bodySmall,
                 color = FilmaxColors.TextDim,
-                modifier = Modifier.padding(top = 2.dp)
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }
-}
-
-/** Подписка — справочная карточка: менять её из приложения kino.pub не даёт. */
-@Composable
-private fun SubscriptionCard(profile: UserProfile?) {
-    val subscription = profile?.subscription
-    val active = subscription?.active == true
-    val subtitle = if (active) {
-        listOfNotNull(subscription?.activeUntil(), subscription?.daysLeft?.let { "ещё ${daysLabel(it)}" })
-            .joinToString(" · ")
-            .ifBlank { null }
-    } else {
-        "Без подписки kino.pub видео не играет"
-    }
-    FilmaxSubscriptionCard(
-        title = if (active) "Filmax Премиум" else "Нет подписки",
-        subtitle = subtitle,
-        active = active
-    )
 }
 
 /**
@@ -243,14 +192,18 @@ private fun SettingRow(
  * должна быть доступна руками, а не только один раз при старте.
  */
 @Composable
-private fun AppGroup(actions: ProfileActions) {
+private fun AppGroup(onEvent: (ProfileEvent) -> Unit, onCheckUpdates: () -> Unit, showDesignSystem: Boolean) {
     FilmaxSettingsGroup(title = "Приложение") {
-        FilmaxSettingsRow(Icons.Filled.SystemUpdate, "Проверить обновления", onClick = actions.onCheckUpdates)
+        FilmaxSettingsRow(Icons.Filled.SystemUpdate, "Проверить обновления", onClick = onCheckUpdates)
         FilmaxSettingsDivider()
-        FilmaxSettingsRow(Icons.Filled.StarRate, "Оценить приложение", onClick = actions.onRate)
-        actions.onOpenDesignSystem?.let {
+        FilmaxSettingsRow(Icons.Filled.StarRate, "Оценить приложение", onClick = { onEvent(ProfileEvent.OpenRate) })
+        if (showDesignSystem) {
             FilmaxSettingsDivider()
-            FilmaxSettingsRow(Icons.Filled.Widgets, "Дизайн-система", onClick = it)
+            FilmaxSettingsRow(
+                Icons.Filled.Widgets,
+                "Дизайн-система",
+                onClick = { onEvent(ProfileEvent.OpenDesignSystem) },
+            )
         }
     }
 }

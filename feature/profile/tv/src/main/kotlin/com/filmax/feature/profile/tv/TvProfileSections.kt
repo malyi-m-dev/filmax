@@ -21,28 +21,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
-import com.filmax.core.domain.user.model.Subscription
-import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOverline
-import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSettingRow
 import com.filmax.core.tv.designsystem.TvSubscriptionCard
 import com.filmax.core.tv.designsystem.TvSwitchRow
 import com.filmax.core.tv.designsystem.fxEnter
-import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.FilmaxVersionLabel
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileSetting
 import com.filmax.feature.profile.common.ProfileState
-import com.filmax.feature.profile.common.activeUntil
-import com.filmax.feature.profile.common.daysLabel
-import com.filmax.feature.profile.common.initialsOrFallback
-import com.filmax.feature.profile.common.subtitlesEnabled
-import com.filmax.feature.profile.common.valueOf
+import com.filmax.feature.profile.common.ProfileSubscription
 
 /** Ширина колонки настроек: строку во весь экран с трёх метров не прочитать. */
 private val SettingsWidth = 520.dp
@@ -64,18 +56,22 @@ private const val CARD_ENTER = 3
 /** Ключ строки настройки для памяти фокуса; стартовый фокус — на «Качестве видео». */
 internal fun settingKey(setting: ProfileSetting) = "setting:${setting.name}"
 
+/** Ключ строки «Отключить обводку и свечение» в памяти фокуса экрана. */
+internal const val PLAIN_FOCUS_KEY = "plainFocus"
+
 /** Колонка настроек слева, справочные карточки справа: подписка и [remoteCard] под ней. */
 @Composable
 internal fun ProfileBody(
     state: ProfileState,
-    actions: ProfileActions,
+    onEvent: (ProfileEvent) -> Unit,
+    onCheckUpdates: () -> Unit,
     focus: ProfileFocus,
     remoteCard: @Composable (Modifier) -> Unit,
 ) {
     Row(Modifier.fillMaxHeight()) {
-        SettingsColumn(state, actions, focus)
+        SettingsColumn(state, onEvent, onCheckUpdates, focus)
         Column(Modifier.padding(start = 30.dp, top = CardTop), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SubscriptionCard(state.profile?.subscription, Modifier.fxEnter(CARD_ENTER))
+            SubscriptionCard(state.subscription, Modifier.fxEnter(CARD_ENTER))
             remoteCard(Modifier.fxEnter(CARD_ENTER + 1))
         }
     }
@@ -86,52 +82,53 @@ internal fun ProfileBody(
  * строку, которую открывали.
  */
 @Composable
-private fun SettingsColumn(state: ProfileState, actions: ProfileActions, focus: ProfileFocus) {
+private fun SettingsColumn(
+    state: ProfileState,
+    onEvent: (ProfileEvent) -> Unit,
+    onCheckUpdates: () -> Unit,
+    focus: ProfileFocus,
+) {
     val scroll = rememberScrollState()
     ScrollToTopOnNavFocus(scroll)
-    val screenFocus = rememberTvScreenFocus(startAt = settingKey(ProfileSetting.QUALITY))
     Column(
         Modifier
             .padding(start = TvMetrics.SectionStart - FocusRoom)
             .width(SettingsWidth + FocusRoom * 2)
-            .then(screenFocus.containerModifier)
+            .then(focus.screen.containerModifier)
             .verticalScroll(scroll)
             .padding(horizontal = FocusRoom, vertical = HeaderTop),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ProfileHeader(state.profile, Modifier.fxEnter(0))
+        ProfileHeader(state, Modifier.fxEnter(0))
         SettingsGroup("Просмотр")
-        val rows = SettingRows(state, actions, focus, screenFocus)
-        rows.Value(ProfileSetting.QUALITY, enter = FIRST_ROW_ENTER)
-        rows.Value(ProfileSetting.AUDIO, enter = FIRST_ROW_ENTER + 1)
-        SubtitlesRow(rows, enter = FIRST_ROW_ENTER + 2)
+        ValueRow(state, ProfileSetting.QUALITY, FIRST_ROW_ENTER, onEvent, focus)
+        ValueRow(state, ProfileSetting.AUDIO, FIRST_ROW_ENTER + 1, onEvent, focus)
+        SubtitlesRow(state, FIRST_ROW_ENTER + 2, onEvent, focus)
         SettingsGroup("Оформление")
-        rows.Value(ProfileSetting.PALETTE, enter = FIRST_ROW_ENTER + 3)
-        UiRows(rows, enter = FIRST_ROW_ENTER + 4)
-        AccountRows(rows, enter = FIRST_ROW_ENTER + 5)
+        ValueRow(state, ProfileSetting.PALETTE, FIRST_ROW_ENTER + 3, onEvent, focus)
+        UiRows(state, FIRST_ROW_ENTER + 4, onEvent, focus)
+        AccountRows(FIRST_ROW_ENTER + 5, onEvent, onCheckUpdates, focus)
     }
 }
 
-/** Всё, что нужно строкам настроек: состояние, события и фокус. */
-private class SettingRows(
-    val state: ProfileState,
-    val actions: ProfileActions,
-    val focus: ProfileFocus,
-    val screenFocus: TvScreenFocus,
+/** Строка со значением: «ОК» открывает панель вариантов, фокус потом возвращается сюда. */
+@Composable
+private fun ValueRow(
+    state: ProfileState,
+    setting: ProfileSetting,
+    enter: Int,
+    onEvent: (ProfileEvent) -> Unit,
+    focus: ProfileFocus,
 ) {
-    /** Строка со значением: «ОК» открывает панель вариантов, фокус потом возвращается сюда. */
-    @Composable
-    fun Value(setting: ProfileSetting, enter: Int) {
-        TvSettingRow(
-            label = setting.label,
-            value = state.valueOf(setting),
-            onClick = { actions.onEvent(ProfileEvent.OpenSetting(setting)) },
-            modifier = Modifier
-                .fxEnter(enter)
-                .then(screenFocus.item(settingKey(setting)))
-                .focusRequester(focus.settings.getValue(setting)),
-        )
-    }
+    TvSettingRow(
+        label = setting.label,
+        value = state.valueOf(setting),
+        onClick = { onEvent(ProfileEvent.OpenSetting(setting)) },
+        modifier = Modifier
+            .fxEnter(enter)
+            .then(focus.screen.item(settingKey(setting)))
+            .focusRequester(focus.settings.getValue(setting)),
+    )
 }
 
 /**
@@ -139,16 +136,16 @@ private class SettingRows(
  * Другой язык выбирают в плеере — там он запоминается для всего сериала.
  */
 @Composable
-private fun SubtitlesRow(rows: SettingRows, enter: Int) {
+private fun SubtitlesRow(state: ProfileState, enter: Int, onEvent: (ProfileEvent) -> Unit, focus: ProfileFocus) {
     val setting = ProfileSetting.SUBTITLES
     TvSwitchRow(
         label = setting.label,
-        checked = rows.state.subtitlesEnabled,
-        onCheckedChange = { enabled -> rows.actions.onEvent(ProfileEvent.SetSubtitlesEnabled(enabled)) },
+        checked = state.subtitlesEnabled,
+        onCheckedChange = { enabled -> onEvent(ProfileEvent.SetSubtitlesEnabled(enabled)) },
         modifier = Modifier
             .fxEnter(enter)
-            .then(rows.screenFocus.item(settingKey(setting)))
-            .focusRequester(rows.focus.settings.getValue(setting)),
+            .then(focus.screen.item(settingKey(setting)))
+            .focusRequester(focus.settings.getValue(setting)),
     )
 }
 
@@ -157,29 +154,25 @@ private fun SubtitlesRow(rows: SettingRows, enter: Int) {
  * свечение у элемента в фокусе: кому они мешают, остаются увеличение и цвет подложки.
  */
 @Composable
-private fun UiRows(rows: SettingRows, enter: Int) {
+private fun UiRows(state: ProfileState, enter: Int, onEvent: (ProfileEvent) -> Unit, focus: ProfileFocus) {
     SettingsGroup("Настройки UI")
     TvSwitchRow(
         label = "Отключить обводку и свечение",
-        checked = rows.state.plainFocus,
-        onCheckedChange = { enabled -> rows.actions.onEvent(ProfileEvent.SetPlainFocus(enabled)) },
-        modifier = Modifier.fxEnter(enter).then(rows.screenFocus.item(PLAIN_FOCUS_KEY)),
+        checked = state.plainFocus,
+        onCheckedChange = { enabled -> onEvent(ProfileEvent.SetPlainFocus(enabled)) },
+        modifier = Modifier.fxEnter(enter).then(focus.screen.item(PLAIN_FOCUS_KEY)),
     )
 }
 
-/** Ключ строки «Отключить обводку и свечение» в памяти фокуса экрана. */
-internal const val PLAIN_FOCUS_KEY = "plainFocus"
-
 /** «Аккаунт» — выход с подтверждением; «Приложение» — ручная проверка обновлений и версия. */
 @Composable
-private fun AccountRows(rows: SettingRows, enter: Int) {
-    val actions = rows.actions
+private fun AccountRows(enter: Int, onEvent: (ProfileEvent) -> Unit, onCheckUpdates: () -> Unit, focus: ProfileFocus) {
     SettingsGroup("Аккаунт")
     TvSettingRow(
         label = "Выйти из аккаунта",
         value = null,
-        onClick = { actions.onEvent(ProfileEvent.AskLogout) },
-        modifier = Modifier.fxEnter(enter).then(rows.screenFocus.item("logout")).focusRequester(rows.focus.logout),
+        onClick = { onEvent(ProfileEvent.AskLogout) },
+        modifier = Modifier.fxEnter(enter).then(focus.screen.item("logout")).focusRequester(focus.logout),
         destructive = true,
     )
     // На телевизоре магазина нет — приложение ставится APK, и ручная проверка здесь нужнее,
@@ -188,14 +181,14 @@ private fun AccountRows(rows: SettingRows, enter: Int) {
     TvSettingRow(
         label = "Проверить обновления",
         value = null,
-        onClick = actions.onCheckUpdates,
-        modifier = Modifier.fxEnter(enter + 1).then(rows.screenFocus.item("updates")),
+        onClick = onCheckUpdates,
+        modifier = Modifier.fxEnter(enter + 1).then(focus.screen.item("updates")),
     )
     TvSettingRow(
         label = "Оценить приложение",
         value = null,
-        onClick = actions.onRate,
-        modifier = Modifier.fxEnter(enter + 1).then(rows.screenFocus.item("rate")),
+        onClick = { onEvent(ProfileEvent.OpenRate) },
+        modifier = Modifier.fxEnter(enter + 1).then(focus.screen.item("rate")),
     )
     FilmaxVersionLabel(color = LocalFxColors.current.textDim, modifier = Modifier.padding(top = 6.dp))
 }
@@ -207,20 +200,20 @@ private fun SettingsGroup(title: String) {
 
 /** Аватар с инициалами вторым акцентом, имя и почта. */
 @Composable
-private fun ProfileHeader(profile: UserProfile?, modifier: Modifier) {
+private fun ProfileHeader(state: ProfileState, modifier: Modifier) {
     val colors = LocalFxColors.current
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Box(Modifier.size(AvatarSize).background(colors.accent2, CircleShape), contentAlignment = Alignment.Center) {
-            Text(profile.initialsOrFallback(), style = NameStyle, color = colors.onAccent2)
+            Text(state.initials, style = NameStyle, color = colors.onAccent2)
         }
         Column {
-            Text(profile?.username ?: "Гость", style = NameStyle, color = colors.text, maxLines = 1)
-            profile?.email?.let { email ->
+            Text(state.username, style = NameStyle, color = colors.text, maxLines = 1)
+            state.email?.let { email ->
                 Text(
                     email,
                     style = FxType.metaRow,
                     color = colors.textSecondary,
-                    modifier = Modifier.padding(top = 4.dp)
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
         }
@@ -232,17 +225,11 @@ private fun ProfileHeader(profile: UserProfile?, modifier: Modifier) {
  * макета нет: длительность оплаченного периода API не отдаёт, а продление — только на сайте.
  */
 @Composable
-private fun SubscriptionCard(subscription: Subscription?, modifier: Modifier) {
-    val active = subscription?.active == true
-    val days = subscription?.daysLeft?.takeIf { active }
+private fun SubscriptionCard(subscription: ProfileSubscription, modifier: Modifier) {
     TvSubscriptionCard(
-        overline = if (active) "Filmax Premium" else "Подписка",
-        value = when {
-            days != null -> daysLabel(days)
-            active -> "Активна"
-            else -> "Нет"
-        },
-        caption = if (active) subscription?.activeUntil() else "Оформить можно на сайте kino.pub",
+        overline = subscription.overline,
+        value = subscription.value,
+        caption = subscription.caption,
         modifier = modifier,
     )
 }
