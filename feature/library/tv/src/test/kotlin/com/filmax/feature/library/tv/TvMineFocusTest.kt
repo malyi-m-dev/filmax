@@ -2,7 +2,6 @@ package com.filmax.feature.library.tv
 
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.filmax.core.domain.favorites.model.FavoriteItem
@@ -177,13 +176,10 @@ class TvMineFocusTest {
             folders = BookmarkFolders(user, FakeFolderAppearanceRepository()),
             removeFromWatchLater = RemoveFromWatchLaterUseCase(favorites, watching),
             clock = Clock.systemDefaultZone(),
-            navigator = navigator,
         )
+        // Экран целиком, а не MineContent: переходы исполняет его корень навигатором.
         compose.setContent {
-            FilmaxTvTheme {
-                val state by model.collectAsState()
-                MineContent(state, model::dispatch)
-            }
+            FilmaxTvTheme { TvMineScreen(screenModel = model, navigator = navigator) }
         }
         compose.waitForIdle()
         return model

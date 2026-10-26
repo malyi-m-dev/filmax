@@ -38,6 +38,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -48,9 +50,11 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
+import com.filmax.feature.onboarding.common.OnboardingSideEffect
 import com.filmax.feature.onboarding.common.OnboardingState
 import com.filmax.feature.onboarding.common.OnboardingStep
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Ширина текстового блока. Строка длиннее ~460dp заставляет глаз искать начало следующей. */
 private val TextMaxWidth = 460.dp
@@ -64,9 +68,20 @@ private val TextMaxWidth = 460.dp
  * emoji-шрифт в крупном кегле на TV-боксах растрируется в кашу.
  */
 @Composable
-fun TvOnboardingScreen(modifier: Modifier = Modifier, screenModel: OnboardingScreenModel = koinViewModel()) {
+fun TvOnboardingScreen(
+    modifier: Modifier = Modifier,
+    screenModel: OnboardingScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (OnboardingEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            // Главная становится единственным корнем: «Назад» с неё закрывает приложение, а не
+            // возвращает ко входу.
+            OnboardingSideEffect.SignedIn -> navigator.root(Destination.Home)
+        }
+    }
 
     Box(
         modifier = modifier

@@ -95,5 +95,11 @@ sealed interface CollectionDetailEvent {
     data object Back : CollectionDetailEvent
 }
 
-/** Одноразовых эффектов у подборки нет: переходы модель отдаёт навигатору сама. */
-sealed interface CollectionDetailSideEffect
+/** Переходы из подборки; исполняет их навигатором экран. */
+sealed interface CollectionDetailSideEffect {
+    data class OpenDetails(val itemId: Int) : CollectionDetailSideEffect
+
+    /** «Смотреть» — с первого тайтла подборки. */
+    data class OpenPlayer(val itemId: Int) : CollectionDetailSideEffect
+    data object Back : CollectionDetailSideEffect
+}

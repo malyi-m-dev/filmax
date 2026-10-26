@@ -9,8 +9,6 @@ import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.user.model.userFolders
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
@@ -32,7 +30,6 @@ class FolderScreenModel(
     savedStateHandle: SavedStateHandle,
     private val user: UserRepository,
     private val folders: BookmarkFolders,
-    private val navigator: Navigator,
 ) : BaseScreenModel<FolderState, FolderSideEffect, FolderEvent>(FolderState()) {
 
     private val folderId = savedStateHandle.toRoute<FolderRoute>().folderId
@@ -56,10 +53,10 @@ class FolderScreenModel(
             FolderEvent.AskDelete -> onDeleteDialog(open = true)
             FolderEvent.DismissDelete -> onDeleteDialog(open = false)
             FolderEvent.ConfirmDelete -> onConfirmDelete()
-            FolderEvent.Back -> navigator.back()
-            is FolderEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            FolderEvent.Back -> sendSideEffect(FolderSideEffect.Back)
+            is FolderEvent.OpenItem -> sendSideEffect(FolderSideEffect.OpenDetails(event.itemId))
             FolderEvent.PlayAll -> onPlayAll()
-            FolderEvent.OpenCatalog -> navigator.open(Destination.Catalog)
+            FolderEvent.OpenCatalog -> sendSideEffect(FolderSideEffect.OpenCatalog)
         }
     }
 
@@ -169,7 +166,7 @@ class FolderScreenModel(
         screenModelScope { _ ->
             updateState { it.copy(confirmDelete = false) }
             when (val result = folders.delete(folderId)) {
-                is RequestResult.Success -> navigator.back()
+                is RequestResult.Success -> postSideEffect(FolderSideEffect.Back)
                 is RequestResult.Error -> updateState { it.copy(error = result.message) }
             }
         }
@@ -177,7 +174,7 @@ class FolderScreenModel(
 
     private fun onPlayAll() {
         val first = state.items.firstOrNull() ?: return
-        navigator.open(Destination.Player(itemId = first.id))
+        sendSideEffect(FolderSideEffect.OpenPlayer(first.id))
     }
 
     private companion object {

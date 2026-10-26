@@ -35,22 +35,33 @@ import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeSidePanel
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxListRow
 import com.filmax.core.ui.components.FilmaxTextField
 import com.filmax.feature.tvlink.common.TvPickerEvent
 import com.filmax.feature.tvlink.common.TvPickerScreenModel
+import com.filmax.feature.tvlink.common.TvPickerSideEffect
 import com.filmax.feature.tvlink.common.TvPickerState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * Окно «Смотреть на телевизоре» поверх деталей или плеера: свои ТВ в сети и ввод адреса вручную.
  * Выбрали ТВ — модель уступает место пульту; «Назад» с пульта ведёт туда, откуда пришли, а не сюда.
  */
 @Composable
-fun TvPickerDialog(screenModel: TvPickerScreenModel = koinViewModel()) {
+fun TvPickerDialog(screenModel: TvPickerScreenModel = koinViewModel(), navigator: Navigator = koinInject()) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            // Замена, а не переход: «Назад» с пульта ведёт туда, откуда пришли, а не в это окно.
+            TvPickerSideEffect.OpenRemote -> navigator.replace(Destination.Remote)
+            TvPickerSideEffect.Close -> navigator.back()
+        }
+    }
     // Окно диалога по умолчанию сдвигается за клавиатурой целиком, и всё, что ниже поля адреса
     // (ошибка, «Подключиться»), оставалось под ней. Ужатое окно прокручивается к нужному блоку.
     val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window

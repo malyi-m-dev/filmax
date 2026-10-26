@@ -3,14 +3,11 @@ package com.filmax.feature.profile.common
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
-import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.domain.settings.ThemeSettingsRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 
 /**
@@ -25,7 +22,6 @@ class ProfileScreenModel(
     private val favorites: FavoritesRepository,
     private val playbackSettings: PlaybackSettingsRepository,
     private val themeSettings: ThemeSettingsRepository,
-    private val navigator: Navigator,
 ) : BaseScreenModel<ProfileState, ProfileSideEffect, ProfileEvent>(ProfileState()) {
 
     init {
@@ -48,9 +44,9 @@ class ProfileScreenModel(
             is ProfileEvent.ChooseOption -> onChooseOption(event.index)
             ProfileEvent.AskLogout -> onLogoutDialog(open = true)
             ProfileEvent.DismissLogout -> onLogoutDialog(open = false)
-            ProfileEvent.OpenRate -> navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name))
-            ProfileEvent.OpenRemote -> navigator.open(Destination.Remote)
-            ProfileEvent.OpenDesignSystem -> navigator.open(Destination.DesignSystem)
+            ProfileEvent.OpenRate -> sendSideEffect(ProfileSideEffect.OpenRate)
+            ProfileEvent.OpenRemote -> sendSideEffect(ProfileSideEffect.OpenRemote)
+            ProfileEvent.OpenDesignSystem -> sendSideEffect(ProfileSideEffect.OpenDesignSystem)
         }
     }
 
@@ -140,12 +136,11 @@ class ProfileScreenModel(
         screenModelScope { _ -> updateState { it.copy(confirmLogout = open) } }
     }
 
-    /** Вход становится единственным корнем: «Назад» не возвращает в аккаунт, из которого вышли. */
     private fun onLogout() {
         screenModelScope { _ ->
             updateState { it.copy(confirmLogout = false) }
             auth.logout()
-            navigator.root(Destination.Onboarding)
+            postSideEffect(ProfileSideEffect.LoggedOut)
         }
     }
 }

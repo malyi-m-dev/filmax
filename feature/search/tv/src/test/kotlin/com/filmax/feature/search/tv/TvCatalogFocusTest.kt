@@ -61,7 +61,6 @@ class TvCatalogFocusTest {
     private val model = SearchScreenModel(
         search = FakeSearchRepository(backend),
         catalog = FakeCatalogRepository(backend),
-        navigator = FakeNavigator(),
     )
 
     @Before
@@ -217,7 +216,7 @@ class TvCatalogFocusTest {
 
     private fun showCatalog() {
         compose.setContent {
-            FilmaxTvTheme { TvCatalogScreen(screenModel = model) }
+            FilmaxTvTheme { TvCatalogScreen(screenModel = model, navigator = FakeNavigator()) }
         }
         compose.waitForIdle()
     }

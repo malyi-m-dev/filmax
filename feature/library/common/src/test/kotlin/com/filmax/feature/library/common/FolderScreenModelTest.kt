@@ -8,7 +8,6 @@ import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeUserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -168,7 +167,6 @@ class FolderScreenModelTest {
         savedStateHandle = SavedStateHandle(mapOf("folderId" to folderId)),
         user = user,
         folders = BookmarkFolders(user, appearance),
-        navigator = FakeNavigator(),
     )
 
     private companion object {

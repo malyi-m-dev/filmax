@@ -1,6 +1,6 @@
 // Главная: состояние экрана и лента. Ряды ленты — в HomeRows, hero — в HomeHero, шапка, чипы и
-// баннер «нет сети» — в HomeHeader, шторка разделов — в HomeSections. Куда ведут карточки и
-// кнопки, решает HomeScreenModel: экран только шлёт события.
+// баннер «нет сети» — в HomeHeader, шторка разделов — в HomeSections. Вёрстка шлёт события,
+// модель отвечает переходом, а исполняет его навигатором корень экрана.
 
 package com.filmax.feature.home.mobile
 
@@ -22,21 +22,41 @@ import androidx.compose.ui.platform.LocalDensity
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
+import com.filmax.core.domain.feedback.FeedbackTrigger
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.LocalNavBarPadding
 import com.filmax.feature.home.common.HomeEvent
 import com.filmax.feature.home.common.HomeScreenModel
+import com.filmax.feature.home.common.HomeSideEffect
 import com.filmax.feature.home.common.HomeState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
     screenModel: HomeScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
     val offline by screenModel.collectOfflineBannerAsState()
+
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is HomeSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is HomeSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            is HomeSideEffect.OpenSection -> navigator.open(Destination.Browse(effect.section.name))
+            is HomeSideEffect.OpenCollection ->
+                navigator.open(Destination.CollectionDetail(effect.collectionId, effect.title))
+            HomeSideEffect.OpenTvPicker -> navigator.open(Destination.TvPicker())
+            HomeSideEffect.OpenCatalog -> navigator.open(Destination.Catalog)
+            HomeSideEffect.AskFeedback -> navigator.open(Destination.Feedback(FeedbackTrigger.AfterUpdate.name))
+        }
+    }
 
     Box(
         modifier = modifier

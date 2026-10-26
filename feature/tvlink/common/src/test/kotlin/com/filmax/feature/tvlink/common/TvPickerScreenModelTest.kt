@@ -4,10 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.tvlink.LinkFailure
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvDevice
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeIds
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeTvDiscovery
 import com.filmax.data.fake.FakeTvRemote
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +37,7 @@ class TvPickerScreenModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val discovery = FakeTvDiscovery()
     private val remote = FakeTvRemote()
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<TvPickerSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -58,7 +55,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
     }
 
     @Test
@@ -73,7 +70,7 @@ class TvPickerScreenModelTest {
         assertTrue(model.states.value.failure?.message.orEmpty().contains("другой аккаунт"))
         assertNull(model.states.value.connectingTo, "после отказа можно выбрать другой ТВ")
         assertTrue(remote.sent.isEmpty())
-        assertTrue(navigator.sent.isEmpty())
+        assertTrue(effects.isEmpty())
     }
 
     @Test
@@ -91,7 +88,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.ConnectByAddress)
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
     }
 
     @Test
@@ -104,7 +101,7 @@ class TvPickerScreenModelTest {
         model.send(TvPickerEvent.Choose(LIVING_ROOM.id))
 
         assertTrue(remote.sent.isEmpty())
-        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
     }
 
     @Test
@@ -118,7 +115,7 @@ class TvPickerScreenModelTest {
         opened(withTitle = true)
 
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
     }
 
     @Test
@@ -130,7 +127,7 @@ class TvPickerScreenModelTest {
 
         assertEquals(listOf(LIVING_ROOM), remote.connects)
         assertEquals(listOf<RemoteCommand>(PLAY), remote.sent)
-        assertEquals(listOf<NavCommand>(NavCommand.Replace(Destination.Remote)), navigator.sent)
+        assertEquals(listOf<TvPickerSideEffect>(TvPickerSideEffect.OpenRemote), effects)
     }
 
     @Test
@@ -145,7 +142,7 @@ class TvPickerScreenModelTest {
 
         assertEquals(listOf(LIVING_ROOM, bedroom), model.states.value.devices)
         assertTrue(remote.connects.isEmpty(), "выключенный ТВ не дёргаем — выбор за зрителем")
-        assertTrue(navigator.sent.isEmpty())
+        assertTrue(effects.isEmpty())
     }
 
     @Test
@@ -167,7 +164,7 @@ class TvPickerScreenModelTest {
             "startSeconds" to PLAY.startSeconds,
         )
         val handle = SavedStateHandle(if (withTitle) route else emptyMap())
-        val model = TvPickerScreenModel(handle, discovery, remote, navigator)
+        val model = TvPickerScreenModel(handle, discovery, remote).also { it.observeSideEffects(effects::add) }
         runCurrent()
         return model
     }

@@ -24,5 +24,7 @@ sealed interface OnboardingEvent {
     data object RetryDeviceCode : OnboardingEvent
 }
 
-/** Одноразовых эффектов нет: вход делает Главную корнем через навигатор в модели. */
-sealed interface OnboardingSideEffect
+sealed interface OnboardingSideEffect {
+    /** Вход подтверждён — экран делает Главную корнем. */
+    data object SignedIn : OnboardingSideEffect
+}

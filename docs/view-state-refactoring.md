@@ -49,10 +49,13 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
 
 1. **Вёрстка получает `state` и `onEvent` — и ничего больше.** Никаких `*Actions`-объектов и
    лямбд навигации сверху. Переход — это событие (`OpenItem(id)`, `Play(...)`), как и тап.
-2. **Навигацию решает ScreenModel.** `Navigator` — синглтон Koin, модель получает его через
-   конструктор и зовёт `navigator.open(Destination.…)` из обработчика события. Экран оставляет
-   себе `koinViewModel()`, `collectAsState()` и `collectSideEffect` для того, что умеет только
-   вью (share-intent, системные диалоги, фокус).
+2. **Куда — решает ScreenModel, переходит UI.** Модель `Navigator` не знает: на событие она
+   отвечает side-effect'ом перехода (`OpenDetails(id)`, `OpenPlayer(...)`, `Back`) —
+   `sendSideEffect` из обработчика, `postSideEffect` из корутины. Корневой `*Screen` берёт
+   `Navigator` через `koinInject()` и в `collectSideEffect` исполняет эффект
+   (`navigator.open/replace/root/back`). Вложенная вёрстка навигатора не видит; тот же
+   `collectSideEffect` — для share-intent и фокуса. Поначалу `Navigator` жил в конструкторе
+   модели; на ревью решили: смена экранов — работа UI, модель только называет переход.
 3. **State плоский и готов к рендеру.** Подписи, цель кнопки, видимость, счётчики — поля,
    посчитанные моделью в одном месте. Getter в State — только тривиальный предикат (`isNotEmpty`).
    Форматтеры дизайн-системы (`posterMeta`, `ratingLabel`, `typeLabel`, `durationLabel` из
@@ -83,7 +86,7 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
 
 ## Волны
 
-Каждая волна: `common` (State/Event/ScreenModel + Navigator) → `mobile` → `tv` → тесты →
+Каждая волна: `common` (State/Event/ScreenModel + эффекты переходов) → `mobile` → `tv` → тесты →
 `./gradlew detekt detektMain :app:assembleDebug testDebugUnitTest` → один коммит
 `refactor(<фича>): …`. UI проверяется на mock-сборке (`:app:installMock`), ТВ — первым.
 
@@ -109,16 +112,16 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
 - [x] **6. Profile + DeviceSettings.** `ProfileFormat` → `ProfileLabels` + поля `ProfileState`
   (инициалы, имя, почта, карточка подписки для обеих платформ, варианты открытой настройки);
   `streamingSheet` → State; `SettingRows`/`DeviceToggles`/`*Actions` → убраны; `LoggedOut`/`Saved`
-  → навигатор в модели; правки настроек устройства — одна ветка `Edit` без лямбд.
+  → эффекты переходов; правки настроек устройства — одна ветка `Edit` без лямбд.
 - [x] **7. Onboarding, Feedback, TvLink.** Шаги входа — enum `WELCOME/AUTH`, промежуточный шаг и
   `LaunchedEffect`, который его проматывал, убраны; `FeedbackState.title` → поле; `RemoteState`
   получил `deviceName/playback/playbackCaption/positionMs/failureMessage/reconnectsItself`;
-  `TvLinkTexts` — обычные функции, результат в State; все side-effect'ы трёх фич → навигатор.
+  `TvLinkTexts` — обычные функции, результат в State; переходы трёх фич — эффекты для экрана.
 - [x] **8. Player.** `PlaybackSnapshot`, `scrubTargetMs` и `AutoNext` — в `PlayerState`, один тикер
   в модели (стартует по `STATE_READY`); перемотка пальцем и стрелками пульта (разгон, подтверждение
-  через 700 мс) — события; конец серии, «Далее», окно оценки, выход, выбор ТВ — навигатор;
-  `PlaybackUi`/`ControlsUi`/`TvTransportState`/`*Actions` убраны, `TrailerScreenModel` вместо
-  навигатора в экране трейлера. Автоскрытие и блокировка — в вёрстке. **На эмуляторах не
+  через 700 мс) — события; конец серии, «Далее», окно оценки, выход, выбор ТВ — эффекты переходов;
+  `PlaybackUi`/`ControlsUi`/`TvTransportState`/`*Actions` убраны, у трейлера своя модель —
+  адрес и название из маршрута. Автоскрытие и блокировка — в вёрстке. **На эмуляторах не
   проверялось — обязательно перед мержем.**
 - [x] **9. Итог.** Замер ниже; `docs/ARCHITECTURE.md` («Поток данных»), абзац в `CHANGELOG.md`.
 
@@ -133,16 +136,16 @@ _Ветка `refactor/view-state`. Документ живой: галочки �
 | `*Labels.kt` в UI | 9 | 1 (`TvHomeLabels`: бейджи и подписи ряда ТВ, кандидат в `core:tv-designsystem`) |
 | Extension-функции в `feature:*:common` | ~40 | 5 (приватные хелперы `FolderPicker`, `CatalogPager`, `SearchKeyboard`, `browseSection`) |
 | Getter'ы с логикой в State | 7 контрактов | тривиальные предикаты и `PlayerState.panelTabs()/openingTab()/shownSeason()` |
-| Навигация из вёрстки | каждый экран | нет: `Navigator` только в ScreenModel |
+| Навигация из вёрстки | лямбды и `*Actions` в каждом экране | только корневой `*Screen`: эффект модели → `Navigator` |
 
-Side-effect'ы остались там, где вью умеет то, чего не умеет модель: `Share` (деталей) и переводы
-фокуса ТВ-поиска (`FocusKeyboard/FocusSearchField/FocusBestMatch`).
+Side-effect'ы — то, что умеет только UI: переходы (их исполняет `Navigator` в корневом экране),
+`Share` деталей и переводы фокуса ТВ-поиска (`FocusKeyboard/FocusSearchField/FocusBestMatch`).
 
 ## Критерий готовности волны
 
 - В UI-модуле не осталось `*Actions`, навигации и `*Labels.kt`; `LaunchedEffect`/`delay` — только
   анимации, фокус и события жизненного цикла (`Refresh` при возврате, «хвост ряда виден»).
 - ScreenModel: `onEvent` из одностроковых веток; `updateState { it.copy(...) }` без вычислений;
-  extension-функций нет; у новых решений — юнит-тест на фейках `:data:fake` (`FakeNavigator`
-  проверяет переходы).
+  extension-функций нет; у новых решений — юнит-тест на фейках `:data:fake` (переходы — по
+  `observeSideEffects`, а ТВ-тест фокуса, собирающий экран целиком, — по `FakeNavigator`).
 - Поведение не изменилось: тесты зелёные, экраны проверены на mock-сборке (ТВ — первым).

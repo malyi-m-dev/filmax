@@ -62,5 +62,7 @@ sealed interface FeedbackInput {
     data class Layout(val layout: KeyboardLayout) : FeedbackInput
 }
 
-/** Одноразовых эффектов нет: окно закрывает навигатор в модели. */
-sealed interface FeedbackSideEffect
+/** Окно закрылось — экран уводит назад навигатором. */
+sealed interface FeedbackSideEffect {
+    data object Close : FeedbackSideEffect
+}

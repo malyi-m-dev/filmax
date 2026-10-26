@@ -137,5 +137,15 @@ sealed interface ProfileEvent {
     data object OpenDesignSystem : ProfileEvent
 }
 
-/** Одноразовых эффектов у Профиля нет: после выхода модель сама делает онбординг корнем. */
-sealed interface ProfileSideEffect
+/** Переходы из Профиля; исполняет их навигатором экран. */
+sealed interface ProfileSideEffect {
+    /** Окно оценки приложения. */
+    data object OpenRate : ProfileSideEffect
+
+    /** Пульт подключённого телевизора (телефон). */
+    data object OpenRemote : ProfileSideEffect
+    data object OpenDesignSystem : ProfileSideEffect
+
+    /** Вышли из аккаунта — вход становится единственным корнем. */
+    data object LoggedOut : ProfileSideEffect
+}

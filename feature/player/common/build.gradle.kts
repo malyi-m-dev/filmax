@@ -8,7 +8,6 @@ android { namespace = "com.filmax.feature.player.common" }
 
 dependencies {
     implementation(project(":core:presentation"))
-    implementation(project(":core:navigation"))
     implementation(project(":core:domain"))
 
     implementation(platform(libs.koin.bom))

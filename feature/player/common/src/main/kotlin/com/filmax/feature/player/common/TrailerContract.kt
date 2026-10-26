@@ -7,4 +7,7 @@ sealed interface TrailerEvent {
     data object Back : TrailerEvent
 }
 
-sealed interface TrailerSideEffect
+sealed interface TrailerSideEffect {
+    /** «Назад» — экран уходит навигатором. */
+    data object Close : TrailerSideEffect
+}

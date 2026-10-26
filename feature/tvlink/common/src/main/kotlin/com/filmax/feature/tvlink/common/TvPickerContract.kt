@@ -39,5 +39,9 @@ sealed interface TvPickerEvent {
     data object Dismiss : TvPickerEvent
 }
 
-/** Одноразовых эффектов нет: связь есть — окно уступает место пульту через навигатор в модели. */
-sealed interface TvPickerSideEffect
+/** Переходы окна выбора ТВ; исполняет их навигатором экран. */
+sealed interface TvPickerSideEffect {
+    /** Связь есть — окно уступает место пульту. */
+    data object OpenRemote : TvPickerSideEffect
+    data object Close : TvPickerSideEffect
+}

@@ -10,6 +10,7 @@ dependencies {
 
     implementation(project(":core:ui"))
     implementation(project(":core:tv-designsystem"))
+    implementation(project(":core:navigation"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
 
@@ -22,5 +23,4 @@ dependencies {
 
     // UI-тест фокуса берёт профиль из фейкового бэкенда — тех же данных, что у mock-сборки.
     testImplementation(project(":data:fake"))
-    testImplementation(project(":core:navigation"))
 }

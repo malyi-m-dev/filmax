@@ -11,7 +11,7 @@ android {
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
-    // Куда ведут карточки и кнопки Главной, решает модель — экраны только рисуют и шлют события.
+    // «Продолжить» без известной серии ведёт в плеер с Destination.Player.UNKNOWN.
     implementation(project(":core:navigation"))
 
     implementation(platform(libs.koin.bom))

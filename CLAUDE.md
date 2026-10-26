@@ -63,9 +63,11 @@
 
 - Вёрстка получает `state` и `onEvent` — и ничего больше: никаких `*Actions`-объектов и лямбд
   навигации. Переход — событие (`OpenItem(id)`), как и тап.
-- Навигацию решает ScreenModel: `Navigator` приходит в конструктор, `navigator.open(Destination.…)`
-  зовётся из обработчика события. Экран оставляет себе `collectSideEffect` для того, что умеет
-  только вью (share-intent, фокус).
+- Смена экрана — дело UI. ScreenModel `Navigator` не знает: на событие она отвечает
+  side-effect'ом перехода (`OpenDetails(id)`, `Back`) — `sendSideEffect` из обработчика,
+  `postSideEffect` из корутины. Корневой `*Screen` получает `Navigator` через `koinInject()` и в
+  `collectSideEffect` превращает эффект в `navigator.open/replace/root/back(Destination.…)`.
+  Вложенная вёрстка навигатора не видит. Тот же `collectSideEffect` — для share-intent и фокуса.
 - State плоский и готов к рендеру: подписи, цель кнопки, видимость, открытая шторка — поля,
   посчитанные моделью. Getter в State — только тривиальный предикат. Форматтеры дизайн-системы
   (`posterMeta`, `ratingLabel`, `typeLabel`) вёрстка зовёт сама.

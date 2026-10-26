@@ -50,5 +50,12 @@ sealed interface FolderEvent {
     data object OpenCatalog : FolderEvent
 }
 
-/** Одноразовых эффектов у папки нет: удалили — модель сама уводит назад в «Моё». */
-sealed interface FolderSideEffect
+/** Переходы из папки; исполняет их навигатором экран. Удалили папку — [Back] в «Моё». */
+sealed interface FolderSideEffect {
+    data object Back : FolderSideEffect
+    data class OpenDetails(val itemId: Int) : FolderSideEffect
+
+    /** «Смотреть всё» — с первого тайтла папки. */
+    data class OpenPlayer(val itemId: Int) : FolderSideEffect
+    data object OpenCatalog : FolderSideEffect
+}

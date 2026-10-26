@@ -183,7 +183,20 @@ sealed interface DetailsEvent {
     data object CloseDescription : DetailsEvent
 }
 
+/**
+ * Что модель отвечает на события, кроме нового State: переходы — их исполняет навигатором экран —
+ * и «Поделиться», системный диалог которого умеет открыть только экран.
+ */
 sealed interface DetailsSideEffect {
-    /** «Поделиться» — системный диалог умеет открыть только экран. */
+    data object Back : DetailsSideEffect
+    data class OpenDetails(val itemId: Int) : DetailsSideEffect
+    data class OpenFilmography(val name: String, val isDirector: Boolean) : DetailsSideEffect
+
+    /** [videoId] — НОМЕР серии внутри [season], а не id трека. */
+    data class OpenPlayer(val itemId: Int, val videoId: Int, val season: Int) : DetailsSideEffect
+
+    /** Выбор телевизора, чтобы досмотреть там: с прогресса kino.pub. */
+    data class OpenTvPicker(val itemId: Int, val videoId: Int, val season: Int) : DetailsSideEffect
+    data class OpenTrailer(val url: String, val title: String) : DetailsSideEffect
     data class Share(val text: String) : DetailsSideEffect
 }

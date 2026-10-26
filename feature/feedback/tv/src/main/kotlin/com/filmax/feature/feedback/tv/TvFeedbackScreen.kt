@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.input.KeyboardLayout
 import com.filmax.core.presentation.input.keyboardRows
 import com.filmax.core.tv.designsystem.FxType
@@ -40,8 +41,10 @@ import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.feature.feedback.common.FeedbackEvent
 import com.filmax.feature.feedback.common.FeedbackInput
 import com.filmax.feature.feedback.common.FeedbackScreenModel
+import com.filmax.feature.feedback.common.FeedbackSideEffect
 import com.filmax.feature.feedback.common.FeedbackState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private val FormWidth = 340.dp
 private val ColumnGap = 40.dp
@@ -50,8 +53,13 @@ private const val FIELD_FILL_ALPHA = 0.06f
 
 /** Окно оценки поверх тёмного фона. «Назад» закрывает его, как и «Не сейчас». */
 @Composable
-fun TvFeedbackScreen(screenModel: FeedbackScreenModel = koinViewModel()) {
+fun TvFeedbackScreen(screenModel: FeedbackScreenModel = koinViewModel(), navigator: Navigator = koinInject()) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            FeedbackSideEffect.Close -> navigator.back()
+        }
+    }
     Box(
         Modifier.fillMaxSize().background(LocalFxColors.current.background),
         contentAlignment = Alignment.Center,

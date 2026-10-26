@@ -21,11 +21,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.TrailerEvent
 import com.filmax.feature.player.common.TrailerScreenModel
+import com.filmax.feature.player.common.TrailerSideEffect
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * TV-экран трейлера — одноразовый плеер по готовому HLS-URL.
@@ -36,8 +39,17 @@ import org.koin.androidx.compose.koinViewModel
  * пульта); модель лишь отдаёт адрес и название из маршрута и закрывает экран по «Назад».
  */
 @Composable
-fun TvTrailerScreen(modifier: Modifier = Modifier, screenModel: TrailerScreenModel = koinViewModel()) {
+fun TvTrailerScreen(
+    modifier: Modifier = Modifier,
+    screenModel: TrailerScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            TrailerSideEffect.Close -> navigator.back()
+        }
+    }
     val url = state.url
     val context = LocalContext.current
     // remember(url) пересоздаёт плеер только при смене трейлера; ключ URL связывает жизненный

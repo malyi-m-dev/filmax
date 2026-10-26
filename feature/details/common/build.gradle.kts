@@ -9,8 +9,6 @@ android { namespace = "com.filmax.feature.details.common" }
 dependencies {
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
-    // Куда ведут кнопки и карточки деталей, решает модель — экраны только шлют события.
-    implementation(project(":core:navigation"))
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)

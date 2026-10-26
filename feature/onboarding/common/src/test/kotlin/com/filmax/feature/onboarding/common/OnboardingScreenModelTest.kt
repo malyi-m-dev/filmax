@@ -1,11 +1,8 @@
 package com.filmax.feature.onboarding.common
 
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -26,7 +23,7 @@ class OnboardingScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<OnboardingSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -53,13 +50,12 @@ class OnboardingScreenModelTest {
         model.dispatch(OnboardingEvent.Login)
         advanceUntilIdle()
 
-        assertEquals(NavCommand.Root(Destination.Home), navigator.sent.last())
+        assertEquals(listOf<OnboardingSideEffect>(OnboardingSideEffect.SignedIn), effects)
     }
 
     /** Часы модели идут вместе с планировщиком теста: иначе опрос ждал бы настоящие секунды. */
     private fun model() = OnboardingScreenModel(
         auth = FakeAuthRepository(backend),
-        navigator = navigator,
         now = { dispatcher.scheduler.currentTime },
-    )
+    ).also { it.observeSideEffects(effects::add) }
 }

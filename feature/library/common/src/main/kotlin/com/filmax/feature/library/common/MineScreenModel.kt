@@ -12,7 +12,6 @@ import com.filmax.core.domain.user.model.userFolders
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
@@ -45,7 +44,6 @@ class MineScreenModel(
     private val folders: BookmarkFolders,
     private val removeFromWatchLater: RemoveFromWatchLaterUseCase,
     private val clock: Clock,
-    private val navigator: Navigator,
 ) : BaseScreenModel<MineState, MineSideEffect, MineEvent>(MineState()) {
 
     /** Последний ответ сервера по папкам — сырьё, поверх которого ложатся оформление и порядок. */
@@ -74,10 +72,10 @@ class MineScreenModel(
             is MineEvent.EditFolder -> onEditFolder(event.input)
             MineEvent.SubmitFolder -> onSubmitFolder()
             MineEvent.CancelFolder -> onCancelFolder()
-            is MineEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            is MineEvent.OpenItem -> sendSideEffect(MineSideEffect.OpenDetails(event.itemId))
             is MineEvent.ContinueWatching -> onContinueWatching(event.entry)
-            is MineEvent.OpenFolder -> navigator.open(Destination.BookmarkFolder(event.folderId))
-            MineEvent.OpenSearch -> navigator.open(Destination.Search)
+            is MineEvent.OpenFolder -> sendSideEffect(MineSideEffect.OpenFolder(event.folderId))
+            MineEvent.OpenSearch -> sendSideEffect(MineSideEffect.OpenSearch)
             MineEvent.Refresh -> onRefresh()
         }
     }
@@ -231,13 +229,12 @@ class MineScreenModel(
     /** «Продолжить» и история ведут сразу в плеер: недосмотренная серия — сезон и номер из истории. */
     private fun onContinueWatching(entry: WatchHistory) {
         val progress = entry.progress
-        navigator.open(
-            Destination.Player(
-                itemId = entry.itemId,
-                videoId = progress?.videoId ?: Destination.Player.UNKNOWN,
-                season = progress?.season ?: Destination.Player.UNKNOWN,
-            ),
+        val effect = MineSideEffect.OpenPlayer(
+            itemId = entry.itemId,
+            videoId = progress?.videoId ?: Destination.Player.UNKNOWN,
+            season = progress?.season ?: Destination.Player.UNKNOWN,
         )
+        sendSideEffect(effect)
     }
 
     private fun now(): ZonedDateTime = ZonedDateTime.now(clock)

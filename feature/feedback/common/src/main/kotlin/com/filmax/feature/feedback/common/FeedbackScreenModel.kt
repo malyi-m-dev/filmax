@@ -10,7 +10,6 @@ import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.feedback.FeedbackRepository
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.user.UserRepository
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.feedback.common.navigation.FeedbackRoute
 
@@ -25,7 +24,6 @@ class FeedbackScreenModel(
     private val prompts: FeedbackPrompts,
     private val user: UserRepository,
     private val client: ClientInfo,
-    private val navigator: Navigator,
 ) : BaseScreenModel<FeedbackState, FeedbackSideEffect, FeedbackEvent>(
     FeedbackState(trigger = triggerOf(savedStateHandle.toRoute<FeedbackRoute>())),
 ) {
@@ -45,7 +43,7 @@ class FeedbackScreenModel(
             is FeedbackEvent.Comment -> onComment(event.text)
             is FeedbackEvent.Key -> onKey(event.input)
             FeedbackEvent.Send -> onSend()
-            FeedbackEvent.Dismiss -> navigator.back()
+            FeedbackEvent.Dismiss -> sendSideEffect(FeedbackSideEffect.Close)
         }
     }
 

@@ -2,7 +2,6 @@ package com.filmax.feature.library.tv
 
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.SavedStateHandle
@@ -124,13 +123,10 @@ class TvFolderFocusTest {
             savedStateHandle = SavedStateHandle(mapOf("folderId" to FOLDER_ID)),
             user = user,
             folders = BookmarkFolders(user, FakeFolderAppearanceRepository()),
-            navigator = navigator,
         )
+        // Экран целиком, а не FolderContent: переходы исполняет его корень навигатором.
         compose.setContent {
-            FilmaxTvTheme {
-                val state by model.collectAsState()
-                FolderContent(state = state, onEvent = model::dispatch)
-            }
+            FilmaxTvTheme { TvFolderScreen(screenModel = model, navigator = navigator) }
         }
         compose.waitForIdle()
         assertNotNull(model.states.value.folder, "папка не загрузилась")

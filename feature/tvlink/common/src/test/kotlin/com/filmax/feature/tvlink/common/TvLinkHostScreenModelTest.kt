@@ -2,10 +2,7 @@ package com.filmax.feature.tvlink.common
 
 import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteCommand
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeIds
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeTvLinkReceiver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,7 +27,7 @@ class TvLinkHostScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val receiver = FakeTvLinkReceiver()
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<TvLinkHostSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -61,8 +58,7 @@ class TvLinkHostScreenModelTest {
         receiver.receive(PLAY)
         runCurrent()
 
-        val player = Destination.Player(PLAY.itemId, PLAY.videoId, PLAY.season, PLAY.startSeconds)
-        assertEquals(listOf(NavCommand.Open(player), NavCommand.Replace(player)), navigator.sent)
+        assertEquals(listOf(TvLinkHostSideEffect.OpenPlayer(PLAY), TvLinkHostSideEffect.ReplacePlayer(PLAY)), effects)
     }
 
     @Test
@@ -72,7 +68,7 @@ class TvLinkHostScreenModelTest {
         receiver.receive(RemoteCommand.Pause)
         runCurrent()
 
-        assertTrue(navigator.sent.isEmpty())
+        assertTrue(effects.isEmpty())
     }
 
     @Test
@@ -90,7 +86,7 @@ class TvLinkHostScreenModelTest {
     }
 
     private fun TestScope.host(): TvLinkHostScreenModel {
-        val model = TvLinkHostScreenModel(receiver, navigator)
+        val model = TvLinkHostScreenModel(receiver).also { it.observeSideEffects(effects::add) }
         runCurrent()
         return model
     }

@@ -16,21 +16,29 @@ import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeSidePanel
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxRatingStars
 import com.filmax.core.ui.components.FilmaxTextArea
 import com.filmax.feature.feedback.common.FeedbackEvent
 import com.filmax.feature.feedback.common.FeedbackScreenModel
+import com.filmax.feature.feedback.common.FeedbackSideEffect
 import com.filmax.feature.feedback.common.FeedbackState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private const val COMMENT_LINES = 4
 
 /** Окно оценки поверх экрана: звёзды, комментарий системной клавиатурой и отправка. */
 @Composable
-fun FeedbackDialog(screenModel: FeedbackScreenModel = koinViewModel()) {
+fun FeedbackDialog(screenModel: FeedbackScreenModel = koinViewModel(), navigator: Navigator = koinInject()) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            FeedbackSideEffect.Close -> navigator.back()
+        }
+    }
     Surface(
         shape = ShapeSidePanel,
         color = FilmaxTheme.palette.background,

@@ -2,7 +2,8 @@
 // плитками действий, описание, серии (сериал), актёры, факты и «Похожие»; поверх — стеклянные
 // кнопки сверху и плавающая панель «Смотреть» снизу. Здесь — состояние экрана и порядок секций;
 // кадр и заголовок — в DetailsBackdrop, секции — в DetailsSections, серии — в DetailsEpisodes,
-// шторки описания и папок — в DetailsSheets. Куда ведут кнопки, решает DetailsScreenModel.
+// шторки описания и папок — в DetailsSheets. Куда ведут кнопки, решает DetailsScreenModel, а
+// переходит экран: модель отвечает эффектом, корень исполняет его навигатором.
 
 package com.filmax.feature.details.mobile
 
@@ -32,6 +33,8 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsScreenModel
@@ -41,6 +44,7 @@ import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerScreenModel
 import com.filmax.feature.details.common.FolderPickerState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * Мобильные Детали поверх общих [DetailsScreenModel] и [FolderPickerScreenModel] (itemId берётся
@@ -51,6 +55,7 @@ fun DetailsScreen(
     modifier: Modifier = Modifier,
     screenModel: DetailsScreenModel = koinViewModel(),
     folders: FolderPickerScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
     val folderState by folders.collectAsState()
@@ -58,6 +63,15 @@ fun DetailsScreen(
     val context = LocalContext.current
     screenModel.collectSideEffect { effect ->
         when (effect) {
+            DetailsSideEffect.Back -> navigator.back()
+            is DetailsSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is DetailsSideEffect.OpenFilmography ->
+                navigator.open(Destination.Filmography(effect.name, effect.isDirector))
+            is DetailsSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            is DetailsSideEffect.OpenTvPicker ->
+                navigator.open(Destination.TvPicker(effect.itemId, effect.videoId, effect.season))
+            is DetailsSideEffect.OpenTrailer -> navigator.open(Destination.Trailer(effect.url, effect.title))
             is DetailsSideEffect.Share -> shareText(context, effect.text)
         }
     }

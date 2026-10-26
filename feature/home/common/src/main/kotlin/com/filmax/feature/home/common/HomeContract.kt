@@ -4,6 +4,7 @@ import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.navigation.Destination
 
 /**
  * Ряды ленты. Идентификатор — единственное, чем экран адресует ряд: по нему просят догрузку.
@@ -162,5 +163,25 @@ sealed interface HomeEvent {
     data object OpenCatalog : HomeEvent
 }
 
-/** Одноразовых эффектов у Главной нет: переходы модель отдаёт навигатору сама. */
-sealed interface HomeSideEffect
+/**
+ * Переходы с Главной. Модель решает, куда вести (сезон и серию «Продолжить», окно оценки после
+ * обновления), а экран исполняет переход навигатором: смена экрана — дело вёрстки.
+ */
+sealed interface HomeSideEffect {
+    data class OpenDetails(val itemId: Int) : HomeSideEffect
+
+    /** Плеер; [videoId] и [season] — [Destination.Player.UNKNOWN], если серия не известна. */
+    data class OpenPlayer(
+        val itemId: Int,
+        val videoId: Int = Destination.Player.UNKNOWN,
+        val season: Int = Destination.Player.UNKNOWN,
+    ) : HomeSideEffect
+
+    data class OpenSection(val section: CatalogSection) : HomeSideEffect
+    data class OpenCollection(val collectionId: Int, val title: String) : HomeSideEffect
+    data object OpenTvPicker : HomeSideEffect
+    data object OpenCatalog : HomeSideEffect
+
+    /** Приложение обновилось — пора спросить оценку. */
+    data object AskFeedback : HomeSideEffect
+}

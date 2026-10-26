@@ -34,6 +34,8 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.tvlink.RemoteSession
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxEmptyState
@@ -41,14 +43,26 @@ import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.feature.tvlink.common.RemoteEvent
 import com.filmax.feature.tvlink.common.RemoteScreenModel
+import com.filmax.feature.tvlink.common.RemoteSideEffect
 import com.filmax.feature.tvlink.common.RemoteState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Пульт: что играет на подключённом телевизоре и управление им; без связи — как её вернуть. */
 @Composable
-fun RemoteScreen(modifier: Modifier = Modifier, screenModel: RemoteScreenModel = koinViewModel()) {
+fun RemoteScreen(
+    modifier: Modifier = Modifier,
+    screenModel: RemoteScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (RemoteEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            RemoteSideEffect.ChooseTv -> navigator.open(Destination.TvPicker())
+            RemoteSideEffect.Close -> navigator.back()
+        }
+    }
     Column(
         modifier
             .fillMaxSize()

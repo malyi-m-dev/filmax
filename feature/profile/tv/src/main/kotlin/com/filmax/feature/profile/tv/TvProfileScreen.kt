@@ -9,7 +9,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvConfirmDialog
 import com.filmax.core.tv.designsystem.TvConfirmSpec
@@ -23,8 +26,10 @@ import com.filmax.core.tv.designsystem.tvSectionBackground
 import com.filmax.feature.profile.common.ProfileEvent
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSetting
+import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * ТВ-Профиль (экран 09): шапка аккаунта, настройки строками, карточка подписки справа. «ОК» на
@@ -43,8 +48,18 @@ fun TvProfileScreen(
     modifier: Modifier = Modifier,
     remoteCard: @Composable (Modifier) -> Unit = {},
     screenModel: ProfileScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            ProfileSideEffect.OpenRate -> navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name))
+            ProfileSideEffect.OpenRemote -> navigator.open(Destination.Remote)
+            ProfileSideEffect.OpenDesignSystem -> navigator.open(Destination.DesignSystem)
+            // Вход становится единственным корнем: «Назад» не возвращает в аккаунт, из которого вышли.
+            ProfileSideEffect.LoggedOut -> navigator.root(Destination.Onboarding)
+        }
+    }
     ProfileContent(state, screenModel::dispatch, onCheckUpdates, modifier, remoteCard)
 }
 

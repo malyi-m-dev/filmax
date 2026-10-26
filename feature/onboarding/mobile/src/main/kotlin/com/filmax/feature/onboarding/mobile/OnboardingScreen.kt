@@ -16,11 +16,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxTheme
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxWordmark
 import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
+import com.filmax.feature.onboarding.common.OnboardingSideEffect
 import com.filmax.feature.onboarding.common.OnboardingStep
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * Вход (экран 01 макета): приветствие с единственным действием «Войти», затем активация
@@ -28,9 +32,20 @@ import org.koin.androidx.compose.koinViewModel
  * [OnboardingScreenModel] — здесь только вёрстка.
  */
 @Composable
-fun OnboardingScreen(modifier: Modifier = Modifier, screenModel: OnboardingScreenModel = koinViewModel()) {
+fun OnboardingScreen(
+    modifier: Modifier = Modifier,
+    screenModel: OnboardingScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (OnboardingEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            // Главная становится единственным корнем: «Назад» с неё закрывает приложение, а не
+            // возвращает ко входу.
+            OnboardingSideEffect.SignedIn -> navigator.root(Destination.Home)
+        }
+    }
 
     Box(
         modifier = modifier

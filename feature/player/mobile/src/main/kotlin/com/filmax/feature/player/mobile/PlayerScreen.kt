@@ -37,12 +37,17 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeTile
 import com.filmax.core.designsystem.glassFill
+import com.filmax.core.domain.feedback.FeedbackTrigger
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
 import com.filmax.core.ui.components.KeepScreenOn
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
+import com.filmax.feature.player.common.PlayerSideEffect
 import kotlinx.coroutines.delay
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 private const val AUTO_HIDE_DELAY_MS = 4500L
 
@@ -51,8 +56,13 @@ private const val AUTO_HIDE_DELAY_MS = 4500L
  * пишет в трек, выбранный при старте, и переход делает она сама.
  */
 @Composable
-fun PlayerScreen(modifier: Modifier = Modifier, screenModel: PlayerScreenModel = koinViewModel()) {
+fun PlayerScreen(
+    modifier: Modifier = Modifier,
+    screenModel: PlayerScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
+    PlayerNavigation(screenModel = screenModel, navigator = navigator)
     val onEvent: (PlayerEvent) -> Unit = screenModel::dispatch
     val appError by screenModel.collectErrorAsState()
     PlayerEffects(screenModel = screenModel, playing = state.playback.playing)
@@ -162,3 +172,19 @@ private fun SubscriptionBanner(modifier: Modifier = Modifier) {
 }
 
 private val BannerFill = Color.Black.copy(alpha = 0.7f)
+
+/** Переходы плеера: куда — решает модель, исполняет экран навигатором. */
+@Composable
+private fun PlayerNavigation(screenModel: PlayerScreenModel, navigator: Navigator) {
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is PlayerSideEffect.OpenEpisode ->
+                navigator.replace(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+            is PlayerSideEffect.OpenTvPicker -> navigator.open(
+                Destination.TvPicker(effect.itemId, effect.videoId, effect.season, effect.startSeconds),
+            )
+            PlayerSideEffect.Exit -> navigator.back()
+        }
+    }
+}

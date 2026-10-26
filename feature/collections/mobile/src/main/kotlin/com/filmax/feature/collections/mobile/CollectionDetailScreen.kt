@@ -58,6 +58,8 @@ import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.oklch
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.titlesLabel
@@ -76,8 +78,10 @@ import com.filmax.core.ui.components.bleed
 import com.filmax.core.ui.components.collectionHue
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
+import com.filmax.feature.collections.common.CollectionDetailSideEffect
 import com.filmax.feature.collections.common.CollectionDetailState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** За сколько карточек до конца сетки просим следующую страницу (три ряда). */
 private const val LOAD_MORE_TAIL = 9
@@ -88,8 +92,19 @@ private const val SKELETON_COUNT = 9
  * маршрута, оттенок шапки — дизайн-система по id.
  */
 @Composable
-fun CollectionDetailScreen(modifier: Modifier = Modifier, screenModel: CollectionDetailScreenModel = koinViewModel()) {
+fun CollectionDetailScreen(
+    modifier: Modifier = Modifier,
+    screenModel: CollectionDetailScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is CollectionDetailSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is CollectionDetailSideEffect.OpenPlayer -> navigator.open(Destination.Player(effect.itemId))
+            CollectionDetailSideEffect.Back -> navigator.back()
+        }
+    }
     val appError by screenModel.collectErrorAsState()
     val onEvent: (CollectionDetailEvent) -> Unit = screenModel::dispatch
     val hue = collectionHue(state.collectionId)

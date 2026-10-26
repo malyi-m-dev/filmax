@@ -40,6 +40,7 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
@@ -57,6 +58,7 @@ import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Типы поиска: документальное ищется во «Всём» — пятый чип не стоит строки на узком экране. */
 private val SearchTypes = listOf(
@@ -70,9 +72,14 @@ private val SearchTypes = listOf(
 private const val VOICE_EXAMPLES = 3
 
 @Composable
-fun SearchScreen(modifier: Modifier = Modifier, screenModel: SearchScreenModel = koinViewModel()) {
+fun SearchScreen(
+    modifier: Modifier = Modifier,
+    screenModel: SearchScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (SearchEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect -> openSearchEffect(navigator, effect) }
     val keyboard = LocalSoftwareKeyboardController.current
     val voice = rememberInAppVoiceSearch(onResult = { onEvent(SearchEvent.SubmitQuery(it)) })
     val focus = remember { FocusRequester() }

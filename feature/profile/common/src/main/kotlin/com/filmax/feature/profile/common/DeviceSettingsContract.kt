@@ -40,5 +40,7 @@ sealed interface DeviceSettingsEvent {
     data object Back : DeviceSettingsEvent
 }
 
-/** Одноразовых эффектов нет: сохранённые настройки закрывают экран через навигатор в модели. */
-sealed interface DeviceSettingsSideEffect
+/** Экран закрывается — «Назад» или сохранённые настройки; уводит назад навигатором экран. */
+sealed interface DeviceSettingsSideEffect {
+    data object Close : DeviceSettingsSideEffect
+}

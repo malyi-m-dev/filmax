@@ -29,6 +29,8 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.LocalReducedMotion
@@ -42,6 +44,7 @@ import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchSideEffect
 import com.filmax.feature.search.common.SearchState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Ключ поля поиска — стартовая цель экрана и точка возврата. */
 internal const val SEARCH_KEY = "search"
@@ -61,7 +64,11 @@ internal const val BEST_MATCH_KEY = "match"
  * только рисует его и отдаёт события. Своё у экрана — только фокус и распознаватель речи.
  */
 @Composable
-fun TvCatalogScreen(modifier: Modifier = Modifier, screenModel: SearchScreenModel = koinViewModel()) {
+fun TvCatalogScreen(
+    modifier: Modifier = Modifier,
+    screenModel: SearchScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (SearchEvent) -> Unit = screenModel::dispatch
     val screenFocus = rememberTvScreenFocus(startAt = SEARCH_KEY)
@@ -72,17 +79,19 @@ fun TvCatalogScreen(modifier: Modifier = Modifier, screenModel: SearchScreenMode
     // подсказки, и выдача каталога ему не нужна.
     LaunchedEffect(Unit) { onEvent(SearchEvent.LoadCatalog) }
     // Переводы фокуса — от модели: в том порядке, в каком она открыла поиск и нашла совпадение.
-    screenModel.collectSideEffect { effect -> focus.jumps.moveTo(targetOf(effect)) }
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is SearchSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            SearchSideEffect.Back -> navigator.back()
+            SearchSideEffect.FocusKeyboard -> focus.jumps.moveTo(CatalogTarget.KEYBOARD)
+            SearchSideEffect.FocusSearchField -> focus.jumps.moveTo(CatalogTarget.SEARCH_FIELD)
+            SearchSideEffect.FocusBestMatch -> focus.jumps.moveTo(CatalogTarget.BEST_MATCH)
+        }
+    }
     // «Назад» в поиске — к витрине. Пока слушает голос, «Назад» — его отмена.
     BackHandler(enabled = state.searchOpen && !voice.controller.active) { onEvent(SearchEvent.CloseSearch) }
 
     TvCatalogContent(state = state, onEvent = onEvent, focus = focus, voice = voice, modifier = modifier)
-}
-
-private fun targetOf(effect: SearchSideEffect): CatalogTarget = when (effect) {
-    SearchSideEffect.FocusKeyboard -> CatalogTarget.KEYBOARD
-    SearchSideEffect.FocusSearchField -> CatalogTarget.SEARCH_FIELD
-    SearchSideEffect.FocusBestMatch -> CatalogTarget.BEST_MATCH
 }
 
 /**

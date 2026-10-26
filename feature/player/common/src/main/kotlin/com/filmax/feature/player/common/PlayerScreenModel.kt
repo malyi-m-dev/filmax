@@ -21,13 +21,9 @@ import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
 import com.filmax.core.domain.error.RequestFailure
 import com.filmax.core.domain.feedback.FeedbackPrompts
-import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
-import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvLinkReceiver
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import kotlinx.coroutines.Job
@@ -46,7 +42,6 @@ class PlayerScreenModel(
     private val playbackSettings: PlaybackSettingsRepository,
     private val feedbackPrompts: FeedbackPrompts,
     tvLink: TvLinkReceiver,
-    private val navigator: Navigator,
     context: Context,
 ) : BaseScreenModel<PlayerState, PlayerSideEffect, PlayerEvent>(PlayerState()) {
 
@@ -121,7 +116,9 @@ class PlayerScreenModel(
 
     init {
         player.addListener(playerListener())
-        screenModelScope { _ -> remote.listen(onPlayEpisode = ::playEpisode, onStop = navigator::back) }
+        screenModelScope { _ ->
+            remote.listen(onPlayEpisode = ::playEpisode, onStop = { sendSideEffect(PlayerSideEffect.Exit) })
+        }
         onFetchData()
     }
 
@@ -167,7 +164,7 @@ class PlayerScreenModel(
             PlayerEvent.ScreenShown -> onScreenShown()
             PlayerEvent.ScreenHidden -> onScreenHidden()
             PlayerEvent.ContinueOnTv -> onContinueOnTv()
-            PlayerEvent.Exit -> navigator.back()
+            PlayerEvent.Exit -> sendSideEffect(PlayerSideEffect.Exit)
         }
     }
 
@@ -296,8 +293,7 @@ class PlayerScreenModel(
             val next = current.nextTrack
             when {
                 next != null && !current.autoNext.dismissed -> playEpisode(next)
-                next == null && feedbackPrompts.afterWatchFinished() ->
-                    navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+                next == null && feedbackPrompts.afterWatchFinished() -> postSideEffect(PlayerSideEffect.AskFeedback)
             }
         }
     }
@@ -306,7 +302,7 @@ class PlayerScreenModel(
 
     /** Другая серия — замена экрана плеера: прогресс модель пишет в трек, выбранный при старте. */
     private fun playEpisode(season: Int, videoId: Int) {
-        navigator.replace(Destination.Player(itemId = route.itemId, videoId = videoId, season = season))
+        sendSideEffect(PlayerSideEffect.OpenEpisode(itemId = route.itemId, videoId = videoId, season = season))
     }
 
     private fun onScreenShown() {
@@ -324,13 +320,13 @@ class PlayerScreenModel(
     private fun onContinueOnTv() {
         val item = state.item ?: return
         val track = selectedTrack
-        val play = RemoteCommand.Play(
+        val effect = PlayerSideEffect.OpenTvPicker(
             itemId = item.id,
             videoId = track?.number ?: route.videoId,
             season = track?.seasonNumber ?: route.season,
             startSeconds = (player.currentPosition / MILLIS_IN_SECOND).toInt(),
         )
-        navigator.open(Destination.TvPicker(play.itemId, play.videoId, play.season, play.startSeconds))
+        sendSideEffect(effect)
     }
 
     // ── Панель ───────────────────────────────────────────────────────────────────

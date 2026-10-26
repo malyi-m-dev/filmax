@@ -9,6 +9,7 @@ dependencies {
     api(project(":feature:player:common"))
 
     implementation(project(":core:ui"))
+    implementation(project(":core:navigation"))
     implementation(project(":core:presentation"))
     implementation(project(":core:domain"))
 

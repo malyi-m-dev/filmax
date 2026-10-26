@@ -7,8 +7,6 @@ import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.search.SearchRepository
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.search.common.navigation.browseSection
 import kotlinx.coroutines.FlowPreview
@@ -62,7 +60,6 @@ private val TrendingQueries = listOf(
 class SearchScreenModel(
     private val search: SearchRepository,
     private val catalog: CatalogRepository,
-    private val navigator: Navigator,
     savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : BaseScreenModel<SearchState, SearchSideEffect, SearchEvent>(
     SearchState().withSection(savedStateHandle.browseSection()),
@@ -90,9 +87,9 @@ class SearchScreenModel(
             SearchEvent.LoadCatalog -> onLoadCatalog()
             SearchEvent.LoadMoreCatalog -> onLoadMoreCatalog()
             SearchEvent.RetryCatalog -> onRetryCatalog()
-            is SearchEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            is SearchEvent.OpenItem -> sendSideEffect(SearchSideEffect.OpenDetails(event.itemId))
             is SearchEvent.OpenResult -> onOpenResult(event.itemId)
-            SearchEvent.Back -> navigator.back()
+            SearchEvent.Back -> sendSideEffect(SearchSideEffect.Back)
             is SearchEvent.Keyboard -> onKeyboard(event)
             SearchEvent.ApplyDraftFilters -> onApplyDraftFilters()
             is SearchEvent.Sheet -> onSheet(event)
@@ -150,7 +147,7 @@ class SearchScreenModel(
     /** Открытый результат — повод запомнить запрос: сам набор по букве в недавние не попадает. */
     private fun onOpenResult(itemId: Int) {
         screenModelScope { _ -> updateState { it.withRecent(it.query) } }
-        navigator.open(Destination.Details(itemId))
+        sendSideEffect(SearchSideEffect.OpenDetails(itemId))
     }
 
     private fun onKeyboard(event: SearchEvent.Keyboard) {

@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvCollectionTints
 import com.filmax.core.tv.designsystem.TvErrorState
@@ -21,8 +23,10 @@ import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.appErrorText
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
+import com.filmax.feature.collections.common.CollectionDetailSideEffect
 import com.filmax.feature.collections.common.CollectionDetailState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Затухание сетки у нижнего края экрана. */
 private val BottomFadeHeight = 70.dp
@@ -40,8 +44,16 @@ private const val BOTTOM_FADE_LAYER = 3f
 fun TvCollectionDetailScreen(
     modifier: Modifier = Modifier,
     screenModel: CollectionDetailScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is CollectionDetailSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is CollectionDetailSideEffect.OpenPlayer -> navigator.open(Destination.Player(effect.itemId))
+            CollectionDetailSideEffect.Back -> navigator.back()
+        }
+    }
     val appError by screenModel.collectErrorAsState()
     // Своей заливки нет: фон — у окна (FilmaxTvTheme), под шапкой и сеткой он и так этого цвета.
     Box(modifier.fillMaxSize()) {

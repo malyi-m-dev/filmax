@@ -8,13 +8,11 @@ import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
-import com.filmax.core.navigation.Destination
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +38,7 @@ class HomeScreenModelTest {
 
     private val scheduler = TestCoroutineScheduler()
     private val backend = FakeBackend(latency = FakeLatency.None)
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<HomeSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher(scheduler))
@@ -195,12 +193,12 @@ class HomeScreenModelTest {
 
         assertEquals(
             listOf(
-                Destination.Details(7),
-                Destination.Player(7),
-                Destination.CollectionDetail(collection.id, collection.title),
-                Destination.Catalog,
+                HomeSideEffect.OpenDetails(7),
+                HomeSideEffect.OpenPlayer(7),
+                HomeSideEffect.OpenCollection(collection.id, collection.title),
+                HomeSideEffect.OpenCatalog,
             ),
-            navigator.opened,
+            effects,
         )
     }
 
@@ -212,7 +210,7 @@ class HomeScreenModelTest {
 
         model.dispatch(HomeEvent.ContinueWatching(entry))
 
-        assertEquals(listOf(Destination.Player(itemId = 9, videoId = 5, season = 2)), navigator.opened)
+        assertEquals(listOf<HomeSideEffect>(HomeSideEffect.OpenPlayer(itemId = 9, videoId = 5, season = 2)), effects)
     }
 
     @Test
@@ -242,8 +240,7 @@ class HomeScreenModelTest {
             favorites = favorites,
             toggleWatchLater = ToggleWatchLaterUseCase(favorites, watching),
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
-            navigator = navigator,
-        )
+        ).also { it.observeSideEffects(effects::add) }
     }
 
     private fun HomeState.titles(id: HomeRowId): HomeRow.Titles = rows.single { it.id == id } as HomeRow.Titles

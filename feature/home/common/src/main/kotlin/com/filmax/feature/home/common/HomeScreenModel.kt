@@ -6,7 +6,6 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.feedback.FeedbackPrompts
-import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
@@ -14,7 +13,6 @@ import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,7 +24,6 @@ class HomeScreenModel(
     private val favorites: FavoritesRepository,
     private val toggleWatchLater: ToggleWatchLaterUseCase,
     private val feedbackPrompts: FeedbackPrompts,
-    private val navigator: Navigator,
 ) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
 
     /** Таймер карусели hero на ТВ: идёт, пока hero в фокусе. */
@@ -45,15 +42,15 @@ class HomeScreenModel(
             is HomeEvent.LoadMoreRow -> onLoadMoreRow(event.id)
             is HomeEvent.HeroFocused -> onHeroFocused(event.focused)
             is HomeEvent.ToggleWatchLater -> onToggleWatchLater(event.item)
-            is HomeEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
-            is HomeEvent.Play -> navigator.open(Destination.Player(event.itemId))
+            is HomeEvent.OpenItem -> sendSideEffect(HomeSideEffect.OpenDetails(event.itemId))
+            is HomeEvent.Play -> sendSideEffect(HomeSideEffect.OpenPlayer(event.itemId))
             is HomeEvent.ContinueWatching -> onContinueWatching(event.entry)
             is HomeEvent.OpenCollection -> onOpenCollection(event.collection)
-            is HomeEvent.OpenSection -> navigator.open(Destination.Browse(event.section.name))
+            is HomeEvent.OpenSection -> sendSideEffect(HomeSideEffect.OpenSection(event.section))
             HomeEvent.OpenSections -> onSectionsSheet(open = true)
             HomeEvent.CloseSections -> onSectionsSheet(open = false)
-            HomeEvent.OpenTv -> navigator.open(Destination.TvPicker())
-            HomeEvent.OpenCatalog -> navigator.open(Destination.Catalog)
+            HomeEvent.OpenTv -> sendSideEffect(HomeSideEffect.OpenTvPicker)
+            HomeEvent.OpenCatalog -> sendSideEffect(HomeSideEffect.OpenCatalog)
         }
     }
 
@@ -126,7 +123,7 @@ class HomeScreenModel(
      */
     private fun askFeedbackAfterUpdate() {
         screenModelScope { _ ->
-            if (feedbackPrompts.afterAppStart()) navigator.open(Destination.Feedback(FeedbackTrigger.AfterUpdate.name))
+            if (feedbackPrompts.afterAppStart()) postSideEffect(HomeSideEffect.AskFeedback)
         }
     }
 
@@ -179,17 +176,16 @@ class HomeScreenModel(
      */
     private fun onContinueWatching(entry: WatchHistory) {
         val progress = entry.progress
-        navigator.open(
-            Destination.Player(
-                itemId = entry.itemId,
-                videoId = progress?.videoId ?: Destination.Player.UNKNOWN,
-                season = progress?.season ?: Destination.Player.UNKNOWN,
-            ),
+        val effect = HomeSideEffect.OpenPlayer(
+            itemId = entry.itemId,
+            videoId = progress?.videoId ?: Destination.Player.UNKNOWN,
+            season = progress?.season ?: Destination.Player.UNKNOWN,
         )
+        sendSideEffect(effect)
     }
 
     private fun onOpenCollection(collection: Collection) {
-        navigator.open(Destination.CollectionDetail(collectionId = collection.id, title = collection.title))
+        sendSideEffect(HomeSideEffect.OpenCollection(collection.id, collection.title))
     }
 
     private fun onSectionsSheet(open: Boolean) {

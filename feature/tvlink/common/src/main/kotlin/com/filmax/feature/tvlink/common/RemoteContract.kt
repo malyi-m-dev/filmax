@@ -87,5 +87,11 @@ sealed interface RemoteEvent {
     data object Back : RemoteEvent
 }
 
-/** Одноразовых эффектов у пульта нет: выбор ТВ и закрытие ведёт навигатор в модели. */
-sealed interface RemoteSideEffect
+/** Переходы пульта; исполняет их навигатором экран. */
+sealed interface RemoteSideEffect {
+    /** Выбрать другой телевизор — окно выбора без тайтла. */
+    data object ChooseTv : RemoteSideEffect
+
+    /** «Назад» или забытый телевизор — пульт закрывается. */
+    data object Close : RemoteSideEffect
+}

@@ -4,7 +4,6 @@ import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.streamingTypeOptions
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 
 /**
@@ -15,7 +14,6 @@ import com.filmax.core.presentation.BaseScreenModel
  */
 class DeviceSettingsScreenModel(
     private val user: UserRepository,
-    private val navigator: Navigator,
 ) : BaseScreenModel<DeviceSettingsState, DeviceSettingsSideEffect, DeviceSettingsEvent>(
     DeviceSettingsState(),
 ) {
@@ -31,7 +29,7 @@ class DeviceSettingsScreenModel(
             DeviceSettingsEvent.OpenStreamingSheet -> onStreamingSheet(open = true)
             DeviceSettingsEvent.CloseStreamingSheet -> onStreamingSheet(open = false)
             DeviceSettingsEvent.Save -> onSave()
-            DeviceSettingsEvent.Back -> navigator.back()
+            DeviceSettingsEvent.Back -> sendSideEffect(DeviceSettingsSideEffect.Close)
         }
     }
 
@@ -84,7 +82,7 @@ class DeviceSettingsScreenModel(
             when (val result = user.updateDeviceSettings(settings)) {
                 is RequestResult.Success -> {
                     updateState { it.copy(saving = false) }
-                    navigator.back()
+                    postSideEffect(DeviceSettingsSideEffect.Close)
                 }
 
                 is RequestResult.Error -> updateState { it.copy(saving = false, error = result.message) }

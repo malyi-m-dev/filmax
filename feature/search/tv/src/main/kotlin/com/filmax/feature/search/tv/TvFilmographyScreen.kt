@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
@@ -38,8 +40,10 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.feature.search.common.FilmographyEvent
 import com.filmax.feature.search.common.FilmographyScreenModel
+import com.filmax.feature.search.common.FilmographySideEffect
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Сетка постеров: 4×190dp + 3×18dp зазора ложатся между safe area, как в TV-Каталоге. */
 private const val GRID_COLUMNS = 4
@@ -53,9 +57,19 @@ private const val GRID_COLUMNS = 4
  * перехватывает [BackHandler] (тот же приём, что в TV-трейлере).
  */
 @Composable
-fun TvFilmographyScreen(modifier: Modifier = Modifier, screenModel: FilmographyScreenModel = koinViewModel()) {
+fun TvFilmographyScreen(
+    modifier: Modifier = Modifier,
+    screenModel: FilmographyScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (FilmographyEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is FilmographySideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            FilmographySideEffect.Back -> navigator.back()
+        }
+    }
 
     BackHandler { onEvent(FilmographyEvent.Back) }
 

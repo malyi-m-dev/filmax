@@ -213,5 +213,20 @@ sealed interface PlayerEvent {
     data object Exit : PlayerEvent
 }
 
-/** Одноразовых эффектов у плеера нет: окно оценки, другая серия, выход и выбор ТВ — навигатор в модели. */
-sealed interface PlayerSideEffect
+/** Переходы плеера; исполняет их навигатором экран. */
+sealed interface PlayerSideEffect {
+    /**
+     * Другая серия — замена экрана плеера, а не подмена MediaItem: прогресс пишется в трек,
+     * выбранный при старте. [videoId] — номер серии внутри [season].
+     */
+    data class OpenEpisode(val itemId: Int, val videoId: Int, val season: Int) : PlayerSideEffect
+
+    /** Досмотрели последнее — плеер уступает место окну оценки: «Назад» из него ведёт в детали. */
+    data object AskFeedback : PlayerSideEffect
+
+    /** Досмотреть на телевизоре: эту серию с [startSeconds]. */
+    data class OpenTvPicker(val itemId: Int, val videoId: Int, val season: Int, val startSeconds: Int) :
+        PlayerSideEffect
+
+    data object Exit : PlayerSideEffect
+}

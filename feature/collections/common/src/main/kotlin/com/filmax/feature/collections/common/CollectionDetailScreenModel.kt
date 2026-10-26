@@ -6,15 +6,12 @@ import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 
 class CollectionDetailScreenModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
-    private val navigator: Navigator,
 ) : BaseScreenModel<CollectionDetailState, CollectionDetailSideEffect, CollectionDetailEvent>(
     initialState(savedStateHandle.toRoute<CollectionDetailRoute>()),
 ) {
@@ -29,9 +26,9 @@ class CollectionDetailScreenModel(
         when (event) {
             CollectionDetailEvent.LoadMore -> onLoadMore()
             is CollectionDetailEvent.FocusRow -> onFocusRow(event.row)
-            is CollectionDetailEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
+            is CollectionDetailEvent.OpenItem -> sendSideEffect(CollectionDetailSideEffect.OpenDetails(event.itemId))
             CollectionDetailEvent.PlayAll -> onPlayAll()
-            CollectionDetailEvent.Back -> navigator.back()
+            CollectionDetailEvent.Back -> sendSideEffect(CollectionDetailSideEffect.Back)
         }
     }
 
@@ -63,7 +60,7 @@ class CollectionDetailScreenModel(
 
     private fun onPlayAll() {
         val startItemId = state.startItemId ?: return
-        navigator.open(Destination.Player(itemId = startItemId))
+        sendSideEffect(CollectionDetailSideEffect.OpenPlayer(startItemId))
     }
 
     /**

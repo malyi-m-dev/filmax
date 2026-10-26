@@ -42,6 +42,8 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.GlassState
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxGlassHeader
 import com.filmax.core.ui.components.FilmaxIconButton
@@ -49,16 +51,28 @@ import com.filmax.core.ui.components.LocalNavBarPadding
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineScreenModel
 import com.filmax.feature.library.common.MineSegment
+import com.filmax.feature.library.common.MineSideEffect
 import com.filmax.feature.library.common.MineState
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun MineScreen(
     modifier: Modifier = Modifier,
     screenModel: MineScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is MineSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is MineSideEffect.OpenFolder -> navigator.open(Destination.BookmarkFolder(effect.folderId))
+            MineSideEffect.OpenSearch -> navigator.open(Destination.Search)
+            is MineSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+        }
+    }
     // Вернулись из папки, деталей или плеера — история и папки могли измениться.
     LifecycleResumeEffect(Unit) {
         screenModel.dispatch(MineEvent.Refresh)

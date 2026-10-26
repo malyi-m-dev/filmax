@@ -55,6 +55,8 @@ import com.filmax.core.designsystem.glow
 import com.filmax.core.designsystem.oklch
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.designsystem.rememberGlassState
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.folders.FolderInput
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
@@ -74,8 +76,10 @@ import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderScreenModel
+import com.filmax.feature.library.common.FolderSideEffect
 import com.filmax.feature.library.common.FolderState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** За сколько хвостовых ячеек до конца просить следующую страницу папки. */
 private const val LOAD_MORE_TAIL = 6
@@ -85,8 +89,17 @@ private const val SKELETON_COUNT = 6
 fun FolderScreen(
     modifier: Modifier = Modifier,
     screenModel: FolderScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            FolderSideEffect.Back -> navigator.back()
+            is FolderSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is FolderSideEffect.OpenPlayer -> navigator.open(Destination.Player(effect.itemId))
+            FolderSideEffect.OpenCatalog -> navigator.open(Destination.Catalog)
+        }
+    }
     val hue = folderHue(state.folder?.tint ?: 0)
     Box(
         modifier

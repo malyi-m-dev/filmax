@@ -22,5 +22,8 @@ sealed interface FilmographyEvent {
     data object Back : FilmographyEvent
 }
 
-/** Одноразовых эффектов у фильмографии нет: переходы модель отдаёт навигатору сама. */
-sealed interface FilmographySideEffect
+/** Переходы из фильмографии; исполняет их навигатором экран. */
+sealed interface FilmographySideEffect {
+    data class OpenDetails(val itemId: Int) : FilmographySideEffect
+    data object Back : FilmographySideEffect
+}

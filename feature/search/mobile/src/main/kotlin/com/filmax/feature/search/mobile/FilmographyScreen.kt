@@ -33,6 +33,8 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
@@ -43,8 +45,10 @@ import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
 import com.filmax.feature.search.common.FilmographyEvent
 import com.filmax.feature.search.common.FilmographyScreenModel
+import com.filmax.feature.search.common.FilmographySideEffect
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Скелетонов, пока грузятся работы: два ряда. */
 private const val SKELETON_COUNT = 6
@@ -54,9 +58,19 @@ private const val SKELETON_COUNT = 6
  * режиссёра; тип запроса (роли или постановки) уже выбран маршрутом, экран лишь рисует выдачу.
  */
 @Composable
-fun FilmographyScreen(modifier: Modifier = Modifier, screenModel: FilmographyScreenModel = koinViewModel()) {
+fun FilmographyScreen(
+    modifier: Modifier = Modifier,
+    screenModel: FilmographyScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val onEvent: (FilmographyEvent) -> Unit = screenModel::dispatch
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is FilmographySideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            FilmographySideEffect.Back -> navigator.back()
+        }
+    }
     val palette = FilmaxTheme.palette
     Box(
         modifier

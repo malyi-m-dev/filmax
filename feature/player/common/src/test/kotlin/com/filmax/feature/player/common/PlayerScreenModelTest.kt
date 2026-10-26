@@ -5,14 +5,11 @@ import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.tvlink.RemoteCommand
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeTvLinkReceiver
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
@@ -55,7 +52,7 @@ class PlayerScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val models = mutableListOf<PlayerScreenModel>()
     private val tvLink = FakeTvLinkReceiver()
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<PlayerSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -252,11 +249,11 @@ class PlayerScreenModelTest {
         }
 
         val expected = listOf(
-            NavCommand.Replace(Destination.Player(itemId = FakeIds.LONG_SERIES, videoId = 8, season = 4)),
-            NavCommand.Replace(Destination.Player(itemId = FakeIds.LONG_SERIES, videoId = 6, season = 4)),
-            NavCommand.Back,
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 8, season = 4),
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 6, season = 4),
+            PlayerSideEffect.Exit,
         )
-        assertEquals(expected, navigator.sent)
+        assertEquals(expected, effects)
     }
 
     @Test
@@ -268,11 +265,11 @@ class PlayerScreenModelTest {
         model.send(PlayerEvent.Exit)
 
         val expected = listOf(
-            NavCommand.Replace(Destination.Player(itemId = FakeIds.LONG_SERIES, videoId = 3, season = 2)),
-            NavCommand.Replace(Destination.Player(itemId = FakeIds.LONG_SERIES, videoId = 8, season = 4)),
-            NavCommand.Back,
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 3, season = 2),
+            PlayerSideEffect.OpenEpisode(itemId = FakeIds.LONG_SERIES, videoId = 8, season = 4),
+            PlayerSideEffect.Exit,
         )
-        assertEquals(expected, navigator.sent)
+        assertEquals(expected, effects)
     }
 
     @Test
@@ -310,7 +307,7 @@ class PlayerScreenModelTest {
 
         assertTrue(model.states.value.autoNext.dismissed)
         assertFalse(model.states.value.autoNext.visible)
-        assertTrue(navigator.sent.isEmpty())
+        assertTrue(effects.isEmpty())
     }
 
     @Test
@@ -333,13 +330,13 @@ class PlayerScreenModelTest {
 
         model.send(PlayerEvent.ContinueOnTv)
 
-        val picker = Destination.TvPicker(
+        val picker = PlayerSideEffect.OpenTvPicker(
             itemId = FakeIds.LONG_SERIES,
             videoId = 7,
             season = 4,
             startSeconds = PHONE_POSITION_S,
         )
-        assertEquals(listOf(picker), navigator.opened)
+        assertEquals(listOf<PlayerSideEffect>(picker), effects)
     }
 
     private fun TestScope.loaded(
@@ -377,9 +374,9 @@ class PlayerScreenModelTest {
             playbackSettings = settings,
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
             tvLink = tvLink,
-            navigator = navigator,
             context = RuntimeEnvironment.getApplication(),
         )
+        model.observeSideEffects(effects::add)
         models += model
         return model
     }

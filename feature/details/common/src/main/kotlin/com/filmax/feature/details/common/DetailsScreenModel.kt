@@ -12,8 +12,6 @@ import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.toFavoriteItem
 import com.filmax.core.domain.person.CastRepository
 import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import kotlinx.coroutines.FlowPreview
@@ -29,7 +27,6 @@ class DetailsScreenModel(
     private val favorites: FavoritesRepository,
     private val cast: CastRepository,
     private val toggleWatchLater: ToggleWatchLaterUseCase,
-    private val navigator: Navigator,
 ) : BaseScreenModel<DetailsState, DetailsSideEffect, DetailsEvent>(DetailsState()) {
 
     private val route = savedStateHandle.toRoute<DetailsRoute>()
@@ -55,7 +52,7 @@ class DetailsScreenModel(
 
     override fun onEvent(event: DetailsEvent) {
         when (event) {
-            DetailsEvent.Back -> navigator.back()
+            DetailsEvent.Back -> sendSideEffect(DetailsSideEffect.Back)
             DetailsEvent.ToggleFav -> onToggleFav()
             DetailsEvent.ToggleDownload -> onToggleDownload()
             DetailsEvent.Play -> onPlay()
@@ -63,8 +60,8 @@ class DetailsScreenModel(
             DetailsEvent.PlayOnTv -> onPlayOnTv()
             DetailsEvent.PlayTrailer -> onPlayTrailer()
             DetailsEvent.Share -> onShare()
-            is DetailsEvent.OpenItem -> navigator.open(Destination.Details(event.itemId))
-            is DetailsEvent.OpenPerson -> navigator.open(Destination.Filmography(event.name, event.isDirector))
+            is DetailsEvent.OpenItem -> sendSideEffect(DetailsSideEffect.OpenDetails(event.itemId))
+            is DetailsEvent.OpenPerson -> onOpenPerson(event)
             is DetailsEvent.SelectSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, SEASON_SELECT_DELAY_MS))
             is DetailsEvent.SwitchSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, delayMs = 0))
             DetailsEvent.OpenDescription -> onDescription(open = true)
@@ -161,25 +158,29 @@ class DetailsScreenModel(
 
     /** [videoId] — НОМЕР серии, а не её id: тем же числом kino.pub принимает и отдаёт прогресс. */
     private fun openPlayer(season: Int, videoId: Int) {
-        navigator.open(Destination.Player(itemId = route.itemId, videoId = videoId, season = season))
+        sendSideEffect(DetailsSideEffect.OpenPlayer(itemId = route.itemId, videoId = videoId, season = season))
     }
 
     /** На ТВ — с прогресса kino.pub: телефон эту серию сейчас не играет. */
     private fun onPlayOnTv() {
         val play = state.play ?: return
-        navigator.open(Destination.TvPicker(itemId = route.itemId, videoId = play.videoId, season = play.season))
+        sendSideEffect(DetailsSideEffect.OpenTvPicker(route.itemId, play.videoId, play.season))
+    }
+
+    private fun onOpenPerson(event: DetailsEvent.OpenPerson) {
+        sendSideEffect(DetailsSideEffect.OpenFilmography(event.name, event.isDirector))
     }
 
     private fun onPlayTrailer() {
         val url = state.trailerUrl ?: return
         val title = state.item?.title ?: return
-        navigator.open(Destination.Trailer(url = url, title = "Трейлер · $title"))
+        sendSideEffect(DetailsSideEffect.OpenTrailer(url = url, title = "Трейлер · $title"))
     }
 
     private fun onShare() {
         val item = state.item ?: return
         val text = "${item.title} (${item.year}) — смотри в Filmax"
-        screenModelScope { _ -> postSideEffect(DetailsSideEffect.Share(text)) }
+        sendSideEffect(DetailsSideEffect.Share(text))
     }
 
     private fun onDescription(open: Boolean) {

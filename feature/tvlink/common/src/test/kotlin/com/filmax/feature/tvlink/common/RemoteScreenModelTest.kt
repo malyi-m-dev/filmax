@@ -4,10 +4,7 @@ import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.RemoteSession
 import com.filmax.core.domain.tvlink.TvDevice
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeIds
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeTvRemote
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -29,7 +26,7 @@ import kotlin.test.assertTrue
 class RemoteScreenModelTest {
 
     private val remote = FakeTvRemote().apply { reachable += LIVING_ROOM.id }
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<RemoteSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -97,7 +94,7 @@ class RemoteScreenModelTest {
         remote.otherAccount += LIVING_ROOM.id
         remote.connect(LIVING_ROOM)
 
-        val model = RemoteScreenModel(remote, navigator)
+        val model = RemoteScreenModel(remote).also { it.observeSideEffects(effects::add) }
 
         assertFalse(model.states.value.reconnectsItself)
     }
@@ -110,7 +107,7 @@ class RemoteScreenModelTest {
 
         assertEquals(RemoteSession.Idle, model.states.value.session)
         assertNull(remote.paired.value, "забытый ТВ не должен подключаться сам")
-        assertEquals(NavCommand.Back, navigator.sent.last())
+        assertEquals(RemoteSideEffect.Close, effects.last())
     }
 
     @Test
@@ -119,7 +116,7 @@ class RemoteScreenModelTest {
 
         model.dispatch(RemoteEvent.ChooseTv)
 
-        assertEquals(listOf(Destination.TvPicker()), navigator.opened)
+        assertEquals(listOf<RemoteSideEffect>(RemoteSideEffect.ChooseTv), effects)
     }
 
     @Test
@@ -137,7 +134,7 @@ class RemoteScreenModelTest {
     private suspend fun connected(status: PlaybackStatus?): RemoteScreenModel {
         remote.connect(LIVING_ROOM)
         remote.showPlayback(status)
-        return RemoteScreenModel(remote, navigator)
+        return RemoteScreenModel(remote).also { it.observeSideEffects(effects::add) }
     }
 
     private companion object {

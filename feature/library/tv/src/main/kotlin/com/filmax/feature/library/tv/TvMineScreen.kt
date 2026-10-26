@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvConfirmDialog
 import com.filmax.core.tv.designsystem.TvConfirmSpec
@@ -21,8 +23,10 @@ import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvSectionBackground
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineScreenModel
+import com.filmax.feature.library.common.MineSideEffect
 import com.filmax.feature.library.common.MineState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * ТВ-раздел «Моё» (экраны 08, 08a–08d): сегменты «Продолжить · Буду смотреть · Папки · История».
@@ -33,8 +37,18 @@ import org.koin.androidx.compose.koinViewModel
 fun TvMineScreen(
     modifier: Modifier = Modifier,
     screenModel: MineScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is MineSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is MineSideEffect.OpenFolder -> navigator.open(Destination.BookmarkFolder(effect.folderId))
+            MineSideEffect.OpenSearch -> navigator.open(Destination.Search)
+            is MineSideEffect.OpenPlayer ->
+                navigator.open(Destination.Player(effect.itemId, effect.videoId, effect.season))
+        }
+    }
     LifecycleResumeEffect(screenModel) {
         screenModel.dispatch(MineEvent.Refresh)
         onPauseOrDispose { }

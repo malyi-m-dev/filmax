@@ -43,11 +43,14 @@ import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.serverLocationLabel
 import com.filmax.core.domain.user.model.streamingTypeLabel
 import com.filmax.core.domain.user.model.streamingTypeOptions
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.feature.profile.common.DeviceSettingsEvent
 import com.filmax.feature.profile.common.DeviceSettingsScreenModel
+import com.filmax.feature.profile.common.DeviceSettingsSideEffect
 import com.filmax.feature.profile.common.DeviceSettingsState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * «Настройки устройства» — тумблеры возможностей (SSL/HEVC/HDR/4K/смешанный плейлист) и выбор
@@ -58,8 +61,17 @@ import org.koin.androidx.compose.koinViewModel
  * доступных, поэтому предлагать выбор не из чего (см. `serverLocationLabel`).
  */
 @Composable
-fun DeviceSettingsScreen(modifier: Modifier = Modifier, screenModel: DeviceSettingsScreenModel = koinViewModel()) {
+fun DeviceSettingsScreen(
+    modifier: Modifier = Modifier,
+    screenModel: DeviceSettingsScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            DeviceSettingsSideEffect.Close -> navigator.back()
+        }
+    }
     val onEvent: (DeviceSettingsEvent) -> Unit = screenModel::dispatch
 
     if (state.loading) {

@@ -8,9 +8,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import com.filmax.core.domain.feedback.FeedbackTrigger
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerScreenModel
+import com.filmax.feature.player.common.PlayerSideEffect
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * TV-плеер: видеоповерхность ExoPlayer, контролы поверх кадра с автоскрытием и нижняя панель
@@ -20,9 +25,24 @@ import org.koin.androidx.compose.koinViewModel
  * (иначе прогресс писался бы в предыдущую серию); переход, как и выход, делает модель.
  */
 @Composable
-fun TvPlayerScreen(modifier: Modifier = Modifier, screenModel: PlayerScreenModel = koinViewModel()) {
+fun TvPlayerScreen(
+    modifier: Modifier = Modifier,
+    screenModel: PlayerScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            is PlayerSideEffect.OpenEpisode ->
+                navigator.replace(Destination.Player(effect.itemId, effect.videoId, effect.season))
+            PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
+            is PlayerSideEffect.OpenTvPicker -> navigator.open(
+                Destination.TvPicker(effect.itemId, effect.videoId, effect.season, effect.startSeconds),
+            )
+            PlayerSideEffect.Exit -> navigator.back()
+        }
+    }
 
     // Ушли с плеера не «Назад», а HOME/лаунчером — пауза: ScreenModel (и ExoPlayer в нём) жив,
     // и без этого звук продолжал играть за пределами приложения. Модель знает об этом и не

@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import com.filmax.core.domain.user.model.UserFolder
+import com.filmax.core.navigation.Destination
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvConfirmDialog
 import com.filmax.core.tv.designsystem.TvConfirmSpec
@@ -22,8 +24,10 @@ import com.filmax.core.tv.designsystem.tvFolderTint
 import com.filmax.core.tv.designsystem.tvTintedBackground
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderScreenModel
+import com.filmax.feature.library.common.FolderSideEffect
 import com.filmax.feature.library.common.FolderState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Шапка цвета папки уходит в фон на 230dp из 540 — до сетки постеров. */
 private const val HEADER_TINT_HEIGHT = 230f / 540f
@@ -37,8 +41,17 @@ private const val HEADER_TINT_HEIGHT = 230f / 540f
 fun TvFolderScreen(
     modifier: Modifier = Modifier,
     screenModel: FolderScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            FolderSideEffect.Back -> navigator.back()
+            is FolderSideEffect.OpenDetails -> navigator.open(Destination.Details(effect.itemId))
+            is FolderSideEffect.OpenPlayer -> navigator.open(Destination.Player(effect.itemId))
+            FolderSideEffect.OpenCatalog -> navigator.open(Destination.Catalog)
+        }
+    }
     FolderContent(state = state, onEvent = screenModel::dispatch, modifier = modifier)
 }
 

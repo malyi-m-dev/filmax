@@ -138,4 +138,14 @@ sealed interface MineEvent {
     data object Refresh : MineEvent
 }
 
-sealed interface MineSideEffect
+/** Переходы из «Моё»; исполняет их навигатором экран. */
+sealed interface MineSideEffect {
+    data class OpenDetails(val itemId: Int) : MineSideEffect
+
+    /** Папка-закладка: на ТВ — свой экран, на телефоне граф откроет её внутри Библиотеки. */
+    data class OpenFolder(val folderId: Int) : MineSideEffect
+    data object OpenSearch : MineSideEffect
+
+    /** «Продолжить» и история — сразу в плеер; [videoId] — номер серии внутри [season]. */
+    data class OpenPlayer(val itemId: Int, val videoId: Int, val season: Int) : MineSideEffect
+}

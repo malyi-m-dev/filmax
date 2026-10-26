@@ -40,6 +40,7 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.labels.posterMeta
 import com.filmax.core.presentation.labels.ratingLabel
 import com.filmax.core.presentation.labels.typeLabel
@@ -51,6 +52,7 @@ import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** За сколько хвостовых ячеек сетки до конца просить следующую страницу витрины. */
 private const val LOAD_MORE_TAIL = 9
@@ -64,8 +66,13 @@ private const val SKELETON_COUNT = 12
  * раздела: название раздела и кнопку «назад» модель уже положила в состояние вместе с выборкой.
  */
 @Composable
-fun CatalogScreen(modifier: Modifier = Modifier, screenModel: SearchScreenModel = koinViewModel()) {
+fun CatalogScreen(
+    modifier: Modifier = Modifier,
+    screenModel: SearchScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect -> openSearchEffect(navigator, effect) }
     // Витрину и жанры общий ScreenModel тянет только по заявке экрана — без этого сетка пуста.
     LaunchedEffect(Unit) { screenModel.dispatch(SearchEvent.LoadCatalog) }
 

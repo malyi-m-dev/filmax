@@ -2,8 +2,6 @@ package com.filmax.feature.tvlink.common
 
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvLinkReceiver
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -20,7 +18,6 @@ import kotlinx.coroutines.flow.runningFold
  */
 class TvLinkHostScreenModel(
     private val receiver: TvLinkReceiver,
-    private val navigator: Navigator,
 ) : BaseScreenModel<TvLinkHostState, TvLinkHostSideEffect, TvLinkHostEvent>(TvLinkHostState()) {
 
     private var serving: Job? = null
@@ -58,8 +55,8 @@ class TvLinkHostScreenModel(
      * на его место, а не копит стек плееров.
      */
     private fun openPlayer(play: RemoteCommand.Play) {
-        val destination = Destination.Player(play.itemId, play.videoId, play.season, play.startSeconds)
-        if (receiver.playback.value != null) navigator.replace(destination) else navigator.open(destination)
+        val playing = receiver.playback.value != null
+        sendSideEffect(if (playing) TvLinkHostSideEffect.ReplacePlayer(play) else TvLinkHostSideEffect.OpenPlayer(play))
     }
 
     /** Новый телефон в списке подключённых — плашка с его именем на [ANNOUNCE_MS]. */

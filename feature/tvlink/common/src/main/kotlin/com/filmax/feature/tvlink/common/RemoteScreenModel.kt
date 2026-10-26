@@ -3,8 +3,6 @@ package com.filmax.feature.tvlink.common
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.RemoteSession
 import com.filmax.core.domain.tvlink.TvRemote
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.flow.combine
 
@@ -14,7 +12,6 @@ import kotlinx.coroutines.flow.combine
  */
 class RemoteScreenModel(
     private val remote: TvRemote,
-    private val navigator: Navigator,
 ) : BaseScreenModel<RemoteState, RemoteSideEffect, RemoteEvent>(RemoteState()) {
 
     init {
@@ -38,9 +35,9 @@ class RemoteScreenModel(
             RemoteEvent.PreviousEpisode -> remote.send(RemoteCommand.PreviousEpisode)
             RemoteEvent.StopOnTv -> remote.send(RemoteCommand.Stop)
             RemoteEvent.Reconnect -> onReconnect()
-            RemoteEvent.ChooseTv -> navigator.open(Destination.TvPicker())
+            RemoteEvent.ChooseTv -> sendSideEffect(RemoteSideEffect.ChooseTv)
             RemoteEvent.Forget -> onForget()
-            RemoteEvent.Back -> navigator.back()
+            RemoteEvent.Back -> sendSideEffect(RemoteSideEffect.Close)
         }
     }
 
@@ -66,6 +63,6 @@ class RemoteScreenModel(
 
     private fun onForget() {
         remote.forget()
-        navigator.back()
+        sendSideEffect(RemoteSideEffect.Close)
     }
 }

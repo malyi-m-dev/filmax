@@ -7,8 +7,6 @@ import com.filmax.core.domain.tvlink.RemoteSession
 import com.filmax.core.domain.tvlink.TvDevice
 import com.filmax.core.domain.tvlink.TvDiscovery
 import com.filmax.core.domain.tvlink.TvRemote
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.tvlink.common.navigation.TvPickerRoute
 import kotlinx.coroutines.delay
@@ -18,13 +16,12 @@ import kotlinx.coroutines.flow.combine
  * Выбор телевизора на телефоне: свои ТВ в сети (или адрес вручную), подключение и передача тайтла.
  * Поиск идёт, пока окно открыто, — модель живёт столько же, сколько окно. Запомненный ТВ выбирать не
  * нужно: окно сразу подключается к нему и отдаёт тайтл. Выбрали ТВ — окно уступает место пульту
- * ([Navigator.replace]): «Назад» с пульта ведёт туда, откуда пришли, а не в это окно.
+ * ([TvPickerSideEffect.OpenRemote]).
  */
 class TvPickerScreenModel(
     savedStateHandle: SavedStateHandle,
     private val discovery: TvDiscovery,
     private val remote: TvRemote,
-    private val navigator: Navigator,
 ) : BaseScreenModel<TvPickerState, TvPickerSideEffect, TvPickerEvent>(TvPickerState()) {
 
     /** Что запустить на выбранном ТВ; null — окно открыли ради пульта. */
@@ -70,7 +67,7 @@ class TvPickerScreenModel(
             TvPickerEvent.OpenManual -> onOpenManual()
             is TvPickerEvent.EditAddress -> onEditAddress(event.text)
             TvPickerEvent.ConnectByAddress -> onConnectByAddress()
-            TvPickerEvent.Dismiss -> navigator.back()
+            TvPickerEvent.Dismiss -> sendSideEffect(TvPickerSideEffect.Close)
         }
     }
 
@@ -109,7 +106,7 @@ class TvPickerScreenModel(
                 return@screenModelScope
             }
             play?.let(remote::send)
-            navigator.replace(Destination.Remote)
+            postSideEffect(TvPickerSideEffect.OpenRemote)
         }
     }
 

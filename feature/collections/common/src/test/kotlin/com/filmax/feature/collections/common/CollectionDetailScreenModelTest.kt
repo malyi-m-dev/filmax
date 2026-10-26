@@ -1,13 +1,10 @@
 package com.filmax.feature.collections.common
 
 import androidx.lifecycle.SavedStateHandle
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -40,7 +37,7 @@ class CollectionDetailScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<CollectionDetailSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -109,8 +106,14 @@ class CollectionDetailScreenModelTest {
         model.dispatch(CollectionDetailEvent.Back)
         advanceUntilIdle()
 
-        assertEquals(listOf(Destination.Player(itemId = first), Destination.Details(7)), navigator.opened)
-        assertEquals(NavCommand.Back, navigator.sent.last())
+        assertEquals(
+            listOf(
+                CollectionDetailSideEffect.OpenPlayer(first),
+                CollectionDetailSideEffect.OpenDetails(7),
+                CollectionDetailSideEffect.Back,
+            ),
+            effects,
+        )
     }
 
     @Test
@@ -139,8 +142,8 @@ class CollectionDetailScreenModelTest {
         val model = CollectionDetailScreenModel(
             savedStateHandle = SavedStateHandle(mapOf("collectionId" to collectionId, "title" to "Подборка")),
             catalog = FakeCatalogRepository(backend),
-            navigator = navigator,
         )
+        model.observeSideEffects(effects::add)
         advanceUntilIdle()
         return model
     }

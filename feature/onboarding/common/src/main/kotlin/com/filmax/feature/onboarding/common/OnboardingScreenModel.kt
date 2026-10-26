@@ -2,8 +2,6 @@ package com.filmax.feature.onboarding.common
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.delay
 
@@ -15,7 +13,6 @@ private const val MILLIS_PER_SECOND = 1000L
  */
 class OnboardingScreenModel(
     private val auth: AuthRepository,
-    private val navigator: Navigator,
     private val now: () -> Long = System::currentTimeMillis,
 ) : BaseScreenModel<OnboardingState, OnboardingSideEffect, OnboardingEvent>(OnboardingState()) {
 
@@ -73,9 +70,7 @@ class OnboardingScreenModel(
                 // Подпись устройства в аккаунте — не здесь, а в RootScreenModel: этот экран
                 // снимается навигацией, как только сохранится токен, и запрос не успевал уйти.
                 updateState { it.copy(polling = false) }
-                // Главная становится единственным корнем: «Назад» с неё закрывает приложение,
-                // а не возвращает ко входу.
-                navigator.root(Destination.Home)
+                postSideEffect(OnboardingSideEffect.SignedIn)
                 return
             }
         }

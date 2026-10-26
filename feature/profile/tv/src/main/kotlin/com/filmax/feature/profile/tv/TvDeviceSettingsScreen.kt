@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.serverLocationLabel
 import com.filmax.core.domain.user.model.streamingTypeLabel
+import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvButton
 import com.filmax.core.tv.designsystem.TvError
@@ -46,8 +47,10 @@ import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
 import com.filmax.core.tv.designsystem.tvFocusOutline
 import com.filmax.feature.profile.common.DeviceSettingsEvent
 import com.filmax.feature.profile.common.DeviceSettingsScreenModel
+import com.filmax.feature.profile.common.DeviceSettingsSideEffect
 import com.filmax.feature.profile.common.DeviceSettingsState
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /** Ширина колонки настроек: строку во весь экран с 3 метров читать невозможно. */
 private val ContentMaxWidth = 640.dp
@@ -63,8 +66,17 @@ private val RowGap = 10.dp
  * Сервер раздачи — справочная строка без выбора: список локаций API не отдаёт (см. serverLocationLabel).
  */
 @Composable
-fun TvDeviceSettingsScreen(modifier: Modifier = Modifier, screenModel: DeviceSettingsScreenModel = koinViewModel()) {
+fun TvDeviceSettingsScreen(
+    modifier: Modifier = Modifier,
+    screenModel: DeviceSettingsScreenModel = koinViewModel(),
+    navigator: Navigator = koinInject(),
+) {
     val state by screenModel.collectAsState()
+    screenModel.collectSideEffect { effect ->
+        when (effect) {
+            DeviceSettingsSideEffect.Close -> navigator.back()
+        }
+    }
 
     if (state.loading) {
         Box(modifier.fillMaxSize().background(TvSurface), contentAlignment = Alignment.Center) {

@@ -5,13 +5,10 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakeSearchRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -42,7 +39,6 @@ class SearchScreenModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val catalog = RecordingCatalog(FakeCatalogRepository(backend))
-    private val navigator = FakeNavigator()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -84,7 +80,6 @@ class SearchScreenModelTest {
         val model = SearchScreenModel(
             search = FakeSearchRepository(backend),
             catalog = catalog,
-            navigator = navigator,
             savedStateHandle = SavedStateHandle(mapOf("section" to CatalogSection.TV_SHOWS.name)),
         )
         model.dispatch(SearchEvent.LoadCatalog)
@@ -319,19 +314,23 @@ class SearchScreenModelTest {
     @Test
     fun `cards and results lead to details, back leaves the section`() = runTest(dispatcher) {
         val model = catalogModel()
+        val effects = mutableListOf<SearchSideEffect>()
+        model.observeSideEffects(effects::add)
 
         model.dispatch(SearchEvent.OpenItem(itemId = 7))
         model.dispatch(SearchEvent.OpenResult(itemId = 9))
         model.dispatch(SearchEvent.Back)
         advanceUntilIdle()
 
-        assertEquals(listOf(Destination.Details(7), Destination.Details(9)), navigator.opened)
-        assertEquals(NavCommand.Back, navigator.sent.last())
+        assertEquals(
+            listOf(SearchSideEffect.OpenDetails(7), SearchSideEffect.OpenDetails(9), SearchSideEffect.Back),
+            effects,
+        )
     }
 
     /** Модель с витриной: экран каталога уже заявил о себе ([SearchEvent.LoadCatalog]). */
     private fun TestScope.catalogModel(repository: RecordingCatalog = catalog): SearchScreenModel {
-        val model = SearchScreenModel(FakeSearchRepository(backend), repository, navigator)
+        val model = SearchScreenModel(FakeSearchRepository(backend), repository)
         model.dispatch(SearchEvent.LoadCatalog)
         advanceUntilIdle()
         return model

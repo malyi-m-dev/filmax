@@ -2,13 +2,10 @@ package com.filmax.feature.profile.common
 
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.settings.ThemePalette
-import com.filmax.core.navigation.Destination
-import com.filmax.core.navigation.NavCommand
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeNavigator
 import com.filmax.data.fake.FakePlaybackSettingsRepository
 import com.filmax.data.fake.FakeThemeSettingsRepository
 import com.filmax.data.fake.FakeUserRepository
@@ -39,7 +36,7 @@ class ProfileScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val playback = FakePlaybackSettingsRepository()
     private val theme = FakeThemeSettingsRepository()
-    private val navigator = FakeNavigator()
+    private val effects = mutableListOf<ProfileSideEffect>()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -156,7 +153,7 @@ class ProfileScreenModelTest {
         advanceUntilIdle()
         assertFalse(model.states.value.confirmLogout)
         assertFalse(auth.isAuthenticated.first())
-        assertEquals(NavCommand.Root(Destination.Onboarding), navigator.sent.last())
+        assertEquals(ProfileSideEffect.LoggedOut, effects.last())
     }
 
     @Test
@@ -180,10 +177,11 @@ class ProfileScreenModelTest {
         model.dispatch(ProfileEvent.OpenRate)
         model.dispatch(ProfileEvent.OpenRemote)
         model.dispatch(ProfileEvent.OpenDesignSystem)
+        advanceUntilIdle()
 
         assertEquals(
-            listOf(Destination.Feedback("Profile"), Destination.Remote, Destination.DesignSystem),
-            navigator.opened,
+            listOf(ProfileSideEffect.OpenRate, ProfileSideEffect.OpenRemote, ProfileSideEffect.OpenDesignSystem),
+            effects,
         )
     }
 
@@ -194,6 +192,5 @@ class ProfileScreenModelTest {
         favorites = FakeFavoritesRepository(),
         playbackSettings = playback,
         themeSettings = theme,
-        navigator = navigator,
-    )
+    ).also { it.observeSideEffects(effects::add) }
 }
