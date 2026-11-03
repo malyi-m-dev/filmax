@@ -150,6 +150,7 @@ private fun PanelProgress(transport: TvTransportState) {
 private fun PlayerPanel(state: PlayerState, transport: TvTransportState, actions: PlayerActions, modifier: Modifier) {
     val tabs = state.panelTabs()
     val tab = state.openingTab()
+    // Вход в содержимое вкладки: запросчик на группе, а на выбранный вариант она входит сама.
     val contentFocus = remember { FocusRequester() }
     // Панель размещена к следующему кадру после появления — тогда и забираем в неё фокус.
     LaunchedEffect(Unit) {

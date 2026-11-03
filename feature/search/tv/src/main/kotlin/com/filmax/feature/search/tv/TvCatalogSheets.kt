@@ -14,7 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -38,7 +39,10 @@ import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOverline
 import com.filmax.core.tv.designsystem.TvTextRow
 import com.filmax.core.tv.designsystem.TvTextRowInset
+import com.filmax.core.tv.designsystem.rememberTvLazyFocus
 import com.filmax.core.tv.designsystem.tvFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusItem
 import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
@@ -186,15 +190,22 @@ private fun RatingSection(title: String, selected: Int?, onSelect: (Int?) -> Uni
     }
 }
 
-/** Стран десятки — горизонтальным списком, первый вход фокуса — на «Любая». */
+/**
+ * Стран десятки — горизонтальным списком, первый вход фокуса — на «Любая», возврат — на страну,
+ * с которой ушли. Если ряд прокручен и «Любой» на экране нет — на первую видимую.
+ */
 @Composable
 private fun CountrySection(countries: List<Country>, selectedId: Int?, onSelect: (Int?) -> Unit) {
-    val anyCountry = remember { FocusRequester() }
+    val rowState = rememberLazyListState()
+    val countryFocus = rememberTvLazyFocus()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         TvOverline("Страна", accent = false)
         // Сдвиг на запас под фокус: увеличенный крайний чип не срезается краем списка.
         LazyRow(
-            modifier = Modifier.offset(x = -TvMetrics.FocusInset).tvFocusGroup(fallback = anyCountry),
+            state = rowState,
+            modifier = Modifier
+                .offset(x = -TvMetrics.FocusInset)
+                .tvLazyFocusGroup(countryFocus, rowState, preferred = ANY_COUNTRY_INDEX),
             contentPadding = PaddingValues(horizontal = TvMetrics.FocusInset),
             horizontalArrangement = Arrangement.spacedBy(ChipGap),
         ) {
@@ -204,20 +215,25 @@ private fun CountrySection(countries: List<Country>, selectedId: Int?, onSelect:
                     selected = selectedId == null,
                     onClick = { onSelect(null) },
                     style = TvChipStyle.Outlined,
-                    modifier = Modifier.focusRequester(anyCountry),
+                    modifier = Modifier.tvLazyFocusItem(countryFocus, ANY_COUNTRY_INDEX),
                 )
             }
-            items(countries, key = { it.id }) { country ->
+            itemsIndexed(countries, key = { _, country -> country.id }) { index, country ->
                 TvChip(
                     label = country.title,
                     selected = country.id == selectedId,
                     onClick = { onSelect(country.id) },
                     style = TvChipStyle.Outlined,
+                    // «Любая» стоит первой, страны — за ней: номер в ряду на один больше.
+                    modifier = Modifier.tvLazyFocusItem(countryFocus, index + 1),
                 )
             }
         }
     }
 }
+
+/** «Любая» — первый чип ряда стран. */
+private const val ANY_COUNTRY_INDEX = 0
 
 /** Десятилетие как границы года. Пустая граница — «не ограничивать» с этой стороны. */
 private data class YearBucket(val label: String, val yearFrom: Int?, val yearTo: Int?) {
