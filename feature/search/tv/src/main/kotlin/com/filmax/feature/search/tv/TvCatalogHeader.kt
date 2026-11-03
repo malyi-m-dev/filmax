@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.SwapVert
@@ -43,7 +44,10 @@ import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvMicButton
 import com.filmax.core.tv.designsystem.TvSearchField
 import com.filmax.core.tv.designsystem.TvSearchFieldMode
+import com.filmax.core.tv.designsystem.rememberTvLazyFocus
 import com.filmax.core.tv.designsystem.tvFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusItem
 import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
@@ -199,13 +203,18 @@ private fun ChipDivider() {
  */
 @Composable
 private fun GenreRow(genres: List<Genre>, selectedId: Int?, dispatch: (SearchEvent) -> Unit, modifier: Modifier) {
-    val firstGenre = remember { FocusRequester() }
+    val rowState = rememberLazyListState()
+    val genreFocus = rememberTvLazyFocus()
     LazyRow(
+        state = rowState,
         // Список шире колонки на запас под фокус: увеличенный крайний чип и его свечение не
         // срезаются краем списка, а первый чип стоит на линии остальной шапки.
         // Запрошенный фокус ([modifier] с focusRequester) входит в ряд через его память: на жанр, с
-        // которого ушли, или на первый.
-        modifier = Modifier.outsetHorizontally(TvMetrics.FocusInset).then(modifier).tvFocusGroup(fallback = firstGenre),
+        // которого ушли, или на первый, а если ряд прокручен и первого нет — на первый видимый.
+        modifier = Modifier
+            .outsetHorizontally(TvMetrics.FocusInset)
+            .then(modifier)
+            .tvLazyFocusGroup(genreFocus, rowState, preferred = 0),
         contentPadding = PaddingValues(horizontal = TvMetrics.FocusInset),
         horizontalArrangement = Arrangement.spacedBy(ChipGap),
     ) {
@@ -216,7 +225,7 @@ private fun GenreRow(genres: List<Genre>, selectedId: Int?, dispatch: (SearchEve
                 selected = selected,
                 onClick = { dispatch(SearchEvent.GenreChange(if (selected) null else genre.id)) },
                 style = TvChipStyle.Outlined,
-                modifier = if (index == 0) Modifier.focusRequester(firstGenre) else Modifier,
+                modifier = Modifier.tvLazyFocusItem(genreFocus, index),
             )
         }
     }

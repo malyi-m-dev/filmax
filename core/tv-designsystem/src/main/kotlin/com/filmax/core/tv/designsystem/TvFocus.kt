@@ -43,6 +43,10 @@ val LocalTvNavBarFocused: ProvidableCompositionLocal<State<Boolean>> =
  * `focusGroup` обязателен и идёт ПОСЛЕ restorer: он и есть тот focus target, чьих детей restorer
  * сохраняет. Без него свойства restorer достаются каждому элементу по отдельности — сохранять
  * внутри элемента нечего, и «восстановление» вырождается в вызов fallback при каждом входе.
+ *
+ * Только для групп, где все элементы всегда в композиции (`Row`, `Column`). В ленивом списке
+ * элемент за краем не скомпонован: fallback на нём — запросчик без узла, и Compose 1.8 на нём
+ * падает. Ленивым рядам и сеткам — [tvLazyFocusGroup].
  */
 fun Modifier.tvFocusGroup(fallback: FocusRequester = FocusRequester.Default): Modifier =
     focusRestorer(fallback).focusGroup()

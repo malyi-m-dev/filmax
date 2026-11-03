@@ -11,6 +11,7 @@ import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
@@ -95,6 +96,37 @@ class TvCatalogFocusTest {
         pressKey(Key.DirectionUp)
 
         assertFocusedHas(FIRST_GENRE)
+    }
+
+    /**
+     * Краш 2.6.0 на TCL: жанр выбран далеко справа, вернулись из деталей — экран собран заново из
+     * сохранённого состояния, ряд жанров прокручен, а первого жанра среди размещённых нет. «Вверх» с
+     * постера входил в ряд через память `focusRestorer`, та промахивалась, и запасной вход на первый
+     * жанр ронял приложение: FocusRequester без узла.
+     */
+    @Test
+    fun `up from the grid after coming back from details returns to the far genre the viewer left`() {
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            FilmaxTvTheme { TvCatalogScreen(screenModel = model, navigator = AppNavigator()) }
+        }
+        compose.waitForIdle()
+        repeat(DOWN_TO_GENRES) { pressKey(Key.DirectionDown) }
+        pressUntilFocused(Key.DirectionRight, FAR_GENRE)
+        pressKey(Key.DirectionDown)
+        val poster = focusedPosterTitle()
+
+        restoration.emulateSavedInstanceStateRestore()
+        compose.waitForIdle()
+        assertPosterFocused(poster)
+        assertTrue(
+            compose.onAllNodes(hasText(FIRST_GENRE)).fetchSemanticsNodes().isEmpty(),
+            "первый жанр на экране — ряд не прокручен, и проверять нечего",
+        )
+
+        pressKey(Key.DirectionUp)
+
+        assertFocusedHas(FAR_GENRE)
     }
 
     @Test
@@ -253,12 +285,18 @@ class TvCatalogFocusTest {
 
     /** Подпись постера лежит под карточкой, а не в ней, — постер узнаём по описанию картинки. */
     private fun assertPosterFocused(title: String) {
-        val matcher = isFocused() and (hasContentDescription(title) or hasAnyDescendant(hasContentDescription(title)))
-        assertTrue(
-            compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty(),
-            "в фокусе не постер «$title», а ${focusedTexts()}"
-        )
+        assertTrue(posterFocused(title), "в фокусе не постер «$title», а ${focusedTexts()}")
     }
+
+    private fun posterFocused(title: String): Boolean {
+        val matcher = isFocused() and (hasContentDescription(title) or hasAnyDescendant(hasContentDescription(title)))
+        return compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+    }
+
+    /** Какой постер в фокусе: «вниз» с жанра справа попадает не в первую колонку сетки. */
+    private fun focusedPosterTitle(): String =
+        model.states.value.catalogItems.map { it.title }.firstOrNull(::posterFocused)
+            ?: error("в фокусе не постер, а ${focusedTexts()}")
 
     /** Тексты узла в фокусе — для сообщения о провале: куда фокус ушёл на самом деле. */
     private fun focusedTexts(): List<String> = compose.onAllNodes(isFocused(), useUnmergedTree = false)
@@ -274,7 +312,13 @@ class TvCatalogFocusTest {
     private companion object {
         const val PLACEHOLDER = "Название фильма или сериала"
         const val FIRST_GENRE = "Драма"
+
+        /** Двенадцатый жанр: до него ряд прокручивается, и первый жанр уходит из композиции. */
+        const val FAR_GENRE = "Семейный"
         const val BEST_MATCH_TITLE = "Хроники Пограничья"
+
+        /** Поле → типы → жанры. */
+        const val DOWN_TO_GENRES = 2
 
         /** Поле → типы → жанры → сетка. */
         const val DOWN_TO_GRID = 3

@@ -14,10 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -28,8 +25,10 @@ import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.fxEnter
+import com.filmax.core.tv.designsystem.rememberTvLazyFocus
 import com.filmax.core.tv.designsystem.rememberTvScrollFades
-import com.filmax.core.tv.designsystem.tvFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusItem
 import com.filmax.core.tv.designsystem.tvScrollFades
 import com.filmax.feature.library.common.HistoryDay
 
@@ -56,8 +55,8 @@ private const val MAX_ENTER_STEP = 6
 private val ListTop = 20.dp
 
 /**
- * Список дней. Каждый день — ряд с памятью фокуса ([tvFocusGroup]): возврат в день — на карточку,
- * с которой ушли; в ряду карточка в фокусе встаёт к полю раздела, соседи приглушены.
+ * Список дней. Каждый день — ряд с памятью фокуса ([tvLazyFocusGroup]): возврат в день — на
+ * карточку, с которой ушли; в ряду карточка в фокусе встаёт к полю раздела, соседи приглушены.
  */
 @Composable
 internal fun MineHistory(days: List<HistoryDay>, actions: MineActions, screenFocus: TvScreenFocus) {
@@ -84,17 +83,20 @@ internal fun MineHistory(days: List<HistoryDay>, actions: MineActions, screenFoc
 
 /**
  * День: надзаголовок и ряд карточек — на опорную точку встаёт весь блок, а не карточка. Первый
- * вход в ряд — на первую карточку дня, а не на ближайшую к той, с которой пришли.
+ * вход в ряд — на первую карточку дня, а не на ближайшую к той, с которой пришли; если ряд
+ * прокручен и первой на экране нет — на первую видимую.
  */
 @Composable
 private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, screenFocus: TvScreenFocus) {
-    val firstCard = remember { FocusRequester() }
+    val rowState = rememberLazyListState()
+    val dayFocus = rememberTvLazyFocus()
     Column(Modifier.bringIntoViewAsWhole()) {
         TvOverline(day.label, accent = false, modifier = Modifier.padding(start = TvMetrics.SectionStart))
         PivotScroll(TvMetrics.SectionStart) {
             TvDimGroup {
                 LazyRow(
-                    modifier = Modifier.tvFocusGroup(fallback = firstCard),
+                    state = rowState,
+                    modifier = Modifier.tvLazyFocusGroup(dayFocus, rowState, preferred = 0),
                     contentPadding = PaddingValues(
                         start = TvMetrics.SectionStart,
                         end = TvMetrics.SectionEnd,
@@ -113,7 +115,7 @@ private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, 
                             modifier = Modifier
                                 .fxEnter(FIRST_CARD_ENTER + enterStep(dayIndex, index))
                                 .then(screenFocus.item(historyKey(entry.itemId)))
-                                .then(if (index == 0) Modifier.focusRequester(firstCard) else Modifier),
+                                .tvLazyFocusItem(dayFocus, index),
                         )
                     }
                 }

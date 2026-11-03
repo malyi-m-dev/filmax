@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -40,7 +40,10 @@ import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOptionRow
 import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvValueTile
+import com.filmax.core.tv.designsystem.rememberTvLazyFocus
 import com.filmax.core.tv.designsystem.tvFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusGroup
+import com.filmax.core.tv.designsystem.tvLazyFocusItem
 import com.filmax.feature.player.common.OptionItem
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerSeason
@@ -64,9 +67,10 @@ private val SectionGap = 12.dp
 private val EpisodesInset = 8.dp
 
 /**
- * Содержимое вкладки. [contentFocus] стоит на выбранном варианте: на него фокус встаёт при
- * открытии панели и при входе в содержимое со вкладок — ближайший по геометрии вариант был бы
- * случайным.
+ * Содержимое вкладки. [contentFocus] — вход в него: при открытии панели и при входе со вкладок
+ * фокус встаёт на выбранный вариант — ближайший по геометрии был бы случайным. Запросчик стоит на
+ * группе, а не на варианте: в ленивой сетке выбранный за краем не скомпонован, и запрос к нему
+ * ронял приложение (2.6.0, два десятка озвучек). Группа сама прокручена к выбранному и входит в него.
  */
 @Composable
 internal fun PanelTabContent(
@@ -105,26 +109,28 @@ private fun EpisodesTab(state: PlayerState, positionMs: Long, actions: PlayerAct
     }
 }
 
+/** Сезоны чипами: первый вход — на показанный сезон, возврат — на чип, с которого ушли. */
 @Composable
 private fun SeasonChips(seasons: List<PlayerSeason>, shown: Int, onShow: (Int) -> Unit) {
-    val selectedFocus = remember { FocusRequester() }
     val start = seasons.indexOfFirst { it.number == shown }.coerceAtLeast(0)
+    val rowState = rememberLazyListState(initialFirstVisibleItemIndex = start)
+    val seasonFocus = rememberTvLazyFocus()
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Сезон", style = FxType.chip, color = LocalFxColors.current.textDim)
         LazyRow(
-            state = rememberLazyListState(initialFirstVisibleItemIndex = start),
-            modifier = Modifier.tvFocusGroup(selectedFocus),
+            state = rowState,
+            modifier = Modifier.tvLazyFocusGroup(seasonFocus, rowState, preferred = start),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(EpisodesInset),
         ) {
-            items(seasons, key = { it.number }) { season ->
-                val selected = season.number == shown
+            itemsIndexed(seasons, key = { _, season -> season.number }) { index, season ->
                 TvChip(
                     label = "${season.number}",
-                    selected = selected,
+                    selected = season.number == shown,
                     onClick = { onShow(season.number) },
                     style = TvChipStyle.CompactOutlined,
-                    modifier = (if (selected) Modifier.focusRequester(selectedFocus) else Modifier)
+                    modifier = Modifier
+                        .tvLazyFocusItem(seasonFocus, index)
                         .onFocusChanged { if (it.isFocused) onShow(season.number) },
                 )
             }
@@ -148,9 +154,11 @@ private fun EpisodesRow(season: PlayerSeason, context: EpisodesContext, contentF
 @Composable
 private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, contentFocus: FocusRequester) {
     val target = season.episodes.indexOfFirst { it.id == context.playing?.id }.coerceAtLeast(0)
+    val rowState = rememberLazyListState(initialFirstVisibleItemIndex = target)
+    val episodeFocus = rememberTvLazyFocus()
     LazyRow(
-        state = rememberLazyListState(initialFirstVisibleItemIndex = target),
-        modifier = Modifier.tvFocusGroup(contentFocus),
+        state = rowState,
+        modifier = Modifier.focusRequester(contentFocus).tvLazyFocusGroup(episodeFocus, rowState, preferred = target),
         horizontalArrangement = Arrangement.spacedBy(EpisodeGap),
         contentPadding = PaddingValues(EpisodesInset),
     ) {
@@ -172,13 +180,16 @@ private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, content
                 badge = if (playing) "Сейчас" else null,
                 fallbackLabel = "${episode.number}",
                 current = playing,
-                modifier = if (index == target) Modifier.focusRequester(contentFocus) else Modifier,
+                modifier = Modifier.tvLazyFocusItem(episodeFocus, index),
             )
         }
     }
 }
 
-/** Дорожки, субтитры, качество — сеткой в две колонки, выбранный вариант с галочкой. */
+/**
+ * Дорожки, субтитры, качество — сеткой в две колонки, выбранный вариант с галочкой. Озвучек у
+ * сериала бывает два десятка: сетка открывается прокрученной к выбранной, чтобы фокус встал на неё.
+ */
 @Composable
 private fun OptionsTab(
     items: List<OptionItem>,
@@ -186,22 +197,29 @@ private fun OptionsTab(
     contentFocus: FocusRequester,
     note: String?
 ) {
+    val selectedIndex = items.indexOfFirst { it.selected }.takeIf { it >= 0 }
+    val gridState = rememberLazyGridState(initialFirstVisibleItemIndex = selectedIndex ?: 0)
+    val optionFocus = rememberTvLazyFocus()
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
-            modifier = Modifier.weight(1f, fill = false).tvFocusGroup(contentFocus),
+            state = gridState,
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .focusRequester(contentFocus)
+                .tvLazyFocusGroup(optionFocus, gridState, preferred = selectedIndex),
             horizontalArrangement = Arrangement.spacedBy(OptionGap),
             verticalArrangement = Arrangement.spacedBy(OptionGap),
             contentPadding = PaddingValues(vertical = 4.dp),
         ) {
-            items(items, key = { it.key }) { item ->
+            itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
                 TvOptionRow(
                     title = item.text.title,
                     detail = item.text.detail,
                     badge = item.text.badge,
                     selected = item.selected,
                     onClick = { onSelect(item.key) },
-                    modifier = if (item.selected) Modifier.focusRequester(contentFocus) else Modifier,
+                    modifier = Modifier.tvLazyFocusItem(optionFocus, index),
                 )
             }
         }
@@ -209,11 +227,19 @@ private fun OptionsTab(
     }
 }
 
-/** Скорость — ряд крупных плиток: значение видно издалека, выбор — заливкой. */
+/**
+ * Скорость — ряд крупных плиток: значение видно издалека, выбор — заливкой. Плитки не ленивые,
+ * все в композиции — запасной вход на выбранную безопасен, если выбранная есть.
+ */
 @Composable
 private fun SpeedTab(current: Float, actions: PlayerActions, contentFocus: FocusRequester, note: String?) {
+    val selectedTile = remember { FocusRequester() }
+    val entry = if (current in PresetSpeeds) selectedTile else FocusRequester.Default
     Column(verticalArrangement = Arrangement.spacedBy(SectionGap)) {
-        Row(Modifier.fillMaxWidth().tvFocusGroup(contentFocus), horizontalArrangement = Arrangement.spacedBy(TileGap)) {
+        Row(
+            Modifier.fillMaxWidth().focusRequester(contentFocus).tvFocusGroup(entry),
+            horizontalArrangement = Arrangement.spacedBy(TileGap),
+        ) {
             PresetSpeeds.forEach { speed ->
                 val selected = speed == current
                 TvValueTile(
@@ -221,9 +247,9 @@ private fun SpeedTab(current: Float, actions: PlayerActions, contentFocus: Focus
                     caption = speedCaption(speed),
                     selected = selected,
                     onClick = { actions.dispatch(PlayerEvent.SetSpeed(speed)) },
-                    modifier = Modifier.weight(
-                        1f
-                    ).then(if (selected) Modifier.focusRequester(contentFocus) else Modifier),
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(if (selected) Modifier.focusRequester(selectedTile) else Modifier),
                 )
             }
         }

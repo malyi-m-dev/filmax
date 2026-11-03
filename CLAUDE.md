@@ -59,12 +59,17 @@
 
 ## ТВ: фокус
 
-- Ряд, сетка, панель чипов — `Modifier.tvFocusGroup()` (штатный `focusRestorer` + `focusGroup`).
-  Исключение — `TvRail`: память у него своя (`focusProperties.enter`), и каждая карточка ряда
-  отмечается `Modifier.tvRailEntry(index)`. Тогда первый вход в ряд — на первую карточку, а
-  возврат — на ту, с которой ушли, даже если ушли явным `focusProperties`. Второе исключение —
-  ленивый ряд, где выбранный элемент может быть за краем (сезоны в деталях): `tvFocusGroup(fallback)`
-  с неразмещённым fallback роняет Compose 1.8, поэтому вход — `onEnter` с проверкой, что элемент размещён.
+- Ряд и панель чипов на `Row`/`Column` — `Modifier.tvFocusGroup(fallback)` (штатный `focusRestorer`
+  + `focusGroup`). Fallback — только на элементе, который всегда в композиции.
+- Ленивый ряд или сетка — `Modifier.tvLazyFocusGroup(focus, state, preferred)` с
+  `rememberTvLazyFocus()`, каждый элемент — `Modifier.tvLazyFocusItem(focus, index)`. Вход — на
+  последний элемент в фокусе, иначе на `preferred`, иначе на первый видимый, и только среди
+  размещённых: fallback `focusRestorer` на элементе за краем роняет Compose 1.8 («FocusRequester is
+  not initialized», 2.6.0 на TCL). Фокус в список снаружи — `focusRequester` перед группой, а не на
+  элементе. На этом же механизме `TvRail`: его карточки отмечаются `Modifier.tvRailEntry(index)`, и
+  возврат в ряд — на ту, с которой ушли, даже если ушли явным `focusProperties`. Исключение — сезоны
+  в деталях: фокус на чипе меняет сезон, поэтому вход — `onEnter` на выбранный чип, а если он не
+  размещён — отмена.
 - Стартовый фокус экрана и возврат туда, откуда ушли на другой экран, — `rememberTvScreenFocus()`:
   `containerModifier` на корневой контейнер, `focus.item(key)` на каждую карточку. Фокус ставится
   по `onPlaced`, без ожиданий по кадрам.

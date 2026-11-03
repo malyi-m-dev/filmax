@@ -157,6 +157,34 @@ class TvPlayerRemoteTest {
         assertTrue(state.panelOpen, "выбор дорожки не должен закрывать панель")
     }
 
+    /**
+     * Краш 2.6.0: у долгого сериала озвучек два десятка, выбрана одна из последних — за краем сетки,
+     * не размещена. Панель, открытая сразу на «Аудио», просила фокус у неразмещённого варианта.
+     */
+    @Test
+    fun `panel left on audio opens on the selected track far down a long list`() {
+        showManyVoices(tab = PlayerTab.Audio)
+
+        pressKey(Key.DirectionDown)
+
+        assertEquals(PlayerTab.Audio, state.panelTab)
+        assertFocusedHas(LAST_VOICE)
+    }
+
+    /** Тот же краш с другой стороны: «вниз» со вкладки входил в сетку через запасной вход-призрак. */
+    @Test
+    fun `down from the audio tab enters a long list on the selected track`() {
+        showManyVoices(tab = null)
+        pressKey(Key.DirectionDown)
+        goUpTo(EPISODES_TAB)
+        pressKey(Key.DirectionRight)
+        assertEquals(PlayerTab.Audio, state.panelTab)
+
+        pressKey(Key.DirectionDown)
+
+        assertFocusedHas(LAST_VOICE)
+    }
+
     @Test
     fun `speed tile sets the speed`() {
         pressKey(Key.DirectionDown)
@@ -221,6 +249,24 @@ class TvPlayerRemoteTest {
         assertFalse("exit" in calls, "«Назад» при карточке «Далее» вышел из плеера")
         pressBack()
         assertEquals("exit", calls.last())
+    }
+
+    /** Озвучки, как у долгого сериала kino.pub: студий больше, чем помещается в сетку, выбрана последняя. */
+    private fun showManyVoices(tab: PlayerTab?) {
+        val voices = (1..MANY_VOICES).map { number ->
+            AudioOption(
+                label = "$number. Русский · Многоголосый · Студия $number",
+                groupIndex = number - 1,
+                languageCode = "rus",
+                voiceType = "Многоголосый",
+                voiceAuthor = "Студия $number",
+                channels = 2,
+            )
+        }
+        compose.runOnUiThread {
+            state = state.copy(audioTracks = voices, currentAudio = voices.last().label, panelTab = tab)
+        }
+        compose.waitForIdle()
     }
 
     private fun showNextCard() {
@@ -308,6 +354,8 @@ class TvPlayerRemoteTest {
         const val RUSSIAN_LABEL = "1. Русский · Дубляж · Северный дубляж"
         const val ENGLISH_LABEL = "2. English · Оригинал"
         const val RUSSIAN_DUB = "Русский · Дубляж"
+        const val MANY_VOICES = 16
+        const val LAST_VOICE = "Студия 16"
         const val SPEED_TAB_INDEX = 4
         const val FASTER = 1.25f
         const val MAX_PRESSES = 6
