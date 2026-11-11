@@ -32,6 +32,7 @@ import com.filmax.core.designsystem.ShapePoster
 import com.filmax.core.designsystem.oklch
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.ui.components.FilmaxButton
+import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.POSTER_ASPECT
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 
@@ -44,10 +45,10 @@ private val WallHues = listOf(290f, 250f, 330f, 170f, 50f, 200f)
  * случайный тайтл до входа — обещание контента, которого может не оказаться в подписке.
  */
 @Composable
-internal fun WelcomeStep(onLogin: () -> Unit) {
+internal fun WelcomeStep(onLogin: () -> Unit, onHomeServer: () -> Unit) {
     Box(Modifier.fillMaxSize()) {
         PosterWallBackdrop(Modifier.fillMaxSize())
-        WelcomeContent(onLogin = onLogin)
+        WelcomeContent(onLogin = onLogin, onHomeServer = onHomeServer)
     }
 }
 
@@ -111,8 +112,9 @@ private fun PosterWallColumn(topOffset: Dp, seed: Int, modifier: Modifier = Modi
     }
 }
 
+/** «Войти» — kino.pub по коду; «Домашний сервер» — своя медиатека Jellyfin, без подписки. */
 @Composable
-private fun WelcomeContent(onLogin: () -> Unit) {
+private fun WelcomeContent(onLogin: () -> Unit, onHomeServer: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -135,6 +137,12 @@ private fun WelcomeContent(onLogin: () -> Unit) {
             modifier = Modifier.padding(top = 12.dp),
         )
         FilmaxButton(text = "Войти", onClick = onLogin, modifier = Modifier.padding(top = 28.dp).fillMaxWidth())
+        FilmaxButton(
+            text = "Домашний сервер",
+            onClick = onHomeServer,
+            style = FilmaxButtonStyle.Secondary,
+            modifier = Modifier.padding(top = 12.dp).fillMaxWidth(),
+        )
         Spacer(Modifier.height(BottomPadding))
     }
 }

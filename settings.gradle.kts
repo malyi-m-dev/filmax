@@ -43,6 +43,10 @@ include(":data:tmdb")
 include(":data:feedback")
 // Телефон ↔ ТВ в одной сети: поиск, проверка аккаунта, команды пульта.
 include(":data:tvlink")
+// Домашний медиасервер Jellyfin: своя медиатека в локальной сети вместо kino.pub.
+include(":data:jellyfin")
+// Переключатель источника: экраны получают репозитории kino.pub или домашнего сервера.
+include(":data:source")
 // Фейковый data-слой без сети: сборка `mock` и юнит-тесты ScreenModel'ей.
 include(":data:fake")
 

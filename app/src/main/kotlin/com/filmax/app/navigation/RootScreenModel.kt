@@ -3,16 +3,23 @@ package com.filmax.app.navigation
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.feedback.ClientInfo
+import com.filmax.core.domain.source.ContentSource
+import com.filmax.core.domain.source.ContentSourceRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.deviceDescription
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.presentation.BaseScreenModel
-import com.filmax.feature.profile.common.label
+import com.filmax.feature.profile.common.accountCaption
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 
 class RootScreenModel(
     private val auth: AuthRepository,
     private val user: UserRepository,
     private val client: ClientInfo,
+    private val sources: ContentSourceRepository,
 ) : BaseScreenModel<RootState, RootSideEffect, RootEvent>(RootState()) {
 
     init {
@@ -21,16 +28,24 @@ class RootScreenModel(
 
     override fun onEvent(event: RootEvent) = Unit
 
+    /**
+     * Вход — парой с источником: граф возвращается к корню и по входу/выходу, и по смене
+     * источника, когда вход есть в обоих (иначе на экране остались бы тайтлы прежнего).
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun onFetchData() {
         screenModelScope {
-            auth.isAuthenticated.collect { value ->
-                updateState { it.copy(isAuthenticated = value) }
-                // Авторизованы — подтягиваем аккаунт для меню и подписываем устройство (best-effort).
-                if (value == true) {
-                    fetchAccount()
-                    describeDevice()
+            sources.source
+                .flatMapLatest { source -> auth.isAuthenticated.map { signedIn -> source to signedIn } }
+                .distinctUntilChanged()
+                .collect { (source, signedIn) ->
+                    updateState { it.copy(isAuthenticated = signedIn, source = source, account = AccountSummary()) }
+                    // Авторизованы — подтягиваем аккаунт для меню и подписываем устройство (best-effort).
+                    if (signedIn) {
+                        fetchAccount(source)
+                        describeDevice()
+                    }
                 }
-            }
         }
     }
 
@@ -45,14 +60,14 @@ class RootScreenModel(
         user.registerDevice(description.title, description.hardware, description.software)
     }
 
-    private suspend fun fetchAccount() {
+    private suspend fun fetchAccount(source: ContentSource) {
         (user.getProfile() as? RequestResult.Success)?.let { result ->
             val profile = result.data
             updateState {
                 it.copy(
                     account = AccountSummary(
                         name = profile.username,
-                        subscription = profile.subscription.label(),
+                        subscription = accountCaption(source, profile.subscription),
                         initials = profile.initials(),
                     ),
                 )

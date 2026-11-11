@@ -1,5 +1,6 @@
 // Вход: состояние экрана, переход между шагами и общее для них — логотип и поля. Приветствие
-// со стеной постеров — в OnboardingWelcome, активация устройства по коду — в OnboardingAuth.
+// со стеной постеров — в OnboardingWelcome, активация устройства по коду — в OnboardingAuth,
+// вход на домашний сервер — в HomeServerLogin.
 
 package com.filmax.feature.onboarding.mobile
 
@@ -60,6 +61,10 @@ fun OnboardingScreen(
             .fillMaxSize()
             .background(FilmaxTheme.palette.background),
     ) {
+        if (state.homeServer) {
+            HomeServerLogin(onBack = { screenModel.dispatch(OnboardingEvent.CloseHomeServer) })
+            return@Box
+        }
         AnimatedContent(
             targetState = state.step >= STEP_AUTH,
             transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(200)) },
@@ -72,7 +77,10 @@ fun OnboardingScreen(
                     onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
                 )
             } else {
-                WelcomeStep(onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) })
+                WelcomeStep(
+                    onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) },
+                    onHomeServer = { screenModel.dispatch(OnboardingEvent.OpenHomeServer) },
+                )
             }
         }
     }

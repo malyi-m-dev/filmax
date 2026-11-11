@@ -2,8 +2,10 @@ package com.filmax.feature.profile.common
 
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakePlaybackSettingsRepository
@@ -27,7 +29,8 @@ import kotlin.test.assertTrue
 
 /**
  * Профиль на фейковом бэкенде: панель вариантов открывается и закрывается, выбранный вариант
- * сохраняется, палитра сохраняется в настройках оформления, выход — только после подтверждения.
+ * сохраняется, палитра сохраняется в настройках оформления, источник — в выборе источника,
+ * выход — только после подтверждения.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileScreenModelTest {
@@ -36,6 +39,7 @@ class ProfileScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val playback = FakePlaybackSettingsRepository()
     private val theme = FakeThemeSettingsRepository()
+    private val sources = FakeContentSourceRepository()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -154,12 +158,26 @@ class ProfileScreenModelTest {
         assertFalse(auth.isAuthenticated.first())
     }
 
+    @Test
+    fun `source is chosen in the same option panel`() = runTest(dispatcher) {
+        val model = model()
+        advanceUntilIdle()
+        assertEquals("kino.pub", model.states.value.valueOf(ProfileSetting.SOURCE))
+
+        model.dispatch(ProfileEvent.OpenSetting(ProfileSetting.SOURCE))
+        model.dispatch(ProfileEvent.ChooseOption(optionsOf(ProfileSetting.SOURCE).indexOf("Домашний сервер")))
+        advanceUntilIdle()
+
+        assertEquals(ContentSource.JELLYFIN, sources.source.value)
+        assertEquals("Домашний сервер", model.states.value.valueOf(ProfileSetting.SOURCE))
+        assertFalse(model.states.value.settingOpen)
+    }
+
     private fun model(auth: FakeAuthRepository = FakeAuthRepository(backend)) = ProfileScreenModel(
         user = FakeUserRepository(backend),
         watching = FakeWatchingRepository(backend),
         auth = auth,
         favorites = FakeFavoritesRepository(),
-        playbackSettings = playback,
-        themeSettings = theme,
+        settings = ProfileSettings(playback, theme, sources),
     )
 }

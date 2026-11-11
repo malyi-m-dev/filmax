@@ -36,3 +36,9 @@ fun typedText(text: String, key: String, maxLength: Int = Int.MAX_VALUE): String
 
 /** Текст после «Стереть»: минус последний символ. */
 fun erasedText(text: String): String = text.dropLast(1)
+
+/**
+ * Текст после нажатия [key] — как есть, без заглавной первой буквы и правил пробела: так
+ * набирают адрес сервера, имя пользователя и пароль, где регистр и каждый символ значимы.
+ */
+fun typedRaw(text: String, key: String, maxLength: Int = Int.MAX_VALUE): String = (text + key).take(maxLength)

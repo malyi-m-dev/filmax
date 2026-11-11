@@ -396,6 +396,8 @@ internal fun FieldsSection() {
             label = "Название",
             maxLength = 40
         )
+        var secret by remember { mutableStateOf("") }
+        FilmaxTextField(secret, { secret = it }, placeholder = "Пароль", onDone = {}, label = "Пароль", secret = true)
         FilmaxTextArea(comment, { comment = it }, placeholder = "Комментарий")
         var stars by remember { mutableIntStateOf(4) }
         FilmaxRatingStars(rating = stars, onRate = { stars = it })

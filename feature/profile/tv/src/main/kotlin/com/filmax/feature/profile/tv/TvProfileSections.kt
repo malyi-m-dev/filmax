@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.tv.designsystem.FxType
@@ -41,6 +42,7 @@ import com.filmax.feature.profile.common.ProfileState
 import com.filmax.feature.profile.common.activeUntil
 import com.filmax.feature.profile.common.daysLabel
 import com.filmax.feature.profile.common.initialsOrFallback
+import com.filmax.feature.profile.common.label
 import com.filmax.feature.profile.common.subtitlesEnabled
 import com.filmax.feature.profile.common.valueOf
 
@@ -75,7 +77,7 @@ internal fun ProfileBody(
     Row(Modifier.fillMaxHeight()) {
         SettingsColumn(state, actions, focus)
         Column(Modifier.padding(start = 30.dp, top = CardTop), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            SubscriptionCard(state.profile?.subscription, Modifier.fxEnter(CARD_ENTER))
+            AccessCard(state, Modifier.fxEnter(CARD_ENTER))
             remoteCard(Modifier.fxEnter(CARD_ENTER + 1))
         }
     }
@@ -170,11 +172,15 @@ private fun UiRows(rows: SettingRows, enter: Int) {
 /** Ключ строки «Отключить обводку и свечение» в памяти фокуса экрана. */
 internal const val PLAIN_FOCUS_KEY = "plainFocus"
 
-/** «Аккаунт» — выход с подтверждением; «Приложение» — ручная проверка обновлений и версия. */
+/**
+ * «Аккаунт» — источник контента и выход с подтверждением; «Приложение» — ручная проверка
+ * обновлений и версия. Выход — из текущего источника: второй остаётся с входом.
+ */
 @Composable
 private fun AccountRows(rows: SettingRows, enter: Int) {
     val actions = rows.actions
     SettingsGroup("Аккаунт")
+    rows.Value(ProfileSetting.SOURCE, enter = enter)
     TvSettingRow(
         label = "Выйти из аккаунта",
         value = null,
@@ -224,6 +230,21 @@ private fun ProfileHeader(profile: UserProfile?, modifier: Modifier) {
                 )
             }
         }
+    }
+}
+
+/** Доступ к видео: подписка kino.pub или домашний сервер, которому подписка не нужна. */
+@Composable
+private fun AccessCard(state: ProfileState, modifier: Modifier) {
+    if (state.source == ContentSource.JELLYFIN) {
+        TvSubscriptionCard(
+            overline = "Источник",
+            value = ContentSource.JELLYFIN.label,
+            caption = "Своя медиатека, без подписки",
+            modifier = modifier,
+        )
+    } else {
+        SubscriptionCard(state.profile?.subscription, modifier)
     }
 }
 

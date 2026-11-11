@@ -5,6 +5,7 @@ import com.filmax.core.domain.feedback.ClientInfo
 import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +40,7 @@ class RootScreenModelTest {
 
     @Test
     fun `signed-in app describes the device in the kino pub account`() = runTest(dispatcher) {
-        RootScreenModel(FakeAuthRepository(backend), user, MI_TV)
+        RootScreenModel(FakeAuthRepository(backend), user, MI_TV, FakeContentSourceRepository())
         advanceUntilIdle()
 
         val device = assertIs<RequestResult.Success<DeviceSettings>>(user.getDeviceSettings()).data

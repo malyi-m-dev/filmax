@@ -107,7 +107,7 @@ private fun ActivationHint(verificationUri: String) {
  * руками, и важнее всего различить 0/O и 1/I.
  */
 @Composable
-private fun CodeBox(userCode: String) {
+internal fun CodeBox(userCode: String) {
     Box(
         modifier = Modifier
             .glassFill(CodeShape)
@@ -140,7 +140,7 @@ private fun CopyCodeButton(userCode: String) {
 }
 
 @Composable
-private fun PollingStatus() {
+internal fun PollingStatus() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         CircularProgressIndicator(
             color = FilmaxTheme.palette.accent,

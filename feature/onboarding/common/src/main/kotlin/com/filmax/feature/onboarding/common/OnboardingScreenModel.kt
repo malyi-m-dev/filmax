@@ -2,14 +2,23 @@ package com.filmax.feature.onboarding.common
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.domain.source.ContentSource
+import com.filmax.core.domain.source.ContentSourceRepository
 import com.filmax.core.presentation.BaseScreenModel
 import kotlinx.coroutines.delay
 
 private const val MILLIS_PER_SECOND = 1000L
 
+/**
+ * Вход в kino.pub по коду устройства — и развилка на вход в домашний сервер. Если источник уже
+ * домашний сервер (выбрали в Профиле или вышли из него), экран сразу открывается на сервере.
+ */
 class OnboardingScreenModel(
     private val auth: AuthRepository,
-) : BaseScreenModel<OnboardingState, OnboardingSideEffect, OnboardingEvent>(OnboardingState()) {
+    private val sources: ContentSourceRepository,
+) : BaseScreenModel<OnboardingState, OnboardingSideEffect, OnboardingEvent>(
+    OnboardingState(homeServer = sources.source.value == ContentSource.JELLYFIN),
+) {
 
     override fun onEvent(event: OnboardingEvent) {
         when (event) {
@@ -18,6 +27,11 @@ class OnboardingScreenModel(
                 updateState { it.copy(step = maxOf(0, it.step - 1), error = null) }
             }
             OnboardingEvent.RetryDeviceCode -> retryDeviceCode()
+            OnboardingEvent.OpenHomeServer -> screenModelScope { _ -> updateState { it.copy(homeServer = true) } }
+            OnboardingEvent.CloseHomeServer -> screenModelScope { _ ->
+                sources.select(ContentSource.KINOPUB)
+                updateState { it.copy(homeServer = false) }
+            }
         }
     }
 

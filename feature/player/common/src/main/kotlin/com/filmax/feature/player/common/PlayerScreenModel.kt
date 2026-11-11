@@ -48,6 +48,7 @@ class PlayerScreenModel(
     private val catalog = repositories.catalog
     private val watching = repositories.watching
     private val userRepository = repositories.user
+    private val streams = repositories.streams
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()
 
@@ -249,7 +250,8 @@ class PlayerScreenModel(
                     // обязателен в матчинге — без него S3E2 находил бы S1E2.
                     // Фильм/нет совпадения — первый трек.
                     val trackIndex = item.tracklist.indexOfFirst { it.matchesRoute(route) }.coerceAtLeast(0)
-                    val track = item.tracklist.getOrNull(trackIndex)
+                    val listed = item.tracklist.getOrNull(trackIndex)
+                    val track = listed?.let { playable(item.id, it) ?: return@screenModelScope }
                     selectedTrack = track
                     trackSubtitles = track?.subtitles.orEmpty()
 
@@ -302,6 +304,20 @@ class PlayerScreenModel(
             }
         }
     }
+
+    /**
+     * Трек с потоками под этот запуск (см. [com.filmax.core.domain.playback.StreamRepository]).
+     * null — источник видео не отдал: ошибка уже на экране.
+     */
+    private suspend fun playable(itemId: Int, track: MediaTrack): MediaTrack? =
+        when (val result = streams.playable(itemId, track)) {
+            is RequestResult.Success -> result.data
+            is RequestResult.Error -> {
+                updateState { it.copy(loading = false, error = result.message) }
+                showError(result)
+                null
+            }
+        }
 
     /**
      * С какой секунды начать. Позицию, переданную с телефона, берём как есть: он только что
@@ -494,7 +510,8 @@ class PlayerScreenModel(
     /** Собирает MediaItem с вложенными конфигурациями субтитров текущего трека. */
     private fun buildMediaItem(url: String): MediaItem {
         val subtitleConfigs = trackSubtitles.map { subtitle ->
-            val mime = if (subtitle.url.endsWith(".vtt", ignoreCase = true)) {
+            // Расширение — до параметров: у домашнего сервера ссылка кончается не на «.vtt», а на ключ.
+            val mime = if (subtitle.url.substringBefore('?').endsWith(".vtt", ignoreCase = true)) {
                 MimeTypes.TEXT_VTT
             } else {
                 MimeTypes.APPLICATION_SUBRIP

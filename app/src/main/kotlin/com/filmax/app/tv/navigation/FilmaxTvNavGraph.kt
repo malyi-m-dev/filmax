@@ -27,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.filmax.app.navigation.AuthRoutes
 import com.filmax.app.navigation.AuthStateNavigation
 import com.filmax.app.navigation.NavigationCommands
 import com.filmax.app.navigation.RootScreenModel
@@ -40,14 +41,17 @@ import com.filmax.feature.details.tv.navigation.tvDetailsScreen
 import com.filmax.feature.feedback.tv.navigation.tvFeedbackScreen
 import com.filmax.feature.home.tv.navigation.TvHomeRoute
 import com.filmax.feature.home.tv.navigation.tvHomeScreen
+import com.filmax.feature.library.tv.navigation.TvLibraryRoute
 import com.filmax.feature.library.tv.navigation.tvFolderScreen
 import com.filmax.feature.library.tv.navigation.tvLibraryScreen
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.player.tv.navigation.tvTrailerScreen
+import com.filmax.feature.profile.tv.navigation.TvProfileRoute
 import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
+import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import com.filmax.feature.search.tv.navigation.tvFilmographyScreen
 import com.filmax.feature.search.tv.navigation.tvSearchScreen
 import com.filmax.feature.tvlink.tv.TvLinkHost
@@ -64,6 +68,13 @@ private val TvLinkPlaqueTop = 28.dp
 @Serializable
 internal object TvSplashRoute
 
+/** Куда ведёт смена входа или источника и чьи сохранённые стеки при ней стираются. */
+private val TvAuthRoutes = AuthRoutes(
+    home = TvHomeRoute,
+    onboarding = TvOnboardingRoute,
+    tabRoots = listOf(TvHomeRoute, TvSearchRoute, TvLibraryRoute, TvProfileRoute),
+)
+
 @Composable
 fun FilmaxTvNavGraph(
     onCheckUpdates: () -> Unit,
@@ -79,9 +90,9 @@ fun FilmaxTvNavGraph(
 
     AuthStateNavigation(
         isAuthenticated = isAuthenticated,
+        source = rootState.source,
         navController = navController,
-        homeRoute = TvHomeRoute,
-        onboardingRoute = TvOnboardingRoute,
+        routes = TvAuthRoutes,
     )
 
     val backStack by navController.currentBackStackEntryAsState()

@@ -27,6 +27,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
@@ -39,6 +41,7 @@ private val FieldShape = RoundedCornerShape(16.dp)
  * Однострочное поле ввода: адрес телевизора, название папки. [label] — подпись над полем акцентом,
  * [maxLength] — счётчик «16/40» справа (обрезает сам ввод). [isError] обводит поле цветом ошибки —
  * объяснение пишет экран рядом, цвет его лишь дублирует. «Готово» на клавиатуре — [onDone].
+ * [secret] — пароль: символы точками, клавиатура без подсказок и автоисправления.
  */
 // Компонент дизайн-системы: параметры — его публичный API (Compose-конвенция: modifier прямым
 // параметром, хвост — опции с дефолтами). Обёртка в data-класс сломала бы «минимальный API».
@@ -55,6 +58,7 @@ fun FilmaxTextField(
     isError: Boolean = false,
     keyboardType: KeyboardType = KeyboardType.Text,
     focusRequester: FocusRequester = remember { FocusRequester() },
+    secret: Boolean = false,
 ) {
     val palette = FilmaxTheme.palette
     val interaction = remember { MutableInteractionSource() }
@@ -87,7 +91,12 @@ fun FilmaxTextField(
                     singleLine = true,
                     textStyle = FilmaxType.field.copy(color = FilmaxColors.Text),
                     cursorBrush = SolidColor(palette.accent),
-                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = ImeAction.Done),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = if (secret) KeyboardType.Password else keyboardType,
+                        autoCorrectEnabled = !secret,
+                        imeAction = ImeAction.Done,
+                    ),
+                    visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
                     keyboardActions = KeyboardActions(onDone = { onDone() }),
                     interactionSource = interaction,
                     modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),

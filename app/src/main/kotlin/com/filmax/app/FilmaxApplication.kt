@@ -12,7 +12,9 @@ import com.filmax.data.auth.di.authModule
 import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.feedback.di.FIREBASE_PROJECT_PROPERTY
 import com.filmax.data.feedback.di.feedbackModule
+import com.filmax.data.jellyfin.di.jellyfinModule
 import com.filmax.data.search.di.searchModule
+import com.filmax.data.source.di.sourceModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
 import com.filmax.data.tmdb.di.tmdbModule
 import com.filmax.data.tvlink.di.tvLinkModule
@@ -66,6 +68,9 @@ open class FilmaxApplication : Application() {
     /**
      * Реализации репозиториев. Хук открыт, чтобы сборка `mock` положила фейки ПОВЕРХ настоящих:
      * Koin перекрывает определение тем модулем, что загружен позже. Main-код о фейках не знает.
+     *
+     * [sourceModule] — после модулей обоих источников: он занимает их ключи без квалификатора
+     * переключателями между kino.pub и домашним сервером.
      */
     protected open fun dataModules(): List<Module> = listOf(
         authModule,
@@ -78,6 +83,8 @@ open class FilmaxApplication : Application() {
         // Связь с ТВ — не kino.pub: мок-сборка оставляет её настоящей, и две мок-сборки в одной
         // Wi-Fi находят друг друга.
         tvLinkModule,
+        jellyfinModule,
+        sourceModule,
     )
 
     /** Фичи и app-модуль — после data, как и раньше. */

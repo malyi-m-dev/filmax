@@ -122,7 +122,11 @@ private fun optionSheet(state: ProfileState): TvOptionSheetState {
     val labels = optionsOf(setting)
     val swatches = if (setting == ProfileSetting.PALETTE) ThemePalette.entries.map { it.toFxColors().accent } else null
     return TvOptionSheetState(
-        overline = if (setting == ProfileSetting.PALETTE) "Оформление" else "Просмотр",
+        overline = when (setting) {
+            ProfileSetting.PALETTE -> "Оформление"
+            ProfileSetting.SOURCE -> "Аккаунт"
+            else -> "Просмотр"
+        },
         title = setting.label,
         options = labels.mapIndexed { index, label -> TvOption(label, swatches?.getOrNull(index)) },
         selectedIndex = labels.indexOf(state.valueOf(setting)),

@@ -10,6 +10,7 @@ import com.filmax.data.fake.FakeCatalogRepository
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
+import com.filmax.data.fake.FakeStreamRepository
 import com.filmax.data.fake.FakeTvLinkReceiver
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
@@ -319,6 +320,7 @@ class PlayerScreenModelTest {
                 catalog = FakeCatalogRepository(backend),
                 watching = FakeWatchingRepository(backend),
                 user = FakeUserRepository(backend),
+                streams = FakeStreamRepository(),
             ),
             playbackSettings = settings,
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),

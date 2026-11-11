@@ -228,6 +228,9 @@ dependencies {
     implementation(project(":data:tmdb"))
     implementation(project(":data:feedback"))
     implementation(project(":data:tvlink"))
+    // Домашний сервер и переключатель источника: экраны получают репозитории выбранного.
+    implementation(project(":data:jellyfin"))
+    implementation(project(":data:source"))
     // Фейки только в сборке mock: main-код о них не знает, подключает MockFilmaxApplication.
     "mockImplementation"(project(":data:fake"))
     "benchmarkImplementation"(project(":data:fake"))

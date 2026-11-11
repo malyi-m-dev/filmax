@@ -21,7 +21,9 @@ import com.filmax.data.fake.FakeTvLinkReceiver
 import com.filmax.data.fake.FakeTvRemote
 import com.filmax.data.fake.di.fakeDataModule
 import com.filmax.data.feedback.di.feedbackModule
+import com.filmax.data.jellyfin.di.jellyfinModule
 import com.filmax.data.search.di.searchModule
+import com.filmax.data.source.di.sourceModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
 import com.filmax.data.tmdb.di.tmdbModule
 import com.filmax.data.user.di.userModule
@@ -60,6 +62,8 @@ class TvShellTestRule : ExternalResource() {
             modules(
                 listOf(navigationModule, networkModule, platformNetworkModule) +
                     listOf(authModule, catalogModule, searchModule, userModule, watchingModule, tmdbModule) +
+                    // Переключатель источника — как в приложении: оболочка читает выбранный источник.
+                    listOf(jellyfinModule, sourceModule) +
                     listOf(feedbackModule) +
                     listOf(fakeDataModule, module { single { FakeBackend(latency = FakeLatency.None) } }) +
                     // Память показов окна оценки — своя у каждого теста: окно не выскочит посреди сценария.

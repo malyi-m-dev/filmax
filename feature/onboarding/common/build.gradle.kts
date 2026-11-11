@@ -11,4 +11,7 @@ dependencies {
 
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.android)
+
+    // Вход на домашний сервер в тестах — на фейках, как у остальных ScreenModel'ей.
+    testImplementation(project(":data:fake"))
 }

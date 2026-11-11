@@ -1,10 +1,16 @@
 package com.filmax.app.navigation
 
+import com.filmax.core.domain.source.ContentSource
+
 data class RootState(
 
     /** null — статус ещё не определён (сплэш); true/false — авторизован или нет. */
 
     val isAuthenticated: Boolean? = null,
+
+    /** Источник, в котором выполнен (или не выполнен) вход: его смена возвращает граф к корню. */
+
+    val source: ContentSource = ContentSource.KINOPUB,
 
     /** Аккаунт для бокового меню ТВ: аватар и карточка профиля. Пустой — гость или не загружен. */
 

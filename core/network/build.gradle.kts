@@ -13,6 +13,8 @@ kotlin {
     val koinBom = project.dependencies.platform(libs.koin.bom)
     sourceSets {
         commonMain.dependencies {
+            // Только ради квалификатора источника в kinopubSingle: ContentSource живёт в домене.
+            implementation(project(":core:domain"))
             api(libs.bundles.ktor.common)
             api(libs.kotlinx.serialization.json)
             api(libs.kotlinx.coroutines.core)

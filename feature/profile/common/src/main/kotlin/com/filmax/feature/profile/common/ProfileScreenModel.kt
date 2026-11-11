@@ -3,15 +3,14 @@ package com.filmax.feature.profile.common
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.favorites.FavoritesRepository
-import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.settings.ThemePalette
-import com.filmax.core.domain.settings.ThemeSettingsRepository
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 
 /**
- * Профиль: аккаунт, настройки воспроизведения, палитра ТВ и выход. Общий для телефона и ТВ;
+ * Профиль: аккаунт, настройки воспроизведения, палитра ТВ, источник контента и выход. Общий для телефона и ТВ;
  * панель вариантов и диалог выхода — ТВ-сценарий (на телефоне свои листы), но их состояние
  * тоже здесь: экран только рисует и отдаёт события.
  */
@@ -22,15 +21,25 @@ class ProfileScreenModel(
     private val watching: WatchingRepository,
     private val auth: AuthRepository,
     private val favorites: FavoritesRepository,
-    private val playbackSettings: PlaybackSettingsRepository,
-    private val themeSettings: ThemeSettingsRepository,
+    settings: ProfileSettings,
 ) : BaseScreenModel<ProfileState, ProfileSideEffect, ProfileEvent>(ProfileState()) {
+
+    private val playbackSettings = settings.playback
+    private val themeSettings = settings.theme
+    private val sources = settings.sources
 
     init {
         onFetchData()
         observeFavorites()
         observePlaybackSettings()
         observeTheme()
+        observeSource()
+    }
+
+    private fun observeSource() {
+        screenModelScope {
+            sources.source.collect { source -> updateState { it.copy(source = source) } }
+        }
     }
 
     private fun observeFavorites() {
@@ -113,6 +122,8 @@ class ProfileScreenModel(
                 ProfileSetting.AUDIO -> playbackSettings.setAudioLanguage(option)
                 ProfileSetting.SUBTITLES -> playbackSettings.setSubtitleLanguage(option)
                 ProfileSetting.PALETTE -> themeSettings.setPalette(ThemePalette.entries[index])
+                // Граф сам вернётся к корню нового источника (или ко входу, если на него не входили).
+                ProfileSetting.SOURCE -> sources.select(ContentSource.entries[index])
             }
         }
     }

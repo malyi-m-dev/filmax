@@ -16,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Cast
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Palette
@@ -40,6 +41,7 @@ import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.feedback.FeedbackTrigger
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -59,6 +61,7 @@ import com.filmax.feature.profile.common.ProfileState
 import com.filmax.feature.profile.common.activeUntil
 import com.filmax.feature.profile.common.daysLabel
 import com.filmax.feature.profile.common.initialsOrFallback
+import com.filmax.feature.profile.common.label
 import com.filmax.feature.profile.common.valueOf
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -143,7 +146,7 @@ private fun ProfileColumn(state: ProfileState, actions: ProfileActions, modifier
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         ProfileHeader(state.profile)
-        SubscriptionCard(state.profile)
+        AccessCard(state)
         PlaybackGroup(state = state, onEvent = actions.onEvent)
         // Телефон как пульт телевизора с Filmax в той же Wi-Fi: выбор ТВ — на самом экране пульта.
         FilmaxSettingsGroup(title = "Телевизор") {
@@ -153,6 +156,9 @@ private fun ProfileColumn(state: ProfileState, actions: ProfileActions, modifier
         // и строка вела на нерабочий экран. Вернуть, когда бэкенд починят.
         AppGroup(actions = actions)
         FilmaxSettingsGroup(title = "Аккаунт") {
+            // Выход — из текущего источника: второй остаётся с входом.
+            SettingRow(state, ProfileSetting.SOURCE, Icons.Filled.Dns, actions.onEvent)
+            FilmaxSettingsDivider()
             FilmaxSettingsRow(
                 Icons.AutoMirrored.Filled.Logout,
                 "Выйти",
@@ -184,6 +190,20 @@ private fun ProfileHeader(profile: UserProfile?) {
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
+    }
+}
+
+/** Доступ к видео: подписка kino.pub или домашний сервер, которому подписка не нужна. */
+@Composable
+private fun AccessCard(state: ProfileState) {
+    if (state.source == ContentSource.JELLYFIN) {
+        FilmaxSubscriptionCard(
+            title = ContentSource.JELLYFIN.label,
+            subtitle = "Своя медиатека, без подписки",
+            active = true,
+        )
+    } else {
+        SubscriptionCard(state.profile)
     }
 }
 

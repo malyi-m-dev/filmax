@@ -83,6 +83,13 @@ private val tabRoots = mapOf(
     FilmaxTab.PROFILE to ProfileRoute::class,
 )
 
+/** Куда ведёт смена входа или источника и чьи сохранённые стеки при ней стираются. */
+private val PhoneAuthRoutes = AuthRoutes(
+    home = HomeRoute,
+    onboarding = OnboardingRoute,
+    tabRoots = listOf(HomeRoute, CatalogRoute, SearchRoute, MineRoute, ProfileRoute),
+)
+
 /**
  * Телефонный граф.
  *
@@ -105,9 +112,9 @@ fun FilmaxNavGraph(
 
     AuthStateNavigation(
         isAuthenticated = rootState.isAuthenticated,
+        source = rootState.source,
         navController = navController,
-        homeRoute = HomeRoute,
-        onboardingRoute = OnboardingRoute,
+        routes = PhoneAuthRoutes,
     )
 
     // Телефон как пульт: пока Filmax на экране и вход выполнен, связь с запомненным ТВ возвращается сама.

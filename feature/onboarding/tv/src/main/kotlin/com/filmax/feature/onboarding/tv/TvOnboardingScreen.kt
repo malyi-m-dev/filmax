@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.TvButton
+import com.filmax.core.tv.designsystem.TvButtonStyle
 import com.filmax.core.tv.designsystem.TvError
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
@@ -48,6 +50,7 @@ import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvSurface
 import com.filmax.core.tv.designsystem.TvSurfaceContainer
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHigh
+import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.feature.onboarding.common.OnboardingEvent
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
@@ -93,6 +96,10 @@ fun TvOnboardingScreen(
             .fillMaxSize()
             .background(TvSurface),
     ) {
+        if (state.homeServer) {
+            TvHomeServerStep(onBack = { screenModel.dispatch(OnboardingEvent.CloseHomeServer) })
+            return@Box
+        }
         AnimatedContent(
             targetState = state.step == 2,
             transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(200)) },
@@ -105,7 +112,10 @@ fun TvOnboardingScreen(
                     onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
                 )
             } else {
-                TvWelcomeStep(onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) })
+                TvWelcomeStep(
+                    onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) },
+                    onHomeServer = { screenModel.dispatch(OnboardingEvent.OpenHomeServer) },
+                )
             }
         }
     }
@@ -113,8 +123,9 @@ fun TvOnboardingScreen(
 
 // ── Step 0: приветствие ───────────────────────────────────────────────────────
 
+/** «Войти» — kino.pub по коду; «Домашний сервер» — своя медиатека Jellyfin в этой сети. */
 @Composable
-private fun TvWelcomeStep(onLogin: () -> Unit) {
+private fun TvWelcomeStep(onLogin: () -> Unit, onHomeServer: () -> Unit) {
     val loginFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { loginFocus.requestFocus() }
 
@@ -136,12 +147,20 @@ private fun TvWelcomeStep(onLogin: () -> Unit) {
             modifier = Modifier.widthIn(max = TextMaxWidth),
         )
         Spacer(Modifier.height(34.dp))
-        TvButton(
-            text = "Войти",
-            onClick = onLogin,
-            leadingIcon = Icons.AutoMirrored.Filled.Login,
-            focusRequester = loginFocus,
-        )
+        Row(Modifier.tvFocusGroup(fallback = loginFocus), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            TvButton(
+                text = "Войти",
+                onClick = onLogin,
+                leadingIcon = Icons.AutoMirrored.Filled.Login,
+                focusRequester = loginFocus,
+            )
+            TvButton(
+                text = "Домашний сервер",
+                onClick = onHomeServer,
+                style = TvButtonStyle.Secondary,
+                leadingIcon = Icons.Filled.Dns,
+            )
+        }
     }
 }
 
@@ -171,6 +190,14 @@ private fun TvAuthStep(state: OnboardingState, onRetry: () -> Unit) {
 private fun AuthCode(userCode: String, verificationUri: String) {
     ActivationHint(verificationUri = verificationUri)
     Spacer(Modifier.height(34.dp))
+    ActivationCode(userCode)
+    Spacer(Modifier.height(20.dp))
+    PollingStatus()
+}
+
+/** Код активации крупно — его же показывает вход на домашний сервер по Quick Connect. */
+@Composable
+internal fun ActivationCode(userCode: String) {
     Box(
         modifier = Modifier
             .background(TvSurfaceContainer, TvMetrics.PanelShape)
@@ -188,8 +215,6 @@ private fun AuthCode(userCode: String, verificationUri: String) {
             color = TvOnSurface,
         )
     }
-    Spacer(Modifier.height(20.dp))
-    PollingStatus()
 }
 
 /** Подсказка со ссылкой. Адрес поднят до [TvOnSurface] — в монохроме вес и яркость вместо цвета. */
@@ -212,7 +237,7 @@ private fun ActivationHint(verificationUri: String) {
 }
 
 @Composable
-private fun PollingStatus() {
+internal fun PollingStatus() {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -279,7 +304,7 @@ private fun CenteredStep(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun Wordmark() {
+internal fun Wordmark() {
     Text(
         "FILMAX",
         style = MaterialTheme.typography.titleLarge,

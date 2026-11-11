@@ -5,6 +5,7 @@ package com.filmax.feature.profile.common
 
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.user.model.initials
@@ -28,6 +29,17 @@ fun Subscription?.label(): String = when {
     else -> "Бесплатный аккаунт"
 }
 
+/** Название источника в Профиле и в меню. */
+val ContentSource.label: String
+    get() = when (this) {
+        ContentSource.KINOPUB -> "kino.pub"
+        ContentSource.JELLYFIN -> "Домашний сервер"
+    }
+
+/** Подпись под именем аккаунта: у домашнего сервера подписки нет, есть сам сервер. */
+fun accountCaption(source: ContentSource, subscription: Subscription?): String =
+    if (source == ContentSource.JELLYFIN) ContentSource.JELLYFIN.label else subscription.label()
+
 /** Название палитры в Профиле. */
 val ThemePalette.label: String
     get() = when (this) {
@@ -42,6 +54,7 @@ fun optionsOf(setting: ProfileSetting): List<String> = when (setting) {
     ProfileSetting.AUDIO -> PlaybackSettings.audioOptions
     ProfileSetting.SUBTITLES -> PlaybackSettings.subtitleOptions
     ProfileSetting.PALETTE -> ThemePalette.entries.map { it.label }
+    ProfileSetting.SOURCE -> ContentSource.entries.map { it.label }
 }
 
 /** Текущее значение настройки — подпись справа в строке. */
@@ -50,6 +63,7 @@ fun ProfileState.valueOf(setting: ProfileSetting): String = when (setting) {
     ProfileSetting.AUDIO -> playback.audioLanguage
     ProfileSetting.SUBTITLES -> playback.subtitleLanguage
     ProfileSetting.PALETTE -> palette.label
+    ProfileSetting.SOURCE -> source.label
 }
 
 /** Субтитры включены — выбран любой язык, кроме «Выкл». */

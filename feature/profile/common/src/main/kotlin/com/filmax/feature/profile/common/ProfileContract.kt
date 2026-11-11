@@ -2,6 +2,7 @@ package com.filmax.feature.profile.common
 
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.settings.ThemePalette
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.model.UserProfile
 
 data class ProfileState(
@@ -16,6 +17,8 @@ data class ProfileState(
     val playback: PlaybackSettings = PlaybackSettings(),
     /** Палитра ТВ-интерфейса. */
     val palette: ThemePalette = ThemePalette.VIOLET,
+    /** Откуда каталог и видео: kino.pub или домашний сервер. */
+    val source: ContentSource = ContentSource.KINOPUB,
     /** Фокус на ТВ без белой обводки и свечения (см. ThemeSettingsRepository.plainFocus). */
     val plainFocus: Boolean = false,
     /**
@@ -37,6 +40,7 @@ enum class ProfileSetting(val label: String) {
     AUDIO("Язык аудио"),
     SUBTITLES("Субтитры"),
     PALETTE("Палитра"),
+    SOURCE("Источник"),
 }
 
 sealed interface ProfileEvent {

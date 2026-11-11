@@ -20,4 +20,7 @@ dependencies {
     implementation(libs.navigation.compose)
     implementation(platform(libs.koin.bom))
     implementation(libs.koin.androidx.compose)
+
+    // Вход на домашний сервер в UI-тестах — на фейках, как у остальных ТВ-экранов.
+    testImplementation(project(":data:fake"))
 }
