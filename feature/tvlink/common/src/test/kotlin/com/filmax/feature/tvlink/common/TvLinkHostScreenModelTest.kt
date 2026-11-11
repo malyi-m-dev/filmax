@@ -97,7 +97,7 @@ class TvLinkHostScreenModelTest {
 
     private companion object {
         const val ANNOUNCE_MS = 4_000L
-        val PLAY = RemoteCommand.Play(itemId = FakeIds.HERO_MOVIE, videoId = -1, season = -1, startSeconds = 1_250)
+        val PLAY = RemoteCommand.Play(itemId = FakeIds.HERO_MOVIE, video = null, startSeconds = 1_250)
         val PLAYING = PlaybackStatus(
             itemId = FakeIds.MOVIE_IN_PROGRESS,
             title = "Код доступа: Гелиос",

@@ -41,6 +41,7 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.GlassState
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxChip
@@ -68,7 +69,7 @@ internal sealed interface MineConfirm {
 internal data class MineActions(
     val onEvent: (MineEvent) -> Unit,
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, video: VideoRef?) -> Unit,
     val onOpenFolder: (Int) -> Unit,
     val onConfirm: (MineConfirm) -> Unit,
 )
@@ -90,9 +91,7 @@ fun MineScreen(
         MineActions(
             onEvent = screenModel::dispatch,
             onOpenItem = { navigator.open(Destination.Details(it)) },
-            onPlay = { itemId, season, videoId ->
-                navigator.open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-            },
+            onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
             onOpenFolder = { navigator.open(Destination.BookmarkFolder(it)) },
             onConfirm = { confirm = it },
         )

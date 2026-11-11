@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -290,7 +291,7 @@ private fun EpisodeList(episodes: List<MediaTrack>, resumeId: Int?, list: Episod
                 TvEpisodeRow(
                     model = episodeRow(episode, resumeId),
                     // Плееру нужны номер серии (API `video`) и сезон, а не id трека.
-                    onClick = { list.actions.onPlay(episode.seasonNumber, episode.number) },
+                    onClick = { list.actions.onPlay(episode.ref) },
                     modifier = list.focus.item(episodeKey(episode)).then(list.exit),
                 )
             }

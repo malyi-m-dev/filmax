@@ -6,6 +6,8 @@ plugins {
 }
 
 dependencies {
+    // Адреса экранов несут доменные типы: что играть (VideoRef) и что передать на ТВ.
+    api(project(":core:domain"))
     implementation(libs.kotlinx.coroutines.core)
 
     implementation(platform(libs.koin.bom))

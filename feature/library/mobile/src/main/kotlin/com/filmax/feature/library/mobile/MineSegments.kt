@@ -52,9 +52,6 @@ import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
 
-/** Без сезона и серии: плеер возьмёт фильм или продолжит с сохранённого. */
-private const val NO_EPISODE = -1
-
 @Composable
 internal fun MineSegmentPage(
     segment: MineSegment,
@@ -230,9 +227,9 @@ private fun Loading() {
     }
 }
 
-/** «Продолжить» и история ведут сразу в плеер: недосмотренная серия — сезон и номер из истории. */
+/** «Продолжить» и история ведут сразу в плеер: недосмотренная серия — адрес из истории. */
 private fun MineActions.play(entry: WatchHistory) {
-    onPlay(entry.itemId, entry.progress?.season ?: NO_EPISODE, entry.progress?.videoId ?: NO_EPISODE)
+    onPlay(entry.itemId, entry.progress?.video)
 }
 
 /** «Очистить историю» над днями — справа, на полях сетки. */

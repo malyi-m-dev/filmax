@@ -2,6 +2,7 @@ package com.filmax.feature.tvlink.common
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.toRoute
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.RemoteSession
 import com.filmax.core.domain.tvlink.TvDevice
@@ -102,7 +103,7 @@ class TvPickerScreenModel(
         const val SLOW_SEARCH_MS = 4_000L
 
         fun TvPickerRoute.toPlay(): RemoteCommand.Play? = takeIf { itemId > 0 }?.let {
-            RemoteCommand.Play(itemId = itemId, videoId = videoId, season = season, startSeconds = startSeconds)
+            RemoteCommand.Play(itemId = itemId, video = VideoRef.of(season, videoId), startSeconds = startSeconds)
         }
 
         /**

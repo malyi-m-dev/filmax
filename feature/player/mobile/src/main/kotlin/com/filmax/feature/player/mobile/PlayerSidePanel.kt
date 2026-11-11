@@ -42,6 +42,8 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.GlassLevel
 import com.filmax.core.designsystem.GlassPanel
 import com.filmax.core.designsystem.ShapeSidePanel
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.ui.components.EpisodeMark
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxChipSize
@@ -66,7 +68,7 @@ private const val WATCH_STATUS_FINISHED = 1
 /** Панель и её события: [onPlayEpisode] — другая серия, это навигация, а не подмена потока. */
 internal data class PanelActions(
     val onEvent: (PlayerEvent) -> Unit,
-    val onPlayEpisode: (season: Int, videoId: Int) -> Unit,
+    val onPlayEpisode: (VideoRef) -> Unit,
 )
 
 @Composable
@@ -201,7 +203,7 @@ private fun EpisodesTab(state: PlayerState, actions: PanelActions) {
                     if (playing) {
                         actions.onEvent(PlayerEvent.ClosePanel)
                     } else {
-                        actions.onPlayEpisode(episode.seasonNumber, episode.number)
+                        actions.onPlayEpisode(episode.ref)
                     }
                 },
                 placeholder = episode.number.toString(),

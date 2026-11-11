@@ -7,6 +7,7 @@ import com.filmax.core.domain.catalog.ReferenceGenre
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.RatingSource
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.error.AppError
@@ -172,8 +173,8 @@ class JellyfinRepositoriesTest {
         val seriesId = server.ids.intFor(SERIES_ID)
         catalog.getItemDetails(seriesId)
 
-        watching.saveProgressSerial(seriesId, season = 2, videoId = 1, timeSeconds = 30)
-        watching.saveProgressSerial(seriesId, season = 2, videoId = 1, timeSeconds = 35)
+        watching.saveProgress(seriesId, VideoRef.Episode(season = 2, number = 1), timeSeconds = 30)
+        watching.saveProgress(seriesId, VideoRef.Episode(season = 2, number = 1), timeSeconds = 35)
 
         assertTrue(server.requestsTo("/Sessions/Playing").single().body.contains(EPISODE_S2E1))
         val progress = server.requestsTo("/Sessions/Playing/Progress").single().body

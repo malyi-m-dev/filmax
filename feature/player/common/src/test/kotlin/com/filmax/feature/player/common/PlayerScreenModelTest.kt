@@ -1,6 +1,7 @@
 package com.filmax.feature.player.common
 
 import androidx.lifecycle.SavedStateHandle
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
@@ -270,8 +271,8 @@ class PlayerScreenModelTest {
         }
 
         val expected = listOf(
-            PlayerSideEffect.PlayEpisode(season = 4, videoId = 8),
-            PlayerSideEffect.PlayEpisode(season = 4, videoId = 6),
+            PlayerSideEffect.PlayEpisode(VideoRef.Episode(season = 4, number = 8)),
+            PlayerSideEffect.PlayEpisode(VideoRef.Episode(season = 4, number = 6)),
             PlayerSideEffect.Exit,
         )
         assertEquals(expected, effects)
@@ -301,8 +302,7 @@ class PlayerScreenModelTest {
 
         val play = RemoteCommand.Play(
             itemId = FakeIds.LONG_SERIES,
-            videoId = 7,
-            season = 4,
+            video = VideoRef.Episode(season = 4, number = 7),
             startSeconds = PHONE_POSITION_S,
         )
         assertEquals(listOf<PlayerSideEffect>(PlayerSideEffect.ChooseTv(play)), effects)

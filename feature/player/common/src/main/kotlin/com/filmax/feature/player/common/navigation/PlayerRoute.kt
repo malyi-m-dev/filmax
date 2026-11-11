@@ -1,5 +1,6 @@
 package com.filmax.feature.player.common.navigation
 
+import com.filmax.core.domain.catalog.model.VideoRef
 import kotlinx.serialization.Serializable
 
 /**
@@ -15,4 +16,7 @@ import kotlinx.serialization.Serializable
  * позицию точнее, чем kino.pub (прогресс туда уходит шагами). `-1` — с сохранённого прогресса.
  */
 @Serializable
-data class PlayerRoute(val itemId: Int, val videoId: Int = -1, val season: Int = -1, val startSeconds: Int = -1)
+data class PlayerRoute(val itemId: Int, val videoId: Int = -1, val season: Int = -1, val startSeconds: Int = -1) {
+    /** Пара чисел маршрута — обратно адресом; null — фильм или серия не выбрана. */
+    val video: VideoRef? get() = VideoRef.of(season, videoId)
+}

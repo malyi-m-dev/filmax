@@ -3,6 +3,7 @@ package com.filmax.data.jellyfin
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
 import com.filmax.core.domain.catalog.model.VideoFile
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.common.safeRequest
@@ -31,7 +32,7 @@ internal class JellyfinStreamRepository(
 ) : StreamRepository {
 
     override suspend fun playable(itemId: Int, track: MediaTrack): RequestResult<MediaTrack> = context.request { _ ->
-        val video = videos.resolve(itemId, track.seasonNumber, track.number)
+        val video = videos.resolve(itemId, track.ref)
         val source = playbackInfo(video.guid, DeviceProfiles.MAX_BITRATE, original = true)
             ?: throw NoSuchElementException("Сервер не отдал видео (404)")
         val files = files(video.guid, source)

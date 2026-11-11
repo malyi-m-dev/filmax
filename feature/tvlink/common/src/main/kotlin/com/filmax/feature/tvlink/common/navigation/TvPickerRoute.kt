@@ -3,9 +3,9 @@ package com.filmax.feature.tvlink.common.navigation
 import kotlinx.serialization.Serializable
 
 /**
- * Выбор телевизора. Аргументы — что запустить на нём, как у `PlayerRoute`: [videoId] уникален только
- * в сезоне [season], [startSeconds] — позиция телефона (-1 — с прогресса kino.pub). [itemId] = -1 —
- * запускать нечего: телевизор выбирают, чтобы открыть пульт.
+ * Выбор телевизора. Аргументы — что запустить на нём, парой чисел, как у `PlayerRoute`: [videoId]
+ * уникален только в сезоне [season], [startSeconds] — позиция телефона (-1 — с прогресса kino.pub).
+ * [itemId] = -1 — запускать нечего: телевизор выбирают, чтобы открыть пульт.
  */
 @Serializable
 data class TvPickerRoute(

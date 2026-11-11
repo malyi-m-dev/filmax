@@ -8,8 +8,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import com.filmax.core.domain.catalog.model.numberOrNone
+import com.filmax.core.domain.catalog.model.seasonOrNone
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.TelemetryText
+import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.NavCommand
 import com.filmax.core.navigation.Navigator
@@ -176,8 +179,7 @@ private fun Destination.toPhoneRoute(): Any = when (this) {
     is Destination.Browse -> BrowseRoute(section)
     // Телефон как пульт телевизора: выбор ТВ и сам пульт.
     Destination.Remote -> RemoteRoute
-    is Destination.TvPicker ->
-        TvPickerRoute(itemId = itemId, videoId = videoId, season = season, startSeconds = startSeconds)
+    is Destination.TvPicker -> play?.toPickerRoute() ?: TvPickerRoute()
 }
 
 /** Разделы нижней навигации — отдельно: общая таблица иначе за порогом сложности detekt. */
@@ -189,6 +191,21 @@ private fun Destination.Tab.toPhoneTabRoute(): Any = when (this) {
     Destination.Profile -> ProfileRoute
 }
 
-/** Плеер — общий маршрут обоих графов: серия, сезон и позиция старта, переданная с телефона. */
-internal fun Destination.Player.toPlayerRoute() =
-    PlayerRoute(itemId = itemId, videoId = videoId, season = season, startSeconds = startSeconds)
+/** Что запустить на выбранном телевизоре — парой чисел, как у плеера. */
+private fun RemoteCommand.Play.toPickerRoute() = TvPickerRoute(
+    itemId = itemId,
+    videoId = video.numberOrNone,
+    season = video.seasonOrNone,
+    startSeconds = startSeconds,
+)
+
+/**
+ * Плеер — общий маршрут обоих графов: серия, сезон и позиция старта, переданная с телефона. Маршрут
+ * — пара чисел: навигация сериализует аргументы, а адрес собирается обратно в PlayerRoute.video.
+ */
+internal fun Destination.Player.toPlayerRoute() = PlayerRoute(
+    itemId = itemId,
+    videoId = video.numberOrNone,
+    season = video.seasonOrNone,
+    startSeconds = startSeconds,
+)

@@ -1,5 +1,6 @@
 package com.filmax.data.tvlink
 
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.tvlink.LinkFailure
 import com.filmax.core.domain.tvlink.PlaybackStatus
@@ -63,7 +64,7 @@ class TvLinkLoopbackTest {
         launch(start = CoroutineStart.UNDISPATCHED) { tv.commands.collect { received.send(it) } }
 
         assertTrue(phone.connect(tv.device()))
-        val play = RemoteCommand.Play(itemId = 2003, videoId = 7, season = 4, startSeconds = 1250)
+        val play = RemoteCommand.Play(itemId = 2003, video = VideoRef.Episode(season = 4, number = 7), startSeconds = 1250)
         phone.send(play)
         phone.send(RemoteCommand.SeekBy(-10_000))
 

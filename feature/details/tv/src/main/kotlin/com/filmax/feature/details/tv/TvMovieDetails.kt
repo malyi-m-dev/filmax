@@ -152,8 +152,8 @@ private fun MovieButtons(
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         TvButton(
             "Смотреть",
-            // Фильм играется целиком, без выбора дорожки: плееру нужны videoId и сезон = -1.
-            onClick = { actions.onPlay(NO_SEASON, MOVIE_VIDEO_ID) },
+            // Фильм играется целиком, без выбора дорожки: плеер возьмёт первый трек.
+            onClick = { actions.onPlay(null) },
             leadingIcon = Icons.Rounded.PlayArrow,
             modifier = focus.item(PLAY_KEY),
         )
@@ -247,9 +247,3 @@ private fun FactCell(fact: DetailsFact, modifier: Modifier) {
         Text(fact.value, style = FactValueStyle, color = colors.text)
     }
 }
-
-/** «Сезона нет» — фильм или сезон неизвестен (PlayerRoute.season = -1). */
-internal const val NO_SEASON = -1
-
-/** Фильм играется целиком, без выбора дорожки: плеер ждёт videoId = -1. */
-private const val MOVIE_VIDEO_ID = -1

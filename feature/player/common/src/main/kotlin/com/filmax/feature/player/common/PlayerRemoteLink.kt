@@ -2,6 +2,7 @@ package com.filmax.feature.player.common
 
 import androidx.media3.common.Player
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvLinkReceiver
@@ -57,7 +58,7 @@ internal class PlayerRemoteLink(
         player.seekTo(positionMs.coerceIn(0, end))
     }
 
-    private fun MediaTrack.playEffect() = PlayerSideEffect.PlayEpisode(season = seasonNumber, videoId = number)
+    private fun MediaTrack.playEffect() = PlayerSideEffect.PlayEpisode(ref)
 }
 
 /** Снимок для пульта; null — тайтл ещё не загрузился. */

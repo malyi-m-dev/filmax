@@ -1,5 +1,8 @@
 package com.filmax.core.navigation
 
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.tvlink.RemoteCommand
+
 /**
  * Куда приложение умеет переходить. Абстрактный адрес, а не маршрут навигации: `@Serializable`
  * route-объекты остаются в модулях фич (их читает ScreenModel через `toRoute<…>()`), а сопоставление
@@ -38,15 +41,13 @@ sealed interface Destination {
     data class Details(val itemId: Int) : Destination
 
     /**
-     * Плеер. [videoId] — НОМЕР видео, а не id трека: тем же числом kino.pub принимает и отдаёт
-     * прогресс. [season] обязателен вместе с ним — номер уникален только внутри сезона.
-     * Дефолтные `-1` означают «фильм или неизвестная серия»: плеер возьмёт первый трек.
-     * [startSeconds] — позиция старта, когда просмотр передали с телефона; `-1` — с сохранённого прогресса.
+     * Плеер. [video] — серия с сезоном или видео фильма; null — «фильм или неизвестная серия»:
+     * плеер возьмёт первый трек. [startSeconds] — позиция старта, когда просмотр передали с
+     * телефона; `-1` — с сохранённого прогресса.
      */
     data class Player(
         val itemId: Int,
-        val videoId: Int = -1,
-        val season: Int = -1,
+        val video: VideoRef? = null,
         val startSeconds: Int = -1,
     ) : Destination
 
@@ -67,15 +68,10 @@ sealed interface Destination {
     data object Remote : Destination
 
     /**
-     * Выбор телевизора в сети — только на телефоне. Аргументы — что запустить на нём, как у [Player];
-     * [itemId] = -1 — ничего: телевизор выбирают ради пульта.
+     * Выбор телевизора в сети — только на телефоне. [play] — что запустить на нём; null — ничего:
+     * телевизор выбирают ради пульта.
      */
-    data class TvPicker(
-        val itemId: Int = -1,
-        val videoId: Int = -1,
-        val season: Int = -1,
-        val startSeconds: Int = -1,
-    ) : Destination
+    data class TvPicker(val play: RemoteCommand.Play? = null) : Destination
 
     /**
      * Окно оценки приложения. [trigger] — имя `FeedbackTrigger` из domain (Profile, AfterUpdate,

@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvBackHint
@@ -152,7 +153,7 @@ private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: S
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(ButtonGap)) {
         TvButton(
             playLabel(resume),
-            onClick = { target?.let { actions.onPlay(it.seasonNumber, it.number) } },
+            onClick = { target?.let { actions.onPlay(it.ref) } },
             leadingIcon = Icons.Rounded.PlayArrow,
             modifier = focus.screen.item(PLAY_KEY).focusRequester(focus.play),
         )

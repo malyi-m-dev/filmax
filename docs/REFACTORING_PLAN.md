@@ -53,10 +53,13 @@ _Документ живой: пункт сделан — вычеркнуть �
    _Закрыто: `WatchlistRepository` (`items`, `contains`, `add`, `remove`, `adopt`); флаг kino.pub
    ставится внутри `KinopubWatchlistRepository`, `toggleWatchlist` из `WatchingRepository` и два
    use case'а удалены._
-5. **Адрес видео.** Серия — это «`videoId` = номер + сезон». Сезон ≤ 0 означает фильм, а
+5. ✅ **Адрес видео.** Серия — это «`videoId` = номер + сезон». Сезон ≤ 0 означает фильм, а
    прогресс пишется двумя методами, `saveProgress` и `saveProgressSerial`. План: `VideoRef`
    (фильм | серия(сезон, номер)) в `PlayerRoute`, прогрессе и `StreamRepository`. Инвариант
    из CLAUDE.md станет типом, а не соглашением. **M**
+   _Закрыто: `VideoRef` в `Destination.Player`, `RemoteCommand.Play`, `saveProgress` (один метод)
+   и `JellyfinVideos`. Парой чисел адрес остался в `PlayerRoute`/`TvPickerRoute` и протоколе ТВ —
+   там аргументы сериализуются. `StreamRepository` берёт трек целиком, ему адрес не нужен._
 
 ## 2. Мёртвый код 🟡
 

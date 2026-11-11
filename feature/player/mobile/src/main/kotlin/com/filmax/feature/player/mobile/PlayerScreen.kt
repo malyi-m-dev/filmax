@@ -37,6 +37,8 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeTile
 import com.filmax.core.designsystem.glassFill
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -67,10 +69,8 @@ fun PlayerScreen(
     screenModel.collectSideEffect { effect -> navigator.onPlayerEffect(itemId, effect) }
     val appError by screenModel.collectErrorAsState()
     // Другая серия — замена текущего экрана: перещёлкивание серий не копит стек.
-    val playEpisode: (Int, Int) -> Unit = { season, videoId ->
-        navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-    }
-    val playNext = state.nextTrack?.let { next -> { playEpisode(next.seasonNumber, next.number) } }
+    val playEpisode: (VideoRef) -> Unit = { video -> navigator.replace(Destination.Player(itemId, video)) }
+    val playNext = state.nextTrack?.let { next -> { playEpisode(next.ref) } }
     val playback = rememberPlayback(
         player = screenModel.player,
         onEnded = { playNext?.invoke() },
@@ -258,12 +258,9 @@ private fun Navigator.onPlayerEffect(itemId: Int, effect: PlayerSideEffect) {
     when (effect) {
         // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
         PlayerSideEffect.AskFeedback -> replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
-        is PlayerSideEffect.PlayEpisode ->
-            replace(Destination.Player(itemId = itemId, videoId = effect.videoId, season = effect.season))
+        is PlayerSideEffect.PlayEpisode -> replace(Destination.Player(itemId = itemId, video = effect.video))
         PlayerSideEffect.Exit -> back()
-        is PlayerSideEffect.ChooseTv -> effect.play.let { play ->
-            open(Destination.TvPicker(play.itemId, play.videoId, play.season, play.startSeconds))
-        }
+        is PlayerSideEffect.ChooseTv -> open(Destination.TvPicker(effect.play))
     }
 }
 

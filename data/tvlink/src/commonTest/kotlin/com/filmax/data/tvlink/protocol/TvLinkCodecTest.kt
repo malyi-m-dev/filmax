@@ -1,5 +1,6 @@
 package com.filmax.data.tvlink.protocol
 
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteCommand
 import kotlin.test.Test
@@ -14,7 +15,7 @@ class TvLinkCodecTest {
     @Test
     fun `every remote command survives the wire`() {
         val commands = listOf(
-            RemoteCommand.Play(itemId = 2003, videoId = 7, season = 4, startSeconds = 1250),
+            RemoteCommand.Play(itemId = 2003, video = VideoRef.Episode(season = 4, number = 7), startSeconds = 1250),
             RemoteCommand.Pause,
             RemoteCommand.Resume,
             RemoteCommand.SeekBy(-10_000),
@@ -64,7 +65,7 @@ class TvLinkCodecTest {
     fun `newer phone fields are ignored, unknown commands are skipped`() {
         val play = TvLinkCodec.decode("""{"type":"play","itemId":1004,"subtitle":"ru"}""")
 
-        assertEquals(RemoteCommand.Play(itemId = 1004, videoId = -1, season = -1, startSeconds = -1), play?.toCommand())
+        assertEquals(RemoteCommand.Play(itemId = 1004, video = null, startSeconds = -1), play?.toCommand())
         assertNull(TvLinkCodec.decode("""{"type":"select_audio","label":"LostFilm"}"""))
         assertNull(TvLinkCodec.decode("not json"))
     }

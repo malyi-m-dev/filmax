@@ -26,6 +26,7 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.CatalogSection
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -45,7 +46,7 @@ import org.koin.compose.koinInject
  */
 internal data class HomeActions(
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, video: VideoRef?) -> Unit,
     val onOpenCollection: (id: Int, title: String) -> Unit,
     val onOpenSection: (CatalogSection) -> Unit,
     val onOpenTv: () -> Unit,
@@ -155,7 +156,7 @@ private fun HomeFeed(
                 val heroActions = remember(actions) {
                     HeroActions(
                         // Без серии и сезона: плеер возьмёт первый трек или продолжит с сохранённого.
-                        onPlay = { hero -> actions.onPlay(hero.id, NO_SEASON, NO_VIDEO_ID) },
+                        onPlay = { hero -> actions.onPlay(hero.id, null) },
                         onOpenItem = { hero -> actions.onOpenItem(hero.id) },
                         onToggleWatchLater = { hero -> actions.onEvent(HomeEvent.ToggleWatchLater(hero)) },
                     )
@@ -187,13 +188,11 @@ private fun LazyListState.scrolledPast(from: Float, to: Float): Float = when {
 
 /**
  * Куда ведёт главная. Ряд «Продолжить» и кнопка hero открывают плеер напрямую, минуя детали:
- * недосмотренный эпизод — это сезон и номер видео из истории.
+ * недосмотренный эпизод — это адрес видео из истории.
  */
 private fun Navigator.homeActions(onEvent: (HomeEvent) -> Unit) = HomeActions(
     onOpenItem = { itemId -> open(Destination.Details(itemId)) },
-    onPlay = { itemId, season, videoId ->
-        open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-    },
+    onPlay = { itemId, video -> open(Destination.Player(itemId = itemId, video = video)) },
     onOpenCollection = { id, title -> open(Destination.CollectionDetail(id, title)) },
     onOpenSection = { section -> open(Destination.Browse(section.name)) },
     // Без тайтла: телевизор выбирают ради пульта.
@@ -204,9 +203,3 @@ private fun Navigator.homeActions(onEvent: (HomeEvent) -> Unit) = HomeActions(
 /** Стекло шапки проявляется, пока hero уезжает с 55% до 85% своей высоты. */
 private const val GLASS_FROM = 0.55f
 private const val GLASS_TO = 0.85f
-
-/** `PlayerRoute.videoId` для фильма/неизвестного эпизода — плеер возьмёт первый трек. */
-internal const val NO_VIDEO_ID = -1
-
-/** `PlayerRoute.season` для фильма/неизвестного сезона. */
-internal const val NO_SEASON = -1

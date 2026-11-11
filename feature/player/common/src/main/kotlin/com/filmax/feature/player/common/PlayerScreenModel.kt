@@ -15,7 +15,9 @@ import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.catalog.model.audioLanguageName
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.domain.catalog.model.subtitleLanguageName
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
@@ -191,8 +193,7 @@ class PlayerScreenModel(
         val track = selectedTrack
         val play = RemoteCommand.Play(
             itemId = item.id,
-            videoId = track?.number ?: route.videoId,
-            season = track?.seasonNumber ?: route.season,
+            video = track?.ref ?: route.video,
             startSeconds = (player.currentPosition / MILLIS_IN_SECOND).toInt(),
         )
         screenModelScope { postSideEffect(PlayerSideEffect.ChooseTv(play)) }
@@ -562,14 +563,7 @@ class PlayerScreenModel(
         val sent = lastSentSeconds
         if (sent != null && abs(seconds - sent) < PROGRESS_STEP_SECONDS) return
         lastSentSeconds = seconds
-        screenModelScope {
-            // Сериалы прогресс пишут по сезону+эпизоду, фильмы — по одному видео.
-            if (track.seasonNumber > 0) {
-                watching.saveProgressSerial(item.id, track.seasonNumber, track.number, seconds)
-            } else {
-                watching.saveProgress(item.id, track.number, seconds)
-            }
-        }
+        screenModelScope { watching.saveProgress(item.id, track.ref, seconds) }
     }
 
     override fun onCleared() {
@@ -592,9 +586,12 @@ class PlayerScreenModel(
         /** Хост из URL — для хлебных крошек телеметрии (сам URL с подписью в логи не пишем). */
         fun urlHost(url: String): String = url.substringAfter("://").substringBefore("/")
 
-        /** Трек маршрута: номер видео + сезон (у фильма сезона нет — совпадения по номеру достаточно). */
-        fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean =
-            number == route.videoId && (route.season <= 0 || seasonNumber == route.season)
+        /** Трек маршрута: серия — по сезону и номеру, видео фильма — по номеру. */
+        fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean = when (val video = route.video) {
+            is VideoRef.Episode -> seasonNumber == video.season && number == video.number
+            is VideoRef.Movie -> number == video.number
+            null -> false
+        }
 
         /** `watchStatus` из API: 1 — трек досмотрен до конца. */
         const val WATCH_STATUS_FINISHED = 1

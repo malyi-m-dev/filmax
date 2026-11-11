@@ -13,6 +13,8 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -44,7 +46,7 @@ fun TvPlayerScreen(
             // Плеер уступает место окну: «Назад» из него ведёт в детали тайтла, а не в титры.
             PlayerSideEffect.AskFeedback -> navigator.replace(Destination.Feedback(FeedbackTrigger.AfterWatch.name))
             // Пульт телефона: другая серия — заменой экрана, «Остановить» — выход из плеера.
-            is PlayerSideEffect.PlayEpisode -> actions.onPlayEpisode(effect.season, effect.videoId)
+            is PlayerSideEffect.PlayEpisode -> actions.onPlayEpisode(effect.video)
             PlayerSideEffect.Exit -> actions.onExit()
             // Передать просмотр на телевизор можно только с телефона.
             is PlayerSideEffect.ChooseTv -> Unit
@@ -70,19 +72,17 @@ fun TvPlayerScreen(
 internal data class PlayerActions(
     val dispatch: (PlayerEvent) -> Unit,
     /** Серия того же тайтла — заменой экрана; сезон обязателен: номер серии уникален только в нём. */
-    val onPlayEpisode: (season: Int, videoId: Int) -> Unit,
+    val onPlayEpisode: (VideoRef) -> Unit,
     val onExit: () -> Unit,
 ) {
     fun playNext(next: MediaTrack?) {
-        next?.let { onPlayEpisode(it.seasonNumber, it.number) }
+        next?.let { onPlayEpisode(it.ref) }
     }
 }
 
 private fun playerActions(itemId: Int, navigator: Navigator, screenModel: PlayerScreenModel) = PlayerActions(
     dispatch = screenModel::dispatch,
-    onPlayEpisode = { season, videoId ->
-        navigator.replace(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-    },
+    onPlayEpisode = { video -> navigator.replace(Destination.Player(itemId = itemId, video = video)) },
     onExit = navigator::back,
 )
 

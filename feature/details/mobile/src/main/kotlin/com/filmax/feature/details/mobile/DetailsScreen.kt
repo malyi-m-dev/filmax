@@ -32,6 +32,8 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
@@ -47,10 +49,10 @@ import org.koin.compose.koinInject
 /** Действия экрана — группой, чтобы не раздувать списки параметров вложенных секций. */
 internal data class DetailsActions(
     val onBack: () -> Unit,
-    /** [season] ≤ 0 — фильм/сезон неизвестен; номер видео уникален только внутри сезона. */
-    val onPlay: (season: Int, videoId: Int) -> Unit,
+    /** Что играть; null — фильм целиком. */
+    val onPlay: (VideoRef?) -> Unit,
     /** То же, но на телевизоре: выбор ТВ в сети и пульт. */
-    val onPlayOnTv: (season: Int, videoId: Int) -> Unit,
+    val onPlayOnTv: (VideoRef?) -> Unit,
     val onShare: () -> Unit,
     val onOpenItem: (Int) -> Unit,
     /** Тап по актёру/режиссёру — открыть его фильмографию (isDirector различает запрос к API). */
@@ -152,8 +154,8 @@ private fun DetailsContent(item: Item, state: DetailsState, folderState: FolderP
         )
         DetailsPlayPanel(
             label = playLabel(item, state.series, target),
-            onPlay = target?.let { { actions.onPlay(it.season, it.videoId) } },
-            onPlayOnTv = target?.let { { actions.onPlayOnTv(it.season, it.videoId) } },
+            onPlay = target?.let { { actions.onPlay(it.video) } },
+            onPlayOnTv = target?.let { { actions.onPlayOnTv(it.video) } },
             glass = glass,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
@@ -168,11 +170,10 @@ private fun Navigator.detailsActions(
     onFolders: (FolderPickerEvent) -> Unit,
 ) = DetailsActions(
     onBack = ::back,
-    // Второй аргумент — НОМЕР серии, а не её id: тем же числом kino.pub принимает и отдаёт прогресс.
-    onPlay = { season, videoId -> open(Destination.Player(itemId = item.id, videoId = videoId, season = season)) },
-    // На ТВ — с прогресса kino.pub: телефон эту серию сейчас не играет.
-    onPlayOnTv = { season, videoId ->
-        open(Destination.TvPicker(itemId = item.id, videoId = videoId, season = season))
+    onPlay = { video -> open(Destination.Player(itemId = item.id, video = video)) },
+    // На ТВ — с прогресса источника: телефон эту серию сейчас не играет.
+    onPlayOnTv = { video ->
+        open(Destination.TvPicker(RemoteCommand.Play(itemId = item.id, video = video, startSeconds = FROM_SAVED)))
     },
     onShare = onShare,
     onOpenItem = { itemId -> open(Destination.Details(itemId)) },
@@ -194,3 +195,6 @@ private fun shareItem(context: Context, item: Item) {
 
 /** Отступ плавающей панели от низа — над системной панелью. */
 internal val PanelBottom = 20.dp
+
+/** Позиция старта на ТВ — с прогресса, сохранённого у источника. */
+private const val FROM_SAVED = -1

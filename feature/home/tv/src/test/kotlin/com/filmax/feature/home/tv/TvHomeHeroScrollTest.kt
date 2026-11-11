@@ -124,7 +124,7 @@ class TvHomeHeroScrollTest {
             hero = HeroActions(onPlay = {}, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
             rails = RailActions(
                 onOpenItem = {},
-                onPlay = { _, _, _ -> },
+                onPlay = { _, _ -> },
                 onOpenCollection = { _, _ -> },
                 onLoadMore = {}
             ),

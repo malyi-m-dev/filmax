@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import com.filmax.core.domain.catalog.model.numberOrNone
+import com.filmax.core.domain.catalog.model.seasonOrNone
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.watchlist.model.WatchlistItem
 import com.filmax.core.testing.FakeImagesRule
@@ -188,7 +190,7 @@ class TvMineFocusTest {
     private fun actions(model: MineScreenModel) = MineActions(
         onEvent = model::dispatch,
         onOpenItem = { id -> calls += "open $id" },
-        onPlay = { itemId, season, videoId -> calls += "play $itemId $season/$videoId" },
+        onPlay = { itemId, video -> calls += "play $itemId ${video.seasonOrNone}/${video.numberOrNone}" },
         onOpenFolder = { id -> calls += "folder $id" },
     )
 

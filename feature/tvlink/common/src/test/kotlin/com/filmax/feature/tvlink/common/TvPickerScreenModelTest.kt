@@ -1,6 +1,9 @@
 package com.filmax.feature.tvlink.common
 
 import androidx.lifecycle.SavedStateHandle
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.numberOrNone
+import com.filmax.core.domain.catalog.model.seasonOrNone
 import com.filmax.core.domain.tvlink.LinkFailure
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvDevice
@@ -158,8 +161,8 @@ class TvPickerScreenModelTest {
     private fun TestScope.opened(withTitle: Boolean): TvPickerScreenModel {
         val route = mapOf(
             "itemId" to PLAY.itemId,
-            "videoId" to PLAY.videoId,
-            "season" to PLAY.season,
+            "videoId" to PLAY.video.numberOrNone,
+            "season" to PLAY.video.seasonOrNone,
             "startSeconds" to PLAY.startSeconds,
         )
         val model = TvPickerScreenModel(SavedStateHandle(if (withTitle) route else emptyMap()), discovery, remote)
@@ -175,7 +178,11 @@ class TvPickerScreenModelTest {
 
     private companion object {
         val LIVING_ROOM = TvDevice(id = "Гостиная", name = "Гостиная", host = "192.168.1.50", port = 47100)
-        val PLAY = RemoteCommand.Play(itemId = FakeIds.LONG_SERIES, videoId = 7, season = 4, startSeconds = 754)
+        val PLAY = RemoteCommand.Play(
+            itemId = FakeIds.LONG_SERIES,
+            video = VideoRef.Episode(season = 4, number = 7),
+            startSeconds = 754,
+        )
         const val SLOW_SEARCH_MS = 4_000L
     }
 }

@@ -1,5 +1,7 @@
 package com.filmax.core.domain.tvlink
 
+import com.filmax.core.domain.catalog.model.VideoRef
+
 /**
  * Телевизор с Filmax, до которого телефон может дотянуться. [id] — постоянный id установки Filmax на
  * ТВ: не меняется, когда роутер выдаёт ТВ другой адрес или mDNS переименовывает его в «Гостиная (2)»,
@@ -12,11 +14,11 @@ data class TvDevice(val id: String, val name: String, val host: String, val port
 sealed interface RemoteCommand {
 
     /**
-     * Запустить тайтл. [videoId] и [season] — те же, что у `Destination.Player`: номер серии уникален
-     * только внутри сезона. [startSeconds] — позиция, с которой продолжить (её знает телефон, если
-     * смотрел сам); -1 — с прогресса, сохранённого в kino.pub.
+     * Запустить тайтл. [video] — то же, что у `Destination.Player`; null — фильм или серия не
+     * выбрана. [startSeconds] — позиция, с которой продолжить (её знает телефон, если смотрел сам);
+     * -1 — с прогресса, сохранённого в kino.pub.
      */
-    data class Play(val itemId: Int, val videoId: Int, val season: Int, val startSeconds: Int) : RemoteCommand
+    data class Play(val itemId: Int, val video: VideoRef?, val startSeconds: Int) : RemoteCommand
 
     data object Pause : RemoteCommand
     data object Resume : RemoteCommand

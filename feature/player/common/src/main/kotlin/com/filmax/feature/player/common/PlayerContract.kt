@@ -2,6 +2,7 @@ package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.presentation.PeriodicEvent
 
@@ -146,7 +147,7 @@ sealed interface PlayerSideEffect {
      * Пульт телефона попросил другую серию. Это навигация (новый экран плеера), а не подмена потока:
      * прогресс модель пишет в трек, выбранный при старте.
      */
-    data class PlayEpisode(val season: Int, val videoId: Int) : PlayerSideEffect
+    data class PlayEpisode(val video: VideoRef) : PlayerSideEffect
 
     /** Пульт телефона закрыл плеер. */
     data object Exit : PlayerSideEffect

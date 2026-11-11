@@ -72,18 +72,11 @@ final class PlayerViewModel: ObservableObject {
     func setAudio(_ language: String) async { try? await playback.setAudioLanguage(language: language) }
     func setSubtitle(_ language: String) async { try? await playback.setSubtitleLanguage(language: language) }
 
-    /// Сохранить прогресс (вызывается периодически из View и на выходе).
+    /// Сохранить прогресс (вызывается периодически из View и на выходе). Адрес — `track.ref`:
+    /// серия с сезоном или видео фильма по НОМЕРУ, а не по id трека.
     func saveProgress(seconds: Int) async {
         guard let track else { return }
-        if item?.isSeries == true {
-            _ = try? await watching.saveProgressSerial(
-                itemId: itemId, season: track.seasonNumber, videoId: track.id, timeSeconds: Int32(seconds)
-            )
-        } else {
-            _ = try? await watching.saveProgress(
-                itemId: itemId, videoId: track.id, timeSeconds: Int32(seconds)
-            )
-        }
+        _ = try? await watching.saveProgress(itemId: itemId, video: track.ref, timeSeconds: Int32(seconds))
     }
 
     // MARK: - Приватное

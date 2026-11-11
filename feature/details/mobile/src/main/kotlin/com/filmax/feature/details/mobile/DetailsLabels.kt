@@ -5,6 +5,8 @@ package com.filmax.feature.details.mobile
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.ui.components.durationLabel
 import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.SeriesData
@@ -12,28 +14,22 @@ import com.filmax.feature.details.common.episodeProgress
 import com.filmax.feature.details.common.hasUhd
 import com.filmax.feature.details.common.volumeLabel
 
-/** Фильм играется целиком, без выбора дорожки: плеер ждёт videoId = -1. */
-internal const val MOVIE_VIDEO_ID = -1
-
-/** «Сезона нет» — фильм или сезон неизвестен (PlayerRoute.season = -1). */
-internal const val NO_SEASON = -1
-
 private const val SECONDS_IN_MINUTE = 60
 
 /**
- * Что играет главная кнопка: [season] и [videoId] — для плеера (номер серии уникален только в
- * сезоне), [episode] — серия сериала; у фильма null.
+ * Что играет главная кнопка: [video] — адрес для плеера, [episode] — серия сериала. У фильма оба
+ * null: фильм играется целиком, плеер возьмёт первый трек.
  */
-internal data class PlayTarget(val season: Int, val videoId: Int, val episode: MediaTrack?)
+internal data class PlayTarget(val video: VideoRef?, val episode: MediaTrack?)
 
 /**
  * Цель главной кнопки: фильм — целиком; сериал — серия «продолжить», иначе первая серия выбранного
  * сезона, иначе первая вообще. Сериал без серий играть нечем — null, кнопка молчит.
  */
 internal fun playTarget(item: Item, series: SeriesData?, seasonEpisodes: List<MediaTrack>): PlayTarget? {
-    if (series == null) return PlayTarget(NO_SEASON, MOVIE_VIDEO_ID, episode = null)
+    if (series == null) return PlayTarget(video = null, episode = null)
     val episode = series.resume ?: seasonEpisodes.firstOrNull() ?: item.tracklist.firstOrNull()
-    return episode?.let { PlayTarget(it.seasonNumber, it.number, it) }
+    return episode?.let { PlayTarget(it.ref, it) }
 }
 
 /** Надзаголовок: «Фильм · Драма», «Сериал · Фантастика». */

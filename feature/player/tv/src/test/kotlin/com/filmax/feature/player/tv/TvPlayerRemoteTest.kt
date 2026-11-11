@@ -21,6 +21,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.media3.exoplayer.ExoPlayer
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.seasonOrNone
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
@@ -312,7 +313,7 @@ class TvPlayerRemoteTest {
 
     private fun actions() = PlayerActions(
         dispatch = ::dispatch,
-        onPlayEpisode = { season, videoId -> calls += "play $season/$videoId" },
+        onPlayEpisode = { video -> calls += "play ${video.seasonOrNone}/${video.number}" },
         onExit = { calls += "exit" },
     )
 

@@ -100,7 +100,7 @@ class TvHomeThemeRowsFocusTest {
 
     private fun actions() = TvHomeActions(
         hero = HeroActions(onPlay = { played = true }, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
-        rails = RailActions(onOpenItem = {}, onPlay = { _, _, _ -> }, onOpenCollection = { _, _ -> }, onLoadMore = {}),
+        rails = RailActions(onOpenItem = {}, onPlay = { _, _ -> }, onOpenCollection = { _, _ -> }, onLoadMore = {}),
         onReload = {},
         onOpenCatalog = {},
     )

@@ -1,5 +1,6 @@
 package com.filmax.data.fake
 
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watching.model.WatchHistory
@@ -20,16 +21,10 @@ class FakeWatchingRepository(private val backend: FakeBackend) : WatchingReposit
         success(watch.recent().mapNotNull { key -> historyEntry(key) })
     }
 
-    override suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit> =
-        mark(TrackKey(itemId = itemId, season = MOVIE_SEASON, number = videoId), timeSeconds)
-
-    override suspend fun saveProgressSerial(
-        itemId: Int,
-        season: Int,
-        videoId: Int,
-        timeSeconds: Int,
-    ): RequestResult<Unit> =
-        mark(TrackKey(itemId = itemId, season = season, number = videoId), timeSeconds)
+    override suspend fun saveProgress(itemId: Int, video: VideoRef, timeSeconds: Int): RequestResult<Unit> {
+        val season = (video as? VideoRef.Episode)?.season ?: MOVIE_SEASON
+        return mark(TrackKey(itemId = itemId, season = season, number = video.number), timeSeconds)
+    }
 
     override suspend fun toggleWatched(itemId: Int): RequestResult<Unit> = backend.respond {
         val entry = catalog.entry(itemId) ?: return@respond notFound("item $itemId")

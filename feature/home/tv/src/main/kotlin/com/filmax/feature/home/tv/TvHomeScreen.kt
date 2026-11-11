@@ -42,22 +42,14 @@ fun TvHomeScreen(
     val appError by screenModel.collectErrorAsState()
     val actions = TvHomeActions(
         hero = HeroActions(
-            onPlay = { item ->
-                navigator.open(
-                    Destination.Player(itemId = item.id, videoId = NO_VIDEO_ID, season = NO_SEASON)
-                )
-            },
+            onPlay = { item -> navigator.open(Destination.Player(itemId = item.id)) },
             onDetails = { item -> navigator.open(Destination.Details(item.id)) },
             onToggleWatchLater = { item -> screenModel.dispatch(HomeEvent.ToggleWatchLater(item)) },
             onNext = { screenModel.dispatch(HomeEvent.NextHero) },
         ),
         rails = RailActions(
             onOpenItem = { id -> navigator.open(Destination.Details(id)) },
-            onPlay = { itemId, season, videoId ->
-                navigator.open(
-                    Destination.Player(itemId = itemId, videoId = videoId, season = season)
-                )
-            },
+            onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
             onOpenCollection = { id, title ->
                 navigator.open(
                     Destination.CollectionDetail(collectionId = id, title = title)

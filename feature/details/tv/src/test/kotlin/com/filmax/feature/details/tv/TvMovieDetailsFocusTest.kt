@@ -13,6 +13,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
+import com.filmax.core.domain.catalog.model.numberOrNone
+import com.filmax.core.domain.catalog.model.seasonOrNone
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
@@ -156,7 +158,7 @@ class TvMovieDetailsFocusTest {
     }
 
     private fun actions() = DetailsActions(
-        onPlay = { season, videoId -> calls += "play $season/$videoId" },
+        onPlay = { video -> calls += "play ${video.seasonOrNone}/${video.numberOrNone}" },
         onToggleWatchLater = { calls += "watch later" },
         onTrailer = null,
         onOpenItem = { id -> calls += "open $id" },

@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import com.filmax.core.designsystem.FilmaxMetrics
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.ui.components.FilmaxCollectionCard
 import com.filmax.core.ui.components.FilmaxContinueCard
 import com.filmax.core.ui.components.FilmaxPosterCard
@@ -82,25 +83,19 @@ private fun LazyListScope.titlesRow(row: HomeRow.Titles, onOpenItem: (Int) -> Un
 
 private fun LazyListScope.continueRow(
     row: HomeRow.Continue,
-    onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    onPlay: (itemId: Int, video: VideoRef?) -> Unit,
 ) {
     item(key = row.id.name) {
         TitledRow(title = row.id.title, count = row.entries.size) {
             items(row.entries, key = { it.itemId }) { entry ->
-                // Ряд продолжения ведёт сразу в плеер, минуя детали: недосмотренный эпизод —
-                // videoId+сезон из истории, позицию внутри трека восстановит PlayerScreenModel.
+                // Ряд продолжения ведёт сразу в плеер, минуя детали: недосмотренный эпизод — адрес
+                // из истории, позицию внутри трека восстановит PlayerScreenModel.
                 FilmaxContinueCard(
                     title = entry.title,
                     meta = continueMeta(entry.progress),
                     imageUrl = entry.wideOrPoster,
                     progress = entry.progress?.fraction ?: 0f,
-                    onClick = {
-                        onPlay(
-                            entry.itemId,
-                            entry.progress?.season ?: NO_SEASON,
-                            entry.progress?.videoId ?: NO_VIDEO_ID,
-                        )
-                    },
+                    onClick = { onPlay(entry.itemId, entry.progress?.video) },
                     modifier = Modifier.width(FilmaxMetrics.ContinueWidth),
                 )
             }

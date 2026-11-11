@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -173,7 +174,7 @@ private fun EpisodeCards(season: PlayerSeason, context: EpisodesContext, content
                     if (playing) {
                         context.actions.dispatch(PlayerEvent.ClosePanel)
                     } else {
-                        context.actions.onPlayEpisode(episode.seasonNumber, episode.number)
+                        context.actions.onPlayEpisode(episode.ref)
                     }
                 },
                 size = TvCardSize.Panel,

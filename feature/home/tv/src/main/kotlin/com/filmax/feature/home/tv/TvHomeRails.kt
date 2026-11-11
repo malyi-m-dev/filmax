@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.tv.designsystem.TvCardSize
 import com.filmax.core.tv.designsystem.TvCollectionCard
@@ -31,7 +32,7 @@ import com.filmax.feature.home.common.HomeRowId
 /** Действия рядов: открыть тайтл, играть с места, открыть подборку, догрузить ряд. */
 internal data class RailActions(
     val onOpenItem: (Int) -> Unit,
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    val onPlay: (itemId: Int, video: VideoRef?) -> Unit,
     val onOpenCollection: (id: Int, title: String) -> Unit,
     val onLoadMore: (HomeRowId) -> Unit,
 )
@@ -77,9 +78,7 @@ private fun ContinueCard(entry: WatchHistory, actions: RailActions, modifier: Mo
         posterUrl = entry.wideOrPoster,
         progress = entry.progress?.fraction ?: 0f,
         // Ряд продолжения ведёт сразу в плеер — на недосмотренную серию (номер и сезон из истории).
-        onClick = {
-            actions.onPlay(entry.itemId, entry.progress?.season ?: NO_SEASON, entry.progress?.videoId ?: NO_VIDEO_ID)
-        },
+        onClick = { actions.onPlay(entry.itemId, entry.progress?.video) },
         modifier = modifier,
     )
 }
@@ -175,9 +174,3 @@ private fun LoadMoreAt(index: Int, lastIndex: Int, onLoadMore: () -> Unit) {
  * в нескольких рядах, а ключ должен быть уникален в пределах экрана.
  */
 private fun returnKey(row: HomeRowId, itemId: Int): String = "$row:$itemId"
-
-/** `PlayerRoute.videoId` для фильма/неизвестной серии — плеер возьмёт первый трек. */
-internal const val NO_VIDEO_ID = -1
-
-/** `PlayerRoute.season` для фильма/неизвестного сезона. */
-internal const val NO_SEASON = -1

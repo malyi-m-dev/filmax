@@ -144,7 +144,7 @@ private fun LazyGridScope.continueItems(entries: List<WatchHistory>, actions: Mi
             progress = entry.progress?.fraction ?: 0f,
             // OK — сразу в плеер, на ту же серию: номер серии уникален только внутри сезона.
             onClick = {
-                actions.onPlay(entry.itemId, entry.progress?.season ?: NO_SEASON, entry.progress?.videoId ?: NO_VIDEO)
+                actions.onPlay(entry.itemId, entry.progress?.video)
             },
             onLongClick = {
                 cards.handoff.handOff(keys, key)
@@ -231,7 +231,3 @@ private fun LazyGridScope.folderItems(
 private fun LazyGridScope.emptyItem(text: MineEmptyText, icon: ImageVector) {
     item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { MineEmpty(text, icon) }
 }
-
-/** Фильм или неизвестная серия: плеер возьмёт первый трек (PlayerRoute = -1). */
-private const val NO_SEASON = -1
-private const val NO_VIDEO = -1

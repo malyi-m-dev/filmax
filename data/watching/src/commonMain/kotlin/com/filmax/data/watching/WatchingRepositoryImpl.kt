@@ -1,5 +1,6 @@
 package com.filmax.data.watching
 
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.domain.watching.WatchingRepository
@@ -64,16 +65,14 @@ internal class WatchingRepositoryImpl(
             .distinctBy { it.itemId }
     }
 
-    override suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit> =
-        safeRequest { api.saveProgress(itemId, videoId, timeSeconds) }
-
-    override suspend fun saveProgressSerial(
-        itemId: Int,
-        season: Int,
-        videoId: Int,
-        timeSeconds: Int,
-    ): RequestResult<Unit> =
-        safeRequest { api.saveProgressSerial(itemId, season, videoId, timeSeconds) }
+    // У kino.pub это один `watching/marktime`, но с сезоном и без — два разных запроса.
+    override suspend fun saveProgress(itemId: Int, video: VideoRef, timeSeconds: Int): RequestResult<Unit> =
+        safeRequest {
+            when (video) {
+                is VideoRef.Episode -> api.saveProgressSerial(itemId, video.season, video.number, timeSeconds)
+                is VideoRef.Movie -> api.saveProgress(itemId, video.number, timeSeconds)
+            }
+        }
 
     override suspend fun toggleWatched(itemId: Int): RequestResult<Unit> =
         safeRequest { api.toggleWatched(itemId) }

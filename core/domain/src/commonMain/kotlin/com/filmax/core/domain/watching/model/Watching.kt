@@ -1,5 +1,7 @@
 package com.filmax.core.domain.watching.model
 
+import com.filmax.core.domain.catalog.model.VideoRef
+
 data class WatchHistory(
     val itemId: Int,
     val title: String,
@@ -33,6 +35,9 @@ data class WatchProgress(
     val videoId: Int?,
     val season: Int?,
 ) {
+    /** На чём остановились: серия с сезоном или видео фильма; null — сервер не сказал. */
+    val video: VideoRef? get() = VideoRef.of(season ?: VideoRef.NONE, videoId ?: VideoRef.NONE)
+
     val fraction: Float
         get() {
             val watched = timeSeconds ?: return 0f

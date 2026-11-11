@@ -1,13 +1,17 @@
 package com.filmax.data.tvlink.protocol
 
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.numberOrNone
+import com.filmax.core.domain.catalog.model.seasonOrNone
 import com.filmax.core.domain.tvlink.PlaybackStatus
 import com.filmax.core.domain.tvlink.RemoteCommand
 
 internal fun RemoteCommand.toMessage(): TvLinkMessage = when (this) {
+    // На проводе адрес — пара чисел: протокол общий с телевизорами на прежних версиях Filmax.
     is RemoteCommand.Play -> TvLinkMessage.Play(
         itemId = itemId,
-        videoId = videoId,
-        season = season,
+        videoId = video.numberOrNone,
+        season = video.seasonOrNone,
         startSeconds = startSeconds,
     )
     RemoteCommand.Pause -> TvLinkMessage.Pause
@@ -23,8 +27,7 @@ internal fun RemoteCommand.toMessage(): TvLinkMessage = when (this) {
 internal fun TvLinkMessage.toCommand(): RemoteCommand? = when (this) {
     is TvLinkMessage.Play -> RemoteCommand.Play(
         itemId = itemId,
-        videoId = videoId,
-        season = season,
+        video = VideoRef.of(season, videoId),
         startSeconds = startSeconds,
     )
     TvLinkMessage.Pause -> RemoteCommand.Pause

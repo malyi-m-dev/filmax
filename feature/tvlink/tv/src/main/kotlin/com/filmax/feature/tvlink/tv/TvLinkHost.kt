@@ -36,7 +36,7 @@ fun TvLinkHost(
     screenModel.collectSideEffect { effect ->
         when (effect) {
             is TvLinkHostSideEffect.OpenPlayer -> {
-                val destination = with(effect.play) { Destination.Player(itemId, videoId, season, startSeconds) }
+                val destination = with(effect.play) { Destination.Player(itemId, video, startSeconds) }
                 if (effect.replacePlayer) navigator.replace(destination) else navigator.open(destination)
             }
         }

@@ -7,6 +7,7 @@ import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.Posters
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.feature.details.common.calculateSeriesData
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,7 +22,7 @@ class DetailsLabelsTest {
 
         val target = playTarget(movie, series = null, seasonEpisodes = emptyList())
 
-        assertEquals(PlayTarget(NO_SEASON, MOVIE_VIDEO_ID, episode = null), target)
+        assertEquals(PlayTarget(video = null, episode = null), target)
         assertEquals(PlayLabel("Смотреть", "2 ч 11 мин", progress = null), playLabel(movie, null, target))
     }
 
@@ -34,7 +35,7 @@ class DetailsLabelsTest {
         val target = playTarget(show, series, series.seasons.first().second)
         val label = playLabel(show, series, target)
 
-        assertEquals(4 to 7, target?.let { it.season to it.videoId })
+        assertEquals(VideoRef.Episode(season = 4, number = 7), target?.video)
         assertEquals("Продолжить", label.title)
         assertEquals("S4E7 «Мост» · осталось 30 мин", label.subtitle)
         assertEquals(LEFT_FRACTION, label.progress ?: 0f, TOLERANCE)

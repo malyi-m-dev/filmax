@@ -193,7 +193,7 @@ class TvFolderPickerFocusTest {
     }
 
     private fun actions() = DetailsActions(
-        onPlay = { _, _ -> },
+        onPlay = {},
         onToggleWatchLater = {},
         onTrailer = null,
         onOpenItem = {},

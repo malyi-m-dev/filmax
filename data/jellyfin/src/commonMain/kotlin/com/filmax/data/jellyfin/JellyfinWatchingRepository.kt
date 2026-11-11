@@ -1,5 +1,6 @@
 package com.filmax.data.jellyfin
 
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watching.model.WatchHistory
@@ -40,15 +41,8 @@ internal class JellyfinWatchingRepository(
             .distinctBy { it.itemId }
     }
 
-    override suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit> =
-        report(itemId, season = 0, number = videoId, timeSeconds = timeSeconds)
-
-    override suspend fun saveProgressSerial(
-        itemId: Int,
-        season: Int,
-        videoId: Int,
-        timeSeconds: Int,
-    ): RequestResult<Unit> = report(itemId, season, videoId, timeSeconds)
+    override suspend fun saveProgress(itemId: Int, video: VideoRef, timeSeconds: Int): RequestResult<Unit> =
+        report(itemId, video, timeSeconds)
 
     override suspend fun toggleWatched(itemId: Int): RequestResult<Unit> = context.request { _ ->
         val guid = context.ids.requireGuid(itemId)
@@ -63,9 +57,9 @@ internal class JellyfinWatchingRepository(
         api.setPlayed(context.ids.requireGuid(itemId), played = false)
     }
 
-    private suspend fun report(itemId: Int, season: Int, number: Int, timeSeconds: Int): RequestResult<Unit> =
+    private suspend fun report(itemId: Int, ref: VideoRef, timeSeconds: Int): RequestResult<Unit> =
         context.request { _ ->
-            val video = videos.resolve(itemId, season, number)
+            val video = videos.resolve(itemId, ref)
             val body = PlaybackProgressBody(
                 itemId = video.guid,
                 positionTicks = JellyfinMapper.secondsToTicks(timeSeconds),

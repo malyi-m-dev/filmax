@@ -2,6 +2,7 @@
 package com.filmax.data.source
 
 import com.filmax.core.domain.catalog.model.ItemPage
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
@@ -44,15 +45,8 @@ internal class RoutingWatchingRepository(private val switch: SourceSwitch<Watchi
     override suspend fun getHistory(type: String): RequestResult<List<WatchHistory>> =
         switch.current.getHistory(type)
 
-    override suspend fun saveProgress(itemId: Int, videoId: Int, timeSeconds: Int): RequestResult<Unit> =
-        switch.current.saveProgress(itemId, videoId, timeSeconds)
-
-    override suspend fun saveProgressSerial(
-        itemId: Int,
-        season: Int,
-        videoId: Int,
-        timeSeconds: Int,
-    ): RequestResult<Unit> = switch.current.saveProgressSerial(itemId, season, videoId, timeSeconds)
+    override suspend fun saveProgress(itemId: Int, video: VideoRef, timeSeconds: Int): RequestResult<Unit> =
+        switch.current.saveProgress(itemId, video, timeSeconds)
 
     override suspend fun toggleWatched(itemId: Int): RequestResult<Unit> = switch.current.toggleWatched(itemId)
 

@@ -11,6 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -48,9 +49,7 @@ fun TvMineScreen(
         actions = MineActions(
             onEvent = screenModel::dispatch,
             onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
-            onPlay = { itemId, season, videoId ->
-                navigator.open(Destination.Player(itemId = itemId, videoId = videoId, season = season))
-            },
+            onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
             onOpenFolder = { folderId -> navigator.open(Destination.BookmarkFolder(folderId)) },
         ),
         modifier = modifier,
@@ -61,8 +60,8 @@ fun TvMineScreen(
 internal data class MineActions(
     val onEvent: (MineEvent) -> Unit,
     val onOpenItem: (Int) -> Unit,
-    /** Серия «продолжить»: [season] ≤ 0 — фильм; номер серии уникален только внутри сезона. */
-    val onPlay: (itemId: Int, season: Int, videoId: Int) -> Unit,
+    /** Серия «продолжить»; null — фильм или серия неизвестна: плеер возьмёт первый трек. */
+    val onPlay: (itemId: Int, video: VideoRef?) -> Unit,
     val onOpenFolder: (Int) -> Unit,
 )
 

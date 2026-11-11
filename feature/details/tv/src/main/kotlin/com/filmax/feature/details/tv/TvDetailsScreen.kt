@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -112,8 +113,8 @@ internal data class DetailsSheetFocus(val description: FocusRequester, val folde
 
 /** Действия экрана одним объектом — вложенные секции не тащат длинные списки параметров. */
 internal data class DetailsActions(
-    /** [season] ≤ 0 — фильм или сезон неизвестен; номер серии уникален только внутри сезона. */
-    val onPlay: (season: Int, videoId: Int) -> Unit,
+    /** Что играть; null — фильм целиком: плеер возьмёт первый трек. */
+    val onPlay: (VideoRef?) -> Unit,
     val onToggleWatchLater: () -> Unit,
     /** null — у тайтла нет играбельного трейлера, кнопки нет. */
     val onTrailer: (() -> Unit)?,
@@ -130,9 +131,7 @@ private fun detailsActions(item: Item, screenModel: DetailsScreenModel, navigato
     // Трейлер — только если url играбельный http(s): kino.pub отдаёт прямой HLS.
     val trailerUrl = item.trailer?.url?.takeIf { it.startsWith("http") }
     return DetailsActions(
-        onPlay = { season, videoId ->
-            navigator.open(Destination.Player(itemId = item.id, videoId = videoId, season = season))
-        },
+        onPlay = { video -> navigator.open(Destination.Player(itemId = item.id, video = video)) },
         onToggleWatchLater = { screenModel.dispatch(DetailsEvent.ToggleFav) },
         onTrailer = trailerUrl?.let { url -> { navigator.open(Destination.Trailer(url = url, title = item.title)) } },
         onOpenItem = { id -> navigator.open(Destination.Details(id)) },

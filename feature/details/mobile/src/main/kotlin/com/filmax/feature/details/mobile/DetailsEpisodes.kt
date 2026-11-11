@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.VideoRef
+import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.ui.components.EpisodeMark
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxEpisodeRow
@@ -64,7 +66,7 @@ internal fun LazyListScope.episodesSection(state: DetailsState, actions: Details
 }
 
 @Composable
-private fun EpisodeRow(episode: MediaTrack, resumeId: Int?, onPlay: (season: Int, videoId: Int) -> Unit) {
+private fun EpisodeRow(episode: MediaTrack, resumeId: Int?, onPlay: (VideoRef?) -> Unit) {
     val watched = episode.watchStatus == WATCH_STATUS_FINISHED
     val current = episode.id == resumeId && !watched
     FilmaxEpisodeRow(
@@ -78,7 +80,7 @@ private fun EpisodeRow(episode: MediaTrack, resumeId: Int?, onPlay: (season: Int
         },
         progress = episodeProgress(episode),
         // Второй аргумент — НОМЕР серии: номер уникален только внутри сезона.
-        onClick = { onPlay(episode.seasonNumber, episode.number) },
+        onClick = { onPlay(episode.ref) },
         placeholder = episode.number.toString(),
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
     )
