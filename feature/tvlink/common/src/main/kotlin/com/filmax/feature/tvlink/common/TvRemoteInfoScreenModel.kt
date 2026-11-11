@@ -17,7 +17,7 @@ class TvRemoteInfoScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ -> receiver.state.collect { received -> updateState { received } } }
+        screenModelScope { receiver.state.collect { received -> updateState { received } } }
     }
 
     override fun onEvent(event: Nothing) = Unit

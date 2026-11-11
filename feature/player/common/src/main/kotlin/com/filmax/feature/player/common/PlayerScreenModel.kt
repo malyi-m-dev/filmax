@@ -146,7 +146,7 @@ class PlayerScreenModel(
                 }
             }
         })
-        screenModelScope { _ -> remote.listen(::postSideEffect) }
+        screenModelScope { remote.listen(::postSideEffect) }
         onFetchData()
     }
 
@@ -163,13 +163,13 @@ class PlayerScreenModel(
             // метод перевёл бы класс за порог TooManyFunctions detekt — незачем.
             is PlayerEvent.SetSpeed -> {
                 player.setPlaybackSpeed(event.speed)
-                screenModelScope { _ -> updateState { it.copy(currentSpeed = event.speed) } }
+                screenModelScope { updateState { it.copy(currentSpeed = event.speed) } }
             }
             PlayerEvent.OpenPanel -> openPanel()
             is PlayerEvent.OpenPanelAt -> openPanel(event.tab)
             PlayerEvent.ClosePanel -> closePanel()
-            is PlayerEvent.SelectTab -> screenModelScope { _ -> updateState { it.copy(panelTab = event.tab) } }
-            is PlayerEvent.ShowSeason -> screenModelScope { _ -> updateState { it.copy(panelSeason = event.season) } }
+            is PlayerEvent.SelectTab -> screenModelScope { updateState { it.copy(panelTab = event.tab) } }
+            is PlayerEvent.ShowSeason -> screenModelScope { updateState { it.copy(panelSeason = event.season) } }
             PlayerEvent.ScreenShown -> {
                 screenShown = true
                 remote.publish()
@@ -193,7 +193,7 @@ class PlayerScreenModel(
             season = track?.seasonNumber ?: route.season,
             startSeconds = (player.currentPosition / MILLIS_IN_SECOND).toInt(),
         )
-        screenModelScope { _ -> postSideEffect(PlayerSideEffect.ChooseTv(play)) }
+        screenModelScope { postSideEffect(PlayerSideEffect.ChooseTv(play)) }
     }
 
     /**
@@ -205,7 +205,7 @@ class PlayerScreenModel(
         if (state.panelOpen) return
         resumeAfterPanel = player.playWhenReady
         player.pause()
-        screenModelScope { _ ->
+        screenModelScope {
             updateState {
                 val opening = tab?.takeIf { wanted -> wanted in it.panelTabs() } ?: it.openingTab()
                 it.copy(panelOpen = true, panelTab = opening, panelSeason = it.track?.seasonNumber)
@@ -216,7 +216,7 @@ class PlayerScreenModel(
     private fun closePanel() {
         if (!state.panelOpen) return
         if (resumeAfterPanel) player.play()
-        screenModelScope { _ -> updateState { it.copy(panelOpen = false) } }
+        screenModelScope { updateState { it.copy(panelOpen = false) } }
     }
 
     /**
@@ -224,7 +224,7 @@ class PlayerScreenModel(
      * не пойдёт, а плашка объяснит почему. Ошибка профиля (офлайн и т.п.) плашку не показывает.
      */
     private fun checkSubscription() {
-        screenModelScope { _ ->
+        screenModelScope {
             val profile = userRepository.getProfile()
             if (profile is RequestResult.Success && profile.data.subscription?.active != true) {
                 updateState { it.copy(subscriptionRequired = true) }
@@ -234,7 +234,7 @@ class PlayerScreenModel(
 
     override fun onFetchData() {
         checkSubscription()
-        screenModelScope { _ ->
+        screenModelScope {
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
             savedVoiceKey = playbackSettings.voiceKeyFor(route.itemId)
@@ -357,7 +357,7 @@ class PlayerScreenModel(
         beginStream(quality.url, primaryWithBackup = quality.urls.size > 1)
         player.seekTo(position)
         player.playWhenReady = wasPlaying
-        screenModelScope { _ -> updateState { it.copy(currentQuality = quality.label, streamUrl = quality.url) } }
+        screenModelScope { updateState { it.copy(currentQuality = quality.label, streamUrl = quality.url) } }
     }
 
     /**
@@ -370,7 +370,7 @@ class PlayerScreenModel(
         ErrorReporting.reporter.log("player: decoder can't play ${failedHeight}p, step down to ${lower.label}")
         ErrorReporting.reporter.setKey(DECODER_LIMIT_KEY, failedHeight.toString())
         decoderLimit = minOf(failedHeight, decoderLimit ?: failedHeight)
-        screenModelScope { _ -> playbackSettings.setDecoderLimit(decoderLimit) }
+        screenModelScope { playbackSettings.setDecoderLimit(decoderLimit) }
         switchQuality(lower)
         return true
     }
@@ -381,7 +381,7 @@ class PlayerScreenModel(
         if (limit == null || height == null || height < limit) return
         ErrorReporting.reporter.log("player: ${height}p plays, decoder limit ${limit}p lifted")
         decoderLimit = null
-        screenModelScope { _ -> playbackSettings.setDecoderLimit(null) }
+        screenModelScope { playbackSettings.setDecoderLimit(null) }
     }
 
     /** Хлебная крошка старта: при ошибке в отчёте видно тайтл, качество и CDN-хост. */
@@ -408,7 +408,7 @@ class PlayerScreenModel(
         beginStream(nextUrl, primaryWithBackup = false)
         if (position > 0) player.seekTo(position)
         player.playWhenReady = wasPlaying
-        screenModelScope { _ -> updateState { it.copy(streamUrl = nextUrl) } }
+        screenModelScope { updateState { it.copy(streamUrl = nextUrl) } }
         return true
     }
 
@@ -418,7 +418,8 @@ class PlayerScreenModel(
      * следующую серию окном не перебиваем.
      */
     private fun onWatchFinished() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val ask = feedbackPrompts.afterWatchFinished()
             if (ask && current.nextTrack == null) postSideEffect(PlayerSideEffect.AskFeedback)
         }
@@ -427,7 +428,7 @@ class PlayerScreenModel(
     private fun selectSubtitle(label: String) {
         val option = state.subtitles.firstOrNull { it.label == label } ?: return
         applyTrackPreferences(option.lang)
-        screenModelScope { _ -> updateState { it.copy(currentSubtitle = label) } }
+        screenModelScope { updateState { it.copy(currentSubtitle = label) } }
     }
 
     private fun selectAudio(label: String) {
@@ -441,7 +442,7 @@ class PlayerScreenModel(
         // Запоминаем озвучку на весь тайтл: следующие серии стартуют с этой же студии.
         val key = voiceKey(option.groupIndex, group, selectedTrack?.audios.orEmpty())
         savedVoiceKey = key
-        screenModelScope { _ ->
+        screenModelScope {
             playbackSettings.setVoiceKey(route.itemId, key)
             updateState { it.copy(currentAudio = label) }
         }
@@ -471,7 +472,7 @@ class PlayerScreenModel(
         }
 
         val selectedIndex = savedIndex ?: audioGroups.indexOfFirst { it.isSelected }
-        screenModelScope { _ ->
+        screenModelScope {
             updateState {
                 it.copy(
                     audioTracks = if (options.size > 1) options else emptyList(),
@@ -492,7 +493,7 @@ class PlayerScreenModel(
         player.setMediaItem(buildMediaItem(url))
         player.prepare()
         startWatch?.cancel()
-        if (primaryWithBackup) startWatch = screenModelScope { _ -> watchStart(url) }
+        if (primaryWithBackup) startWatch = screenModelScope { watchStart(url) }
     }
 
     /**

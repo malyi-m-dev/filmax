@@ -58,7 +58,7 @@ class MineScreenModel(
             is MineEvent.SelectSegment -> update { it.copy(segment = event.segment) }
             MineEvent.CycleWatchlistSort -> update { it.copy(watchlistSort = it.watchlistSort.next()) }
             MineEvent.CycleFolderSort -> update { it.copy(folderSort = it.folderSort.next()) }
-            is MineEvent.RemoveFromWatchlist -> screenModelScope { _ -> removeFromWatchLater(event.itemId) }
+            is MineEvent.RemoveFromWatchlist -> screenModelScope { removeFromWatchLater(event.itemId) }
             is MineEvent.RemoveFromContinue -> removeFromHistory(event.itemId)
             MineEvent.AskClearHistory -> update { it.copy(confirmClearHistory = true) }
             MineEvent.DismissClearHistory -> update { it.copy(confirmClearHistory = false) }
@@ -72,7 +72,7 @@ class MineScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             coroutineScope {
                 val historyRequest = async { watching.getHistory() }
                 val shelfRequest = async { folders.shelf() }
@@ -87,11 +87,11 @@ class MineScreenModel(
 
     /** Повторный показ экрана: пока идёт первая загрузка, второй запрос ни к чему. */
     private fun refresh() {
-        screenModelScope { current -> if (!current.loading) onFetchData() }
+        screenModelScope { if (!state.loading) onFetchData() }
     }
 
     private fun observeWatchlist() {
-        screenModelScope { _ ->
+        screenModelScope {
             val sort = states.map { it.watchlistSort }.distinctUntilChanged()
             combine(favorites.favorites, sort) { items, order -> sortedWatchlist(items, order) }
                 .collect { items -> updateState { it.copy(watchlist = items) } }
@@ -99,7 +99,7 @@ class MineScreenModel(
     }
 
     private fun observeFolders() {
-        screenModelScope { _ ->
+        screenModelScope {
             val sort = states.map { it.folderSort }.distinctUntilChanged()
             combine(shelf.filterNotNull(), folders.appearances, sort) { loaded, looks, order ->
                 sortedFolders(mineFolders(loaded, looks), order)
@@ -121,7 +121,7 @@ class MineScreenModel(
 
     /** Убирает тайтл из «Продолжить» сразу, затем просит сервер забыть его историю. */
     private fun removeFromHistory(itemId: Int) {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { current ->
                 current.copy(continueWatching = current.continueWatching.filterNot { it.itemId == itemId })
             }
@@ -132,7 +132,8 @@ class MineScreenModel(
 
     /** kino.pub чистит историю по тайтлу — поэтому по запросу на каждый тайтл истории. */
     private fun clearHistory() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val ids = current.history.flatMap { day -> day.entries.map { it.entry.itemId } }
             updateState { it.copy(confirmClearHistory = false, history = emptyList(), continueWatching = emptyList()) }
             ids.forEach { id -> watching.clearHistory(id) }
@@ -147,7 +148,8 @@ class MineScreenModel(
      * Черновик читается при выполнении: правки с клавиатуры стоят в очереди раньше «Создать».
      */
     private fun submitFolder() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val draft = current.draft?.takeIf { it.canSubmit } ?: return@screenModelScope
             updateState { it.copy(draft = null) }
             folders.create(draft.cleanTitle, draft.tint)
@@ -156,7 +158,7 @@ class MineScreenModel(
     }
 
     private fun update(transform: (MineState) -> MineState) {
-        screenModelScope { _ -> updateState(transform) }
+        screenModelScope { updateState(transform) }
     }
 
     private fun now(): ZonedDateTime = ZonedDateTime.now(clock)

@@ -27,16 +27,16 @@ class TvLinkHostScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             receiver.commands.collect { command -> (command as? RemoteCommand.Play)?.let { openPlayer(it) } }
         }
-        screenModelScope { _ -> announcePhones() }
+        screenModelScope { announcePhones() }
     }
 
     override fun onEvent(event: TvLinkHostEvent) {
         when (event) {
             TvLinkHostEvent.Shown -> if (serving?.isActive != true) {
-                serving = screenModelScope { _ -> receiver.serve() }
+                serving = screenModelScope { receiver.serve() }
             }
             TvLinkHostEvent.Hidden -> {
                 serving?.cancel()

@@ -21,7 +21,7 @@ class RemoteKeeperScreenModel(
     override fun onEvent(event: RemoteKeeperEvent) {
         when (event) {
             RemoteKeeperEvent.Shown -> if (keeping?.isActive != true) {
-                keeping = screenModelScope { _ -> remote.stayConnected() }
+                keeping = screenModelScope { remote.stayConnected() }
             }
             RemoteKeeperEvent.Hidden -> {
                 keeping?.cancel()

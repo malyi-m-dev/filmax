@@ -56,7 +56,7 @@ class FolderScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             val listed = folders.list()
             val found = listed.getOrNull()?.firstOrNull { it.id == folderId }
             serverFolder.value = found
@@ -79,7 +79,7 @@ class FolderScreenModel(
     }
 
     private fun observeFolder() {
-        screenModelScope { _ ->
+        screenModelScope {
             combine(serverFolder.filterNotNull(), folders.appearances) { folder, looks ->
                 userFolders(listOf(folder), looks).firstOrNull()
             }.collect { folder -> updateState { it.copy(folder = folder) } }
@@ -88,7 +88,8 @@ class FolderScreenModel(
 
     /** Следующая страница содержимого. Страницы kino.pub могут пересечься — дубли отбрасываются. */
     private fun loadMore() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             if (current.loading || current.loadingMore || current.endReached) return@screenModelScope
             val nextPage = current.page + 1
             updateState { it.copy(loadingMore = true) }
@@ -109,7 +110,8 @@ class FolderScreenModel(
 
     /** Убирает тайтл сразу (отклик мгновенный); не вышло на сервере — возвращает на место. */
     private fun removeItem(itemId: Int) {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val before = current.items
             updateState { it.copy(items = it.items.filterNot { item -> item.id == itemId }) }
             serverFolder.value = serverFolder.value?.let { folder -> folder.copy(count = folder.count - 1) }
@@ -131,7 +133,8 @@ class FolderScreenModel(
      * той же очереди раньше, и «Сохранить» должен увидеть их все.
      */
     private fun submitRename() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val draft = current.draft?.takeIf { it.canSubmit } ?: return@screenModelScope
             updateState { it.copy(draft = null) }
             folders.restyle(folderId, draft.cleanTitle, draft.tint)
@@ -139,7 +142,7 @@ class FolderScreenModel(
     }
 
     private fun deleteFolder() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(confirmDelete = false) }
             when (val result = folders.delete(folderId)) {
                 is RequestResult.Success -> postSideEffect(FolderSideEffect.Deleted)
@@ -149,7 +152,7 @@ class FolderScreenModel(
     }
 
     private fun update(transform: (FolderState) -> FolderState) {
-        screenModelScope { _ -> updateState(transform) }
+        screenModelScope { updateState(transform) }
     }
 
     private companion object {

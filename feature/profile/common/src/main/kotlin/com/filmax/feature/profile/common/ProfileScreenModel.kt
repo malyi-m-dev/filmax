@@ -71,14 +71,14 @@ class ProfileScreenModel(
     override fun onEvent(event: ProfileEvent) {
         when (event) {
             ProfileEvent.Logout -> logout()
-            is ProfileEvent.SetQuality -> screenModelScope { _ -> playbackSettings.setQuality(event.quality) }
+            is ProfileEvent.SetQuality -> screenModelScope { playbackSettings.setQuality(event.quality) }
             is ProfileEvent.SetAudioLanguage ->
-                screenModelScope { _ -> playbackSettings.setAudioLanguage(event.language) }
+                screenModelScope { playbackSettings.setAudioLanguage(event.language) }
             is ProfileEvent.SetSubtitleLanguage ->
-                screenModelScope { _ -> playbackSettings.setSubtitleLanguage(event.language) }
+                screenModelScope { playbackSettings.setSubtitleLanguage(event.language) }
             is ProfileEvent.SetSubtitlesEnabled ->
-                screenModelScope { _ -> playbackSettings.setSubtitleLanguage(subtitleLanguageFor(event.enabled)) }
-            is ProfileEvent.SetPlainFocus -> screenModelScope { _ -> themeSettings.setPlainFocus(event.enabled) }
+                screenModelScope { playbackSettings.setSubtitleLanguage(subtitleLanguageFor(event.enabled)) }
+            is ProfileEvent.SetPlainFocus -> screenModelScope { themeSettings.setPlainFocus(event.enabled) }
             is ProfileEvent.OpenSetting -> update { it.copy(setting = event.setting, settingOpen = true) }
             ProfileEvent.CloseSetting -> update { it.copy(settingOpen = false) }
             is ProfileEvent.ChooseOption -> chooseOption(event.index)
@@ -88,7 +88,7 @@ class ProfileScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             // Профиль — основной запрос: от него зависит отрисовка экрана.
             when (val result = user.getProfile()) {
                 is RequestResult.Success ->
@@ -114,7 +114,8 @@ class ProfileScreenModel(
      * а не при отправке: «открыть» стоит в той же очереди раньше.
      */
     private fun chooseOption(index: Int) {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val option = optionsOf(current.setting).getOrNull(index) ?: return@screenModelScope
             updateState { it.copy(settingOpen = false) }
             when (current.setting) {
@@ -129,7 +130,7 @@ class ProfileScreenModel(
     }
 
     private fun logout() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(confirmLogout = false) }
             auth.logout()
             postSideEffect(ProfileSideEffect.LoggedOut)
@@ -137,6 +138,6 @@ class ProfileScreenModel(
     }
 
     private fun update(transform: (ProfileState) -> ProfileState) {
-        screenModelScope { _ -> updateState(transform) }
+        screenModelScope { updateState(transform) }
     }
 }

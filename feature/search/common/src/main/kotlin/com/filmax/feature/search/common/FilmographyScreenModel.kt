@@ -30,7 +30,7 @@ class FilmographyScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(loading = true, error = null, heading = route.name) }
             val result = if (route.isDirector) {
                 search.searchByDirector(route.name)

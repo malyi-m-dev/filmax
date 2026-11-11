@@ -23,12 +23,12 @@ class OnboardingScreenModel(
     override fun onEvent(event: OnboardingEvent) {
         when (event) {
             OnboardingEvent.NextStep -> nextStep()
-            OnboardingEvent.PrevStep -> screenModelScope { snapshot ->
+            OnboardingEvent.PrevStep -> screenModelScope {
                 updateState { it.copy(step = maxOf(0, it.step - 1), error = null) }
             }
             OnboardingEvent.RetryDeviceCode -> retryDeviceCode()
-            OnboardingEvent.OpenHomeServer -> screenModelScope { _ -> updateState { it.copy(homeServer = true) } }
-            OnboardingEvent.CloseHomeServer -> screenModelScope { _ ->
+            OnboardingEvent.OpenHomeServer -> screenModelScope { updateState { it.copy(homeServer = true) } }
+            OnboardingEvent.CloseHomeServer -> screenModelScope {
                 sources.select(ContentSource.KINOPUB)
                 updateState { it.copy(homeServer = false) }
             }
@@ -39,7 +39,7 @@ class OnboardingScreenModel(
     override fun onFetchData() = Unit
 
     private fun nextStep() {
-        screenModelScope { snapshot ->
+        screenModelScope {
             val next = state.step + 1
             updateState { it.copy(step = next) }
             if (next == 2) requestDeviceCode()
@@ -47,7 +47,7 @@ class OnboardingScreenModel(
     }
 
     private fun requestDeviceCode() {
-        screenModelScope { snapshot ->
+        screenModelScope {
             when (val result = auth.requestDeviceCode()) {
                 is RequestResult.Success -> {
                     val deviceAuth = result.data
@@ -90,7 +90,7 @@ class OnboardingScreenModel(
     }
 
     private fun retryDeviceCode() {
-        screenModelScope { snapshot ->
+        screenModelScope {
             updateState { it.copy(error = null, deviceCode = null, userCode = null) }
             requestDeviceCode()
         }

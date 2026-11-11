@@ -19,7 +19,7 @@ class RemoteScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             combine(remote.session, remote.paired) { session, paired -> session to paired?.id }
                 .collect { (session, pairedId) -> updateState { it.copy(session = session, pairedId = pairedId) } }
         }
@@ -35,10 +35,10 @@ class RemoteScreenModel(
             RemoteEvent.PreviousEpisode -> remote.send(RemoteCommand.PreviousEpisode)
             RemoteEvent.StopOnTv -> remote.send(RemoteCommand.Stop)
             RemoteEvent.Reconnect -> reconnect()
-            RemoteEvent.ChooseTv -> screenModelScope { _ -> postSideEffect(RemoteSideEffect.OpenPicker) }
+            RemoteEvent.ChooseTv -> screenModelScope { postSideEffect(RemoteSideEffect.OpenPicker) }
             RemoteEvent.Forget -> {
                 remote.forget()
-                screenModelScope { _ -> postSideEffect(RemoteSideEffect.Close) }
+                screenModelScope { postSideEffect(RemoteSideEffect.Close) }
             }
         }
     }
@@ -49,17 +49,17 @@ class RemoteScreenModel(
     }
 
     private fun scrub(positionMs: Long) {
-        screenModelScope { _ -> updateState { it.copy(scrubPositionMs = positionMs) } }
+        screenModelScope { updateState { it.copy(scrubPositionMs = positionMs) } }
     }
 
     private fun finishScrub() {
         val target = state.scrubPositionMs ?: return
         remote.send(RemoteCommand.SeekTo(target))
-        screenModelScope { _ -> updateState { it.copy(scrubPositionMs = null) } }
+        screenModelScope { updateState { it.copy(scrubPositionMs = null) } }
     }
 
     private fun reconnect() {
         val lost = state.session as? RemoteSession.Lost ?: return
-        screenModelScope { _ -> remote.connect(lost.device) }
+        screenModelScope { remote.connect(lost.device) }
     }
 }

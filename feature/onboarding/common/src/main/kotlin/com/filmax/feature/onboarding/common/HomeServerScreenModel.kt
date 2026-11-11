@@ -58,7 +58,7 @@ class HomeServerScreenModel(
     }
 
     private fun search() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(searching = true) }
             val found = servers.discover()
             updateState { current ->
@@ -70,7 +70,7 @@ class HomeServerScreenModel(
     }
 
     private fun connect(address: String) {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(busy = true, error = null) }
             when (val result = servers.connect(address)) {
                 is RequestResult.Success -> onConnected(result.data)
@@ -99,7 +99,7 @@ class HomeServerScreenModel(
 
     private fun startCode(server: HomeServer) {
         polling?.cancel()
-        polling = screenModelScope { _ ->
+        polling = screenModelScope {
             updateState { it.copy(step = HomeServerStep.CODE, code = null, error = null) }
             when (val started = servers.startQuickConnect(server)) {
                 is RequestResult.Success -> {
@@ -125,7 +125,8 @@ class HomeServerScreenModel(
 
     private fun signIn() {
         val server = state.server ?: return
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             if (current.busy) return@screenModelScope
             updateState { it.copy(busy = true, error = null) }
             when (val result = servers.login(server, current.username.trim(), current.password)) {
@@ -160,7 +161,7 @@ class HomeServerScreenModel(
     }
 
     private fun update(transform: (HomeServerState) -> HomeServerState) {
-        screenModelScope { _ -> updateState(transform) }
+        screenModelScope { updateState(transform) }
     }
 
     private companion object {

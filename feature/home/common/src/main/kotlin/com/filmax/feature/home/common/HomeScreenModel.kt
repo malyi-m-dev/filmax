@@ -34,7 +34,7 @@ class HomeScreenModel(
      * обновилось. Окно открывается не чаще, чем разрешает [FeedbackPrompts].
      */
     private fun askFeedbackAfterUpdate() {
-        screenModelScope { _ ->
+        screenModelScope {
             if (feedbackPrompts.afterAppStart()) postSideEffect(HomeSideEffect.AskFeedback)
         }
     }
@@ -43,13 +43,13 @@ class HomeScreenModel(
         when (event) {
             HomeEvent.Load -> onFetchData()
             is HomeEvent.LoadMoreRow -> loadMoreRow(event.id)
-            HomeEvent.NextHero -> screenModelScope { _ -> updateState { current -> current.withNextHero() } }
-            is HomeEvent.ToggleWatchLater -> screenModelScope { _ -> toggleWatchLater(event.item) }
+            HomeEvent.NextHero -> screenModelScope { updateState { current -> current.withNextHero() } }
+            is HomeEvent.ToggleWatchLater -> screenModelScope { toggleWatchLater(event.item) }
         }
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(loading = true, error = null) }
             val feed = getHomeFeed()
             updateState { current ->
@@ -90,7 +90,7 @@ class HomeScreenModel(
      */
     private fun loadCollectionPreviews(collections: List<Collection>) {
         collections.take(COLLECTION_PREVIEWS_LIMIT).forEach { collection ->
-            screenModelScope { _ ->
+            screenModelScope {
                 val preview = catalog.collectionPreview(collection.id) ?: return@screenModelScope
                 updateRows { row -> row.withPreview(collection.id, preview) }
             }
@@ -122,7 +122,7 @@ class HomeScreenModel(
     private fun loadTitlesPage(row: HomeRow.Titles) {
         val source = TITLE_SOURCES[row.id] ?: return
         val nextPage = row.paging.page + 1
-        screenModelScope { _ ->
+        screenModelScope {
             updateRows { current -> current.withTitlesPaging(row.id) { paging -> paging.copy(loadingMore = true) } }
             val result = catalog.titlesPage(source, nextPage)
             updateRows { current ->
@@ -144,7 +144,7 @@ class HomeScreenModel(
     private fun loadMoreCollections(row: HomeRow.Collections) {
         if (!row.paging.canLoadMore) return
         val nextPage = row.paging.page + 1
-        screenModelScope { _ ->
+        screenModelScope {
             updateRows { current -> current.withCollectionsPaging { paging -> paging.copy(loadingMore = true) } }
             val result = catalog.getCollections(nextPage)
             updateRows { current ->

@@ -31,17 +31,17 @@ class TvPickerScreenModel(
     }
 
     override fun onFetchData() {
-        screenModelScope { _ -> updateState { it.copy(withTitle = play != null) } }
-        screenModelScope { _ ->
+        screenModelScope { updateState { it.copy(withTitle = play != null) } }
+        screenModelScope {
             combine(discovery.devices(), remote.paired) { found, paired -> found.withPaired(paired) }
                 .collect { devices -> updateState { it.copy(devices = devices) } }
         }
-        screenModelScope { _ ->
+        screenModelScope {
             remote.session.collect { session ->
                 updateState { it.copy(connectedTo = (session as? RemoteSession.Connected)?.device?.id) }
             }
         }
-        screenModelScope { _ ->
+        screenModelScope {
             delay(SLOW_SEARCH_MS)
             updateState { it.copy(searchTakesLong = true) }
         }
@@ -61,19 +61,19 @@ class TvPickerScreenModel(
     override fun onEvent(event: TvPickerEvent) {
         when (event) {
             is TvPickerEvent.Choose -> state.devices.firstOrNull { it.id == event.deviceId }?.let(::connect)
-            TvPickerEvent.OpenManual -> screenModelScope { _ -> updateState { it.copy(manualOpen = true) } }
-            is TvPickerEvent.EditAddress -> screenModelScope { _ ->
+            TvPickerEvent.OpenManual -> screenModelScope { updateState { it.copy(manualOpen = true) } }
+            is TvPickerEvent.EditAddress -> screenModelScope {
                 updateState { it.copy(address = event.text, addressInvalid = false) }
             }
             TvPickerEvent.ConnectByAddress -> connectByAddress()
-            TvPickerEvent.Dismiss -> screenModelScope { _ -> postSideEffect(TvPickerSideEffect.Close) }
+            TvPickerEvent.Dismiss -> screenModelScope { postSideEffect(TvPickerSideEffect.Close) }
         }
     }
 
     private fun connectByAddress() {
         val device = discovery.deviceAt(state.address)
         if (device == null) {
-            screenModelScope { _ -> updateState { it.copy(addressInvalid = true) } }
+            screenModelScope { updateState { it.copy(addressInvalid = true) } }
             return
         }
         connect(device)
@@ -82,7 +82,7 @@ class TvPickerScreenModel(
     /** Подключиться (связь с этим ТВ, если она есть, пульт не рвёт), отдать тайтл и открыть пульт. */
     private fun connect(device: TvDevice) {
         if (state.connectingTo != null) return
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(connectingTo = device.id, failure = null) }
             val linked = remote.connect(device)
             if (!linked) {

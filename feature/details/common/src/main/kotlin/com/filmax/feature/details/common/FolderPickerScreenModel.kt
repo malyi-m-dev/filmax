@@ -52,7 +52,7 @@ class FolderPickerScreenModel(
 
     /** Папки грузятся при открытии панели, а не с деталями: проверка стоит запроса на папку. */
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             val listed = folders.list().getOrNull().orEmpty()
             val mine = sortedByChange(userFolders(listed, folders.appearances.first()))
             // Только папки пользователя: «Буду смотреть» отмечается своей строкой, и из-за неё
@@ -76,14 +76,15 @@ class FolderPickerScreenModel(
     }
 
     private fun observeWatchlistCount() {
-        screenModelScope { _ ->
+        screenModelScope {
             favorites.favorites.collect { items -> updateState { it.copy(watchlistCount = items.size) } }
         }
     }
 
     /** Отметка сразу, запрос следом; сбой — откат отметки и счётчика и сообщение в панели. */
     private fun toggle(folderId: Int) {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             val wasIn = folderId in current.memberOf
             updateState { it.withMembership(folderId, member = !wasIn).copy(error = null) }
             val result = if (wasIn) user.removeFromBookmark(itemId, folderId) else user.addToBookmark(itemId, folderId)
@@ -99,7 +100,8 @@ class FolderPickerScreenModel(
      * тайтл не лёг — папка в списке без отметки: показать её отмеченной значило бы соврать.
      */
     private fun submit() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             // Черновик — на момент выполнения: правки с клавиатуры стоят в очереди раньше.
             val draft = current.draft?.takeIf { it.canSubmit && !current.creating } ?: return@screenModelScope
             updateState { it.copy(creating = true, error = null) }
@@ -128,7 +130,7 @@ class FolderPickerScreenModel(
         folders.list().getOrNull()?.let { listed -> sortedByChange(userFolders(listed, folders.appearances.first())) }
 
     private fun update(transform: (FolderPickerState) -> FolderPickerState) {
-        screenModelScope { _ -> updateState(transform) }
+        screenModelScope { updateState(transform) }
     }
 
     private companion object {

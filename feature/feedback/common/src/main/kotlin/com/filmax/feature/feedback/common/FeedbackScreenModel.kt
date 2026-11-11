@@ -37,7 +37,7 @@ class FeedbackScreenModel(
 
     override fun onFetchData() {
         if (state.trigger == FeedbackTrigger.Profile) return
-        screenModelScope { _ -> prompts.onPrompted() }
+        screenModelScope { prompts.onPrompted() }
     }
 
     override fun onEvent(event: FeedbackEvent) {
@@ -48,12 +48,13 @@ class FeedbackScreenModel(
             is FeedbackEvent.Comment -> update { it.copy(comment = event.text.take(Feedback.COMMENT_MAX_LENGTH)) }
             is FeedbackEvent.Key -> update { it.applied(event.input) }
             FeedbackEvent.Send -> send()
-            FeedbackEvent.Dismiss -> screenModelScope { _ -> postSideEffect(FeedbackSideEffect.Close) }
+            FeedbackEvent.Dismiss -> screenModelScope { postSideEffect(FeedbackSideEffect.Close) }
         }
     }
 
     private fun send() {
-        screenModelScope { current ->
+        screenModelScope {
+            val current = state
             when {
                 // На ТВ «Отправить» нажимается и без оценки — подсказываем, чего не хватает.
                 current.rating == 0 -> updateState { it.copy(error = RATE_FIRST) }
@@ -81,7 +82,7 @@ class FeedbackScreenModel(
     }
 
     private fun update(transform: (FeedbackState) -> FeedbackState) {
-        screenModelScope { _ -> updateState(transform) }
+        screenModelScope { updateState(transform) }
     }
 
     private companion object {

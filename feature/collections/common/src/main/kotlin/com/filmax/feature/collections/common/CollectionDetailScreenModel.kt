@@ -32,11 +32,11 @@ class CollectionDetailScreenModel(
     /** Повтор той же строки — не событие: фокус ходит по ней влево-вправо, шапка от этого не меняется. */
     private fun focusRow(row: Int?) {
         if (row == state.focusedRow) return
-        screenModelScope { _ -> updateState { it.copy(focusedRow = row) } }
+        screenModelScope { updateState { it.copy(focusedRow = row) } }
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(loading = true, error = null) }
             when (val result = catalog.getCollectionItems(route.collectionId, page = 1)) {
                 is RequestResult.Success ->
@@ -67,7 +67,7 @@ class CollectionDetailScreenModel(
         val current = state
         if (current.loading || current.loadingMore || !current.hasNextPage) return
         val nextPage = current.page + 1
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(loadingMore = true) }
             when (val result = catalog.getCollectionItems(route.collectionId, page = nextPage)) {
                 is RequestResult.Success -> updateState { loaded ->

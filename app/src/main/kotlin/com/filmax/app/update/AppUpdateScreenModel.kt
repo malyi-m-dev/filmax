@@ -39,7 +39,7 @@ class AppUpdateScreenModel(
 
     override fun onFetchData() {
         if (!IS_RELEASE_BUILD) return
-        screenModelScope(ioDispatcher) { _ ->
+        screenModelScope(ioDispatcher) {
             // Ошибки проверки молчаливые: обновление — фон, а не повод для модалки при старте.
             val update = repository.latestUpdate() ?: return@screenModelScope
             updateState { it.copy(update = update) }
@@ -55,7 +55,8 @@ class AppUpdateScreenModel(
      * ([AppUpdateState.installable]): у этих сборок свой applicationId.
      */
     private fun check() {
-        screenModelScope(ioDispatcher) { snapshot ->
+        screenModelScope(ioDispatcher) {
+            val snapshot = state
             if (snapshot.checking) return@screenModelScope
             updateState {
                 it.copy(checking = true, upToDate = false, dismissed = false, downloadError = false)
@@ -73,7 +74,8 @@ class AppUpdateScreenModel(
     }
 
     private fun download() {
-        screenModelScope(ioDispatcher) { snapshot ->
+        screenModelScope(ioDispatcher) {
+            val snapshot = state
             val update = snapshot.update ?: return@screenModelScope
             updateState { it.copy(downloading = true, progress = 0f, downloadError = false) }
             var lastReported = 0f
@@ -98,13 +100,14 @@ class AppUpdateScreenModel(
     }
 
     private fun install() {
-        screenModelScope { snapshot ->
+        screenModelScope {
+            val snapshot = state
             snapshot.downloadedApk?.let { postSideEffect(AppUpdateSideEffect.LaunchInstaller(it)) }
         }
     }
 
     private fun dismiss() {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(dismissed = true, upToDate = false) }
         }
     }

@@ -90,31 +90,31 @@ class SearchScreenModel(
             // Готовый запрос (подсказка, недавний, голос): искать сразу, без debounce, и запомнить.
             is SearchEvent.SubmitQuery -> {
                 onQueryChange(event.query)
-                screenModelScope { _ ->
+                screenModelScope {
                     updateState { it.withRecent(event.query) }
                     performSearch(event.query)
                 }
             }
 
-            SearchEvent.ResultOpened -> screenModelScope { _ -> updateState { it.withRecent(it.query) } }
-            SearchEvent.ClearRecent -> screenModelScope { _ ->
+            SearchEvent.ResultOpened -> screenModelScope { updateState { it.withRecent(it.query) } }
+            SearchEvent.ClearRecent -> screenModelScope {
                 updateState { it.copy(recentQueries = emptyList()) }
             }
 
             SearchEvent.LoadCatalog -> onLoadCatalog()
             SearchEvent.LoadMoreCatalog -> onLoadMoreCatalog()
-            SearchEvent.RetryCatalog -> screenModelScope { _ -> loadCatalog() }
+            SearchEvent.RetryCatalog -> screenModelScope { loadCatalog() }
             is SearchEvent.Keyboard -> onKeyboard(event)
             // Фильтры в панели правятся черновиком — выдачу перезапрашивает только «Применить».
             SearchEvent.ApplyDraftFilters -> updateAndReload { it.withSheet(SearchEvent.ApplyDraftFilters) }
-            is SearchEvent.Sheet -> screenModelScope { _ -> updateState { it.withSheet(event) } }
+            is SearchEvent.Sheet -> screenModelScope { updateState { it.withSheet(event) } }
         }
     }
 
     @OptIn(FlowPreview::class)
     override fun onFetchData() {
-        screenModelScope { _ -> updateState { it.copy(trendingQueries = TrendingQueries) } }
-        screenModelScope { _ ->
+        screenModelScope { updateState { it.copy(trendingQueries = TrendingQueries) } }
+        screenModelScope {
             queryFlow
                 // drop(1): StateFlow отдаёт текущее значение сразу при подписке, и без этого
                 // стартовый пустой запрос вызвал бы загрузку витрины второй раз — следом за
@@ -131,7 +131,7 @@ class SearchScreenModel(
 
     private fun onQueryChange(query: String) {
         queryFlow.value = query
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(query = query, error = null) }
             if (query.isBlank()) updateState { it.copy(results = emptyList(), loading = false) }
         }
@@ -148,18 +148,18 @@ class SearchScreenModel(
         focusMatchWhenFound = event is SearchEvent.OpenSearch && !event.query.isNullOrBlank()
         when (event) {
             is SearchEvent.OpenSearch -> {
-                screenModelScope { _ -> updateState { it.copy(searchOpen = true) } }
+                screenModelScope { updateState { it.copy(searchOpen = true) } }
                 event.query?.takeIf { it.isNotBlank() }?.let { dispatch(SearchEvent.SubmitQuery(it)) }
             }
             // Закрытый поиск возвращает витрину как была: пейджер помнит загруженную выдачу.
             SearchEvent.CloseSearch -> {
                 onQueryChange("")
-                screenModelScope { _ -> updateState { it.copy(searchOpen = false) } }
+                screenModelScope { updateState { it.copy(searchOpen = false) } }
             }
 
             is SearchEvent.TypeKey -> onQueryChange(typedQuery(queryFlow.value, event.key))
             SearchEvent.DeleteLast -> onQueryChange(queryFlow.value.dropLast(1))
-            is SearchEvent.SwitchLayout -> screenModelScope { _ ->
+            is SearchEvent.SwitchLayout -> screenModelScope {
                 updateState { it.copy(keyboardLayout = event.layout) }
             }
         }
@@ -167,7 +167,7 @@ class SearchScreenModel(
 
     /** Смена любого фильтра — это всегда «поправь состояние и перезапроси выдачу». */
     private fun updateAndReload(change: (SearchState) -> SearchState) {
-        screenModelScope { _ ->
+        screenModelScope {
             updateState(change)
             reload()
         }
@@ -175,18 +175,18 @@ class SearchScreenModel(
 
     private fun onLoadCatalog() {
         if (state.catalogEnabled) return
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(catalogEnabled = true) }
             reload()
         }
         // Жанры — отдельной корутиной: чипы не должны ждать сетку, а сетка — чипы.
-        screenModelScope { _ ->
+        screenModelScope {
             catalog.getGenres().getOrNull()
                 ?.filter { it.type in VIDEO_GENRE_TYPES }
                 ?.let { genres -> updateState { it.copy(genres = genres) } }
         }
         // Страны — тоже отдельно: список нужен только панели фильтров, сетку он не держит.
-        screenModelScope { _ ->
+        screenModelScope {
             catalog.getCountries().getOrNull()
                 ?.let { countries -> updateState { it.copy(countries = countries) } }
         }
@@ -255,7 +255,7 @@ class SearchScreenModel(
         val current = state
         val busy = current.loading || current.catalogLoadingMore || current.catalogEndReached
         if (!current.catalogEnabled || busy || current.query.length >= MIN_QUERY_LENGTH) return
-        screenModelScope { _ ->
+        screenModelScope {
             updateState { it.copy(catalogLoadingMore = true) }
             val next = pager.next()
             updateState { loaded ->

@@ -94,16 +94,21 @@ abstract class BaseScreenModel<STATE : Any, SIDE_EFFECT : Any, EVENT : Any>(
     protected val screenModelScope: CoroutineScope = viewModelScope
 
     /**
-     * Запускает корутину в [screenModelScope] на [dispatcher], предоставляя актуальный снимок [STATE].
-     * Исключения внутри блока изолируются, чтобы один сбой не ронял ScreenModel, но не теряются:
-     * уходят в телеметрию non-fatal. Раньше они глотались молча, и баг экрана не оставлял следов
-     * ни в Crashlytics, ни в logcat. Сетевые сбои сюда не доходят — их разбирает safeRequest.
+     * Запускает корутину в [screenModelScope] на [dispatcher]. Исключения внутри блока изолируются,
+     * чтобы один сбой не ронял ScreenModel, но не теряются: уходят в телеметрию non-fatal. Раньше
+     * они глотались молча, и баг экрана не оставлял следов ни в Crashlytics, ни в logcat. Сетевые
+     * сбои сюда не доходят — их разбирает safeRequest.
+     *
+     * Снимок состояния в блок не передаётся: блоку, которому он нужен, — `val current = state` в
+     * начале. Раньше снимок шёл параметром, и сотня вызовов писала `{ _ -> … }` ради него.
+     * Функция не называется `launch`: внутри корутины такое имя перекрыл бы `CoroutineScope.launch`,
+     * и запуск молча ушёл бы мимо перехвата ошибок.
      */
     protected fun screenModelScope(
         dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
-        call: suspend CoroutineScope.(STATE) -> Unit,
+        call: suspend CoroutineScope.() -> Unit,
     ): Job = screenModelScope.launch(dispatcher) {
-        runCatching { call(state) }.onFailure { error ->
+        runCatching { call() }.onFailure { error ->
             // Отмена — закрытие экрана, а не сбой.
             if (error !is CancellationException) ErrorReporting.reporter.report(error)
         }

@@ -76,7 +76,7 @@ class BaseScreenModelTelemetryTest {
 
         override fun onEvent(event: SampleEvent) {
             handled += event
-            if (event == SampleEvent.Fail) screenModelScope { _ -> error("сломалось") }
+            if (event == SampleEvent.Fail) screenModelScope { error("сломалось") }
         }
 
         override fun onFetchData() = Unit

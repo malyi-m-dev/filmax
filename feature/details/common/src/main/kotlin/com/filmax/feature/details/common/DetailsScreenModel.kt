@@ -50,13 +50,13 @@ class DetailsScreenModel(
             DetailsEvent.ToggleFav -> toggleFav()
             is DetailsEvent.SelectSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, SEASON_SELECT_DELAY_MS))
             is DetailsEvent.SwitchSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, delayMs = 0))
-            DetailsEvent.OpenDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = true) } }
-            DetailsEvent.CloseDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = false) } }
+            DetailsEvent.OpenDescription -> screenModelScope { updateState { it.copy(descriptionOpen = true) } }
+            DetailsEvent.CloseDescription -> screenModelScope { updateState { it.copy(descriptionOpen = false) } }
         }
     }
 
     override fun onFetchData() {
-        screenModelScope { _ ->
+        screenModelScope {
             val itemResult = catalog.getItemDetails(route.itemId)
             val similar = catalog.getSimilarItems(route.itemId).getOrNull().orEmpty()
             when (itemResult) {
@@ -92,7 +92,7 @@ class DetailsScreenModel(
      * а фото «доезжают» без блокировки. Пустой ответ (нет ключа/совпадения) молча оставляет строку.
      */
     private fun loadCast(imdbId: String?) {
-        screenModelScope { _ ->
+        screenModelScope {
             val members = cast.getCast(imdbId)
             if (members.isNotEmpty()) {
                 updateState { it.copy(cast = members) }
@@ -110,11 +110,11 @@ class DetailsScreenModel(
 
     private fun toggleFav() {
         val item = state.item ?: return
-        screenModelScope { _ -> toggleWatchLater(item) }
+        screenModelScope { toggleWatchLater(item) }
     }
 
     private fun observeSeasonRequests() {
-        screenModelScope { _ ->
+        screenModelScope {
             seasonRequests.debounce { it.delayMs }.collect { request ->
                 updateState { it.copy(selectedSeason = request.number) }
             }
