@@ -1,11 +1,15 @@
 package com.filmax.feature.player.common
 
 import android.content.Context
+import android.net.Uri
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import com.filmax.core.domain.catalog.model.SubtitleTrack
 
 /**
  * Как плеер грузит поток. Варианты доставки одного качества лежат на разных CDN, и недоступный
@@ -41,3 +45,26 @@ internal class FailFastLoadErrorPolicy(private val failFast: () -> Boolean) : De
  * Рабочий CDN за это время успевает отдать первые секунды видео.
  */
 internal const val START_TIMEOUT_MS = 8_000L
+
+/** MediaItem варианта [url] с субтитрами трека: они вшиваются в каждый вариант заново. */
+internal fun mediaItemOf(url: String, subtitles: List<SubtitleTrack>): MediaItem {
+    val subtitleConfigs = subtitles.map { subtitle ->
+        // Расширение — до параметров: у домашнего сервера ссылка кончается не на «.vtt», а на ключ.
+        val mime = if (subtitle.url.substringBefore('?').endsWith(".vtt", ignoreCase = true)) {
+            MimeTypes.TEXT_VTT
+        } else {
+            MimeTypes.APPLICATION_SUBRIP
+        }
+        MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.url))
+            .setLanguage(subtitle.lang)
+            .setMimeType(mime)
+            .build()
+    }
+    return MediaItem.Builder()
+        .setUri(url)
+        .setSubtitleConfigurations(subtitleConfigs)
+        .build()
+}
+
+/** Хост из URL — для хлебных крошек телеметрии (сам URL с подписью в логи не пишем). */
+internal fun urlHost(url: String): String = url.substringAfter("://").substringBefore("/")

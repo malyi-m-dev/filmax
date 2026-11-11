@@ -1,24 +1,17 @@
 package com.filmax.feature.player.common
 
 import android.content.Context
-import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MimeTypes
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.toRoute
-import com.filmax.core.domain.catalog.model.AudioTrack
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
 import com.filmax.core.domain.catalog.model.VideoRef
-import com.filmax.core.domain.catalog.model.audioLanguageName
 import com.filmax.core.domain.catalog.model.ref
-import com.filmax.core.domain.catalog.model.subtitleLanguageName
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.error.AppError
@@ -31,10 +24,7 @@ import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvLinkReceiver
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.player.common.navigation.PlayerRoute
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
-import kotlin.math.abs
 
 // Контракт плеера целен: загрузка, выбор дорожек/качества, фолбэк CDN-вариантов и прогресс —
 // одна связная машина воспроизведения, дробление раздало бы половину полей в каждый кусок.
@@ -56,21 +46,11 @@ class PlayerScreenModel(
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()
 
-    /**
-     * Основной вариант доставки ещё не заиграл, а за ним есть запасной: ошибка загрузки не
-     * повторяется, и плеер сразу уходит на следующий CDN (см. [streamSourceFactory]). Читается
-     * потоком загрузки Media3.
-     */
-    @Volatile
-    private var failFast = false
-
-    /** Сторож старта основного варианта (см. [watchStart]). */
-    private var startWatch: Job? = null
-
     // Шаг перемотки задан явно: дефолты Media3 (5 с назад / 15 с вперёд) не совпадают
-    // с иконками Replay10/Forward10 на кнопках плеера.
+    // с иконками Replay10/Forward10 на кнопках плеера. Повторы загрузки решает [fallback]:
+    // лямбда читается потоком загрузки, когда он уже создан.
     val player: ExoPlayer = ExoPlayer.Builder(context)
-        .setMediaSourceFactory(streamSourceFactory(context) { failFast })
+        .setMediaSourceFactory(streamSourceFactory(context) { fallback.failFast })
         .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
         .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
         .build()
@@ -79,24 +59,21 @@ class PlayerScreenModel(
     private var trackSubtitles: List<SubtitleTrack> = emptyList()
     private var audioPreference: String = PlaybackSettings.AudioOriginal
 
+    /** Варианты доставки текущего качества и переход между CDN. */
+    private val fallback = StreamFallback(
+        player = player,
+        mediaItemOf = { url -> mediaItemOf(url, trackSubtitles) },
+        launch = { block -> screenModelScope { block() } },
+        onSwitched = { url -> screenModelScope { updateState { it.copy(streamUrl = url) } } },
+    )
+
+    /** Озвучки: меню, выбор и память на тайтл. */
+    private val audio = PlayerAudio(player)
+
+    private val progress = ProgressThrottle()
+
     /** Выбранный трек/эпизод — нужен для сохранения прогресса (сериалы пишутся по сезону). */
     private var selectedTrack: MediaTrack? = null
-
-    /** Аудиогруппы последнего onTracksChanged — по ним selectAudio делает точечный override. */
-    private var audioGroups: List<Tracks.Group> = emptyList()
-
-    /**
-     * Озвучка, выбранная для этого тайтла (язык|тип|студия). Читается при загрузке и
-     * применяется к КАЖДОМУ onTracksChanged: так следующая серия сериала стартует с той же
-     * студией, а смена качества не сбрасывает выбор. Обновляется при ручном выборе дорожки.
-     */
-    private var savedVoiceKey: String? = null
-
-    /** Позиция последней отправки прогресса — база для троттлинга в [saveProgress]. */
-    private var lastSentSeconds: Int? = null
-
-    /** Индекс текущего варианта доставки в [StreamQuality.urls]; сбрасывается сменой качества. */
-    private var streamVariantIndex = 0
 
     /** Играло ли видео, когда открыли нижнюю панель: закрытие продолжит, только если играло. */
     private var resumeAfterPanel = false
@@ -130,7 +107,7 @@ class PlayerScreenModel(
                 ErrorReporting.reporter.report(RequestFailure.of(AppError.Playback, error))
                 // Ошибка источника часто значит «CDN этого варианта недоступен» (DPI/SNI-блокировка
                 // srvkp.com): прежде чем показывать модалку, пробуем следующий вариант доставки.
-                if (!playNextStreamVariant()) {
+                if (!fallback.next()) {
                     screenModelScope { showError(AppError.Playback) }
                 }
             }
@@ -145,7 +122,7 @@ class PlayerScreenModel(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
                     // Поток заиграл — дальше сбои загрузки повторяются как обычно.
-                    Player.STATE_READY -> failFast = false
+                    Player.STATE_READY -> fallback.onReady()
                     Player.STATE_ENDED -> onWatchFinished()
                 }
             }
@@ -242,7 +219,7 @@ class PlayerScreenModel(
         screenModelScope {
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
-            savedVoiceKey = playbackSettings.voiceKeyFor(route.itemId)
+            audio.savedVoiceKey = playbackSettings.voiceKeyFor(route.itemId)
             // Потолок Full HD и ниже мог остаться от 2.2.0, где его записывал занятый декодер, —
             // такой не действует.
             decoderLimit = playbackSettings.decoderLimit()?.let(QualityLadder::limitOf)
@@ -265,17 +242,8 @@ class PlayerScreenModel(
                     // но не выше того, на чём декодер устройства уже падал.
                     val initial = QualityLadder.start(qualities, settings.quality, decoderLimit)
 
-                    // Субтитры: «Выкл» + языки из трека.
-                    val subtitleOptions = buildList {
-                        add(SubtitleOption(PlaybackSettings.SubtitleOff, null))
-                        trackSubtitles.forEach { add(SubtitleOption(langDisplay(it.lang), it.lang)) }
-                    }
-                    val selectedSubtitle = if (settings.subtitleLanguage == PlaybackSettings.SubtitleOff) {
-                        subtitleOptions.first()
-                    } else {
-                        subtitleOptions.firstOrNull { it.label == settings.subtitleLanguage }
-                            ?: subtitleOptions.first()
-                    }
+                    val subtitleOptions = subtitleOptions(trackSubtitles)
+                    val selectedSubtitle = subtitleOptions.preferred(settings.subtitleLanguage)
 
                     updateState {
                         it.copy(
@@ -293,9 +261,8 @@ class PlayerScreenModel(
                     }
 
                     if (initial != null) {
-                        streamVariantIndex = 0
                         reportPlaybackStart(initial)
-                        beginStream(initial.url, primaryWithBackup = initial.urls.size > 1)
+                        fallback.start(initial)
                         applyTrackPreferences(selectedSubtitle.lang)
                         startSeconds(track)?.let { player.seekTo(it * MILLIS_IN_SECOND) }
                         player.playWhenReady = screenShown
@@ -357,9 +324,8 @@ class PlayerScreenModel(
     private fun switchQuality(quality: StreamQuality) {
         val position = player.currentPosition
         val wasPlaying = player.playWhenReady
-        streamVariantIndex = 0
         // trackSelectionParameters (аудио/субтитры) живут на плеере и переживают смену MediaItem.
-        beginStream(quality.url, primaryWithBackup = quality.urls.size > 1)
+        fallback.start(quality)
         player.seekTo(position)
         player.playWhenReady = wasPlaying
         screenModelScope { updateState { it.copy(currentQuality = quality.label, streamUrl = quality.url) } }
@@ -397,27 +363,6 @@ class PlayerScreenModel(
     }
 
     /**
-     * Переключает поток на следующий вариант доставки текущего качества (hls4 → http → hls).
-     * Варианты ведут на разные CDN-хосты, и недоступность одного (SNI-блокировка srvkp.com)
-     * не значит, что тайтл не посмотреть. false — варианты кончились, ошибку показывает вызывающий.
-     */
-    private fun playNextStreamVariant(): Boolean {
-        val quality = state.qualities.firstOrNull { it.label == state.currentQuality }
-        val nextUrl = quality?.urls?.getOrNull(streamVariantIndex + 1) ?: return false
-        streamVariantIndex++
-        ErrorReporting.reporter.log("player: variant fallback #$streamVariantIndex host=${urlHost(nextUrl)}")
-        val position = player.currentPosition
-        // Состояние воспроизведения переносим как есть: сбой CDN — не повод запускать видео
-        // у того, кто стоял на паузе.
-        val wasPlaying = player.playWhenReady
-        beginStream(nextUrl, primaryWithBackup = false)
-        if (position > 0) player.seekTo(position)
-        player.playWhenReady = wasPlaying
-        screenModelScope { updateState { it.copy(streamUrl = nextUrl) } }
-        return true
-    }
-
-    /**
      * Досмотрено до конца: досмотр засчитывается, а окно оценки просится, только если дальше
      * ничего не играет — фильм или последняя доступная серия. Посреди сериала автопереход на
      * следующую серию окном не перебиваем.
@@ -438,99 +383,17 @@ class PlayerScreenModel(
 
     private fun selectAudio(label: String) {
         val option = state.audioTracks.firstOrNull { it.label == label } ?: return
-        val group = audioGroups.getOrNull(option.groupIndex) ?: return
-        // Точечный override на конкретную группу: предпочитаемый ЯЗЫК не различил бы несколько
-        // русских озвучек разных студий.
-        player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-            .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, 0))
-            .build()
-        // Запоминаем озвучку на весь тайтл: следующие серии стартуют с этой же студии.
-        val key = voiceKey(option.groupIndex, group, selectedTrack?.audios.orEmpty())
-        savedVoiceKey = key
+        val key = audio.select(option, selectedTrack?.audios.orEmpty()) ?: return
         screenModelScope {
             playbackSettings.setVoiceKey(route.itemId, key)
             updateState { it.copy(currentAudio = label) }
         }
     }
 
-    /**
-     * Снимает список аудиодорожек с плеера — ВСЕ группы, а не уникальные языки: у тайтла
-     * обычно несколько озвучек одного языка (дубляж, многоголоски разных студий, оригинал),
-     * и оригинальный клиент kino.pub показывает их полным списком. Подписи — из `audios[]`
-     * ответа API (язык · тип · студия); селектор показываем только при выборе из нескольких.
-     */
+    /** Аудиодорожки известны только после разбора манифеста — меню собирается отсюда. */
     private fun updateAudioTracks(tracks: Tracks) {
-        audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
-        val apiAudios = selectedTrack?.audios.orEmpty()
-        val options = audioGroups.mapIndexed { index, group -> audioOption(index, group, apiAudios) }
-
-        // Запомненная озвучка тайтла: находим группу с тем же ключом и ставим override —
-        // следующая серия стартует с той же студии, а смена качества не сбрасывает выбор.
-        // Не нашлась (у серии другой набор озвучек) — остаёмся на выборе плеера.
-        val savedIndex = savedVoiceKey?.let { key ->
-            audioGroups.indices.firstOrNull { voiceKey(it, audioGroups[it], apiAudios) == key }
-        }
-        if (savedIndex != null && !audioGroups[savedIndex].isSelected) {
-            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon()
-                .setOverrideForType(TrackSelectionOverride(audioGroups[savedIndex].mediaTrackGroup, 0))
-                .build()
-        }
-
-        val selectedIndex = savedIndex ?: audioGroups.indexOfFirst { it.isSelected }
-        screenModelScope {
-            updateState {
-                it.copy(
-                    audioTracks = if (options.size > 1) options else emptyList(),
-                    currentAudio = options.getOrNull(selectedIndex)?.label
-                        ?: options.firstOrNull()?.label.orEmpty(),
-                )
-            }
-        }
-    }
-
-    /**
-     * Ставит в плеер вариант доставки [url]. [primaryWithBackup] — это основной вариант, и за ним
-     * есть запасной: пока поток не заиграл, сбой загрузки не повторяется ([failFast]), а молчание
-     * обрывает сторож старта. Запасные живут на другом CDN и грузятся как обычно, с повторами.
-     */
-    private fun beginStream(url: String, primaryWithBackup: Boolean) {
-        failFast = primaryWithBackup
-        player.setMediaItem(buildMediaItem(url))
-        player.prepare()
-        startWatch?.cancel()
-        if (primaryWithBackup) startWatch = screenModelScope { watchStart(url) }
-    }
-
-    /**
-     * Сторож старта: основной вариант, который за [START_TIMEOUT_MS] не отдал ни секунды видео,
-     * сменяется запасным, не дожидаясь ошибки, — заблокированный хост молчит до неё полминуты.
-     * Медленный, но живой CDN что-то уже отдал, и его не трогаем.
-     */
-    private suspend fun watchStart(url: String) {
-        delay(START_TIMEOUT_MS)
-        if (!failFast || player.totalBufferedDuration > 0) return
-        ErrorReporting.reporter.log("player: no data in ${START_TIMEOUT_MS}ms host=${urlHost(url)}")
-        playNextStreamVariant()
-    }
-
-    /** Собирает MediaItem с вложенными конфигурациями субтитров текущего трека. */
-    private fun buildMediaItem(url: String): MediaItem {
-        val subtitleConfigs = trackSubtitles.map { subtitle ->
-            // Расширение — до параметров: у домашнего сервера ссылка кончается не на «.vtt», а на ключ.
-            val mime = if (subtitle.url.substringBefore('?').endsWith(".vtt", ignoreCase = true)) {
-                MimeTypes.TEXT_VTT
-            } else {
-                MimeTypes.APPLICATION_SUBRIP
-            }
-            MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.url))
-                .setLanguage(subtitle.lang)
-                .setMimeType(mime)
-                .build()
-        }
-        return MediaItem.Builder()
-            .setUri(url)
-            .setSubtitleConfigurations(subtitleConfigs)
-            .build()
+        val choice = audio.onTracksChanged(tracks, selectedTrack?.audios.orEmpty())
+        screenModelScope { updateState { it.copy(audioTracks = choice.menu, currentAudio = choice.current) } }
     }
 
     /** Применяет предпочтения дорожек к плееру: язык аудио и язык/выключение субтитров. */
@@ -552,17 +415,14 @@ class PlayerScreenModel(
      * kino.pub в `watching/marktime` ждёт именно номер, и тем же числом отдаёт прогресс обратно
      * в `items/{id}`. С id прогресс уходил «в никуда» — история оставалась пустой.
      *
-     * Троттлинг по позиции: пока не отъехали от последней отправки дальше [PROGRESS_STEP_SECONDS],
-     * не дёргаем сервер — тик плеера идёт раз в секунду, а это на порядок чаще, чем нужно.
+     * Отправку прореживает [ProgressThrottle]: тик плеера идёт раз в секунду.
      */
     private fun saveProgress(positionMs: Long) {
         val item = state.item
         val track = selectedTrack
         if (item == null || track == null) return
         val seconds = (positionMs / MILLIS_IN_SECOND).toInt()
-        val sent = lastSentSeconds
-        if (sent != null && abs(seconds - sent) < PROGRESS_STEP_SECONDS) return
-        lastSentSeconds = seconds
+        if (!progress.shouldSend(seconds)) return
         screenModelScope { watching.saveProgress(item.id, track.ref, seconds) }
     }
 
@@ -583,9 +443,6 @@ class PlayerScreenModel(
             Player.EVENT_POSITION_DISCONTINUITY,
         )
 
-        /** Хост из URL — для хлебных крошек телеметрии (сам URL с подписью в логи не пишем). */
-        fun urlHost(url: String): String = url.substringAfter("://").substringBefore("/")
-
         /** Трек маршрута: серия — по сезону и номеру, видео фильма — по номеру. */
         fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean = when (val video = route.video) {
             is VideoRef.Episode -> seasonNumber == video.season && number == video.number
@@ -596,9 +453,6 @@ class PlayerScreenModel(
         /** `watchStatus` из API: 1 — трек досмотрен до конца. */
         const val WATCH_STATUS_FINISHED = 1
 
-        /** Порог отправки прогресса: реже, чем тик плеера (1 с), но чаще, чем теряется место. */
-        const val PROGRESS_STEP_SECONDS = 5
-
         /** Ключ отчёта Crashlytics: высота кадра, на которой декодер устройства не справился. */
         const val DECODER_LIMIT_KEY = "decoder_limit"
 
@@ -606,56 +460,6 @@ class PlayerScreenModel(
             "русский" -> "rus"
             "english" -> "eng"
             else -> null // «Оригинал» / неизвестно — пусть плеер выбирает сам
-        }
-
-        fun langDisplay(code: String?): String = subtitleLanguageName(code)
-
-        fun audioDisplay(code: String?): String = audioLanguageName(code)
-
-        /**
-         * Подпись дорожки: «2. Русский · Многоголосый · BaibaKo» — как в оригинальном клиенте
-         * kino.pub. Метаданные берём из `audios[]` ответа API, сопоставляя с группой Media3 по
-         * порядку (`audios[].index` 1-based = порядок дорожек в HLS-манифесте): сам манифест
-         * kino.pub кладёт в NAME только код языка, и по нему озвучки неотличимы. Номер в начале
-         * гарантирует уникальность подписи, даже если у двух озвучек совпали студия и тип.
-         */
-        fun audioLabel(groupIndex: Int, group: Tracks.Group, apiAudios: List<AudioTrack>): String {
-            val meta = apiAudios.firstOrNull { it.index == groupIndex + 1 }
-            val language = meta?.lang ?: group.getTrackFormat(0).language
-            val parts = buildList {
-                add(audioDisplay(language))
-                meta?.voiceType?.let { add(it) }
-                meta?.voiceAuthor?.let { add(it) }
-            }.distinct()
-            return "${groupIndex + 1}. ${parts.joinToString(" · ")}"
-        }
-
-        /**
-         * Вариант дорожки для меню: уникальная подпись ([audioLabel]) плюс те же метаданные по
-         * частям — ТВ раскладывает их по строке варианта (язык и тип, студия, каналы).
-         */
-        fun audioOption(groupIndex: Int, group: Tracks.Group, apiAudios: List<AudioTrack>): AudioOption {
-            val meta = apiAudios.firstOrNull { it.index == groupIndex + 1 }
-            return AudioOption(
-                label = audioLabel(groupIndex, group, apiAudios),
-                groupIndex = groupIndex,
-                languageCode = meta?.lang ?: group.getTrackFormat(0).language,
-                voiceType = meta?.voiceType,
-                voiceAuthor = meta?.voiceAuthor,
-                channels = meta?.channels ?: group.getTrackFormat(0).channelCount.coerceAtLeast(0),
-            )
-        }
-
-        /**
-         * Ключ озвучки для памяти на тайтл: `язык|тип|студия` из метаданных API. Позиционный
-         * индекс не годится — у разных серий порядок дорожек может отличаться, а связка
-         * язык+тип+студия идентифицирует именно озвучку.
-         */
-        fun voiceKey(groupIndex: Int, group: Tracks.Group, apiAudios: List<AudioTrack>): String {
-            val meta = apiAudios.firstOrNull { it.index == groupIndex + 1 }
-            val language = meta?.lang ?: group.getTrackFormat(0).language
-            return listOf(language.orEmpty(), meta?.voiceType.orEmpty(), meta?.voiceAuthor.orEmpty())
-                .joinToString("|")
         }
     }
 }

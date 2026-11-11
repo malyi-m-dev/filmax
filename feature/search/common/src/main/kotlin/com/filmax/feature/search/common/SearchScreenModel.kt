@@ -1,14 +1,8 @@
 package com.filmax.feature.search.common
 
 import androidx.lifecycle.SavedStateHandle
-import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.ArrangeCatalog
 import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.catalog.CatalogSort
-import com.filmax.core.domain.catalog.GenreFilter
-import com.filmax.core.domain.catalog.ReferenceGenre
-import com.filmax.core.domain.catalog.SortOption
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.search.SearchRepository
@@ -25,22 +19,6 @@ import kotlinx.coroutines.flow.drop
 
 private const val SEARCH_DEBOUNCE_MILLIS = 300L
 private const val PER_PAGE = 20
-private const val RECENT_LIMIT = 8
-
-/**
- * Что показывает чип «Все». `api/v1/items` без параметра `type` не ходит, поэтому «все» —
- * это объединение конкретных типов; ItemType.TV (эфирные каналы) в витрину не входит.
- * ANIME здесь нет: у kino.pub нет такого типа (api/v1/types), и аниме-тайтлы уже входят
- * в выдачу как movie/serial со своим жанром.
- */
-private val BrowseTypes = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.DOCUMENTARY)
-
-/**
- * Чип «Аниме»: такого типа у источников нет — аниме это ЖАНР поверх фильмов и сериалов. Поэтому
- * фильтр ANIME разворачивается в фильмы+сериалы с опорным жанром [ReferenceGenre.ANIME];
- * выбранный в ряду жанр на это время игнорируется — жанр в запросе один.
- */
-private val AnimeTypes = listOf(ItemType.MOVIE, ItemType.SERIES)
 
 private val TrendingQueries = listOf(
     "Мстители",
@@ -224,7 +202,7 @@ class SearchScreenModel(
         when (val first = pager.first(query)) {
             is CatalogPage.Loaded -> updateState {
                 // Уникальность по id: это ключ карточки в сетке, повтор роняет её измерение.
-                val items = sortLocally(first.items.distinctBy { item -> item.id }, it.sort)
+                val items = ArrangeCatalog.firstPage(first.items, it.sort)
                 it.copy(
                     loading = false,
                     catalogItems = items,
@@ -259,7 +237,7 @@ class SearchScreenModel(
             updateState { loaded ->
                 when (next) {
                     is CatalogPage.Loaded -> {
-                        val merged = loaded.catalogItems.mergedWith(next.items, loaded.sort)
+                        val merged = ArrangeCatalog.nextPage(loaded.catalogItems, next.items, loaded.sort)
                         loaded.copy(
                             catalogLoadingMore = false,
                             catalogItems = merged,
@@ -274,114 +252,4 @@ class SearchScreenModel(
             }
         }
     }
-}
-
-/** Выборка после события: тип, сортировка (выбор в панели её закрывает), жанр, фильтры. */
-private fun SearchState.withSelection(event: SearchEvent.Selection): SearchState = when (event) {
-    is SearchEvent.FilterChange -> copy(filter = event.filter)
-    is SearchEvent.SortChange -> copy(sort = event.sort, sheetOpen = false)
-    is SearchEvent.GenreChange -> copy(selectedGenreId = event.genreId)
-    is SearchEvent.ApplyFilters -> copy(filters = event.filters)
-    SearchEvent.ResetFilters -> copy(filters = CatalogFilters())
-}
-
-/**
- * Боковые панели ТВ. Панель фильтров открывается с черновиком, равным применённым фильтрам: закрытая
- * без «Применить», она не оставляет следов, а «Применить» переносит черновик в выдачу.
- */
-private fun SearchState.withSheet(event: SearchEvent.Sheet): SearchState = when (event) {
-    is SearchEvent.OpenSheet -> copy(sheetOpen = true, sheet = event.sheet, filtersDraft = filters)
-    SearchEvent.CloseSheet -> copy(sheetOpen = false)
-    is SearchEvent.EditFilters -> copy(filtersDraft = event.filters)
-    SearchEvent.ResetDraftFilters -> copy(filtersDraft = CatalogFilters())
-    SearchEvent.ApplyDraftFilters -> copy(filters = filtersDraft, sheetOpen = false)
-}
-
-/**
- * Тип для запроса поиска. На ТВ поиск — отдельный режим без чипов каталога: фильтр, которого
- * зритель не видит, тихо прятал бы найденное, поэтому там ищем по всему каталогу.
- */
-private fun SearchState.searchType(): ItemType? = if (searchOpen) null else filter
-
-/**
- * Жанр, диапазонные фильтры и сортировка поверх выдачи поиска: сам `search` ничего из этого не
- * принимает. Страну (по id) и 4K локально не проверить — в [Item] их нет, они остаются серверными
- * и на результаты поиска не влияют. На ТВ фильтры к поиску не применяются (см. [searchType]).
- */
-private fun SearchState.arranged(items: List<Item>): List<Item> {
-    // distinctBy: поиск умеет вернуть один id дважды — в сетке это дубль ключа и краш.
-    if (searchOpen) return items.distinctBy { it.id }
-    val genreId = selectedGenreId
-    val filtered = items.asSequence()
-        .filter { item -> genreId == null || item.genres.any { it.id == genreId } }
-        .filter { item -> item.matches(filters) }
-        .distinctBy { it.id }
-        .toList()
-    return sortLocally(filtered, sort)
-}
-
-/** Выдача витрины по фильтрам экрана; «Аниме» — жанр поверх фильмов и сериалов. */
-private fun SearchState.catalogQuery(): CatalogQuery = CatalogQuery(
-    types = when (filter) {
-        null -> BrowseTypes
-        ItemType.ANIME -> AnimeTypes
-        else -> listOf(filter)
-    },
-    genre = if (filter == ItemType.ANIME) {
-        GenreFilter.Reference(ReferenceGenre.ANIME)
-    } else {
-        selectedGenreId?.let(GenreFilter::Listed)
-    },
-    filters = filters,
-    sort = sort,
-)
-
-/** Запрос в начало недавних — если он годится для поиска. */
-private fun SearchState.withRecent(query: String): SearchState {
-    val trimmed = query.trim()
-    if (trimmed.length < MIN_QUERY_LENGTH) return this
-    return copy(recentQueries = (listOf(trimmed) + recentQueries).distinct().take(RECENT_LIMIT))
-}
-
-/**
- * Догруженная страница в хвост витрины. filter гасит id, уже стоящие в сетке; distinctBy —
- * дубли внутри самой страницы (склейка типов): две карточки с одним id роняют LazyGrid по
- * неуникальному ключу.
- */
-private fun List<Item>.mergedWith(page: List<Item>, sort: SortOption): List<Item> {
-    val seen = mapTo(HashSet()) { it.id }
-    return sortLocally((this + page.filter { it.id !in seen }).distinctBy { it.id }, sort)
-}
-
-/**
- * Локальная проверка фильтров по полям, которые есть в [Item] (год, оценки, завершённость).
- * Пороги — только по оценкам, которые фильтр задал: порог по оценке, которой у источника нет,
- * экран не предлагает (`SourceCapabilities.ratings`).
- */
-private fun Item.matches(filters: CatalogFilters): Boolean {
-    // Локальные копии: nullable-поля CatalogFilters лежат в другом модуле, и смарт-каст через
-    // границу модуля невозможен — сравнивать надо через захваченное значение.
-    val yearFrom = filters.yearFrom
-    val yearTo = filters.yearTo
-    val finishedFilter = filters.onlyFinished
-    return (yearFrom == null || year >= yearFrom) &&
-        (yearTo == null || year <= yearTo) &&
-        filters.minRatings.all { (source, threshold) -> (rating.of(source) ?: 0.0) >= threshold } &&
-        (finishedFilter == null || finished == finishedFilter)
-}
-
-/**
- * Досортировка на клиенте. Набор карточек выбирает сервер, но по «Рейтингу» и «Году» он
- * сортирует по своим полям, а карточка показывает НАШ усреднённый рейтинг (IMDb+КП) и год —
- * без локального прохода первой в сетке стояла бы не та карточка, которую зритель видит лучшей.
- * У остальных ключей (просмотры, новизна, рейтинги КП/IMDb по отдельности) локального поля в
- * [Item] нет: там доверяем порядку сервера как есть, направление он тоже уже применил.
- */
-private fun sortLocally(items: List<Item>, sort: SortOption): List<Item> {
-    val comparator = when (sort.field) {
-        CatalogSort.RATING -> compareBy<Item> { it.rating.external }
-        CatalogSort.YEAR -> compareBy<Item> { it.year }
-        else -> return items
-    }
-    return if (sort.ascending) items.sortedWith(comparator) else items.sortedWith(comparator.reversed())
 }
