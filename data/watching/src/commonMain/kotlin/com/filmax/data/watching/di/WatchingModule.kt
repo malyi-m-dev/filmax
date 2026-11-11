@@ -5,8 +5,8 @@ import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.settings.ThemeSettingsRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watchlist.WatchlistRepository
-import com.filmax.core.network.di.KinopubSource
-import com.filmax.core.network.di.kinopubSingle
+import com.filmax.core.network.kinopub.KinopubSource
+import com.filmax.core.network.kinopub.kinopubSingle
 import com.filmax.data.watching.KinopubWatchlistRepository
 import com.filmax.data.watching.PlaybackSettingsRepositoryImpl
 import com.filmax.data.watching.ThemeSettingsRepositoryImpl

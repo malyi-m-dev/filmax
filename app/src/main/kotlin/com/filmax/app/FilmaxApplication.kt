@@ -6,8 +6,8 @@ import com.filmax.app.di.appModule
 import com.filmax.app.di.useCaseModule
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.navigation.di.navigationModule
-import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
+import com.filmax.core.network.kinopub.kinopubNetworkModule
 import com.filmax.data.feedback.di.FIREBASE_PROJECT_PROPERTY
 import com.filmax.data.feedback.di.feedbackModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
@@ -56,7 +56,7 @@ open class FilmaxApplication : Application() {
 
     private fun coreModules(): List<Module> = listOf(
         navigationModule,
-        networkModule,
+        kinopubNetworkModule,
         platformNetworkModule,
     )
 

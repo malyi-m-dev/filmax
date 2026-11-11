@@ -1,7 +1,7 @@
 package com.filmax.data.auth
 
-import com.filmax.core.network.TokenStorage
-import com.filmax.core.network.buildHttpClient
+import com.filmax.core.network.kinopub.TokenStorage
+import com.filmax.core.network.kinopub.buildKinopubHttpClient
 import com.filmax.data.auth.remote.AuthApi
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.engine.mock.MockEngine
@@ -50,6 +50,6 @@ class LogoutTest {
 
     private suspend fun repository(engine: MockEngine): AuthRepositoryImpl {
         tokens.save("access", "refresh")
-        return AuthRepositoryImpl(AuthApi(buildHttpClient(engine, tokens)), tokens)
+        return AuthRepositoryImpl(AuthApi(buildKinopubHttpClient(engine, tokens)), tokens)
     }
 }

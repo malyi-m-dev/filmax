@@ -53,6 +53,7 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.filmax.app.navigation.AccountSummary
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.Onest
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
@@ -360,7 +361,7 @@ private val LogoStyle = TextStyle(
     letterSpacing = (-0.02).em
 )
 
-private val ScrimColor = Color(0xFF05040A)
+private val ScrimColor = FilmaxColors.ScrimDeep
 private val ExpandedScrim = Brush.horizontalGradient(
     0f to ScrimColor.copy(alpha = 0.97f),
     0.3f to ScrimColor.copy(alpha = 0.88f),

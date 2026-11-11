@@ -6,7 +6,7 @@ import com.filmax.core.domain.auth.model.Token
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.safeRequest
-import com.filmax.core.network.TokenStorage
+import com.filmax.core.network.kinopub.TokenStorage
 import com.filmax.data.auth.remote.AuthApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow

@@ -16,6 +16,9 @@ actual val platformNetworkModule: Module = module {
             androidContext().getSharedPreferences("filmax_tokens", Context.MODE_PRIVATE),
         )
     }
+    single<Settings>(DeviceCache) {
+        SharedPreferencesSettings(androidContext().getSharedPreferences("filmax_cache", Context.MODE_PRIVATE))
+    }
     single { ChuckerInterceptor.Builder(androidContext()).build() }
     single<HttpClientEngine> {
         OkHttp.create { addInterceptor(get<ChuckerInterceptor>()) }

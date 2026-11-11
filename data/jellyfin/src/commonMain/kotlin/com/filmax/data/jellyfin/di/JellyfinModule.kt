@@ -10,6 +10,7 @@ import com.filmax.core.domain.source.HomeServerRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watchlist.WatchlistRepository
+import com.filmax.core.network.di.DeviceCache
 import com.filmax.data.jellyfin.JellyfinAuthRepository
 import com.filmax.data.jellyfin.JellyfinCatalogRepository
 import com.filmax.data.jellyfin.JellyfinContext
@@ -47,7 +48,7 @@ private val JellyfinHttp = named("jellyfin_http")
 @Suppress("InjectDispatcher")
 val jellyfinModule = module {
     single { JellyfinSession(settings = get()) }
-    single { JellyfinIds(settings = get()) }
+    single { JellyfinIds(settings = get(DeviceCache)) }
     single(JellyfinHttp) {
         val client = get<ClientInfo>()
         jellyfinHttpClient(

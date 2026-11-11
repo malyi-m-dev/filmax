@@ -1,4 +1,4 @@
-package com.filmax.core.network.di
+package com.filmax.core.network.kinopub
 
 import com.filmax.core.domain.source.ContentSource
 import org.koin.core.definition.Definition

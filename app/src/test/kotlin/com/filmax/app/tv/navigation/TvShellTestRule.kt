@@ -9,8 +9,8 @@ import com.filmax.core.domain.tvlink.TvDiscovery
 import com.filmax.core.domain.tvlink.TvLinkReceiver
 import com.filmax.core.domain.tvlink.TvRemote
 import com.filmax.core.navigation.di.navigationModule
-import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
+import com.filmax.core.network.kinopub.kinopubNetworkModule
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeLatency
@@ -55,7 +55,7 @@ class TvShellTestRule : ExternalResource() {
             androidContext(application as Application)
             properties(mapOf(TMDB_API_KEY_PROPERTY to ""))
             modules(
-                listOf(navigationModule, networkModule, platformNetworkModule) +
+                listOf(navigationModule, kinopubNetworkModule, platformNetworkModule) +
                     // Data-слой — как в приложении: общий с iOS список, переключатель источника в нём.
                     sharedDataModules + listOf(tmdbModule, feedbackModule) +
                     listOf(fakeDataModule, module { single { FakeBackend(latency = FakeLatency.None) } }) +

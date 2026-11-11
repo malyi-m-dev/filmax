@@ -1,8 +1,8 @@
 package com.filmax.data.user
 
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.network.TokenStorage
-import com.filmax.core.network.buildHttpClient
+import com.filmax.core.network.kinopub.TokenStorage
+import com.filmax.core.network.kinopub.buildKinopubHttpClient
 import com.filmax.data.user.remote.UserApi
 import com.russhwolf.settings.MapSettings
 import io.ktor.client.engine.mock.MockEngine
@@ -27,7 +27,7 @@ class DeviceRegistrationTest {
 
     @Test
     fun `device is described right after the device-flow login`() = runTest {
-        val repository = UserRepositoryImpl(UserApi(buildHttpClient(kinoPub(), tokens)))
+        val repository = UserRepositoryImpl(UserApi(buildKinopubHttpClient(kinoPub(), tokens)))
         // До входа клиент уже ходил в сеть (код устройства, опрос) — без токенов.
         assertIs<RequestResult.Error>(repository.getProfile())
 

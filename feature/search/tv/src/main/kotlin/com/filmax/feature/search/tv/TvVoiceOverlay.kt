@@ -40,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -241,8 +242,8 @@ private fun Modifier.voiceWash(): Modifier {
     }
 }
 
-/** Затемнение оверлея поверх затемнения размытого экрана — макет: rgba(6,5,12,.55). */
-private val VoiceDim = Color(0x8C06050C)
+/** Затемнение оверлея поверх затемнения размытого экрана. */
+private val VoiceDim = FilmaxColors.ScrimVoice
 
 /** Подсказки клавиш: слушание — «отмена» и «пауза — искать», ошибка — только «закрыть». */
 private fun voiceHints(failed: Boolean): List<TvKeyHint> {

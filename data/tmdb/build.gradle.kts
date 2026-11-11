@@ -21,5 +21,9 @@ kotlin {
             implementation(koinBom)
             implementation(libs.koin.core)
         }
+        // Запросы в тестах — подменённым движком Ktor, без сети.
+        commonTest.dependencies {
+            implementation(libs.ktor.client.mock)
+        }
     }
 }

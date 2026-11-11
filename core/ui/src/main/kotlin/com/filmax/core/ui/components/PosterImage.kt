@@ -24,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.ShapePoster
 
 /**
@@ -74,8 +75,8 @@ fun PosterImage(
 /** Знак «постера нет» — заметен на карточке в ряду и не спорит с обложками соседей. */
 private val BrokenPosterIconSize = 28.dp
 
-/** Нижний (тёмный) цвет градиента-заглушки постера. Нейтральный, как и вся палитра. */
-private val PlaceholderBottomColor = Color(0xFF0F0F0F)
+/** Нижний (тёмный) цвет градиента-заглушки постера. */
+private val PlaceholderBottomColor = FilmaxColors.PosterPlaceholder
 
 /** Конечная точка линейного градиента-заглушки (диагональ сверху-слева вниз-вправо). */
 private const val PLACEHOLDER_GRADIENT_END_X = 200f

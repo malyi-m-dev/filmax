@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.glassFill
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
@@ -101,4 +102,4 @@ private fun AudioManager.mediaLevel(max: Int): Float = getStreamVolume(AudioMana
 
 private val TrackShape = RoundedCornerShape(22.dp)
 private val Fill = Color.White.copy(alpha = 0.88f)
-private val IconOnFill = Color(0xFF14111F)
+private val IconOnFill = FilmaxColors.OnLight

@@ -1,8 +1,8 @@
-package com.filmax.core.network
+package com.filmax.core.network.kinopub
 
 /**
  * Константы OAuth-эндпоинта kino.pub — единый источник для авторизации (`:data:auth`)
- * и авто-обновления токена в [buildHttpClient]. Держим здесь, чтобы обмен refresh_token
+ * и авто-обновления токена в [buildKinopubHttpClient]. Держим здесь, чтобы обмен refresh_token
  * в сетевом слое не зависел от `:data:auth` (иначе циклическая зависимость модулей).
  */
 const val OAUTH_DEVICE_PATH = "api/oauth2/device"

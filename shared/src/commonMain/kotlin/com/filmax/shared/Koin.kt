@@ -10,8 +10,8 @@ import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.home.HomeFeed
 import com.filmax.core.domain.usecase.watching.ToggleWatchedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
-import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
+import com.filmax.core.network.kinopub.kinopubNetworkModule
 import com.filmax.data.auth.di.authModule
 import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.jellyfin.di.jellyfinModule
@@ -56,7 +56,7 @@ val sharedDataModules = listOf(
 )
 
 /** Все общие модули shared (сеть + data + domain UseCase). */
-val sharedModules = listOf(networkModule, platformNetworkModule) + sharedDataModules + domainUseCaseModule
+val sharedModules = listOf(kinopubNetworkModule, platformNetworkModule) + sharedDataModules + domainUseCaseModule
 
 /**
  * Инициализация Koin из общего кода.

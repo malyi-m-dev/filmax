@@ -34,6 +34,11 @@ kotlin {
         appleMain.dependencies {
             api(libs.ktor.client.darwin)
         }
+        // Обновление токенов — на подменённом движке и хранилище в памяти.
+        commonTest.dependencies {
+            implementation(libs.ktor.client.mock)
+            implementation(libs.multiplatform.settings.test)
+        }
     }
 }
 

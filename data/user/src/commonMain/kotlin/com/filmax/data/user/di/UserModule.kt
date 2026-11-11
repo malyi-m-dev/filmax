@@ -2,7 +2,7 @@ package com.filmax.data.user.di
 
 import com.filmax.core.domain.user.FolderAppearanceRepository
 import com.filmax.core.domain.user.UserRepository
-import com.filmax.core.network.di.kinopubSingle
+import com.filmax.core.network.kinopub.kinopubSingle
 import com.filmax.data.user.FolderAppearanceRepositoryImpl
 import com.filmax.data.user.UserRepositoryImpl
 import com.filmax.data.user.remote.UserApi

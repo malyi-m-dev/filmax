@@ -46,6 +46,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.unit.dp
+import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.LocalReducedMotion
 import com.filmax.core.tv.designsystem.TvKeyHint
@@ -80,7 +81,7 @@ private val ProgressThickness = 4.dp
 private const val HANDLE_ALPHA = 0.25f
 
 /** Тёмное стекло панели: она лежит на кадре, и подписи вариантов должны читаться на любом. */
-private val PanelFill = Color(0xD112101C)
+private val PanelFill = FilmaxColors.PanelDark
 
 /** Затемнение кадра под открытой панелью: сверху — под названием, к низу — почти глухое. */
 private val PanelScrim = Brush.verticalGradient(

@@ -1,4 +1,4 @@
-package com.filmax.core.network
+package com.filmax.core.network.kinopub
 
 import com.russhwolf.settings.Settings
 import kotlinx.coroutines.flow.Flow

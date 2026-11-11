@@ -2,6 +2,7 @@ package com.filmax.core.ui.components
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.filmax.core.designsystem.FilmaxColors
 
 /**
  * Палитра и фабрики backdrop-градиентов деталей. Раньше эти цвета и градиенты были
@@ -14,13 +15,13 @@ import androidx.compose.ui.graphics.Color
 object BackdropGradients {
 
     /** Акцент постера-заглушки бэкдропа (тот же, что у обоих экранов деталей). */
-    val Accent: Color = Color(0xFFB4305A)
+    val Accent: Color = FilmaxColors.BackdropAccent
 
     /** Верхний тёмный оттенок вертикального градиента бэкдропа. */
-    private val ScrimTop: Color = Color(0xFF141012)
+    private val ScrimTop: Color = FilmaxColors.BackdropScrimTop
 
     /** Цвет затемнения-скрима, нарастающего при сворачивании героя (mobile). */
-    private val ScrimDark: Color = Color(0xFF0A0809)
+    private val ScrimDark: Color = FilmaxColors.BackdropScrimDark
 
     /**
      * Mobile: вертикальный градиент — лёгкое затемнение сверху и плавный уход в [surface] снизу.

@@ -1,8 +1,8 @@
 package com.filmax.data.auth.remote
 
-import com.filmax.core.network.OAUTH_CLIENT_ID
-import com.filmax.core.network.OAUTH_CLIENT_SECRET
-import com.filmax.core.network.OAUTH_DEVICE_PATH
+import com.filmax.core.network.kinopub.OAUTH_CLIENT_ID
+import com.filmax.core.network.kinopub.OAUTH_CLIENT_SECRET
+import com.filmax.core.network.kinopub.OAUTH_DEVICE_PATH
 import com.filmax.data.auth.remote.dto.DeviceCodeDto
 import com.filmax.data.auth.remote.dto.TokenDto
 import io.ktor.client.HttpClient

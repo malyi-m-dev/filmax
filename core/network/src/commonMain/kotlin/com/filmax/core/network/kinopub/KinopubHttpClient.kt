@@ -1,5 +1,7 @@
-package com.filmax.core.network
+package com.filmax.core.network.kinopub
 
+import com.filmax.core.network.SecretMaskingLogger
+import com.filmax.core.network.networkJson
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.HttpClientEngine
@@ -20,24 +22,19 @@ import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlin.coroutines.cancellation.CancellationException
 
 const val BASE_URL = "https://smarttvcdn.online/"
 
-val networkJson = Json {
-    ignoreUnknownKeys = true
-    coerceInputValues = true
-}
-
 /**
- * Общий Ktor [HttpClient]. [engine] предоставляется платформой
- * (OkHttp на Android — с Chucker-перехватчиком, Darwin на iOS).
+ * Ktor [HttpClient] kino.pub: адрес API, JSON и OAuth-обновление токенов. [engine] предоставляется
+ * платформой (OkHttp на Android — с Chucker-перехватчиком, Darwin на iOS). Домашний сервер и TMDB
+ * собирают свои клиенты на том же движке.
  */
 // Намеренно ловим Throwable в refreshTokens и «глотаем» его: любой транзиентный сбой обмена не
 // должен ронять клиент/сессию (как и граница ошибок в safeRequest). CancellationException — выше.
 @Suppress("TooGenericExceptionCaught", "SwallowedException")
-fun buildHttpClient(
+fun buildKinopubHttpClient(
     engine: HttpClientEngine,
     tokenStorage: TokenStorage,
     baseUrl: String = BASE_URL,

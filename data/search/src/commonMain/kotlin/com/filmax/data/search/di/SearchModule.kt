@@ -1,7 +1,7 @@
 package com.filmax.data.search.di
 
 import com.filmax.core.domain.search.SearchRepository
-import com.filmax.core.network.di.kinopubSingle
+import com.filmax.core.network.kinopub.kinopubSingle
 import com.filmax.data.search.SearchRepositoryImpl
 import com.filmax.data.search.remote.SearchApi
 import org.koin.dsl.module
