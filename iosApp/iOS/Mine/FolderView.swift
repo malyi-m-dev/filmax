@@ -14,7 +14,7 @@ struct FolderView: View {
     var body: some View {
         ScrollView {
             if let error = viewModel.error {
-                ErrorView(message: error)
+                ErrorView(message: error) { Task { await viewModel.retry() } }
             } else if viewModel.items.isEmpty && !viewModel.isLoading {
                 EmptyStateView(message: "Папка пуста", systemImage: "folder")
             } else {

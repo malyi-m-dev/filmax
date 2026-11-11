@@ -29,6 +29,18 @@ final class OnboardingViewModel: ObservableObject {
         error = nil
     }
 
+    /**
+     Код выдаёт выбранный сейчас источник: вход идёт через переключатель источников. После выхода
+     с домашнего сервера выбран сервер — поэтому перед запросом кода источник ставится на kino.pub.
+     */
+    func start() async {
+        let sources = RepositoryProvider.shared.sources
+        if sources.source.value != .kinopub {
+            try? await sources.select(source: .kinopub)
+        }
+        retry()
+    }
+
     func retry() {
         error = nil
         userCode = nil

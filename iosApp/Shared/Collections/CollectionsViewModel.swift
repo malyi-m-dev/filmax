@@ -72,7 +72,9 @@ final class CollectionDetailViewModel: ObservableObject {
             switch onEnum(of: result) {
             case .success(let success):
                 if let collectionPage = success.data as? CollectionPage {
-                    items.append(contentsOf: collectionPage.items)
+                    // Страницы пересекаются: повтор id роняет сетку.
+                    let known = Set(items.map { $0.id })
+                    items.append(contentsOf: collectionPage.items.filter { !known.contains($0.id) })
                     hasNext = collectionPage.pagination.hasNextPage
                     if hasNext { page += 1 }
                 } else {

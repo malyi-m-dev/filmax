@@ -80,7 +80,7 @@ struct KinopubLoginView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.background.ignoresSafeArea())
         .navigationTitle("kino.pub")
-        .onAppear { viewModel.retry() }
+        .task { await viewModel.start() }
         .onDisappear { viewModel.cancel() }
     }
 }

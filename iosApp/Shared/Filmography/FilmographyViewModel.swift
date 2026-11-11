@@ -21,6 +21,7 @@ final class FilmographyViewModel: ObservableObject {
     func load() async {
         guard items.isEmpty else { return }
         isLoading = true
+        error = nil
         let result: Loaded<[Item]> = await request(fallback: "Не удалось загрузить фильмографию.") {
             if self.isDirector {
                 return try await self.search.searchByDirector(director: self.name, perPage: Self.perPage)
@@ -28,7 +29,8 @@ final class FilmographyViewModel: ObservableObject {
             return try await self.search.searchByActor(actor: self.name, perPage: Self.perPage)
         }
         switch result {
-        case .value(let found): items = found.sorted { $0.year > $1.year }
+        case .value(let found):
+            items = ArrangeCatalog.shared.firstPage(items: found, sort: SortOption(field: .year, ascending: false))
         case .failure(let message): error = message
         }
         isLoading = false

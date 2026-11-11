@@ -1,168 +1,176 @@
 import SwiftUI
 import Shared
 
-/// Главная лента Apple TV: крупный hero + focus-рельсы поверх общего `HomeViewModel`.
+/// Главная Apple TV поверх общего `HomeViewModel`: герой, «Продолжить», ряды ленты и тематические
+/// ряды с догрузкой — тот же состав, что у Главной на Android TV.
 struct TvHomeView: View {
     @StateObject private var viewModel = HomeViewModel()
 
     var body: some View {
-        Group {
-            if viewModel.isLoading && viewModel.feed == nil {
-                TvLoadingView()
-            } else if let error = viewModel.error, viewModel.feed?.hero == nil {
-                TvErrorView(message: error) { Task { await viewModel.load() } }
-            } else if let feed = viewModel.feed {
-                content(feed)
-            } else {
-                TvLoadingView()
-            }
-        }
-        .background(Theme.background.ignoresSafeArea())
-        .task { if viewModel.feed == nil { await viewModel.load() } }
+        content
+            .background(Theme.background.ignoresSafeArea())
+            // Лента грузится один раз: перезагрузка при возврате с деталей сбросила бы догруженные
+            // страницы рядов, и фокус потерял бы карточку, с которой ушли.
+            .task { if viewModel.feed == nil { await viewModel.load() } }
+            .task { await viewModel.observeWatchlist() }
     }
 
-    private func content(_ feed: HomeFeed) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.Spacing.xxl) {
-                if let hero = feed.hero { TvHeroBanner(item: hero) }
-
-                if !feed.continueWatching.isEmpty {
-                    TvHistoryRail(title: "Продолжить просмотр", items: feed.continueWatching)
+    @ViewBuilder private var content: some View {
+        if let feed = viewModel.feed, feed.hasContent {
+            TvScreenScroll {
+                TvHomeNotice(feed: feed)
+                if let hero = feed.hero {
+                    TvHomeHero(item: hero, inWatchlist: viewModel.watchlistIds.contains(hero.id)) {
+                        Task { await viewModel.toggleWatchlist(hero) }
+                    }
                 }
-                if !feed.trending.isEmpty {
-                    TvItemRail(title: "В тренде", items: feed.trending)
-                }
-                if !feed.collections.isEmpty {
-                    TvCollectionRail(title: "Подборки", collections: feed.collections)
-                }
-                if !feed.forYou.isEmpty {
-                    TvItemRail(title: "Для вас", items: feed.forYou)
-                }
+                TvHomeFeedRails(feed: feed)
+                TvHomeShelves(viewModel: viewModel)
             }
-            .padding(.horizontal, DS.tvSafeHorizontal)
-            .padding(.vertical, DS.tvSafeVertical)
+        } else if let error = viewModel.error, !viewModel.isLoading {
+            TvErrorView(message: error) { Task { await viewModel.load() } }
+        } else {
+            TvLoadingView()
         }
     }
 }
 
-// MARK: - Hero
+/// Мягкая ошибка: часть ленты не пришла или она из кэша без сети. Контент остаётся, баннер — сверху.
+private struct TvHomeNotice: View {
+    let feed: HomeFeed
 
-private struct TvHeroBanner: View {
+    var body: some View {
+        if let message {
+            Label(message, systemImage: "wifi.exclamationmark")
+                .font(TvType.caption)
+                .foregroundColor(Theme.textSecondary)
+                .padding(.horizontal, DS.tvSafeHorizontal)
+                .padding(.top, DS.Spacing.md)
+        }
+    }
+
+    private var message: String? {
+        if feed.fromCache { return "Нет сети — показана сохранённая лента" }
+        return feed.error
+    }
+}
+
+// MARK: - Герой
+
+private struct TvHomeHero: View {
     let item: Item
+    let inWatchlist: Bool
+    let onToggleWatchlist: () -> Void
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            PosterImage(url: item.backdropURL)
-                .aspectRatio(16.0 / 9.0, contentMode: .fill)
-                .frame(height: 520)
-                .clipped()
-                .overlay(
-                    LinearGradient(
-                        colors: [.clear, Theme.background.opacity(0.95)],
-                        startPoint: .center, endPoint: .bottom
-                    )
-                )
-
-            VStack(alignment: .leading, spacing: DS.Spacing.md) {
-                Text(item.title)
-                    .font(.system(size: 56, weight: .heavy))
-                    .foregroundColor(.white)
-                    .lineLimit(2)
-                Text(item.metaLine)
-                    .font(.system(size: 24))
-                    .foregroundColor(Theme.onSurfaceVariant)
-                HStack(spacing: DS.Spacing.lg) {
-                    NavigationLink(value: AppRoute.player(itemId: item.id, videoId: nil)) {
-                        Label("Смотреть", systemImage: "play.fill").padding(.horizontal, DS.Spacing.lg)
-                    }
-                    .buttonStyle(.borderedProminent).tint(Theme.accent)
-                    NavigationLink(value: AppRoute.details(itemId: item.id)) {
-                        Text("Подробнее").padding(.horizontal, DS.Spacing.lg)
-                    }
-                    .buttonStyle(.bordered).tint(Theme.accent)
-                }
-            }
-            .padding(DS.Spacing.xl)
+            TvBackdrop(url: item.backdropURL, height: TvMetrics.heroHeight)
+            info
+                .padding(.horizontal, DS.tvSafeHorizontal)
+                .padding(.bottom, DS.Spacing.lg)
         }
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
+    }
+
+    private var info: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.md) {
+            Text(item.title)
+                .font(TvType.hero)
+                .foregroundColor(Theme.text)
+                .lineLimit(2)
+            meta
+            if !item.plot.isEmpty {
+                Text(item.plot)
+                    .font(TvType.body)
+                    .foregroundColor(Theme.textSecondary)
+                    .lineLimit(3)
+                    .frame(maxWidth: TvMetrics.textColumnWidth, alignment: .leading)
+            }
+            actions.padding(.top, DS.Spacing.sm)
+        }
+    }
+
+    private var meta: some View {
+        HStack(spacing: DS.Spacing.md) {
+            if !item.ratingLines.isEmpty {
+                Text(item.ratingLines.joined(separator: " · "))
+                    .foregroundColor(Theme.accent2)
+            }
+            Text(item.metaLine)
+                .foregroundColor(Theme.textSecondary)
+        }
+        .font(TvType.body)
+    }
+
+    private var actions: some View {
+        HStack(spacing: DS.Spacing.lg) {
+            // Без адреса плеер сам выберет: фильм целиком, у сериала — серию «продолжить».
+            NavigationLink(value: AppRoute.player(itemId: item.id, target: nil)) {
+                Label("Смотреть", systemImage: "play.fill")
+            }
+            .tvActionStyle(.primary)
+            Button(action: onToggleWatchlist) {
+                Label(inWatchlist ? "В списке" : "Буду смотреть", systemImage: inWatchlist ? "checkmark" : "plus")
+            }
+            .tvActionStyle(.secondary)
+            NavigationLink(value: AppRoute.details(itemId: item.id)) {
+                Label("Подробнее", systemImage: "info.circle")
+            }
+            .tvActionStyle(.secondary)
+        }
+        .focusSection()
     }
 }
 
-// MARK: - Рельсы
+// MARK: - Ряды ленты
 
-struct TvItemRail: View {
-    let title: String
-    let items: [Item]
+private struct TvHomeFeedRails: View {
+    let feed: HomeFeed
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.md) {
-            TvSectionHeader(title: title)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DS.Spacing.xl) {
-                    ForEach(items, id: \.id) { item in
-                        TvPosterCard(
-                            route: .details(itemId: item.id),
-                            posterURL: item.posterURL,
-                            title: item.title,
-                            subtitle: item.metaLine,
-                            ratingText: item.ratingText
-                        )
-                    }
+        if !feed.continueWatching.isEmpty {
+            TvRail("Продолжить") {
+                ForEach(feed.continueWatching, id: \.itemId) { entry in
+                    TvPosterCard(history: entry)
                 }
-                .padding(.vertical, DS.Spacing.lg)
+            }
+        }
+        itemRail("Новинки", feed.fresh)
+        itemRail("Популярное", feed.trending)
+        itemRail("Для вас", feed.forYou)
+        if !feed.collections.isEmpty {
+            TvRail("Подборки", allRoute: .collectionsList) {
+                ForEach(feed.collections, id: \.id) { collection in
+                    TvPosterCard(collection: collection)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func itemRail(_ title: String, _ items: [Item]) -> some View {
+        if !items.isEmpty {
+            TvRail(title) {
+                ForEach(items, id: \.id) { item in
+                    TvPosterCard(item: item)
+                }
             }
         }
     }
 }
 
-struct TvHistoryRail: View {
-    let title: String
-    let items: [WatchHistory]
+/// Тематические ряды (`HomeShelves`): приходят после ленты и листаются дальше постранично.
+private struct TvHomeShelves: View {
+    @ObservedObject var viewModel: HomeViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.md) {
-            TvSectionHeader(title: title)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DS.Spacing.xl) {
-                    ForEach(items, id: \.itemId) { history in
-                        TvPosterCard(
-                            route: .details(itemId: history.itemId),
-                            posterURL: history.posterSmall,
-                            title: history.title,
-                            progress: history.progressFraction
-                        )
-                    }
+        ForEach(viewModel.shelves) { shelf in
+            TvRail(shelf.kind.title) {
+                ForEach(shelf.items, id: \.id) { item in
+                    TvPosterCard(item: item)
+                        .onAppear {
+                            guard item.id == shelf.items.last?.id else { return }
+                            Task { await viewModel.loadMore(shelf) }
+                        }
                 }
-                .padding(.vertical, DS.Spacing.lg)
-            }
-        }
-    }
-}
-
-struct TvCollectionRail: View {
-    let title: String
-    let collections: [FilmCollection]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.md) {
-            HStack {
-                TvSectionHeader(title: title)
-                NavigationLink(value: AppRoute.collectionsList) {
-                    Text("Все").padding(.horizontal, DS.Spacing.md)
-                }
-                .buttonStyle(.bordered).tint(Theme.accent)
-            }
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DS.Spacing.xl) {
-                    ForEach(collections, id: \.id) { collection in
-                        TvPosterCard(
-                            route: .collection(id: collection.id, title: collection.title),
-                            posterURL: collection.posterURL,
-                            title: collection.title
-                        )
-                    }
-                }
-                .padding(.vertical, DS.Spacing.lg)
             }
         }
     }

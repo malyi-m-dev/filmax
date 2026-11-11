@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Корневой экран Apple TV: сессия-гейт → онбординг или главный.
-/// `SessionViewModel` — общий (Shared/), отличается только набор TV-View.
+/// Корень Apple TV: вход → разделы. Смена источника пересобирает разделы (`.id`), как граф на
+/// Android возвращается к корню: экраны прежнего источника не должны пережить переключение.
 struct TvRootView: View {
     @StateObject private var session = SessionViewModel()
 
@@ -10,9 +10,9 @@ struct TvRootView: View {
             Theme.background.ignoresSafeArea()
             switch session.isAuthenticated {
             case .none:
-                ProgressView().tint(Theme.accent).scaleEffect(2)
+                TvLoadingView()
             case .some(true):
-                TvMainTabView()
+                TvMainTabView().id(session.source)
             case .some(false):
                 TvOnboardingView()
             }

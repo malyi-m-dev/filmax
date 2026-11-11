@@ -35,7 +35,7 @@ final class DetailsViewModel: ObservableObject {
 
     /// Серии выбранного сезона.
     var seasonEpisodes: [MediaTrack] {
-        guard let item, let season = selectedSeason else { return [] }
+        guard let item, item.isEpisodic, let season = selectedSeason else { return [] }
         return item.tracklist.filter { $0.seasonNumber == season }
     }
 
@@ -60,7 +60,12 @@ final class DetailsViewModel: ObservableObject {
         switch result {
         case .value(let loaded):
             item = loaded
-            selectedSeason = loaded.resumeTrack?.seasonNumber ?? loaded.seasonNumbers.first
+            // Возврат из плеера перезагружает детали — выбранный сезон остаётся, если он ещё есть.
+            if let chosen = selectedSeason, loaded.seasonNumbers.contains(chosen) {
+                selectedSeason = chosen
+            } else {
+                selectedSeason = loaded.resumeTrack?.seasonNumber ?? loaded.seasonNumbers.first
+            }
             // Отметку поставили в вебе или на другом устройстве — список её подхватывает.
             if loaded.inWatchlist { try? await watchlist.adopt(item: loaded.toWatchlistItem()) }
             isLoading = false

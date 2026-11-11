@@ -38,6 +38,8 @@ final class SearchViewModel: ObservableObject {
             isLoading = false
             return
         }
+        // Загрузка — уже на время дебаунса: иначе на первом запросе мелькает «ничего не нашлось».
+        isLoading = true
         task = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 300_000_000)
             if Task.isCancelled { return }

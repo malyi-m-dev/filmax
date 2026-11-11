@@ -29,10 +29,16 @@ final class FolderViewModel: ObservableObject {
             hasNext = loaded.pagination.hasNextPage
             if hasNext { page += 1 }
         case .failure(let message):
-            if items.isEmpty { error = message }
-            hasNext = false
+            // Пустая папка с ошибкой — экран ошибки с «Повторить»; сбой догрузки — конец листания.
+            if items.isEmpty { error = message } else { hasNext = false }
         }
         isLoading = false
+    }
+
+    func retry() async {
+        error = nil
+        hasNext = true
+        await loadNext()
     }
 
     func remove(_ item: Item) async {

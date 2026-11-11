@@ -51,8 +51,8 @@ final class MineViewModel: ObservableObject {
         case .value(let entries): history = entries
         case .failure(let message): error = message
         }
-        isLoading = false
         await loadFolders()
+        isLoading = false
     }
 
     func observeWatchlist() async {

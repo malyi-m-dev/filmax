@@ -1,100 +1,140 @@
 import SwiftUI
 import Shared
 
-/// Профиль для Apple TV: аккаунт, подписка, реальные настройки воспроизведения (focus), выход.
-/// Только реальные настройки — без заглушек (как TV-Профиль на Android).
+/// Профиль Apple TV — как на Android TV: аккаунт, источник контента, настройки воспроизведения и
+/// выход. Настройки и выход доступны и без загруженного профиля: сбой профиля не должен запирать
+/// человека в источнике.
 struct TvProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
+    @State private var logoutAsked = false
 
     var body: some View {
-        Group {
-            if viewModel.isLoading && viewModel.profile == nil {
-                TvLoadingView()
-            } else if let error = viewModel.error, viewModel.profile == nil {
-                TvErrorView(message: error) { Task { await viewModel.load() } }
-            } else {
-                content
-            }
+        TvScreenScroll {
+            TvProfileAccount(viewModel: viewModel)
+            sourceSection
+            TvPlaybackSettings(viewModel: viewModel)
+            logoutButton
         }
-        .background(Theme.background.ignoresSafeArea())
-        .task { if viewModel.profile == nil { await viewModel.load() } }
+        .task { await viewModel.load() }
         .task { await viewModel.observeSettings() }
+        .confirmationDialog(
+            "Выйти из «\(viewModel.source.label)»?",
+            isPresented: $logoutAsked,
+            titleVisibility: .visible
+        ) {
+            Button("Выйти", role: .destructive) { Task { await viewModel.logout() } }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Вход в другой источник сохранится.")
+        }
     }
 
-    private var content: some View {
-        ScrollView {
-            HStack(alignment: .top, spacing: DS.Spacing.xxl) {
-                if let profile = viewModel.profile { account(profile) }
-                VStack(alignment: .leading, spacing: DS.Spacing.xl) {
-                    playbackSettings
-                    Button {
-                        viewModel.signOut()
-                    } label: {
-                        Label("Выйти", systemImage: "rectangle.portrait.and.arrow.right")
-                            .padding(.horizontal, DS.Spacing.lg)
-                    }
-                    .buttonStyle(.borderedProminent).tint(Theme.accent)
+    /// Смена источника пересоберёт разделы с начала, а без входа в новый источник — покажет вход.
+    private var sourceSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            TvSectionHeader(title: "Источник")
+                .padding(.horizontal, DS.tvSafeHorizontal)
+            TvChipRow(
+                options: viewModel.sourceOptions.map { TvChipOption(value: $0, title: $0.label) },
+                selected: viewModel.source
+            ) { source in
+                Task { await viewModel.select(source) }
+            }
+        }
+    }
+
+    private var logoutButton: some View {
+        Button(role: .destructive) {
+            logoutAsked = true
+        } label: {
+            Label("Выйти", systemImage: "rectangle.portrait.and.arrow.right")
+        }
+        .tvActionStyle(.secondary)
+        .padding(.horizontal, DS.tvSafeHorizontal)
+        .padding(.top, DS.Spacing.lg)
+    }
+}
+
+/// Аккаунт: инициалы на втором акценте (как аватар во всей дизайн-системе), имя и подпись —
+/// срок подписки или название источника.
+private struct TvProfileAccount: View {
+    @ObservedObject var viewModel: ProfileViewModel
+
+    var body: some View {
+        HStack(spacing: DS.Spacing.xl) {
+            avatar
+            VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+                Text(viewModel.profile?.username ?? viewModel.source.label)
+                    .font(TvType.screenTitle)
+                    .foregroundColor(Theme.text)
+                Text(viewModel.accountCaption)
+                    .font(TvType.body)
+                    .foregroundColor(Theme.textSecondary)
+                if let error = viewModel.error {
+                    Text(error)
+                        .font(TvType.caption)
+                        .foregroundColor(Theme.error)
                 }
             }
-            .padding(.horizontal, DS.tvSafeHorizontal)
-            .padding(.vertical, DS.tvSafeVertical)
-        }
-    }
-
-    private func account(_ profile: UserProfile) -> some View {
-        VStack(spacing: DS.Spacing.lg) {
-            Text(profile.initials())
-                .font(.system(size: 60, weight: .bold))
-                .foregroundColor(.white)
-                .frame(width: 180, height: 180)
-                .background(Theme.accent)
-                .clipShape(Circle())
-            Text(profile.username)
-                .font(.system(size: 34, weight: .bold))
-                .foregroundColor(.white)
-            if let email = profile.email, !email.isEmpty {
-                Text(email).font(.system(size: 22)).foregroundColor(Theme.onSurfaceVariant)
-            }
-            if let subscription = profile.subscription {
-                Label(subscription.active ? "Подписка активна" : "Подписка неактивна",
-                      systemImage: subscription.active ? "crown.fill" : "crown")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundColor(Theme.accent)
+            if viewModel.isLoading {
+                ProgressView().tint(Theme.accent)
             }
         }
-        .frame(width: 460)
+        .padding(.horizontal, DS.tvSafeHorizontal)
+        .padding(.top, DS.Spacing.lg)
     }
 
-    private var playbackSettings: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.lg) {
+    private var avatar: some View {
+        ZStack {
+            Circle().fill(Theme.accent2)
+            if let profile = viewModel.profile, !profile.initials().isEmpty {
+                Text(profile.initials())
+                    .font(TvType.screenTitle)
+                    .foregroundColor(Theme.background)
+            } else {
+                Image(systemName: "person.fill")
+                    .font(TvType.icon)
+                    .foregroundColor(Theme.background)
+            }
+        }
+        .frame(width: TvMetrics.avatarSize, height: TvMetrics.avatarSize)
+    }
+}
+
+/// Качество, озвучка и субтитры по умолчанию — их применяет плеер на старте.
+private struct TvPlaybackSettings: View {
+    @ObservedObject var viewModel: ProfileViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
             TvSectionHeader(title: "Воспроизведение")
-            settingGroup("Качество видео", value: viewModel.settings?.quality, options: viewModel.qualityOptions) {
-                Task { await viewModel.setQuality($0) }
+                .padding(.horizontal, DS.tvSafeHorizontal)
+            settingRow("Качество", options: viewModel.qualityOptions, selected: viewModel.settings?.quality) { value in
+                Task { await viewModel.setQuality(value) }
             }
-            settingGroup("Язык аудио", value: viewModel.settings?.audioLanguage, options: viewModel.audioOptions) {
-                Task { await viewModel.setAudio($0) }
+            settingRow("Озвучка", options: viewModel.audioOptions, selected: viewModel.settings?.audioLanguage) { value in
+                Task { await viewModel.setAudio(value) }
             }
-            settingGroup("Субтитры", value: viewModel.settings?.subtitleLanguage, options: viewModel.subtitleOptions) {
-                Task { await viewModel.setSubtitle($0) }
+            settingRow("Субтитры", options: viewModel.subtitleOptions, selected: viewModel.settings?.subtitleLanguage) { value in
+                Task { await viewModel.setSubtitles(value) }
             }
         }
     }
 
-    private func settingGroup(_ title: String, value: String?, options: [String], onSelect: @escaping (String) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
-            Text(title).font(.system(size: 24, weight: .semibold)).foregroundColor(Theme.onSurfaceVariant)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: DS.Spacing.md) {
-                    ForEach(options, id: \.self) { option in
-                        Button {
-                            onSelect(option)
-                        } label: {
-                            Text(option).padding(.horizontal, DS.Spacing.md)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(option == value ? Theme.accent : Theme.onSurfaceVariant)
-                    }
-                }
+    /// Пока настройки не пришли, ни один чип не отмечен — лучше, чем отметить догадку.
+    private func settingRow(
+        _ title: String,
+        options: [String],
+        selected: String?,
+        onSelect: @escaping (String) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            TvFieldLabel(title: title).padding(.top, DS.Spacing.md)
+            TvChipRow(
+                options: options.map { TvChipOption<String?>(value: $0, title: $0) },
+                selected: selected
+            ) { value in
+                if let value { onSelect(value) }
             }
         }
     }

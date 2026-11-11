@@ -58,6 +58,7 @@ final class HomeServerViewModel: ObservableObject {
 
     func back() {
         quickConnect?.cancel()
+        quickCode = nil
         error = nil
         step = step == .quickConnect ? .credentials : .servers
     }
@@ -93,8 +94,16 @@ final class HomeServerViewModel: ObservableObject {
             let checked: Loaded<KotlinBoolean> = await request(fallback: "") {
                 try await self.repository.checkQuickConnect(server: server, code: code)
             }
-            if case .value(let approved) = checked, approved.boolValue {
+            switch checked {
+            case .value(let approved) where approved.boolValue:
                 await finish()
+                return
+            case .value:
+                continue
+            case .failure(let message):
+                // Код истёк или сервер его забыл — ждать бесполезно, нужен новый.
+                error = message.isEmpty ? "Код устарел — запросите новый." : message
+                quickCode = nil
                 return
             }
         }

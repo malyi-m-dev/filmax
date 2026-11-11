@@ -1,159 +1,203 @@
 import SwiftUI
+import Shared
 
-/// Онбординг Apple TV. Логика — общий `OnboardingViewModel` (тот же, что на iOS),
-/// UI — TV-раскладка: крупные элементы, TV-safe отступы, навигация пультом (focus engine).
+/// Вход Apple TV: сначала выбор источника, потом его вход — код устройства kino.pub или домашний
+/// сервер Jellyfin. «Меню» на пульте возвращает к выбору, а с выбора — закрывает приложение, как
+/// принято на tvOS.
 struct TvOnboardingView: View {
-    @StateObject private var viewModel = OnboardingViewModel()
-    @FocusState private var primaryFocused: Bool
+    private enum Stage {
+        case choice, kinopub, homeServer
+    }
+
+    @State private var stage: Stage = .choice
 
     var body: some View {
-        VStack(spacing: 0) {
-            Text("Filmax")
-                .font(.system(size: 56, weight: .heavy))
-                .foregroundColor(Theme.accent)
-                .padding(.top, 60)
-
-            Spacer()
-
-            Group {
-                switch viewModel.step {
-                case 0: welcome
-                case 1: features
-                default: activation
-                }
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            switch stage {
+            case .choice:
+                TvSourceChoiceView(
+                    onKinopub: { stage = .kinopub },
+                    onHomeServer: { stage = .homeServer }
+                )
+            case .kinopub:
+                TvKinopubSignInView { stage = .choice }
+            case .homeServer:
+                TvHomeServerView { stage = .choice }
             }
-            .animation(.easeInOut, value: viewModel.step)
-
-            Spacer()
-
-            actions
-                .padding(.bottom, 60)
         }
-        .padding(.horizontal, 90) // TV-safe зона
+    }
+}
+
+// MARK: - Выбор источника
+
+private struct TvSourceChoiceView: View {
+    let onKinopub: () -> Void
+    let onHomeServer: () -> Void
+
+    var body: some View {
+        VStack(spacing: DS.Spacing.xxl) {
+            VStack(spacing: DS.Spacing.sm) {
+                Text("Filmax")
+                    .font(TvType.hero)
+                    .foregroundColor(Theme.accent)
+                Text("Откуда будем смотреть?")
+                    .font(TvType.section)
+                    .foregroundColor(Theme.text)
+            }
+            HStack(spacing: DS.Spacing.xxl) {
+                TvSourceCard(
+                    title: ContentSource.kinopub.label,
+                    subtitle: "Вход по коду на сайте",
+                    systemImage: "play.tv.fill",
+                    action: onKinopub
+                )
+                TvSourceCard(
+                    title: ContentSource.jellyfin.label,
+                    subtitle: "Jellyfin в вашей сети",
+                    systemImage: "server.rack",
+                    action: onHomeServer
+                )
+            }
+            .focusSection()
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.background.ignoresSafeArea())
-        .onAppear { primaryFocused = true }
+    }
+}
+
+/// Крупная карточка источника — системная `.card`-кнопка, как плитки приложений Apple TV.
+private struct TvSourceCard: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: DS.Spacing.md) {
+                Image(systemName: systemImage)
+                    .font(TvType.icon)
+                    .foregroundColor(Theme.accent)
+                Text(title)
+                    .font(TvType.section)
+                    .foregroundColor(Theme.text)
+                Text(subtitle)
+                    .font(TvType.caption)
+                    .foregroundColor(Theme.onSurfaceVariant)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(width: TvMetrics.sourceCardWidth, height: TvMetrics.sourceCardHeight)
+            .background(Theme.surface)
+        }
+        .buttonStyle(.card)
+    }
+}
+
+// MARK: - kino.pub
+
+/// Вход kino.pub по коду устройства: код — на экране, подтверждают на сайте с телефона или
+/// компьютера, поллинг ведёт `OnboardingViewModel`.
+private struct TvKinopubSignInView: View {
+    let onBack: () -> Void
+    @StateObject private var viewModel = OnboardingViewModel()
+
+    init(onBack: @escaping () -> Void) {
+        self.onBack = onBack
+    }
+
+    var body: some View {
+        VStack(spacing: DS.Spacing.xxl) {
+            HStack(alignment: .center, spacing: TvMetrics.columnGap) {
+                instructions
+                TvActivationCodeCard(viewModel: viewModel)
+            }
+            Button(action: onBack) {
+                Label("Другой источник", systemImage: "chevron.left")
+            }
+            .tvActionStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task { await viewModel.start() }
         .onDisappear { viewModel.cancel() }
+        .onExitCommand(perform: onBack)
     }
 
-    // MARK: Шаги
-
-    private var welcome: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "film.stack")
-                .font(.system(size: 140))
-                .foregroundColor(Theme.accent)
-            Text("Кино и сериалы всегда под рукой")
-                .font(.system(size: 46, weight: .bold))
-                .foregroundColor(.white)
-            Text("Тысячи фильмов, сериалов и аниме на большом экране")
-                .font(.system(size: 26))
-                .foregroundColor(Theme.onSurfaceVariant)
-        }
-        .multilineTextAlignment(.center)
-    }
-
-    private var features: some View {
-        HStack(spacing: 40) {
-            featureCard("play.rectangle.fill", "Смотрите онлайн", "HD-качество, аудио и субтитры")
-            featureCard("bookmark.fill", "Своя библиотека", "Избранное и продолжение просмотра")
-            featureCard("sparkles.tv.fill", "На всех экранах", "iPhone, iPad и Apple TV")
+    private var instructions: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.xl) {
+            Text("Войдите в kino.pub")
+                .font(TvType.screenTitle)
+                .foregroundColor(Theme.text)
+            TvSignInStep(number: 1, title: "Откройте на телефоне", detail: viewModel.verificationUri ?? "kino.pub/device")
+            TvSignInStep(number: 2, title: "Войдите в аккаунт", detail: "тот, где оформлена подписка")
+            TvSignInStep(number: 3, title: "Введите код", detail: "он справа — экран сам перейдёт дальше")
         }
     }
 
-    private func featureCard(_ icon: String, _ title: String, _ subtitle: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.system(size: 56))
-                .foregroundColor(Theme.accent)
-                .frame(width: 120, height: 120)
-                .background(Theme.accent.opacity(0.18))
-                .clipShape(RoundedRectangle(cornerRadius: 28))
-            Text(title).font(.system(size: 28, weight: .semibold)).foregroundColor(.white)
-            Text(subtitle)
-                .font(.system(size: 20)).foregroundColor(Theme.onSurfaceVariant)
-                .multilineTextAlignment(.center)
-        }
-        .frame(width: 320)
-    }
+}
 
-    private var activation: some View {
-        HStack(alignment: .center, spacing: 80) {
-            VStack(alignment: .leading, spacing: 34) {
-                Text("Активируйте устройство")
-                    .font(.system(size: 44, weight: .heavy))
-                    .foregroundColor(.white)
-                step(1, "Откройте", "kino.pub/device")
-                step(2, "Войдите", "в аккаунт KinoPub")
-                step(3, "Введите", "код активации справа")
-            }
-            codeCard
-        }
-    }
+private struct TvSignInStep: View {
+    let number: Int
+    let title: String
+    let detail: String
 
-    private func step(_ number: Int, _ title: String, _ subtitle: String) -> some View {
-        HStack(spacing: 20) {
+    var body: some View {
+        HStack(spacing: DS.Spacing.lg) {
             Text("\(number)")
-                .font(.system(size: 26, weight: .bold)).foregroundColor(.white)
-                .frame(width: 56, height: 56).background(Theme.accent).clipShape(Circle())
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(.system(size: 26, weight: .bold)).foregroundColor(.white)
-                Text(subtitle).font(.system(size: 22)).foregroundColor(Theme.onSurfaceVariant)
+                .font(TvType.cardTitle)
+                .foregroundColor(.white)
+                .frame(width: TvMetrics.stepBadgeSize, height: TvMetrics.stepBadgeSize)
+                .background(Circle().fill(Theme.accent))
+            VStack(alignment: .leading, spacing: DS.Spacing.xs) {
+                Text(title).font(TvType.cardTitle).foregroundColor(Theme.text)
+                Text(detail).font(TvType.caption).foregroundColor(Theme.onSurfaceVariant)
             }
         }
     }
+}
 
-    @ViewBuilder private var codeCard: some View {
-        VStack(spacing: 22) {
+/// Карточка с кодом: код, адрес, ожидание подтверждения или ошибка с повтором.
+private struct TvActivationCodeCard: View {
+    @ObservedObject var viewModel: OnboardingViewModel
+
+    var body: some View {
+        VStack(spacing: DS.Spacing.lg) {
             if let error = viewModel.error {
                 Text(error)
-                    .font(.system(size: 22)).foregroundColor(.white)
+                    .font(TvType.body)
+                    .foregroundColor(Theme.error)
                     .multilineTextAlignment(.center)
-                Button("Попробовать снова") { viewModel.retry() }
-                    .buttonStyle(.borderedProminent).tint(Theme.accent)
+                Button { viewModel.retry() } label: {
+                    Label("Попробовать снова", systemImage: "arrow.clockwise")
+                }
+                .tvActionStyle(.primary)
             } else {
                 Text("КОД АКТИВАЦИИ")
-                    .font(.system(size: 20, weight: .bold)).tracking(3).foregroundColor(Theme.accent)
+                    .font(TvType.caption)
+                    .fontWeight(.bold)
+                    .tracking(TvMetrics.captionTracking)
+                    .foregroundColor(Theme.accent)
                 Text(viewModel.userCode ?? "· · · · ·")
-                    .font(.system(size: 84, weight: .heavy)).tracking(12).foregroundColor(.white)
-                if let uri = viewModel.verificationUri {
-                    Text(uri).font(.system(size: 26, weight: .semibold)).foregroundColor(Theme.accent)
-                }
+                    .font(TvType.code)
+                    .foregroundColor(Theme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 if viewModel.polling {
-                    HStack(spacing: 12) {
+                    HStack(spacing: DS.Spacing.md) {
                         ProgressView().tint(Theme.onSurfaceVariant)
-                        Text("Ожидаем подтверждение…").font(.system(size: 22)).foregroundColor(Theme.onSurfaceVariant)
+                        Text("Ждём подтверждения…")
+                            .font(TvType.caption)
+                            .foregroundColor(Theme.onSurfaceVariant)
                     }
                 }
             }
         }
-        .frame(width: 560)
-        .padding(44)
+        .frame(width: TvMetrics.codeCardWidth)
+        .padding(DS.Spacing.xxl)
         .background(Theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 36))
-        .overlay(RoundedRectangle(cornerRadius: 36).stroke(Theme.accent.opacity(0.5), lineWidth: 2))
-    }
-
-    // MARK: Действия (навигация пультом)
-
-    @ViewBuilder private var actions: some View {
-        switch viewModel.step {
-        case 0:
-            Button { viewModel.next() } label: { Text("Начать").padding(.horizontal, 40) }
-                .buttonStyle(.borderedProminent).tint(Theme.accent)
-                .focused($primaryFocused)
-        case 1:
-            HStack(spacing: 24) {
-                Button { viewModel.prev() } label: { Text("Назад").padding(.horizontal, 30) }
-                    .buttonStyle(.bordered).tint(Theme.accent)
-                Button { viewModel.next() } label: { Text("Далее").padding(.horizontal, 30) }
-                    .buttonStyle(.borderedProminent).tint(Theme.accent)
-                    .focused($primaryFocused)
-            }
-        default:
-            Button { viewModel.prev() } label: { Text("Назад").padding(.horizontal, 40) }
-                .buttonStyle(.bordered).tint(Theme.accent)
-                .focused($primaryFocused)
-        }
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.xl)
+                .stroke(Theme.accentSoft, lineWidth: TvMetrics.outlineWidth)
+        )
     }
 }
