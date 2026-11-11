@@ -3,7 +3,6 @@ package com.filmax.data.user.remote
 import com.filmax.data.catalog.remote.dto.ItemsResponseDto
 import com.filmax.data.user.remote.dto.AccountInfoDto
 import com.filmax.data.user.remote.dto.BookmarksDto
-import com.filmax.data.user.remote.dto.DeviceSettingsDto
 import com.filmax.data.user.remote.dto.FolderStatusDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -16,23 +15,6 @@ internal class UserApi(private val client: HttpClient) {
 
     suspend fun getAccountInfo(): AccountInfoDto =
         client.get("api/v1/user").body()
-
-    suspend fun getDeviceSettings(): DeviceSettingsDto =
-        client.get("api/v1/device/info").body()
-
-    suspend fun updateDeviceSettings(params: UpdateDeviceSettingsParams): DeviceSettingsDto =
-        client.submitForm(
-            url = "api/v1/device/${params.id}/settings",
-            formParameters = Parameters.build {
-                append("supportSsl", params.supportSsl.toString())
-                append("supportHevc", params.supportHevc.toString())
-                append("supportHdr", params.supportHdr.toString())
-                append("support4k", params.support4k.toString())
-                append("mixedPlaylist", params.mixedPlaylist.toString())
-                append("streamingType", params.streamingType.toString())
-                append("serverLocation", params.serverLocation.toString())
-            },
-        ).body()
 
     suspend fun registerDevice(title: String, hardware: String, software: String) {
         client.submitForm(

@@ -77,8 +77,6 @@ sealed interface Destination {
         val startSeconds: Int = -1,
     ) : Destination
 
-    data object DeviceSettings : Destination
-
     /**
      * Окно оценки приложения. [trigger] — имя `FeedbackTrigger` из domain (Profile, AfterUpdate,
      * AfterWatch): core:navigation не знает типов domain, поэтому строкой.

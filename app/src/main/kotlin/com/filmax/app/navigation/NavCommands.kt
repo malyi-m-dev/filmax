@@ -23,7 +23,6 @@ import com.filmax.feature.library.mobile.navigation.MineRoute
 import com.filmax.feature.onboarding.mobile.navigation.OnboardingRoute
 import com.filmax.feature.player.common.navigation.PlayerRoute
 import com.filmax.feature.player.common.navigation.TrailerRoute
-import com.filmax.feature.profile.mobile.navigation.DeviceSettingsRoute
 import com.filmax.feature.profile.mobile.navigation.ProfileRoute
 import com.filmax.feature.search.common.navigation.BrowseRoute
 import com.filmax.feature.search.common.navigation.FilmographyRoute
@@ -166,7 +165,6 @@ internal val PhoneRoutes = GraphRoutes(tabRoot = HomeRoute, toRoute = Destinatio
 private fun Destination.toPhoneRoute(): Any = when (this) {
     is Destination.Tab -> toPhoneTabRoute()
     Destination.Onboarding -> OnboardingRoute
-    Destination.DeviceSettings -> DeviceSettingsRoute
     is Destination.Feedback -> FeedbackRoute(trigger)
     Destination.DesignSystem -> DesignSystemRoute
     is Destination.Details -> DetailsRoute(itemId)

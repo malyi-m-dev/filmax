@@ -40,12 +40,3 @@ data class WatchProgress(
             return (watched.toFloat() / duration).coerceIn(0f, 1f)
         }
 }
-
-data class Notification(
-    val id: Int,
-    val title: String?,
-    val text: String?,
-    val createdAt: Long?,
-    val read: Boolean,
-    val itemId: Int?,
-)

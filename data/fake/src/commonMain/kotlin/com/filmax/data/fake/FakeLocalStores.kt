@@ -1,7 +1,5 @@
 package com.filmax.data.fake
 
-import com.filmax.core.domain.downloads.DownloadsRepository
-import com.filmax.core.domain.downloads.model.DownloadedItem
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.feedback.FeedbackPromptState
@@ -62,23 +60,6 @@ class FakeFolderAppearanceRepository : FolderAppearanceRepository {
 
     private fun edit(folderId: Int, transform: (FolderAppearance) -> FolderAppearance) {
         state.update { current -> current + (folderId to transform(current[folderId] ?: FolderAppearance())) }
-    }
-}
-
-/** Загрузки в памяти — вместо списка скачанного на устройстве. */
-class FakeDownloadsRepository : DownloadsRepository {
-    private val items = MutableStateFlow<List<DownloadedItem>>(emptyList())
-
-    override val downloads: Flow<List<DownloadedItem>> = items
-
-    override fun isDownloaded(id: Int): Flow<Boolean> = items.map { list -> list.any { it.id == id } }
-
-    override suspend fun add(item: DownloadedItem) {
-        if (items.value.none { it.id == item.id }) items.value = items.value + item
-    }
-
-    override suspend fun remove(id: Int) {
-        items.value = items.value.filterNot { it.id == id }
     }
 }
 

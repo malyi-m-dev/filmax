@@ -3,7 +3,6 @@ package com.filmax.data.watching
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.domain.watching.WatchingRepository
-import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.data.watching.remote.WatchingApi
@@ -84,23 +83,4 @@ internal class WatchingRepositoryImpl(
 
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> =
         safeRequest { api.clearItemHistory(itemId) }
-
-    override suspend fun getNotifications(): RequestResult<List<Notification>> = safeRequest {
-        api.getNotifications().notifications?.map { dto ->
-            Notification(
-                id = dto.id,
-                title = dto.title,
-                text = dto.text,
-                createdAt = dto.createdAt?.toLong()?.times(MILLIS_PER_SECOND),
-                read = dto.read,
-                itemId = dto.itemId,
-            )
-        } ?: emptyList()
-    }
-
-    override suspend fun markNotificationRead(id: Int): RequestResult<Unit> =
-        safeRequest { api.markNotificationRead(id) }
-
-    override suspend fun markAllNotificationsRead(): RequestResult<Unit> =
-        safeRequest { api.markAllNotificationsRead() }
 }

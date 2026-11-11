@@ -5,8 +5,6 @@ import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.downloads.DownloadsRepository
-import com.filmax.core.domain.downloads.model.DownloadedItem
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.favorites.model.toFavoriteItem
 import com.filmax.core.domain.person.CastRepository
@@ -22,7 +20,6 @@ import kotlinx.coroutines.flow.debounce
 class DetailsScreenModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
-    private val downloads: DownloadsRepository,
     private val favorites: FavoritesRepository,
     private val cast: CastRepository,
     private val toggleWatchLater: ToggleWatchLaterUseCase,
@@ -44,7 +41,6 @@ class DetailsScreenModel(
 
     init {
         onFetchData()
-        observeDownloadState()
         observeFavoriteState()
         observeSeasonRequests()
     }
@@ -52,7 +48,6 @@ class DetailsScreenModel(
     override fun onEvent(event: DetailsEvent) {
         when (event) {
             DetailsEvent.ToggleFav -> toggleFav()
-            DetailsEvent.ToggleDownload -> toggleDownload()
             is DetailsEvent.SelectSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, SEASON_SELECT_DELAY_MS))
             is DetailsEvent.SwitchSeason -> seasonRequests.tryEmit(SeasonRequest(event.number, delayMs = 0))
             DetailsEvent.OpenDescription -> screenModelScope { _ -> updateState { it.copy(descriptionOpen = true) } }
@@ -105,14 +100,6 @@ class DetailsScreenModel(
         }
     }
 
-    private fun observeDownloadState() {
-        screenModelScope {
-            downloads.isDownloaded(route.itemId).collect { downloaded ->
-                updateState { it.copy(isDownloaded = downloaded) }
-            }
-        }
-    }
-
     private fun observeFavoriteState() {
         screenModelScope {
             favorites.isFavorite(route.itemId).collect { favorite ->
@@ -130,25 +117,6 @@ class DetailsScreenModel(
         screenModelScope { _ ->
             seasonRequests.debounce { it.delayMs }.collect { request ->
                 updateState { it.copy(selectedSeason = request.number) }
-            }
-        }
-    }
-
-    private fun toggleDownload() {
-        val item = state.item ?: return
-        screenModelScope {
-            if (state.isDownloaded) {
-                downloads.remove(item.id)
-            } else {
-                downloads.add(
-                    DownloadedItem(
-                        id = item.id,
-                        title = item.title,
-                        posterSmall = item.posters.medium.ifBlank { item.posters.small },
-                        year = item.year,
-                        durationMinutes = item.duration.averageMinutes?.toInt() ?: 0,
-                    ),
-                )
             }
         }
     }

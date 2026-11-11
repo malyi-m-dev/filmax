@@ -5,7 +5,6 @@ import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCastRepository
 import com.filmax.data.fake.FakeCatalogRepository
-import com.filmax.data.fake.FakeDownloadsRepository
 import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
@@ -157,20 +156,6 @@ class DetailsScreenModelTest {
     }
 
     @Test
-    fun `download toggles in and out`() = runTest(dispatcher) {
-        val model = model(FakeIds.HERO_MOVIE)
-        advanceUntilIdle()
-
-        model.dispatch(DetailsEvent.ToggleDownload)
-        advanceUntilIdle()
-        assertTrue(model.states.value.isDownloaded)
-
-        model.dispatch(DetailsEvent.ToggleDownload)
-        advanceUntilIdle()
-        assertFalse(model.states.value.isDownloaded)
-    }
-
-    @Test
     fun `unknown title ends loading with an error`() = runTest(dispatcher) {
         val state = loaded(UNKNOWN_ID)
 
@@ -188,7 +173,6 @@ class DetailsScreenModelTest {
     private fun model(itemId: Int) = DetailsScreenModel(
         savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
         catalog = FakeCatalogRepository(backend),
-        downloads = FakeDownloadsRepository(),
         favorites = favorites,
         cast = FakeCastRepository(backend),
         toggleWatchLater = ToggleWatchLaterUseCase(favorites, watching),

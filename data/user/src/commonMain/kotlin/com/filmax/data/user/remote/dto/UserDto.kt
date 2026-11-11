@@ -39,26 +39,6 @@ data class SubscriptionDto(
 )
 
 @Serializable
-data class DeviceSettingsDto(
-    val device: DeviceInfoDto? = null,
-)
-
-@Serializable
-data class DeviceInfoDto(
-    val id: Int,
-    val title: String,
-    val hardware: String? = null,
-    val software: String? = null,
-    @SerialName("support_ssl") val supportSsl: Int = 0,
-    @SerialName("support_hevc") val supportHevc: Int = 0,
-    @SerialName("support_hdr") val supportHdr: Int = 0,
-    @SerialName("support_4k") val support4k: Int = 0,
-    @SerialName("mixed_playlist") val mixedPlaylist: Int = 0,
-    @SerialName("streaming_type") val streamingType: Int = 0,
-    @SerialName("server_location") val serverLocation: Int = 0,
-)
-
-@Serializable
 data class BookmarksDto(
     val items: List<BookmarkFolderDto>,
 )

@@ -7,11 +7,9 @@ import com.filmax.core.domain.common.onSuccess
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
-import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.data.catalog.mapper.toDomain
-import com.filmax.data.user.remote.UpdateDeviceSettingsParams
 import com.filmax.data.user.remote.UserApi
 
 internal class UserRepositoryImpl(
@@ -41,25 +39,6 @@ internal class UserRepositoryImpl(
     }
         // Профиль — единственное место, где известен username: привязываем к нему телеметрию.
         .onSuccess { profile -> ErrorReporting.reporter.setUser(profile.username) }
-
-    override suspend fun getDeviceSettings(): RequestResult<DeviceSettings> = safeRequest {
-        requireNotNull(api.getDeviceSettings().device).toDomain()
-    }
-
-    override suspend fun updateDeviceSettings(settings: DeviceSettings): RequestResult<Unit> = safeRequest {
-        api.updateDeviceSettings(
-            UpdateDeviceSettingsParams(
-                id = settings.id,
-                supportSsl = if (settings.supportSsl) 1 else 0,
-                supportHevc = if (settings.supportHevc) 1 else 0,
-                supportHdr = if (settings.supportHdr) 1 else 0,
-                support4k = if (settings.support4k) 1 else 0,
-                mixedPlaylist = if (settings.mixedPlaylist) 1 else 0,
-                streamingType = settings.streamingType,
-                serverLocation = settings.serverLocation,
-            ),
-        )
-    }
 
     override suspend fun registerDevice(
         title: String,

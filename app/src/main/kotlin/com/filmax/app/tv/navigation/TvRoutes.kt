@@ -11,7 +11,6 @@ import com.filmax.feature.library.common.navigation.FolderRoute
 import com.filmax.feature.library.tv.navigation.TvLibraryRoute
 import com.filmax.feature.onboarding.tv.navigation.TvOnboardingRoute
 import com.filmax.feature.player.common.navigation.TrailerRoute
-import com.filmax.feature.profile.tv.navigation.TvDeviceSettingsRoute
 import com.filmax.feature.profile.tv.navigation.TvProfileRoute
 import com.filmax.feature.search.common.navigation.FilmographyRoute
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
@@ -23,7 +22,6 @@ internal val TvRoutes = GraphRoutes(tabRoot = TvHomeRoute, toRoute = Destination
 private fun Destination.toTvRoute(): Any = when (this) {
     is Destination.Tab -> toTvTabRoute()
     Destination.Onboarding -> TvOnboardingRoute
-    Destination.DeviceSettings -> TvDeviceSettingsRoute
     is Destination.Feedback -> FeedbackRoute(trigger)
     // Каталог компонентов — debug-экран телефона, на ТВ его нет и открывать нечем.
     Destination.DesignSystem -> error("DesignSystem не существует в ТВ-графе")

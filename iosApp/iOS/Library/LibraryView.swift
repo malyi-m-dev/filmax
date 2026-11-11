@@ -21,7 +21,6 @@ struct LibraryView: View {
         .background(Theme.background.ignoresSafeArea())
         .task { await viewModel.load() }
         .task { await viewModel.observeFavorites() }
-        .task { await viewModel.observeDownloads() }
         .toolbar {
             Button {
                 showNewFolder = true
@@ -42,8 +41,7 @@ struct LibraryView: View {
     }
 
     private var isEmpty: Bool {
-        viewModel.history.isEmpty && viewModel.favorites.isEmpty
-            && viewModel.downloads.isEmpty && viewModel.folders.isEmpty
+        viewModel.history.isEmpty && viewModel.favorites.isEmpty && viewModel.folders.isEmpty
     }
 
     private var content: some View {
@@ -59,11 +57,6 @@ struct LibraryView: View {
                 }
                 if !viewModel.folders.isEmpty {
                     bookmarks
-                }
-                if !viewModel.downloads.isEmpty {
-                    localRail(title: "Загрузки", items: viewModel.downloads.map {
-                        LocalCard(id: $0.id, title: $0.title, poster: $0.posterSmall)
-                    })
                 }
             }
             .padding(.vertical, DS.Spacing.md)

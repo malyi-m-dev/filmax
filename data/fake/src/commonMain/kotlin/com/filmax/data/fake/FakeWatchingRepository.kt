@@ -2,7 +2,6 @@ package com.filmax.data.fake
 
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.WatchingRepository
-import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
 import com.filmax.data.fake.store.MOVIE_SEASON
@@ -44,18 +43,6 @@ class FakeWatchingRepository(private val backend: FakeBackend) : WatchingReposit
 
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> = backend.respond {
         watch.forget(itemId)
-        success(Unit)
-    }
-
-    override suspend fun getNotifications(): RequestResult<List<Notification>> =
-        backend.respond { success(account.notifications()) }
-
-    override suspend fun markNotificationRead(id: Int): RequestResult<Unit> = backend.respond {
-        if (account.markRead(id)) success(Unit) else notFound("notification $id")
-    }
-
-    override suspend fun markAllNotificationsRead(): RequestResult<Unit> = backend.respond {
-        account.markAllRead()
         success(Unit)
     }
 

@@ -1,8 +1,6 @@
 package com.filmax.app.navigation
 
-import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.feedback.ClientInfo
-import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeContentSourceRepository
@@ -19,7 +17,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 
 /**
  * Подпись устройства в аккаунте kino.pub шлёт корневая модель, а не экран входа: тот снимается
@@ -43,8 +40,7 @@ class RootScreenModelTest {
         RootScreenModel(FakeAuthRepository(backend), user, MI_TV, FakeContentSourceRepository())
         advanceUntilIdle()
 
-        val device = assertIs<RequestResult.Success<DeviceSettings>>(user.getDeviceSettings()).data
-        assertEquals("Xiaomi MiTV-MZTU1", device.title)
+        assertEquals("Xiaomi MiTV-MZTU1", user.registeredDevice)
     }
 
     private companion object {

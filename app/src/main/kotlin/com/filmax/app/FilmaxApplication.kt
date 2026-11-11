@@ -8,18 +8,11 @@ import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.navigation.di.navigationModule
 import com.filmax.core.network.di.networkModule
 import com.filmax.core.network.di.platformNetworkModule
-import com.filmax.data.auth.di.authModule
-import com.filmax.data.catalog.di.catalogModule
 import com.filmax.data.feedback.di.FIREBASE_PROJECT_PROPERTY
 import com.filmax.data.feedback.di.feedbackModule
-import com.filmax.data.jellyfin.di.jellyfinModule
-import com.filmax.data.search.di.searchModule
-import com.filmax.data.source.di.sourceModule
 import com.filmax.data.tmdb.di.TMDB_API_KEY_PROPERTY
 import com.filmax.data.tmdb.di.tmdbModule
 import com.filmax.data.tvlink.di.tvLinkModule
-import com.filmax.data.user.di.userModule
-import com.filmax.data.watching.di.watchingModule
 import com.filmax.feature.collections.common.di.collectionsModule
 import com.filmax.feature.details.common.di.detailsModule
 import com.filmax.feature.feedback.common.di.feedbackFeatureModule
@@ -30,6 +23,8 @@ import com.filmax.feature.player.common.di.playerModule
 import com.filmax.feature.profile.common.di.profileModule
 import com.filmax.feature.search.common.di.searchFeatureModule
 import com.filmax.feature.tvlink.common.di.tvLinkFeatureModule
+import com.filmax.shared.domainUseCaseModule
+import com.filmax.shared.sharedDataModules
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import org.koin.android.ext.koin.androidContext
@@ -69,26 +64,20 @@ open class FilmaxApplication : Application() {
      * Реализации репозиториев. Хук открыт, чтобы сборка `mock` положила фейки ПОВЕРХ настоящих:
      * Koin перекрывает определение тем модулем, что загружен позже. Main-код о фейках не знает.
      *
-     * [sourceModule] — после модулей обоих источников: он занимает их ключи без квалификатора
-     * переключателями между kino.pub и домашним сервером.
+     * Data-слой обоих источников — общий с iOS список [sharedDataModules] (переключатель
+     * источника в нём последним), дальше то, что есть только на Android.
      */
-    protected open fun dataModules(): List<Module> = listOf(
-        authModule,
-        catalogModule,
-        searchModule,
-        userModule,
-        watchingModule,
+    protected open fun dataModules(): List<Module> = sharedDataModules + listOf(
         tmdbModule,
         feedbackModule,
         // Связь с ТВ — не kino.pub: мок-сборка оставляет её настоящей, и две мок-сборки в одной
         // Wi-Fi находят друг друга.
         tvLinkModule,
-        jellyfinModule,
-        sourceModule,
     )
 
     /** Фичи и app-модуль — после data, как и раньше. */
     private fun featureModules(): List<Module> = listOf(
+        domainUseCaseModule,
         useCaseModule,
         onboardingModule,
         homeModule,

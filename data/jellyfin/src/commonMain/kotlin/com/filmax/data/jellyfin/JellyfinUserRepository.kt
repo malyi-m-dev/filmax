@@ -5,7 +5,6 @@ import com.filmax.core.domain.catalog.model.Pagination
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
-import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 
@@ -30,11 +29,6 @@ internal class JellyfinUserRepository(private val context: JellyfinContext) : Us
         )
     }
 
-    override suspend fun getDeviceSettings(): RequestResult<DeviceSettings> = RequestResult.Error(NO_DEVICE_SETTINGS)
-
-    override suspend fun updateDeviceSettings(settings: DeviceSettings): RequestResult<Unit> =
-        RequestResult.Error(NO_DEVICE_SETTINGS)
-
     // Устройство сервер и так знает: имя и id идут в заголовке каждого запроса.
     override suspend fun registerDevice(title: String, hardware: String, software: String): RequestResult<Unit> =
         RequestResult.Success(Unit)
@@ -56,7 +50,6 @@ internal class JellyfinUserRepository(private val context: JellyfinContext) : Us
         RequestResult.Error(NO_FOLDERS)
 
     private companion object {
-        const val NO_DEVICE_SETTINGS = "У домашнего сервера нет настроек устройства"
         const val NO_FOLDERS = "Папки пока есть только у kino.pub"
     }
 }

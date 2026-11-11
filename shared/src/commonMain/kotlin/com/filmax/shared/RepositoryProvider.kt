@@ -2,7 +2,6 @@ package com.filmax.shared
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.downloads.DownloadsRepository
 import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.search.SearchRepository
@@ -45,9 +44,6 @@ object RepositoryProvider : KoinComponent {
 
     /** Избранное (локальное, реактивные `Flow`). */
     val favorites: FavoritesRepository get() = get()
-
-    /** Загрузки (локальное, реактивные `Flow`). */
-    val downloads: DownloadsRepository get() = get()
 
     /** Настройки воспроизведения (качество/аудио/субтитры, локально). */
     val playbackSettings: PlaybackSettingsRepository get() = get()

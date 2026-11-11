@@ -93,20 +93,3 @@ data class PaginationDto(
     val current: Int = 1,
     @SerialName("per_page") val perPage: Int = 20,
 )
-
-@Serializable
-data class NotificationsDto(
-    val notifications: List<NotificationDto>? = null,
-    val unread: Int = 0,
-)
-
-@Serializable
-data class NotificationDto(
-    val id: Int,
-    val title: String? = null,
-    val text: String? = null,
-    @SerialName("created_at") val createdAt: Int? = null,
-    val read: Boolean = false,
-    val type: String? = null,
-    @SerialName("item_id") val itemId: Int? = null,
-)

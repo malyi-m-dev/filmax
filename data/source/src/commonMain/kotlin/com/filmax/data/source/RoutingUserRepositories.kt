@@ -5,10 +5,8 @@ import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
-import com.filmax.core.domain.user.model.DeviceSettings
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.watching.WatchingRepository
-import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 
 // Столько же функций, сколько в контракте профиля.
@@ -16,11 +14,6 @@ import com.filmax.core.domain.watching.model.WatchHistory
 internal class RoutingUserRepository(private val switch: SourceSwitch<UserRepository>) : UserRepository {
 
     override suspend fun getProfile(): RequestResult<UserProfile> = switch.current.getProfile()
-
-    override suspend fun getDeviceSettings(): RequestResult<DeviceSettings> = switch.current.getDeviceSettings()
-
-    override suspend fun updateDeviceSettings(settings: DeviceSettings): RequestResult<Unit> =
-        switch.current.updateDeviceSettings(settings)
 
     override suspend fun registerDevice(title: String, hardware: String, software: String): RequestResult<Unit> =
         switch.current.registerDevice(title, hardware, software)
@@ -66,10 +59,4 @@ internal class RoutingWatchingRepository(private val switch: SourceSwitch<Watchi
     override suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean> = switch.current.toggleWatchlist(itemId)
 
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> = switch.current.clearHistory(itemId)
-
-    override suspend fun getNotifications(): RequestResult<List<Notification>> = switch.current.getNotifications()
-
-    override suspend fun markNotificationRead(id: Int): RequestResult<Unit> = switch.current.markNotificationRead(id)
-
-    override suspend fun markAllNotificationsRead(): RequestResult<Unit> = switch.current.markAllNotificationsRead()
 }

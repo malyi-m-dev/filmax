@@ -49,7 +49,6 @@ import com.filmax.feature.onboarding.tv.navigation.tvOnboardingScreen
 import com.filmax.feature.player.tv.navigation.tvPlayerScreen
 import com.filmax.feature.player.tv.navigation.tvTrailerScreen
 import com.filmax.feature.profile.tv.navigation.TvProfileRoute
-import com.filmax.feature.profile.tv.navigation.tvDeviceSettingsScreen
 import com.filmax.feature.profile.tv.navigation.tvProfileScreen
 import com.filmax.feature.search.tv.navigation.TvSearchRoute
 import com.filmax.feature.search.tv.navigation.tvFilmographyScreen
@@ -254,7 +253,6 @@ private fun NavGraphBuilder.tvDestinations(onCheckUpdates: () -> Unit) {
     tvProfileScreen(onCheckUpdates = onCheckUpdates, remoteCard = { modifier -> TvRemoteCard(modifier) })
     // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
     // device/info и device/settings на бэкенде отвечают 500.
-    tvDeviceSettingsScreen()
 
     tvDetailsScreen()
     // Фильмография человека — push-экран из деталей (тап по актёру/режиссёру).

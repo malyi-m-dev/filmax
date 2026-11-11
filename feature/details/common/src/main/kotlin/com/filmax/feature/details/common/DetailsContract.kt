@@ -14,7 +14,6 @@ data class DetailsState(
      */
     val cast: List<CastMember> = emptyList(),
     val isFav: Boolean = false,
-    val isDownloaded: Boolean = false,
     val error: String? = null,
     /** Сезоны и точка «продолжить» — только у сериала, у фильма null. */
     val series: SeriesData? = null,
@@ -41,7 +40,6 @@ data class DetailsState(
 
 sealed interface DetailsEvent {
     data object ToggleFav : DetailsEvent
-    data object ToggleDownload : DetailsEvent
 
     /**
      * Сезон в фокусе. На ТВ сезон меняется фокусом на чипе, без «ОК», — модель выжидает 250 мс,

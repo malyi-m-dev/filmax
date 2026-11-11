@@ -2,7 +2,6 @@ package com.filmax.data.jellyfin
 
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.watching.WatchingRepository
-import com.filmax.core.domain.watching.model.Notification
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.data.jellyfin.mapper.JellyfinMapper
 import com.filmax.data.jellyfin.mapper.history
@@ -72,13 +71,6 @@ internal class JellyfinWatchingRepository(
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> = context.request { _ ->
         api.setPlayed(context.ids.requireGuid(itemId), played = false)
     }
-
-    // Уведомлений о новых сериях у сервера нет: медиатеку пополняет сам человек.
-    override suspend fun getNotifications(): RequestResult<List<Notification>> = RequestResult.Success(emptyList())
-
-    override suspend fun markNotificationRead(id: Int): RequestResult<Unit> = RequestResult.Success(Unit)
-
-    override suspend fun markAllNotificationsRead(): RequestResult<Unit> = RequestResult.Success(Unit)
 
     private suspend fun report(itemId: Int, season: Int, number: Int, timeSeconds: Int): RequestResult<Unit> =
         context.request { _ ->

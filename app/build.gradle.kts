@@ -231,6 +231,8 @@ dependencies {
     // Домашний сервер и переключатель источника: экраны получают репозитории выбранного.
     implementation(project(":data:jellyfin"))
     implementation(project(":data:source"))
+    // Общий с iOS состав data-модулей и use case'ов: один список на обе платформы.
+    implementation(project(":shared"))
     // Фейки только в сборке mock: main-код о них не знает, подключает MockFilmaxApplication.
     "mockImplementation"(project(":data:fake"))
     "benchmarkImplementation"(project(":data:fake"))

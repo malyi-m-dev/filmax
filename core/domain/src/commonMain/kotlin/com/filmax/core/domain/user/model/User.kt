@@ -32,17 +32,3 @@ data class BookmarkFolder(
     val count: Int,
     val updatedAt: Long?,
 )
-
-data class DeviceSettings(
-    val id: Int,
-    val title: String,
-    val supportSsl: Boolean,
-    val supportHevc: Boolean,
-    val supportHdr: Boolean,
-    val support4k: Boolean,
-    // «Смешанный плейлист»: сервер отдаёт в одном плейлисте дорожки разного качества.
-    // Раньше не хранился в домене (updateDeviceSettings слал 0), теперь — редактируемый тумблер.
-    val mixedPlaylist: Boolean,
-    val streamingType: Int,
-    val serverLocation: Int,
-)

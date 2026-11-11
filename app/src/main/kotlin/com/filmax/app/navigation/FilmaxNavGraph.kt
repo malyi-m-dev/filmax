@@ -56,7 +56,6 @@ import com.filmax.feature.onboarding.mobile.navigation.onboardingScreen
 import com.filmax.feature.player.mobile.navigation.playerScreen
 import com.filmax.feature.player.mobile.navigation.trailerScreen
 import com.filmax.feature.profile.mobile.navigation.ProfileRoute
-import com.filmax.feature.profile.mobile.navigation.deviceSettingsScreen
 import com.filmax.feature.profile.mobile.navigation.profileScreen
 import com.filmax.feature.search.mobile.navigation.CatalogRoute
 import com.filmax.feature.search.mobile.navigation.SearchRoute
@@ -235,7 +234,6 @@ private fun NavGraphBuilder.filmaxDestinations(onCheckUpdates: () -> Unit) {
     )
     // Экран настроек устройства остаётся в графе, но из Профиля временно не открывается:
     // device/info и device/settings на бэкенде отвечают 500.
-    deviceSettingsScreen()
 
     detailsScreen()
     // Фильмография человека — push-экран из деталей (тап по актёру/режиссёру).
