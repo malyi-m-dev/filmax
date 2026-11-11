@@ -4,11 +4,11 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.common.map
-import com.filmax.core.domain.favorites.WATCHLIST_FOLDER_TITLE
 import com.filmax.core.domain.user.FolderAppearanceRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.user.model.FolderAppearance
+import com.filmax.core.domain.watchlist.WATCHLIST_FOLDER_TITLE
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope

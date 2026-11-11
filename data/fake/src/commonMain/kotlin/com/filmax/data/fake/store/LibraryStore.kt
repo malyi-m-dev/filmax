@@ -1,8 +1,12 @@
 package com.filmax.data.fake.store
 
 import com.filmax.data.fake.FakeIds
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.getAndUpdate
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.updateAndGet
 
 /** Папка-закладка: тайтлы — свежедобавленные первыми, как в `bookmarks/{id}`. */
@@ -25,7 +29,7 @@ internal data class LibrarySnapshot(
 
 /**
  * Закладки на сессию. Состояние неизменяемое и меняется атомарно через StateFlow: «Буду смотреть»
- * правит FavoritesRepositoryImpl со своего Default-скоупа, а экраны — с главного потока.
+ * правят и экраны, и FakeWatchlistRepository, а список следит за папкой через [watchlistIds].
  */
 internal class LibraryStore(
     initialFolders: List<FolderState>,
@@ -41,6 +45,11 @@ internal class LibraryStore(
                 .toSet(),
         ),
     )
+
+    /** Состав папки «Буду смотреть» — свежедобавленные первыми, как в `bookmarks/{id}`. */
+    val watchlistIds: Flow<List<Int>> = state.map { snapshot ->
+        snapshot.folders.firstOrNull { it.id == FakeIds.WATCHLIST_FOLDER }?.itemIds.orEmpty()
+    }.distinctUntilChanged()
 
     fun folders(): List<FolderState> = state.value.folders
 
@@ -73,13 +82,12 @@ internal class LibraryStore(
 
     fun isInWatchlist(itemId: Int): Boolean = itemId in state.value.watchlist
 
-    /** @return новое состояние флага: true — тайтл теперь в watchlist. */
-    fun toggleWatchlist(itemId: Int): Boolean {
-        val snapshot = state.updateAndGet { current ->
-            val watchlist = current.watchlist
-            current.copy(watchlist = if (itemId in watchlist) watchlist - itemId else watchlist + itemId)
+    /** Отметка «Буду смотреть» целиком: папка и флаг вместе, как их ставит приложение. */
+    fun mark(itemId: Int, marked: Boolean) {
+        if (marked) addItem(FakeIds.WATCHLIST_FOLDER, itemId) else removeItem(FakeIds.WATCHLIST_FOLDER, itemId)
+        state.update { current ->
+            current.copy(watchlist = if (marked) current.watchlist + itemId else current.watchlist - itemId)
         }
-        return itemId in snapshot.watchlist
     }
 
     /** Правит состав папки и дату её изменения. false — папки нет. */

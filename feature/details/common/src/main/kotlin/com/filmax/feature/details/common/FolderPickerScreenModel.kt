@@ -4,12 +4,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.navigation.toRoute
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.user.model.UserFolder
 import com.filmax.core.domain.user.model.userFolders
+import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.feature.details.common.navigation.DetailsRoute
@@ -29,7 +29,7 @@ class FolderPickerScreenModel(
     savedStateHandle: SavedStateHandle,
     private val user: UserRepository,
     private val folders: BookmarkFolders,
-    private val favorites: FavoritesRepository,
+    private val watchlist: WatchlistRepository,
 ) : BaseScreenModel<FolderPickerState, FolderPickerSideEffect, FolderPickerEvent>(FolderPickerState()) {
 
     private val itemId = savedStateHandle.toRoute<DetailsRoute>().itemId
@@ -77,7 +77,7 @@ class FolderPickerScreenModel(
 
     private fun observeWatchlistCount() {
         screenModelScope {
-            favorites.favorites.collect { items -> updateState { it.copy(watchlistCount = items.size) } }
+            watchlist.items.collect { items -> updateState { it.copy(watchlistCount = items.size) } }
         }
     }
 

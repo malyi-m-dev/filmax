@@ -36,11 +36,10 @@ class TvHomeLabelsTest {
 
     @Test
     fun `rating is high from eight`() {
-        assertTrue(isHighRating("8.0"))
-        assertTrue(isHighRating("9.1"))
-        assertFalse(isHighRating("7.9"))
+        assertTrue(isHighRating(8.0))
+        assertTrue(isHighRating(9.1))
+        assertFalse(isHighRating(7.9))
         assertFalse(isHighRating(null))
-        assertFalse(isHighRating("—"))
     }
 
     @Test

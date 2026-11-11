@@ -39,7 +39,7 @@ internal fun MediaTrack.keyIn(itemId: Int): TrackKey = TrackKey(itemId, seasonNu
 
 /**
  * Прогресс и история на сессию. Состояние неизменяемое и меняется атомарно через StateFlow:
- * репозитории зовут из разных корутин (FavoritesRepositoryImpl, например, живёт на Default).
+ * репозитории зовут из разных корутин (фоновые области репозиториев живут на Default).
  */
 internal class WatchStore(initial: WatchSnapshot, private val clock: () -> Long) {
 

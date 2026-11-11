@@ -9,6 +9,7 @@ import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.Posters
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.catalog.model.VideoFile
 import com.filmax.data.jellyfin.JellyfinIds
 import com.filmax.data.jellyfin.remote.dto.ItemDto
@@ -19,8 +20,8 @@ import kotlin.math.roundToInt
 
 /**
  * Ответы Jellyfin → доменные модели. GUID превращаются в числа через [JellyfinIds]; оценка — это
- * `CommunityRating` сервера (обычно из TMDB/IMDb по шкале 0–10), поэтому она идёт в поле IMDb:
- * Кинопоиска у домашнего сервера нет, и выдумывать его не стоит.
+ * `CommunityRating` сервера (из метаданных медиатеки, шкала 0–10) — своя оценка источника, а не
+ * IMDb или КиноПоиск: выдавать её за чужую не стоит.
  */
 internal class JellyfinMapper(private val ids: JellyfinIds, val images: JellyfinImages) {
 
@@ -35,13 +36,8 @@ internal class JellyfinMapper(private val ids: JellyfinIds, val images: Jellyfin
             director = dto.people.names(DIRECTOR).joinToString(", "),
             cast = dto.people.names(ACTOR).take(CAST_LIMIT).joinToString(", "),
             country = dto.productionLocations?.firstOrNull().orEmpty(),
-            genres = dto.genreItems.orEmpty().mapNotNull { genre -> genre(genre.id, genre.name, type) },
-            rating = ItemRating(
-                filmax = 0,
-                filmaxPercentage = "",
-                imdb = dto.communityRating?.let(::ratingText),
-                kinopoisk = null,
-            ),
+            genres = dto.genreItems.orEmpty().mapNotNull { genre -> genre(genre.id, genre.name) },
+            rating = ItemRating.of(RatingSource.COMMUNITY to dto.communityRating?.let(::ratingText)),
             posters = posters(dto),
             duration = Duration(
                 averageMinutes = dto.runTimeTicks?.let { ticksToSeconds(it) / SECONDS_PER_MINUTE },
@@ -56,10 +52,10 @@ internal class JellyfinMapper(private val ids: JellyfinIds, val images: Jellyfin
         )
     }
 
-    /** Жанр с типом каталога: по нему поиск отделяет киношные жанры от музыкальных. */
-    fun genre(guid: String?, name: String?, type: ItemType = ItemType.MOVIE): Genre? {
+    /** Жанр медиатеки: справочник сервер отдаёт уже только для фильмов и сериалов. */
+    fun genre(guid: String?, name: String?): Genre? {
         if (guid == null || name.isNullOrBlank()) return null
-        return Genre(id = ids.intFor(guid), title = name, type = if (type.episodic) SERIAL_GENRE else MOVIE_GENRE)
+        return Genre(id = ids.intFor(guid), title = name)
     }
 
     fun collection(dto: ItemDto): Collection = Collection(
@@ -135,8 +131,6 @@ internal class JellyfinMapper(private val ids: JellyfinIds, val images: Jellyfin
         private const val ACTOR = "Actor"
         private const val STATUS_ENDED = "Ended"
         private const val IMDB_PROVIDER = "Imdb"
-        private const val MOVIE_GENRE = "movie"
-        private const val SERIAL_GENRE = "serial"
 
         /** Строка актёров в деталях: дальше десятого имени её никто не дочитывает. */
         private const val CAST_LIMIT = 10

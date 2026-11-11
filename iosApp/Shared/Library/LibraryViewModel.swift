@@ -1,13 +1,13 @@
 import Combine
 import Shared
 
-/// Презентейшен Библиотеки (iOS + tvOS): история/продолжить, избранное (Flow), закладки (папки).
-/// Данные — общие `WatchingRepository`/`UserRepository`/`FavoritesRepository`; вся логика уже в
-/// общем слое.
+/// Презентейшен Библиотеки (iOS + tvOS): история/продолжить, «Буду смотреть» (Flow), закладки
+/// (папки). Данные — общие `WatchingRepository`/`UserRepository`/`WatchlistRepository`; вся логика
+/// уже в общем слое.
 @MainActor
 final class LibraryViewModel: ObservableObject {
     @Published var history: [WatchHistory] = []
-    @Published var favorites: [FavoriteItem] = []
+    @Published var watchlist: [WatchlistItem] = []
     @Published var folders: [BookmarkFolder] = []
 
     /// Выбранная папка закладок и её содержимое (in-place просмотр).
@@ -19,7 +19,7 @@ final class LibraryViewModel: ObservableObject {
 
     private let watching = RepositoryProvider.shared.watching
     private let user = RepositoryProvider.shared.user
-    private let favoritesRepo = RepositoryProvider.shared.favorites
+    private let watchlistRepo = RepositoryProvider.shared.watchlist
 
     func load() async {
         isLoading = true
@@ -47,8 +47,8 @@ final class LibraryViewModel: ObservableObject {
 
     // MARK: - Реактивные локальные источники (Flow)
 
-    func observeFavorites() async {
-        for await list in favoritesRepo.favorites { favorites = list }
+    func observeWatchlist() async {
+        for await list in watchlistRepo.items { watchlist = list }
     }
 
     // MARK: - Закладки
@@ -77,7 +77,7 @@ final class LibraryViewModel: ObservableObject {
         await loadFolders()
     }
 
-    // MARK: - Избранное / загрузки
+    // MARK: - Буду смотреть
 
-    func removeFavorite(id: Int32) async { try? await favoritesRepo.remove(id: id) }
+    func removeFromWatchlist(id: Int32) async { try? await watchlistRepo.remove(itemId: id) }
 }

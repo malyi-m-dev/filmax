@@ -3,17 +3,17 @@ package com.filmax.feature.details.common
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import com.filmax.core.presentation.folders.FolderInput
 import com.filmax.data.fake.FakeBackend
-import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
+import com.filmax.data.fake.InMemoryWatchlistRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -195,11 +195,11 @@ class FolderPickerScreenModelTest {
 
     @Test
     fun `system row counts the watchlist`() = runTest(dispatcher) {
-        val favorites = FakeFavoritesRepository()
-        val model = model(FakeIds.HERO_MOVIE, favorites)
+        val watchlist = InMemoryWatchlistRepository()
+        val model = model(FakeIds.HERO_MOVIE, watchlist)
         advanceUntilIdle()
 
-        favorites.add(FavoriteItem(1, "Тайтл", "", 2020, 90))
+        watchlist.add(WatchlistItem(1, "Тайтл", "", 2020, 90))
         advanceUntilIdle()
 
         assertEquals(1, model.states.value.watchlistCount)
@@ -224,13 +224,13 @@ class FolderPickerScreenModelTest {
 
     private fun model(
         itemId: Int,
-        favorites: FakeFavoritesRepository = FakeFavoritesRepository(),
+        watchlist: InMemoryWatchlistRepository = InMemoryWatchlistRepository(),
         server: UserRepository = user,
     ) = FolderPickerScreenModel(
         savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
         user = server,
         folders = BookmarkFolders(server, appearance),
-        favorites = favorites,
+        watchlist = watchlist,
     )
 
     /** Фейковый сервер, у которого отказывает создание папки или добавление в неё. */

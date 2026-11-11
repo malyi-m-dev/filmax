@@ -100,7 +100,7 @@ class CatalogPagerTest {
         val ByViews = SortOption(CatalogSort.VIEWS)
         val AllTypes = CatalogQuery(
             types = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.DOCUMENTARY),
-            genreId = null,
+            genre = null,
             filters = CatalogFilters(),
             sort = ByViews,
         )

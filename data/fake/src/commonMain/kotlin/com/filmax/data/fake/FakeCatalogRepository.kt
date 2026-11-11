@@ -4,6 +4,7 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
@@ -27,22 +28,14 @@ class FakeCatalogRepository(private val backend: FakeBackend) : CatalogRepositor
     override suspend fun getItems(type: ItemType, sort: CatalogSort, page: Int): RequestResult<ItemPage> =
         browse(CatalogQuery(type = type, sort = SortOption(sort)), page)
 
-    override suspend fun getItemsByGenre(
-        type: ItemType,
-        genreId: Int,
-        sort: CatalogSort,
-        page: Int,
-    ): RequestResult<ItemPage> =
-        browse(CatalogQuery(type = type, genreId = genreId, sort = SortOption(sort)), page)
-
     override suspend fun getItems(
         type: ItemType,
-        genreId: Int?,
+        genre: GenreFilter?,
         filters: CatalogFilters,
         sort: SortOption,
         page: Int,
     ): RequestResult<ItemPage> =
-        browse(CatalogQuery(type = type, genreId = genreId, filters = filters, sort = sort), page)
+        browse(CatalogQuery(type = type, genre = genre, filters = filters, sort = sort), page)
 
     override suspend fun getShortcutItems(
         shortcut: CatalogShortcut,

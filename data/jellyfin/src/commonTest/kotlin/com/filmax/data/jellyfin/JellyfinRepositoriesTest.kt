@@ -1,14 +1,17 @@
 package com.filmax.data.jellyfin
 
 import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.CatalogGenres
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
+import com.filmax.core.domain.catalog.ReferenceGenre
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.error.AppError
 import com.filmax.core.domain.error.toAppError
+import com.filmax.core.domain.watchlist.model.toWatchlistItem
 import com.filmax.data.jellyfin.JellyfinFixtures.EPISODES
 import com.filmax.data.jellyfin.JellyfinFixtures.EPISODE_S2E1
 import com.filmax.data.jellyfin.JellyfinFixtures.HISTORY
@@ -17,10 +20,14 @@ import com.filmax.data.jellyfin.JellyfinFixtures.MOVIE_ID
 import com.filmax.data.jellyfin.JellyfinFixtures.SERIES
 import com.filmax.data.jellyfin.JellyfinFixtures.SERIES_ID
 import io.ktor.http.HttpMethod
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -52,14 +59,15 @@ class JellyfinRepositoriesTest {
         assertEquals(listOf(1 to 1, 2 to 1), item?.tracklist?.map { it.seasonNumber to it.number })
         assertEquals(listOf(0, 1), item?.tracklist?.map { it.watchStatus })
         assertEquals(600, item?.tracklist?.first()?.watchedSeconds)
-        assertEquals("8.7", item?.rating?.imdb)
-        assertNull(item?.rating?.kinopoisk)
+        assertEquals(8.7, item?.rating?.primary)
+        assertEquals(8.7, item?.rating?.of(RatingSource.COMMUNITY))
+        assertNull(item?.rating?.of(RatingSource.KINOPOISK))
         assertEquals("Луис Хофман", item?.cast)
         assertEquals("Баран бо Одар", item?.director)
         assertEquals("tt5753856", item?.imdbId)
         assertTrue(item?.inWatchlist == true)
         assertTrue(item?.finished == true)
-        assertEquals("serial", item?.genres?.single()?.type)
+        assertEquals("Драма", item?.genres?.single()?.title)
         val poster = item?.posters?.medium.orEmpty()
         assertTrue(poster.startsWith("${FakeJellyfinServer.ADDRESS}/Items/$SERIES_ID/Images/Primary"), poster)
     }
@@ -99,8 +107,13 @@ class JellyfinRepositoriesTest {
     fun `catalog filters become server query parameters`() = runTest {
         catalog.getItems(
             type = ItemType.ANIME,
-            genreId = null,
-            filters = CatalogFilters(yearFrom = 2015, imdbRatingFrom = 7, only4k = true, onlyFinished = true),
+            genre = null,
+            filters = CatalogFilters(
+                yearFrom = 2015,
+                minRatings = mapOf(RatingSource.COMMUNITY to 7),
+                only4k = true,
+                onlyFinished = true,
+            ),
             sort = SortOption(CatalogSort.RATING, ascending = true),
             page = 3,
         )
@@ -120,7 +133,7 @@ class JellyfinRepositoriesTest {
 
     @Test
     fun `kinopub reference genres are found by name on the server`() = runTest {
-        val comedies = CatalogGenres.COMEDY
+        val comedies = GenreFilter.Reference(ReferenceGenre.COMEDY)
         catalog.getItems(ItemType.MOVIE, comedies, CatalogFilters(), SortOption(CatalogSort.VIEWS), page = 1)
 
         val query = server.requestsTo("/Items").single().parameters
@@ -132,7 +145,7 @@ class JellyfinRepositoriesTest {
     fun `server genres from the dictionary are filtered by id`() = runTest {
         val drama = server.ids.intFor("9e000000000000000000000000000001")
 
-        catalog.getItemsByGenre(ItemType.SERIES, drama, CatalogSort.UPDATED, page = 1)
+        catalog.getItems(ItemType.SERIES, GenreFilter.Listed(drama), CatalogFilters(), SortOption(CatalogSort.UPDATED))
 
         val query = server.requestsTo("/Items").single().parameters
         assertEquals("9e000000000000000000000000000001", query["genreIds"])
@@ -168,10 +181,19 @@ class JellyfinRepositoriesTest {
     }
 
     @Test
-    fun `watchlist toggle only reads the favorite flag`() = runTest {
-        val inWatchlist = watching.toggleWatchlist(server.ids.intFor(SERIES_ID)).getOrNull()
+    fun `watchlist is the server favorites, and a title marked elsewhere is adopted without a request`() = runTest {
+        // Область отменена: перечитывание списка по входу шло бы параллельно и путало подсчёт запросов.
+        val watchlist = JellyfinWatchlistRepository(server.context, CoroutineScope(Job().apply { cancel() }))
+        val series = assertNotNull(catalog.getItemDetails(server.ids.intFor(SERIES_ID)).getOrNull())
+        val before = server.requests.size
 
-        assertEquals(true, inWatchlist)
-        assertTrue(server.requests.none { it.method != HttpMethod.Get })
+        watchlist.adopt(series.toWatchlistItem())
+        assertEquals(before, server.requests.size)
+        watchlist.remove(series.id)
+        watchlist.add(series.toWatchlistItem())
+
+        val marks = server.requestsTo("/UserFavoriteItems/$SERIES_ID").map { it.method }
+        assertEquals(listOf(HttpMethod.Delete, HttpMethod.Post), marks)
+        assertEquals(listOf(series.id), watchlist.items.first().map { it.id })
     }
 }

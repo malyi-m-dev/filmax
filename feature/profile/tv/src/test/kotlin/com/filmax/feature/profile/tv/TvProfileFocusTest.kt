@@ -21,12 +21,10 @@ import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeContentSourceRepository
-import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakePlaybackSettingsRepository
 import com.filmax.data.fake.FakeThemeSettingsRepository
 import com.filmax.data.fake.FakeUserRepository
-import com.filmax.data.fake.FakeWatchingRepository
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSettings
 import org.junit.Before
@@ -129,9 +127,7 @@ class TvProfileFocusTest {
     private fun showProfile(): ProfileScreenModel {
         val model = ProfileScreenModel(
             user = FakeUserRepository(backend),
-            watching = FakeWatchingRepository(backend),
             auth = FakeAuthRepository(backend),
-            favorites = FakeFavoritesRepository(),
             settings = ProfileSettings(playback, theme, FakeContentSourceRepository()),
         )
         compose.setContent {

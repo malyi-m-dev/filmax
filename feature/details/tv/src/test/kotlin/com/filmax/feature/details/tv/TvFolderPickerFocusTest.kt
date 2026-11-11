@@ -25,11 +25,11 @@ import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
-import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
+import com.filmax.data.fake.InMemoryWatchlistRepository
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerScreenModel
 import com.filmax.feature.details.common.calculateSeriesData
@@ -169,7 +169,7 @@ class TvFolderPickerFocusTest {
             savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
             user = user,
             folders = BookmarkFolders(user, FakeFolderAppearanceRepository()),
-            favorites = FakeFavoritesRepository(),
+            watchlist = InMemoryWatchlistRepository(),
         )
         compose.setContent {
             FilmaxTvTheme {

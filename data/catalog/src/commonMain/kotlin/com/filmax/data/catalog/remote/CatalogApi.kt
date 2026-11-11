@@ -39,14 +39,6 @@ internal class CatalogApi(private val client: HttpClient) {
             parameter("page", page)
         }.body()
 
-    suspend fun getItemsByGenre(type: String, genreId: Int, sort: String, page: Int): ItemsResponseDto =
-        client.get("api/v1/items") {
-            parameter("type", type)
-            parameter("genre", genreId)
-            parameter("sort", sort)
-            parameter("page", page)
-        }.body()
-
     suspend fun getFilteredItems(query: ItemsQuery): ItemsResponseDto =
         client.get("api/v1/items") {
             parameter("type", query.type)

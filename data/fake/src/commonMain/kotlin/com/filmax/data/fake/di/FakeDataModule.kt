@@ -8,6 +8,7 @@ import com.filmax.core.domain.search.SearchRepository
 import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
+import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCastRepository
@@ -16,6 +17,7 @@ import com.filmax.data.fake.FakeFeedbackRepository
 import com.filmax.data.fake.FakeSearchRepository
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
+import com.filmax.data.fake.FakeWatchlistRepository
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -29,8 +31,8 @@ import org.koin.dsl.module
  * остаётся фейком для kino.pub, а «Домашний сервер» в ней — настоящий: UI входа и каталога
  * сервера можно проверить на эмуляторе против своего Jellyfin.
  *
- * Локальные репозитории (избранное, загрузки, настройки плеера) остаются настоящими: сеть им не
- * нужна, а избранное и так ведёт «Буду смотреть» через [UserRepository].
+ * «Буду смотреть» kino.pub тоже фейковый: настоящий ставит флаг через WatchingApi, а в сеть
+ * мок-сборка не ходит. Локальные репозитории (настройки плеера, оформление) остаются настоящими.
  *
  * Сетевые определения настоящих модулей (HttpClient, *Api) остаются в графе, но они ленивые и
  * без запросивших их репозиториев не создаются — в kino.pub мок-сборка не ходит.
@@ -43,6 +45,7 @@ val fakeDataModule = module {
     single<SearchRepository>(kinopub) { FakeSearchRepository(backend = get()) }
     single<UserRepository>(kinopub) { FakeUserRepository(backend = get()) }
     single<WatchingRepository>(kinopub) { FakeWatchingRepository(backend = get()) }
+    single<WatchlistRepository>(kinopub) { FakeWatchlistRepository(backend = get()) }
     single<CastRepository> { FakeCastRepository(backend = get()) }
     // Отзывы из мок-сборки в боевую базу Firestore не уходят.
     single<FeedbackRepository> { FakeFeedbackRepository(backend = get()) }

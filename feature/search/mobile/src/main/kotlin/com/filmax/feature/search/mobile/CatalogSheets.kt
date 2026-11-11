@@ -35,8 +35,11 @@ import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Country
+import com.filmax.core.domain.source.SourceCapabilities
+import com.filmax.core.presentation.format.title
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxRadioRow
@@ -48,7 +51,7 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxToggleRow
 import com.filmax.core.ui.components.filmaxSliderColors
 import com.filmax.feature.search.common.SearchState
-import com.filmax.feature.search.common.SortOptions
+import com.filmax.feature.search.common.sortOptions
 import java.time.Year
 
 /** Нижняя граница диапазона года: раньше кино как индустрии по сути нет. */
@@ -60,10 +63,16 @@ private const val RATING_MAX = 10
 @Composable
 internal fun CatalogSheetHost(sheet: CatalogSheet, state: SearchState, actions: CatalogActions, onDismiss: () -> Unit) {
     when (sheet) {
-        CatalogSheet.Sort -> SortSheet(sort = state.sort, onSort = actions.onSort, onDismiss = onDismiss)
+        CatalogSheet.Sort -> SortSheet(
+            sort = state.sort,
+            options = state.capabilities.sortOptions(),
+            onSort = actions.onSort,
+            onDismiss = onDismiss,
+        )
         CatalogSheet.Genre -> GenreSheet(state = state, onGenre = actions.onGenre, onDismiss = onDismiss)
         CatalogSheet.Filters -> FiltersSheet(
             filters = state.filters,
+            capabilities = state.capabilities,
             countries = state.countries,
             onApply = actions.onFilters,
             onDismiss = onDismiss,
@@ -73,7 +82,12 @@ internal fun CatalogSheetHost(sheet: CatalogSheet, state: SearchState, actions: 
 
 /** Поле сортировки — радиокнопками, направление — сегментами над ними. */
 @Composable
-private fun SortSheet(sort: SortOption, onSort: (SortOption) -> Unit, onDismiss: () -> Unit) {
+private fun SortSheet(
+    sort: SortOption,
+    options: List<Pair<CatalogSort, String>>,
+    onSort: (SortOption) -> Unit,
+    onDismiss: () -> Unit,
+) {
     FilmaxSheet(onDismiss = onDismiss, title = "Сортировка") {
         val sheet = this
         Column(
@@ -85,7 +99,7 @@ private fun SortSheet(sort: SortOption, onSort: (SortOption) -> Unit, onDismiss:
                 onSelect = { index -> onSort(sort.copy(ascending = index == 1)) },
                 modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
             )
-            SortOptions.forEach { (field, label) ->
+            options.forEach { (field, label) ->
                 FilmaxRadioRow(
                     label = label,
                     selected = field == sort.field,
@@ -99,7 +113,7 @@ private fun SortSheet(sort: SortOption, onSort: (SortOption) -> Unit, onDismiss:
     }
 }
 
-/** Жанры видео-разделов kino.pub; «Любой» снимает фильтр. Выбор закрывает шторку. */
+/** Жанры кино и сериалов из справочника источника; «Любой» снимает фильтр. Выбор закрывает шторку. */
 @Composable
 private fun GenreSheet(state: SearchState, onGenre: (Int?) -> Unit, onDismiss: () -> Unit) {
     FilmaxSheet(onDismiss = onDismiss, title = "Жанр") {
@@ -142,6 +156,7 @@ private fun GenreSheet(state: SearchState, onGenre: (Int?) -> Unit, onDismiss: (
 @Composable
 private fun FiltersSheet(
     filters: CatalogFilters,
+    capabilities: SourceCapabilities,
     countries: List<Country>,
     onApply: (CatalogFilters) -> Unit,
     onDismiss: () -> Unit,
@@ -159,15 +174,19 @@ private fun FiltersSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             YearSection(draft) { from, to -> draft = draft.copy(yearFrom = from, yearTo = to) }
-            RatingSection(
-                title = "Рейтинг Кинопоиска",
-                value = draft.kpRatingFrom
-            ) { draft = draft.copy(kpRatingFrom = it) }
-            RatingSection(
-                title = "Рейтинг IMDb",
-                value = draft.imdbRatingFrom
-            ) { draft = draft.copy(imdbRatingFrom = it) }
-            FilterToggles(draft = draft, countries = countries, onChange = { draft = it })
+            // Пороги — только по оценкам, которые есть у источника.
+            capabilities.ratings.forEach { source ->
+                RatingSection(
+                    title = "Рейтинг ${source.title}",
+                    value = draft.minRating(source),
+                ) { draft = draft.withMinRating(source, it) }
+            }
+            // Страну не предлагаем источнику, который по ней не фильтрует.
+            FilterToggles(
+                draft = draft,
+                countries = countries.takeIf { capabilities.countries }.orEmpty(),
+                onChange = { draft = it },
+            )
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilmaxButton(
                     text = "Сбросить",
@@ -235,8 +254,10 @@ private fun RatingSection(title: String, value: Int?, onChange: (Int?) -> Unit) 
 @Composable
 private fun FilterToggles(draft: CatalogFilters, countries: List<Country>, onChange: (CatalogFilters) -> Unit) {
     FilmaxSettingsGroup(title = null) {
-        CountryRow(countries = countries, selectedId = draft.countryId) { onChange(draft.copy(countryId = it)) }
-        FilmaxSettingsDivider()
+        if (countries.isNotEmpty()) {
+            CountryRow(countries = countries, selectedId = draft.countryId) { onChange(draft.copy(countryId = it)) }
+            FilmaxSettingsDivider()
+        }
         FilmaxToggleRow(
             Icons.Filled._4k,
             "Только 4K",

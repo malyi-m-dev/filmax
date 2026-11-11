@@ -14,6 +14,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.Posters
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
@@ -153,7 +154,7 @@ class TvHomeHeroScrollTest {
             cast = "",
             country = "",
             genres = emptyList(),
-            rating = ItemRating(filmax = 0, filmaxPercentage = "", imdb = "7.5", kinopoisk = "7.9"),
+            rating = ItemRating.of(RatingSource.KINOPOISK to "7.9", RatingSource.IMDB to "7.5"),
             posters = Posters(small = "", medium = "", big = "", wide = null),
             duration = Duration(averageMinutes = 100.0, totalMinutes = null),
             tracklist = emptyList(),

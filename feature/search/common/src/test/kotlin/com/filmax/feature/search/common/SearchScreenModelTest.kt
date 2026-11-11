@@ -7,6 +7,7 @@ import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeSearchRepository
@@ -80,6 +81,7 @@ class SearchScreenModelTest {
         val model = SearchScreenModel(
             FakeSearchRepository(backend),
             catalog,
+            FakeContentSourceRepository(),
             SavedStateHandle(mapOf("section" to CatalogSection.TV_SHOWS.name)),
         )
         model.dispatch(SearchEvent.LoadCatalog)
@@ -311,7 +313,7 @@ class SearchScreenModelTest {
 
     /** Модель с витриной: экран каталога уже заявил о себе ([SearchEvent.LoadCatalog]). */
     private fun TestScope.catalogModel(repository: RecordingCatalog = catalog): SearchScreenModel {
-        val model = SearchScreenModel(FakeSearchRepository(backend), repository)
+        val model = SearchScreenModel(FakeSearchRepository(backend), repository, FakeContentSourceRepository())
         model.dispatch(SearchEvent.LoadCatalog)
         advanceUntilIdle()
         return model

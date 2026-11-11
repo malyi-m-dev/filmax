@@ -5,6 +5,7 @@ import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.catalog.model.RatingSource
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -33,12 +34,13 @@ class CatalogSectionsTest {
 
     @Test
     fun `every applied filter is its own chip and its cross removes only it`() {
-        val filters = CatalogFilters(yearFrom = 2010, yearTo = 2020, kpRatingFrom = 7, countryId = 3, only4k = true)
+        val filters = CatalogFilters(yearFrom = 2010, yearTo = 2020, countryId = 3, only4k = true)
+            .withMinRating(RatingSource.KINOPOISK, 7)
 
         val chips = filters.applied(listOf(Country(3, "Франция")))
 
         assertEquals(listOf("2010–2020", "КП 7+", "Франция", "4K"), chips.map { it.label })
-        assertEquals(filters.copy(kpRatingFrom = null), chips[1].without)
+        assertEquals(filters.withMinRating(RatingSource.KINOPOISK, null), chips[1].without)
         assertEquals(filters.copy(yearFrom = null, yearTo = null), chips[0].without)
     }
 

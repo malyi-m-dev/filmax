@@ -17,5 +17,12 @@ kotlin {
             implementation(koinBom)
             implementation(libs.koin.core)
         }
+        // «Буду смотреть» в тестах: папки — фейковый сервер из data:fake, флаг kino.pub —
+        // подменённый движок Ktor, хранилище — в памяти.
+        commonTest.dependencies {
+            implementation(project(":data:fake"))
+            implementation(libs.ktor.client.mock)
+            implementation(libs.multiplatform.settings.test)
+        }
     }
 }

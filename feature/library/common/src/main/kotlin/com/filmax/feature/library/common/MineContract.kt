@@ -1,8 +1,8 @@
 package com.filmax.feature.library.common
 
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.user.model.UserFolder
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
 
@@ -48,12 +48,14 @@ data class HistoryDay(val label: String, val entries: List<HistoryEntry>)
 
 data class MineState(
     val loading: Boolean = true,
+    /** Сегменты, которые есть у источника: без папок — без «Папок». */
+    val segments: List<MineSegment> = MineSegment.entries,
     val segment: MineSegment = MineSegment.CONTINUE,
     /** Начатое и не досмотренное — сегмент «Продолжить». */
     val continueWatching: List<WatchHistory> = emptyList(),
     val history: List<HistoryDay> = emptyList(),
     /** «Буду смотреть» уже в порядке [watchlistSort]. */
-    val watchlist: List<FavoriteItem> = emptyList(),
+    val watchlist: List<WatchlistItem> = emptyList(),
     val watchlistSort: WatchlistSort = WatchlistSort.NEWEST,
     /** Папки пользователя уже в порядке [folderSort], без системной «Буду смотреть». */
     val folders: List<MineFolder> = emptyList(),

@@ -1,8 +1,8 @@
 package com.filmax.data.fake.fixtures
 
-import com.filmax.core.domain.favorites.WATCHLIST_FOLDER_TITLE
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
+import com.filmax.core.domain.watchlist.WATCHLIST_FOLDER_TITLE
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.store.FolderState
 
@@ -17,8 +17,6 @@ private const val SUBSCRIPTION_DAYS_LEFT = 47
  * и две мок-сборки на разных устройствах должны узнать друг друга как один аккаунт.
  */
 private const val DEMO_REGISTERED_AT = 1_577_836_800_000L
-
-/** Папка «Буду смотреть» — то же название, по которому её ищет FavoritesRepositoryImpl. */
 
 /**
  * Профиль «как от kino.pub»: id пользователя сервер не отдаёт (настоящий репозиторий тоже кладёт 0),
@@ -72,6 +70,7 @@ private val LATER_ITEM_IDS = listOf(
 private val FOLDERS: List<FolderSpec> = listOf(
     FolderSpec(
         id = FakeIds.WATCHLIST_FOLDER,
+        // То же название, по которому папку ищет KinopubWatchlistRepository.
         title = WATCHLIST_FOLDER_TITLE,
         itemIds = listOf(1012, 2007, 3003, 1018, 4004, FakeIds.HERO_MOVIE),
         daysAgo = 1,

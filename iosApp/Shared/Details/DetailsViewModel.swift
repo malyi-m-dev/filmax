@@ -1,8 +1,8 @@
 import Combine
 import Shared
 
-/// Презентейшен экрана Деталей (iOS + tvOS). Данные и действия — общий `CatalogRepository`/
-/// `WatchingRepository`/`FavoritesRepository`; здесь только состояние экрана.
+/// Презентейшен экрана Деталей (iOS + tvOS). Данные и действия — общий `CatalogRepository` и
+/// `WatchlistRepository` текущего источника; здесь только состояние экрана.
 @MainActor
 final class DetailsViewModel: ObservableObject {
     @Published var item: Item?
@@ -10,12 +10,11 @@ final class DetailsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
     @Published var inWatchlist = false
-    @Published var isFavorite = false
 
     let itemId: Int32
 
     private let catalog = RepositoryProvider.shared.catalog
-    private let favorites = RepositoryProvider.shared.favorites
+    private let watchlist = RepositoryProvider.shared.watchlist
     private let toggleWatchlistUseCase = UseCaseProvider.shared.toggleWatchlistUseCase()
 
     init(itemId: Int32) { self.itemId = itemId }
@@ -33,7 +32,8 @@ final class DetailsViewModel: ObservableObject {
                     return
                 }
                 item = loaded
-                inWatchlist = loaded.inWatchlist
+                // Отметку поставили в вебе или на другом устройстве — список её подхватывает.
+                if loaded.inWatchlist { try? await watchlist.adopt(item: loaded.toWatchlistItem()) }
                 await loadSimilar()
             case .error(let requestError):
                 error = requestError.message ?? "Не удалось загрузить детали."
@@ -51,23 +51,17 @@ final class DetailsViewModel: ObservableObject {
         }
     }
 
-    /// Реактивно держит флаг «в избранном» из локального `FavoritesRepository` (Flow).
-    func observeFavorite() async {
-        for await list in favorites.favorites {
-            isFavorite = list.contains { $0.id == itemId }
+    /// Кнопка «Буду смотреть» следит за списком источника, а не за флагом тайтла: так она не
+    /// расходится с «Моим».
+    func observeWatchlist() async {
+        for await marked in watchlist.contains(itemId: itemId) {
+            inWatchlist = marked.boolValue
         }
     }
 
     func toggleWatchlist() async {
-        guard let result = try? await toggleWatchlistUseCase.invoke(itemId: itemId) else { return }
-        if case .success(let success) = onEnum(of: result) {
-            inWatchlist = (success.data as? KotlinBoolean)?.boolValue ?? inWatchlist
-        }
-    }
-
-    func toggleFavorite() async {
         guard let item else { return }
-        _ = try? await favorites.toggle(item: item.toFavoriteItem())
-        // Итоговое состояние подхватит `observeFavorite` из Flow — не дублируем логику.
+        // Итоговое состояние подхватит `observeWatchlist` из Flow — не дублируем логику.
+        _ = try? await toggleWatchlistUseCase.invoke(item: item)
     }
 }

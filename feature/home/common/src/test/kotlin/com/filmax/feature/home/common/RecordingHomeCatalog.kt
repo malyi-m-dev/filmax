@@ -4,6 +4,7 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
@@ -40,13 +41,13 @@ internal class RecordingHomeCatalog(
 
     override suspend fun getItems(
         type: ItemType,
-        genreId: Int?,
+        genre: GenreFilter?,
         filters: CatalogFilters,
         sort: SortOption,
         page: Int,
     ): RequestResult<ItemPage> =
-        answer(TitleSource.Catalog(type, sort.field, genreId), page) {
-            delegate.getItems(type, genreId, filters, sort, page)
+        answer(TitleSource.Catalog(type, sort.field, genre), page) {
+            delegate.getItems(type, genre, filters, sort, page)
         }
 
     override suspend fun getShortcutItems(

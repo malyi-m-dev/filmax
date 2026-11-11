@@ -4,6 +4,7 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
@@ -21,20 +22,13 @@ internal class RoutingCatalogRepository(private val switch: SourceSwitch<Catalog
     override suspend fun getItems(type: ItemType, sort: CatalogSort, page: Int): RequestResult<ItemPage> =
         switch.current.getItems(type, sort, page)
 
-    override suspend fun getItemsByGenre(
-        type: ItemType,
-        genreId: Int,
-        sort: CatalogSort,
-        page: Int,
-    ): RequestResult<ItemPage> = switch.current.getItemsByGenre(type, genreId, sort, page)
-
     override suspend fun getItems(
         type: ItemType,
-        genreId: Int?,
+        genre: GenreFilter?,
         filters: CatalogFilters,
         sort: SortOption,
         page: Int,
-    ): RequestResult<ItemPage> = switch.current.getItems(type, genreId, filters, sort, page)
+    ): RequestResult<ItemPage> = switch.current.getItems(type, genre, filters, sort, page)
 
     override suspend fun getShortcutItems(
         shortcut: CatalogShortcut,

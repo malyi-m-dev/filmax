@@ -9,12 +9,15 @@ import com.filmax.data.fake.store.FolderState
 
 /**
  * Профиль «Демо Зритель» с активной подпиской, подпись устройства и папки-закладки. Среди папок
- * есть «Буду смотреть» — по ней FavoritesRepositoryImpl из data:watching строит избранное, поэтому
- * сердечко в деталях и раздел «Моё» работают через этот же репозиторий, без своих фейков.
+ * есть «Буду смотреть» — её же ведёт FakeWatchlistRepository, поэтому кнопка в деталях, выбор
+ * папки и «Моё» видят один список.
  */
 class FakeUserRepository(private val backend: FakeBackend) : UserRepository {
 
     override suspend fun getProfile(): RequestResult<UserProfile> = backend.respond { success(account.profile) }
+
+    /** Подписка кончилась — для проверок плашки «нужна подписка». */
+    fun expireSubscription() = backend.account.expireSubscription()
 
     /** Имя, под которым приложение подписало устройство в аккаунте; null — ещё не подписывало. */
     val registeredDevice: String? get() = backend.account.deviceTitle

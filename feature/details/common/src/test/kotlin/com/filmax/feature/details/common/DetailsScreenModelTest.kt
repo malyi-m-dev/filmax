@@ -1,14 +1,14 @@
 package com.filmax.feature.details.common
 
 import androidx.lifecycle.SavedStateHandle
-import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
+import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCastRepository
 import com.filmax.data.fake.FakeCatalogRepository
-import com.filmax.data.fake.FakeFavoritesRepository
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
-import com.filmax.data.fake.FakeWatchingRepository
+import com.filmax.data.fake.FakeWatchlistRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -43,8 +43,8 @@ class DetailsScreenModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val backend = FakeBackend(latency = FakeLatency.None)
-    private val watching = FakeWatchingRepository(backend)
-    private val favorites = FakeFavoritesRepository()
+    private val sources = FakeContentSourceRepository()
+    private val watchlist = FakeWatchlistRepository(backend)
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -173,9 +173,10 @@ class DetailsScreenModelTest {
     private fun model(itemId: Int) = DetailsScreenModel(
         savedStateHandle = SavedStateHandle(mapOf("itemId" to itemId)),
         catalog = FakeCatalogRepository(backend),
-        favorites = favorites,
+        watchlist = watchlist,
         cast = FakeCastRepository(backend),
-        toggleWatchLater = ToggleWatchLaterUseCase(favorites, watching),
+        toggleWatchlist = ToggleWatchlistUseCase(watchlist),
+        sources = sources,
     )
 
     private companion object {

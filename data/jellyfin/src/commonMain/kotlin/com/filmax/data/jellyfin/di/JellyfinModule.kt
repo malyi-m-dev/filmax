@@ -2,7 +2,6 @@ package com.filmax.data.jellyfin.di
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.feedback.ClientInfo
 import com.filmax.core.domain.playback.StreamRepository
 import com.filmax.core.domain.search.SearchRepository
@@ -10,11 +9,11 @@ import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.source.HomeServerRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
+import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.data.jellyfin.JellyfinAuthRepository
 import com.filmax.data.jellyfin.JellyfinCatalogRepository
 import com.filmax.data.jellyfin.JellyfinContext
 import com.filmax.data.jellyfin.JellyfinDiscovery
-import com.filmax.data.jellyfin.JellyfinFavoritesRepository
 import com.filmax.data.jellyfin.JellyfinIds
 import com.filmax.data.jellyfin.JellyfinSearchRepository
 import com.filmax.data.jellyfin.JellyfinServerRepository
@@ -23,6 +22,7 @@ import com.filmax.data.jellyfin.JellyfinStreamRepository
 import com.filmax.data.jellyfin.JellyfinUserRepository
 import com.filmax.data.jellyfin.JellyfinVideos
 import com.filmax.data.jellyfin.JellyfinWatchingRepository
+import com.filmax.data.jellyfin.JellyfinWatchlistRepository
 import com.filmax.data.jellyfin.remote.JellyfinApi
 import com.filmax.data.jellyfin.remote.JellyfinClientInfo
 import com.filmax.data.jellyfin.remote.jellyfinHttpClient
@@ -68,8 +68,8 @@ val jellyfinModule = module {
     single<SearchRepository>(homeServer) { JellyfinSearchRepository(context = get()) }
     single<WatchingRepository>(homeServer) { JellyfinWatchingRepository(context = get(), videos = get()) }
     single<UserRepository>(homeServer) { JellyfinUserRepository(context = get()) }
-    single<FavoritesRepository>(homeServer) {
-        JellyfinFavoritesRepository(context = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    single<WatchlistRepository>(homeServer) {
+        JellyfinWatchlistRepository(context = get(), scope = CoroutineScope(SupervisorJob() + Dispatchers.Default))
     }
     single<StreamRepository>(homeServer) {
         JellyfinStreamRepository(context = get(), videos = get(), tv = get<ClientInfo>().isTv)

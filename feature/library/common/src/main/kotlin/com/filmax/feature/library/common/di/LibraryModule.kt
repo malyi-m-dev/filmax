@@ -13,10 +13,10 @@ val libraryModule = module {
     viewModel {
         MineScreenModel(
             watching = get(),
-            favorites = get(),
+            watchlist = get(),
             folders = get(),
-            removeFromWatchLater = get(),
             clock = Clock.systemDefaultZone(),
+            sources = get(),
         )
     }
 }

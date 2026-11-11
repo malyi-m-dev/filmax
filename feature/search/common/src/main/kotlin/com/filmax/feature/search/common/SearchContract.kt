@@ -7,6 +7,9 @@ import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.source.ContentSource
+import com.filmax.core.domain.source.SourceCapabilities
+import com.filmax.core.domain.source.capabilities
 
 /** С этой длины запроса имеет смысл идти в поиск — короче отдаётся мусор релевантности. */
 const val MIN_QUERY_LENGTH = 2
@@ -16,6 +19,8 @@ data class SearchState(
     val filter: ItemType? = null,
     /** Сортировка выдачи каталога: поле + направление. VIEWS = «Просмотры» — дефолт витрины. */
     val sort: SortOption = SortOption(CatalogSort.VIEWS),
+    /** Что умеет источник: какие оценки, сортировки и фильтры экран предлагает. */
+    val capabilities: SourceCapabilities = ContentSource.KINOPUB.capabilities,
     /** Диапазонные фильтры каталога (год, рейтинги, страна, 4K, завершённость). */
     val filters: CatalogFilters = CatalogFilters(),
     /** Реальные жанры из API. Пусты, пока экран не запросил [SearchEvent.LoadCatalog]. */

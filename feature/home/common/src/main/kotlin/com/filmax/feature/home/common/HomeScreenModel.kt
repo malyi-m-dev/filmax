@@ -4,21 +4,21 @@ import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.home.HomeFeed
-import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
+import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
+import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.core.presentation.BaseScreenModel
 
 class HomeScreenModel(
     private val getHomeFeed: GetHomeFeedUseCase,
     private val catalog: CatalogRepository,
     private val user: UserRepository,
-    private val favorites: FavoritesRepository,
-    private val toggleWatchLater: ToggleWatchLaterUseCase,
+    private val watchlist: WatchlistRepository,
+    private val toggleWatchlist: ToggleWatchlistUseCase,
     private val feedbackPrompts: FeedbackPrompts,
 ) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
 
@@ -44,7 +44,7 @@ class HomeScreenModel(
             HomeEvent.Load -> onFetchData()
             is HomeEvent.LoadMoreRow -> loadMoreRow(event.id)
             HomeEvent.NextHero -> screenModelScope { updateState { current -> current.withNextHero() } }
-            is HomeEvent.ToggleWatchLater -> screenModelScope { toggleWatchLater(event.item) }
+            is HomeEvent.ToggleWatchLater -> screenModelScope { toggleWatchlist(event.item) }
         }
     }
 
@@ -80,7 +80,10 @@ class HomeScreenModel(
     /** Отметки «Буду смотреть» — живой поток: кнопка hero и детали меняют их с разных экранов. */
     private fun observeWatchLater() {
         screenModelScope {
-            favorites.favoriteIds.collect { ids -> updateState { it.copy(watchLaterIds = ids) } }
+            watchlist.items.collect { items ->
+                val ids = items.mapTo(HashSet()) { item -> item.id }
+                updateState { it.copy(watchLaterIds = ids) }
+            }
         }
     }
 

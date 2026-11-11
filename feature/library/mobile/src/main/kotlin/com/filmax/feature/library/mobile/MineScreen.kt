@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -108,10 +108,11 @@ private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () ->
     val glass = rememberGlassState()
     val density = LocalDensity.current
     var headerHeight by remember { mutableStateOf(0.dp) }
-    val pager = rememberPagerState(initialPage = state.segment.ordinal) { MineSegment.entries.size }
+    val segments = state.segments
+    val pager = rememberPagerState(initialPage = segments.indexOf(state.segment).coerceAtLeast(0)) { segments.size }
     // Сегмент — состояние модели: пролистали пальцем — модель узнаёт, какой сегмент на экране.
     LaunchedEffect(pager.settledPage) {
-        val shown = MineSegment.entries[pager.settledPage]
+        val shown = segments[pager.settledPage]
         if (shown != state.segment) actions.onEvent(MineEvent.SelectSegment(shown))
     }
     val padding = PaddingValues(
@@ -123,13 +124,14 @@ private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () ->
     Box(Modifier.fillMaxSize()) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize().glassSource(glass)) { page ->
             MineSegmentPage(
-                segment = MineSegment.entries[page],
+                segment = segments[page],
                 state = state,
                 actions = actions,
                 contentPadding = padding
             )
         }
         MineHeader(
+            segments = segments,
             pager = pager,
             glass = glass,
             onOpenSearch = onOpenSearch,
@@ -139,7 +141,13 @@ private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () ->
 }
 
 @Composable
-private fun MineHeader(pager: PagerState, glass: GlassState, onOpenSearch: () -> Unit, modifier: Modifier = Modifier) {
+private fun MineHeader(
+    segments: List<MineSegment>,
+    pager: PagerState,
+    glass: GlassState,
+    onOpenSearch: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val scope = rememberCoroutineScope()
     FilmaxGlassHeader(glass = glass, modifier = modifier) {
         Row(
@@ -166,11 +174,11 @@ private fun MineHeader(pager: PagerState, glass: GlassState, onOpenSearch: () ->
             contentPadding = PaddingValues(horizontal = FilmaxMetrics.ScreenPadding),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(MineSegment.entries, key = { it.name }) { segment ->
+            itemsIndexed(segments, key = { _, segment -> segment.name }) { index, segment ->
                 FilmaxChip(
                     label = segment.label,
-                    selected = pager.currentPage == segment.ordinal,
-                    onClick = { scope.launch { pager.animateScrollToPage(segment.ordinal) } },
+                    selected = pager.currentPage == index,
+                    onClick = { scope.launch { pager.animateScrollToPage(index) } },
                 )
             }
         }

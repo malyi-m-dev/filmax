@@ -9,7 +9,7 @@ import com.filmax.data.fake.store.TrackKey
 import com.filmax.data.fake.store.WATCH_STATUS_IN_PROGRESS
 
 /**
- * Просмотр на сессию: отметки плеера, история, «Буду смотреть» как флаг и уведомления. Отметка
+ * Просмотр на сессию: отметки плеера и история. Отметка
  * ищет трек по паре сезон+номер (номер серии уникален только внутри сезона), а досмотренным трек
  * становится с 90% длительности — так «Продолжить» в деталях сдвигается на следующую серию.
  */
@@ -35,10 +35,6 @@ class FakeWatchingRepository(private val backend: FakeBackend) : WatchingReposit
         val entry = catalog.entry(itemId) ?: return@respond notFound("item $itemId")
         watch.toggleWatched(entry.item)
         success(Unit)
-    }
-
-    override suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean> = backend.respond {
-        if (catalog.entry(itemId) == null) notFound("item $itemId") else success(library.toggleWatchlist(itemId))
     }
 
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> = backend.respond {

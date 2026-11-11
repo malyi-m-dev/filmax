@@ -143,7 +143,7 @@ private fun LazyListScope.posterRow(
                     title = rowItem.title,
                     posterUrl = rowItem.posters.medium,
                     onClick = { onOpenItem(rowItem.id) },
-                    rating = ratingLabel(rowItem.rating.kinopoisk),
+                    rating = ratingLabel(rowItem.rating.primary),
                     meta = posterMeta(typeLabel(rowItem.type), rowItem.year),
                     modifier = Modifier.width(FilmaxMetrics.PosterWidth),
                 )

@@ -22,64 +22,37 @@ data class Item(
 )
 
 /**
- * Тип тайтла — значение `type` kino.pub (`api/v1/types`). [episodic] — у тайтла сезоны и серии, а
- * не одно видео: по нему детали решают, нужен ли выбор сезона. Решать по типу, а не по числу
- * видео, приходится потому, что у фильма их тоже бывает несколько.
+ * Тип тайтла. [episodic] — у тайтла сезоны и серии, а не одно видео: по нему детали решают, нужен
+ * ли выбор сезона. Решать по типу, а не по числу видео, приходится потому, что у фильма их тоже
+ * бывает несколько. Как тип называется в API источника — забота data-слоя.
  */
-enum class ItemType(val apiValue: String, val episodic: Boolean) {
-    MOVIE("movie", episodic = false),
-    SERIES("serial", episodic = true),
+enum class ItemType(val episodic: Boolean) {
+    MOVIE(episodic = false),
+    SERIES(episodic = true),
 
     /**
-     * Псевдотип фильтра каталога: типа `anime` у kino.pub нет, аниме — жанр поверх фильмов и
-     * сериалов. Из API тайтл с таким типом не приходит.
+     * Раздел каталога, а не тип тайтла: аниме у источников — жанр поверх фильмов и сериалов. Из
+     * API тайтл с таким типом не приходит.
      */
-    ANIME("anime", episodic = true),
+    ANIME(episodic = true),
 
     /** Документальные сериалы. Документальные фильмы — отдельный тип [DOCUMENTARY_MOVIE]. */
-    DOCUMENTARY("docuserial", episodic = true),
-    DOCUMENTARY_MOVIE("documovie", episodic = false),
+    DOCUMENTARY(episodic = true),
+    DOCUMENTARY_MOVIE(episodic = false),
 
     /** ТВ-шоу выходят сезонами и выпусками — для деталей это сериал, а не фильм. */
-    TV_SHOW("tvshow", episodic = true),
-    CONCERT("concert", episodic = false),
+    TV_SHOW(episodic = true),
+    CONCERT(episodic = false),
 
-    /** Эфирные каналы; в `api/v1/types` такого типа нет. */
-    TV("tv", episodic = false),
-    ;
-    companion object {
-        /**
-         * Незнакомый тип — фильм: `3d` у kino.pub это фильмы в 3D, а `4k` пуст (4K — фильтр
-         * `quality`, а не тип).
-         */
-        fun from(value: String) = entries.firstOrNull { it.apiValue == value } ?: MOVIE
-    }
+    /** Эфирные каналы. */
+    TV(episodic = false),
 }
 
 /**
- * Жанр каталога. [type] — тип контента, к которому жанр относится (`movie`, `serial`, `music`…):
- * `api/v1/genres` отдаёт одним списком жанры ВСЕХ типов, включая музыкальные, поэтому без
- * фильтра по типу в киношный каталог попадают «Blues» и «Chillout». Внутри тайтла поля нет —
- * там жанр приходит без типа, отсюда null по умолчанию.
+ * Жанр каталога. [video] — жанр кино и сериалов: справочник kino.pub отдаёт одним списком жанры
+ * всех типов, включая музыкальные, и без отбора в киношный каталог попали бы «Blues» и «Chillout».
  */
-data class Genre(val id: Int, val title: String, val type: String? = null)
-
-data class ItemRating(
-    val filmax: Int,
-    val filmaxPercentage: String,
-    val imdb: String?,
-    val kinopoisk: String?,
-) {
-    /**
-     * Средняя внешняя оценка по шкале 0–10: берём доступные значения IMDb и Кинопоиска
-     * и усредняем их. Если ни одной оценки нет — `null` (в UI показываем «N/A»).
-     */
-    val external: Double?
-        get() {
-            val scores = listOfNotNull(imdb?.toDoubleOrNull(), kinopoisk?.toDoubleOrNull())
-            return scores.takeIf { it.isNotEmpty() }?.average()
-        }
-}
+data class Genre(val id: Int, val title: String, val video: Boolean = true)
 
 data class Posters(
     val small: String,

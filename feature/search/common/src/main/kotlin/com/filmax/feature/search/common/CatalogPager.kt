@@ -2,6 +2,7 @@ package com.filmax.feature.search.common
 
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemPage
@@ -15,7 +16,7 @@ import kotlinx.coroutines.coroutineScope
 /** Что запрашивает витрина: типы (у «Все» и «Аниме» их несколько), жанр, фильтры и сортировка. */
 internal data class CatalogQuery(
     val types: List<ItemType>,
-    val genreId: Int?,
+    val genre: GenreFilter?,
     val filters: CatalogFilters,
     val sort: SortOption,
 )
@@ -112,7 +113,7 @@ internal class CatalogPager(private val catalog: CatalogRepository) {
     private suspend fun fetch(query: CatalogQuery, types: List<ItemType>, number: Int): FetchedPages =
         coroutineScope {
             types.map { type ->
-                async { type to catalog.getItems(type, query.genreId, query.filters, query.sort, number) }
+                async { type to catalog.getItems(type, query.genre, query.filters, query.sort, number) }
             }.awaitAll()
         }.let(::FetchedPages)
 }

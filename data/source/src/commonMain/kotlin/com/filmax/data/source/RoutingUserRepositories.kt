@@ -56,7 +56,5 @@ internal class RoutingWatchingRepository(private val switch: SourceSwitch<Watchi
 
     override suspend fun toggleWatched(itemId: Int): RequestResult<Unit> = switch.current.toggleWatched(itemId)
 
-    override suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean> = switch.current.toggleWatchlist(itemId)
-
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> = switch.current.clearHistory(itemId)
 }

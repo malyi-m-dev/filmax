@@ -8,9 +8,11 @@ import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemRating
-import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.Pagination
 import com.filmax.core.domain.catalog.model.Posters
+import com.filmax.core.domain.catalog.model.RatingSource
+import com.filmax.data.catalog.VIDEO_GENRE_TYPES
+import com.filmax.data.catalog.kinopubItemType
 import com.filmax.data.catalog.remote.dto.CollectionDto
 import com.filmax.data.catalog.remote.dto.CollectionItemsDto
 import com.filmax.data.catalog.remote.dto.CountryDto
@@ -35,20 +37,17 @@ fun ItemsResponseDto.toDomain(): ItemPage = ItemPage(
 fun ItemDto.toDomain(): Item = Item(
     id = id,
     title = title,
-    type = ItemType.from(type),
+    type = kinopubItemType(type),
     year = year,
     plot = plot,
     director = director,
     cast = cast,
     country = countries.firstOrNull()?.title ?: "",
     genres = genres.map { it.toDomain() },
-    rating = ItemRating(
-        filmax = rating,
-        filmaxPercentage = ratingPercentage.toString(),
-        // API отдаёт оценки числом или null; `null?.toString()` дал бы строку "null",
-        // поэтому маппим только реальные значения, отсутствие — настоящий null.
-        imdb = imdbRating?.toString(),
-        kinopoisk = kinopoiskRating?.toString(),
+    // КиноПоиск — первым: это главная оценка kino.pub, её показывает пилюля на постере.
+    rating = ItemRating.of(
+        RatingSource.KINOPOISK to kinopoiskRating?.toString(),
+        RatingSource.IMDB to imdbRating?.toString(),
     ),
     posters = posters?.toDomain() ?: Posters("", "", "", ""),
     duration = duration.toDomain(),
@@ -64,7 +63,7 @@ fun ItemDto.toDomain(): Item = Item(
     imdbId = imdb?.toString(),
 )
 
-fun GenreDto.toDomain() = Genre(id = id, title = title, type = type)
+fun GenreDto.toDomain() = Genre(id = id, title = title, video = type == null || type in VIDEO_GENRE_TYPES)
 
 fun CountryDto.toDomain() = Country(id = id, title = title)
 

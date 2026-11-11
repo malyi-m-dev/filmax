@@ -3,14 +3,15 @@ package com.filmax.feature.library.common
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.firstErrorMessage
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.favorites.FavoritesRepository
+import com.filmax.core.domain.source.ContentSourceRepository
+import com.filmax.core.domain.source.capabilities
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.usecase.bookmarks.FolderShelf
-import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
 import com.filmax.core.domain.user.model.FolderAppearance
 import com.filmax.core.domain.user.model.userFolders
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
@@ -29,7 +30,7 @@ import java.time.ZonedDateTime
  * удаление (долгое «ОК» на пульте, долгий тап на телефоне), создание папки и очистка истории.
  * Общие правила вынесены в домен и MineFormat.
  *
- * Состояние собирается реактивно: избранное и оформление папок — потоки, поэтому смена порядка,
+ * Состояние собирается реактивно: «Буду смотреть» и оформление папок — потоки, поэтому смена порядка,
  * перекраска и удаление видны сразу, без перезагрузки. [clock] нужен истории («Сегодня»,
  * «Вчера») и подписям папок — тесты подставляют фиксированное «сейчас».
  */
@@ -38,11 +39,14 @@ import java.time.ZonedDateTime
 @Suppress("TooManyFunctions")
 class MineScreenModel(
     private val watching: WatchingRepository,
-    private val favorites: FavoritesRepository,
+    private val watchlist: WatchlistRepository,
     private val folders: BookmarkFolders,
-    private val removeFromWatchLater: RemoveFromWatchLaterUseCase,
     private val clock: Clock,
-) : BaseScreenModel<MineState, MineSideEffect, MineEvent>(MineState()) {
+    sources: ContentSourceRepository,
+) : BaseScreenModel<MineState, MineSideEffect, MineEvent>(MineState(segments = segmentsOf(sources))) {
+
+    /** Папок у источника нет — их и не запрашиваем: ответ всё равно пустой. */
+    private val foldersAvailable = MineSegment.FOLDERS in state.segments
 
     /** Последний ответ сервера по папкам — сырьё, поверх которого ложатся оформление и порядок. */
     private val shelf = MutableStateFlow<FolderShelf?>(null)
@@ -58,7 +62,7 @@ class MineScreenModel(
             is MineEvent.SelectSegment -> update { it.copy(segment = event.segment) }
             MineEvent.CycleWatchlistSort -> update { it.copy(watchlistSort = it.watchlistSort.next()) }
             MineEvent.CycleFolderSort -> update { it.copy(folderSort = it.folderSort.next()) }
-            is MineEvent.RemoveFromWatchlist -> screenModelScope { removeFromWatchLater(event.itemId) }
+            is MineEvent.RemoveFromWatchlist -> screenModelScope { watchlist.remove(event.itemId) }
             is MineEvent.RemoveFromContinue -> removeFromHistory(event.itemId)
             MineEvent.AskClearHistory -> update { it.copy(confirmClearHistory = true) }
             MineEvent.DismissClearHistory -> update { it.copy(confirmClearHistory = false) }
@@ -75,7 +79,7 @@ class MineScreenModel(
         screenModelScope {
             coroutineScope {
                 val historyRequest = async { watching.getHistory() }
-                val shelfRequest = async { folders.shelf() }
+                val shelfRequest = async { if (foldersAvailable) folders.shelf() else RequestResult.Success(null) }
                 val history = historyRequest.await()
                 val loaded = shelfRequest.await()
                 applyHistory(history)
@@ -93,7 +97,7 @@ class MineScreenModel(
     private fun observeWatchlist() {
         screenModelScope {
             val sort = states.map { it.watchlistSort }.distinctUntilChanged()
-            combine(favorites.favorites, sort) { items, order -> sortedWatchlist(items, order) }
+            combine(watchlist.items, sort) { items, order -> sortedWatchlist(items, order) }
                 .collect { items -> updateState { it.copy(watchlist = items) } }
         }
     }
@@ -162,4 +166,10 @@ class MineScreenModel(
     }
 
     private fun now(): ZonedDateTime = ZonedDateTime.now(clock)
+}
+
+/** Сегменты «Моего» для источника: «Папки» — только где они есть. */
+private fun segmentsOf(sources: ContentSourceRepository): List<MineSegment> {
+    val capabilities = sources.source.value.capabilities
+    return MineSegment.entries.filter { it != MineSegment.FOLDERS || capabilities.folders }
 }

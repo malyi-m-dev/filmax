@@ -20,7 +20,7 @@ struct LibraryView: View {
         .navigationTitle("Библиотека")
         .background(Theme.background.ignoresSafeArea())
         .task { await viewModel.load() }
-        .task { await viewModel.observeFavorites() }
+        .task { await viewModel.observeWatchlist() }
         .toolbar {
             Button {
                 showNewFolder = true
@@ -41,7 +41,7 @@ struct LibraryView: View {
     }
 
     private var isEmpty: Bool {
-        viewModel.history.isEmpty && viewModel.favorites.isEmpty && viewModel.folders.isEmpty
+        viewModel.history.isEmpty && viewModel.watchlist.isEmpty && viewModel.folders.isEmpty
     }
 
     private var content: some View {
@@ -50,8 +50,8 @@ struct LibraryView: View {
                 if !viewModel.history.isEmpty {
                     HistoryRail(title: "Продолжить просмотр", items: viewModel.history)
                 }
-                if !viewModel.favorites.isEmpty {
-                    localRail(title: "Избранное", items: viewModel.favorites.map {
+                if !viewModel.watchlist.isEmpty {
+                    localRail(title: "Буду смотреть", items: viewModel.watchlist.map {
                         LocalCard(id: $0.id, title: $0.title, poster: $0.posterSmall)
                     })
                 }

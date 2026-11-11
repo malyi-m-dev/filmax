@@ -69,8 +69,8 @@ internal fun bestMatchSpotlight(item: Item, query: String, highlight: Color): Tv
         .joinToString(" · ")
         .ifBlank { null },
     imageUrl = item.posters.wide ?: item.posters.big,
-    rating = ratingLabel(item.rating.kinopoisk),
-    ratingHighlighted = isHighRating(item.rating.kinopoisk),
+    rating = ratingLabel(item.rating.primary),
+    ratingHighlighted = isHighRating(item.rating.primary),
 )
 
 /** Что сказать, пока карточек нет: набрать запрос, подождать или — что ничего не нашлось. */

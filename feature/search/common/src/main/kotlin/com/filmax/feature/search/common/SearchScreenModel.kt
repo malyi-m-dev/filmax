@@ -2,15 +2,18 @@ package com.filmax.feature.search.common
 
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.CatalogGenres
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
+import com.filmax.core.domain.catalog.ReferenceGenre
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
 import com.filmax.core.domain.search.SearchRepository
+import com.filmax.core.domain.source.ContentSourceRepository
+import com.filmax.core.domain.source.capabilities
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.search.common.navigation.browseSection
 import kotlinx.coroutines.FlowPreview
@@ -33,18 +36,11 @@ private const val RECENT_LIMIT = 8
 private val BrowseTypes = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.DOCUMENTARY)
 
 /**
- * Чип «Аниме»: типа «anime» у kino.pub НЕТ — аниме это ЖАНР (id 25) поверх фильмов и
- * сериалов. Поэтому фильтр ANIME разворачивается в movie+serial с жанром [CatalogGenres.ANIME];
- * выбранный в ряду жанр на это время игнорируется — параметр `genre` в API один.
+ * Чип «Аниме»: такого типа у источников нет — аниме это ЖАНР поверх фильмов и сериалов. Поэтому
+ * фильтр ANIME разворачивается в фильмы+сериалы с опорным жанром [ReferenceGenre.ANIME];
+ * выбранный в ряду жанр на это время игнорируется — жанр в запросе один.
  */
 private val AnimeTypes = listOf(ItemType.MOVIE, ItemType.SERIES)
-
-/**
- * Типы жанров, которые показываем в каталоге. `api/v1/genres` отдаёт одним списком жанры всех
- * разделов kino.pub, включая музыкальные («Blues», «Chillout»), — без этого фильтра они лезли
- * в чипы рядом с «Драмой». Значения совпадают с [ItemType.apiValue] соответствующих типов.
- */
-private val VIDEO_GENRE_TYPES = setOf("movie", "serial", "anime", "docuserial", "documovie", "tvshow", "3d")
 
 private val TrendingQueries = listOf(
     "Мстители",
@@ -65,9 +61,11 @@ private val TrendingQueries = listOf(
 class SearchScreenModel(
     private val search: SearchRepository,
     private val catalog: CatalogRepository,
+    sources: ContentSourceRepository,
     savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : BaseScreenModel<SearchState, SearchSideEffect, SearchEvent>(
-    SearchState().withSection(savedStateHandle.browseSection()),
+    // Возможности источника — на старте экрана: смена источника пересоздаёт экраны (граф к корню).
+    SearchState(capabilities = sources.source.value.capabilities).withSection(savedStateHandle.browseSection()),
 ) {
 
     private val queryFlow = MutableStateFlow("")
@@ -182,7 +180,7 @@ class SearchScreenModel(
         // Жанры — отдельной корутиной: чипы не должны ждать сетку, а сетка — чипы.
         screenModelScope {
             catalog.getGenres().getOrNull()
-                ?.filter { it.type in VIDEO_GENRE_TYPES }
+                ?.filter { it.video }
                 ?.let { genres -> updateState { it.copy(genres = genres) } }
         }
         // Страны — тоже отдельно: список нужен только панели фильтров, сетку он не держит.
@@ -329,7 +327,11 @@ private fun SearchState.catalogQuery(): CatalogQuery = CatalogQuery(
         ItemType.ANIME -> AnimeTypes
         else -> listOf(filter)
     },
-    genreId = if (filter == ItemType.ANIME) CatalogGenres.ANIME else selectedGenreId,
+    genre = if (filter == ItemType.ANIME) {
+        GenreFilter.Reference(ReferenceGenre.ANIME)
+    } else {
+        selectedGenreId?.let(GenreFilter::Listed)
+    },
     filters = filters,
     sort = sort,
 )
@@ -351,25 +353,21 @@ private fun List<Item>.mergedWith(page: List<Item>, sort: SortOption): List<Item
     return sortLocally((this + page.filter { it.id !in seen }).distinctBy { it.id }, sort)
 }
 
-/** Локальная проверка фильтров по полям, которые есть в [Item] (год, рейтинги, завершённость). */
+/**
+ * Локальная проверка фильтров по полям, которые есть в [Item] (год, оценки, завершённость).
+ * Пороги — только по оценкам, которые фильтр задал: порог по оценке, которой у источника нет,
+ * экран не предлагает (`SourceCapabilities.ratings`).
+ */
 private fun Item.matches(filters: CatalogFilters): Boolean {
     // Локальные копии: nullable-поля CatalogFilters лежат в другом модуле, и смарт-каст через
     // границу модуля невозможен — сравнивать надо через захваченное значение.
     val yearFrom = filters.yearFrom
     val yearTo = filters.yearTo
-    val kpFrom = filters.kpRatingFrom
-    val imdbFrom = filters.imdbRatingFrom
     val finishedFilter = filters.onlyFinished
     return (yearFrom == null || year >= yearFrom) &&
         (yearTo == null || year <= yearTo) &&
-        (kpFrom == null || ratingAtLeast(rating.kinopoisk, kpFrom)) &&
-        (imdbFrom == null || ratingAtLeast(rating.imdb, imdbFrom)) &&
+        filters.minRatings.all { (source, threshold) -> (rating.of(source) ?: 0.0) >= threshold } &&
         (finishedFilter == null || finished == finishedFilter)
-}
-
-private fun ratingAtLeast(raw: String?, threshold: Int): Boolean {
-    val value = raw?.toDoubleOrNull() ?: return false
-    return value >= threshold
 }
 
 /**

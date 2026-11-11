@@ -41,7 +41,7 @@ import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.feedback.FeedbackTrigger
-import com.filmax.core.domain.source.ContentSource
+import com.filmax.core.domain.source.capabilities
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
@@ -196,9 +196,9 @@ private fun ProfileHeader(profile: UserProfile?) {
 /** Доступ к видео: подписка kino.pub или домашний сервер, которому подписка не нужна. */
 @Composable
 private fun AccessCard(state: ProfileState) {
-    if (state.source == ContentSource.JELLYFIN) {
+    if (!state.source.capabilities.subscription) {
         FilmaxSubscriptionCard(
-            title = ContentSource.JELLYFIN.label,
+            title = state.source.label,
             subtitle = "Своя медиатека, без подписки",
             active = true,
         )

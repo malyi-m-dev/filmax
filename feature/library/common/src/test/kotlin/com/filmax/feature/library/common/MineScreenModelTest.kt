@@ -1,17 +1,17 @@
 package com.filmax.feature.library.common
 
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
-import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import com.filmax.core.presentation.folders.FolderInput
 import com.filmax.data.fake.FakeBackend
-import com.filmax.data.fake.FakeFavoritesRepository
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
+import com.filmax.data.fake.InMemoryWatchlistRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -47,7 +47,7 @@ class MineScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None, clock = { clock.millis() })
     private val watching = FakeWatchingRepository(backend)
     private val user = FakeUserRepository(backend)
-    private val favorites = FakeFavoritesRepository()
+    private val watchlist = InMemoryWatchlistRepository()
     private val appearance = FakeFolderAppearanceRepository()
 
     @BeforeTest
@@ -58,8 +58,8 @@ class MineScreenModelTest {
 
     @Test
     fun `segments count watchlist titles and user folders without the system one`() = runTest(dispatcher) {
-        favorites.add(favorite(1012, "Б", rating = "7.1"))
-        favorites.add(favorite(2007, "А", rating = "8.4"))
+        watchlist.add(favorite(1012, "Б", rating = 7.1))
+        watchlist.add(favorite(2007, "А", rating = 8.4))
 
         val state = loaded()
 
@@ -109,9 +109,9 @@ class MineScreenModelTest {
 
     @Test
     fun `watchlist sort cycles from newest to rating to title`() = runTest(dispatcher) {
-        favorites.add(favorite(1, "Яблоко", rating = "6.0"))
-        favorites.add(favorite(2, "Арбуз", rating = null))
-        favorites.add(favorite(3, "Вишня", rating = "8.5"))
+        watchlist.add(favorite(1, "Яблоко", rating = 6.0))
+        watchlist.add(favorite(2, "Арбуз", rating = null))
+        watchlist.add(favorite(3, "Вишня", rating = 8.5))
         val model = model()
         advanceUntilIdle()
         assertEquals(listOf(1, 2, 3), model.states.value.watchlist.map { it.id })
@@ -150,8 +150,8 @@ class MineScreenModelTest {
 
     @Test
     fun `long press on a watchlist poster removes it`() = runTest(dispatcher) {
-        favorites.add(favorite(1012, "Первый"))
-        favorites.add(favorite(2007, "Второй"))
+        watchlist.add(favorite(1012, "Первый"))
+        watchlist.add(favorite(2007, "Второй"))
         val model = model()
         advanceUntilIdle()
 
@@ -159,7 +159,7 @@ class MineScreenModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(2007), model.states.value.watchlist.map { it.id })
-        assertEquals(listOf(2007), favorites.favorites.first().map { it.id })
+        assertEquals(listOf(2007), watchlist.items.first().map { it.id })
     }
 
     @Test
@@ -256,14 +256,14 @@ class MineScreenModelTest {
 
     private fun model() = MineScreenModel(
         watching = watching,
-        favorites = favorites,
+        watchlist = watchlist,
         folders = BookmarkFolders(user, appearance),
-        removeFromWatchLater = RemoveFromWatchLaterUseCase(favorites, watching),
         clock = clock,
+        sources = FakeContentSourceRepository(),
     )
 
-    private fun favorite(id: Int, title: String, rating: String? = null) =
-        FavoriteItem(id = id, title = title, posterSmall = "", year = 2020, durationMinutes = 100, rating = rating)
+    private fun favorite(id: Int, title: String, rating: Double? = null) =
+        WatchlistItem(id = id, title = title, posterSmall = "", year = 2020, durationMinutes = 100, rating = rating)
 
     private companion object {
         /** Папки фикстуры без «Буду смотреть»: обычная, большая и пустая. */

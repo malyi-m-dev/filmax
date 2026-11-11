@@ -3,10 +3,11 @@
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.CatalogGenres
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
+import com.filmax.core.domain.catalog.ReferenceGenre
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
@@ -19,7 +20,7 @@ import com.filmax.core.domain.common.RequestResult
 internal sealed interface TitleSource {
 
     /** Выдача каталога `api/v1/items`: тип, необязательный жанр и поле сортировки по убыванию. */
-    data class Catalog(val type: ItemType, val sort: CatalogSort, val genreId: Int? = null) : TitleSource
+    data class Catalog(val type: ItemType, val sort: CatalogSort, val genre: GenreFilter? = null) : TitleSource
 
     /** Готовая выборка kino.pub одного типа. */
     data class Shortcut(val type: ItemType, val shortcut: CatalogShortcut) : TitleSource
@@ -29,7 +30,7 @@ internal sealed interface TitleSource {
 internal suspend fun CatalogRepository.titlesPage(source: TitleSource, page: Int): RequestResult<ItemPage> =
     when (source) {
         is TitleSource.Catalog ->
-            getItems(source.type, source.genreId, CatalogFilters(), SortOption(source.sort), page)
+            getItems(source.type, source.genre, CatalogFilters(), SortOption(source.sort), page)
         is TitleSource.Shortcut -> getShortcutItems(source.shortcut, source.type, page)
     }
 
@@ -46,20 +47,24 @@ private val FEED_SOURCES: Map<HomeRowId, TitleSource> = mapOf(
  * жанровое кино, потом аниме и дорамы, в конце форматы не про игровое кино. На пульте каждый ряд —
  * ещё одно «вниз», и до нишевого спускается тот, кому оно нужно.
  *
- * Жанровые ряды — выдача каталога по просмотрам: жанр принимает именно она
- * (`items?type=movie&genre=23&sort=-views`), готовые выборки фильтруют только по типу.
+ * Жанровые ряды — выдача каталога по просмотрам: жанр принимает именно она, готовые выборки
+ * фильтруют только по типу.
  */
 internal val THEME_SOURCES: Map<HomeRowId, TitleSource> = mapOf(
     HomeRowId.POPULAR_SERIES to TitleSource.Shortcut(ItemType.SERIES, CatalogShortcut.POPULAR),
-    HomeRowId.CARTOONS to TitleSource.Catalog(ItemType.MOVIE, CatalogSort.VIEWS, CatalogGenres.CARTOON),
-    HomeRowId.COMEDIES to TitleSource.Catalog(ItemType.MOVIE, CatalogSort.VIEWS, CatalogGenres.COMEDY),
-    HomeRowId.SCI_FI to TitleSource.Catalog(ItemType.MOVIE, CatalogSort.VIEWS, CatalogGenres.SCI_FI),
-    HomeRowId.ANIME to TitleSource.Catalog(ItemType.SERIES, CatalogSort.VIEWS, CatalogGenres.ANIME),
-    HomeRowId.DORAMAS to TitleSource.Catalog(ItemType.SERIES, CatalogSort.VIEWS, CatalogGenres.DORAMA),
+    HomeRowId.CARTOONS to themed(ItemType.MOVIE, ReferenceGenre.CARTOON),
+    HomeRowId.COMEDIES to themed(ItemType.MOVIE, ReferenceGenre.COMEDY),
+    HomeRowId.SCI_FI to themed(ItemType.MOVIE, ReferenceGenre.SCI_FI),
+    HomeRowId.ANIME to themed(ItemType.SERIES, ReferenceGenre.ANIME),
+    HomeRowId.DORAMAS to themed(ItemType.SERIES, ReferenceGenre.DORAMA),
     HomeRowId.DOCUMENTARY to TitleSource.Shortcut(ItemType.DOCUMENTARY_MOVIE, CatalogShortcut.POPULAR),
     HomeRowId.TV_SHOWS to TitleSource.Shortcut(ItemType.TV_SHOW, CatalogShortcut.POPULAR),
     HomeRowId.CONCERTS to TitleSource.Shortcut(ItemType.CONCERT, CatalogShortcut.POPULAR),
 )
+
+/** Жанровый ряд: опорный жанр по просмотрам — каждый источник находит жанр по-своему. */
+private fun themed(type: ItemType, genre: ReferenceGenre) =
+    TitleSource.Catalog(type, CatalogSort.VIEWS, GenreFilter.Reference(genre))
 
 /** Все ряды, которые листаются из каталога. «Новинок» здесь нет: это сводка двух выборок, листать её нечем. */
 internal val TITLE_SOURCES: Map<HomeRowId, TitleSource> = FEED_SOURCES + THEME_SOURCES

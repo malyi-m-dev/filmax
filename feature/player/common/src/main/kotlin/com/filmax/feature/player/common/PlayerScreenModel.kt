@@ -24,6 +24,7 @@ import com.filmax.core.domain.error.RequestFailure
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.source.capabilities
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.domain.tvlink.TvLinkReceiver
 import com.filmax.core.presentation.BaseScreenModel
@@ -49,6 +50,7 @@ class PlayerScreenModel(
     private val watching = repositories.watching
     private val userRepository = repositories.user
     private val streams = repositories.streams
+    private val sources = repositories.sources
 
     private val route = savedStateHandle.toRoute<PlayerRoute>()
 
@@ -222,8 +224,10 @@ class PlayerScreenModel(
     /**
      * Подписка проверяется параллельно с загрузкой и не блокирует старт: без неё поток всё равно
      * не пойдёт, а плашка объяснит почему. Ошибка профиля (офлайн и т.п.) плашку не показывает.
+     * Источнику без подписки (домашний сервер) проверять нечего.
      */
     private fun checkSubscription() {
+        if (!sources.source.value.capabilities.subscription) return
         screenModelScope {
             val profile = userRepository.getProfile()
             if (profile is RequestResult.Success && profile.data.subscription?.active != true) {

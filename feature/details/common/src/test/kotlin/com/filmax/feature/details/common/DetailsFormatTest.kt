@@ -206,7 +206,7 @@ private fun movie(minutes: Double?) = Item(
     cast = "",
     country = "",
     genres = emptyList(),
-    rating = ItemRating(filmax = 0, filmaxPercentage = "", imdb = null, kinopoisk = null),
+    rating = ItemRating(),
     posters = Posters(small = "", medium = "", big = "", wide = null),
     duration = Duration(averageMinutes = minutes, totalMinutes = null),
     tracklist = emptyList(),

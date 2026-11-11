@@ -2,11 +2,9 @@ package com.filmax.feature.profile.common
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.user.UserRepository
-import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.presentation.BaseScreenModel
 
 /**
@@ -18,9 +16,7 @@ import com.filmax.core.presentation.BaseScreenModel
 @Suppress("TooManyFunctions")
 class ProfileScreenModel(
     private val user: UserRepository,
-    private val watching: WatchingRepository,
     private val auth: AuthRepository,
-    private val favorites: FavoritesRepository,
     settings: ProfileSettings,
 ) : BaseScreenModel<ProfileState, ProfileSideEffect, ProfileEvent>(ProfileState()) {
 
@@ -30,7 +26,6 @@ class ProfileScreenModel(
 
     init {
         onFetchData()
-        observeFavorites()
         observePlaybackSettings()
         observeTheme()
         observeSource()
@@ -39,14 +34,6 @@ class ProfileScreenModel(
     private fun observeSource() {
         screenModelScope {
             sources.source.collect { source -> updateState { it.copy(source = source) } }
-        }
-    }
-
-    private fun observeFavorites() {
-        screenModelScope {
-            favorites.favorites.collect { items ->
-                updateState { it.copy(favoritesCount = items.size) }
-            }
         }
     }
 
@@ -89,23 +76,13 @@ class ProfileScreenModel(
 
     override fun onFetchData() {
         screenModelScope {
-            // Профиль — основной запрос: от него зависит отрисовка экрана.
             when (val result = user.getProfile()) {
                 is RequestResult.Success ->
                     updateState { it.copy(loading = false, profile = result.data) }
 
-                is RequestResult.Error -> {
+                is RequestResult.Error ->
                     updateState { it.copy(loading = false, error = result.message) }
-                    return@screenModelScope
-                }
             }
-
-            // Статистика — best-effort: ошибки не блокируют экран, поля остаются по умолчанию.
-            (watching.getHistory() as? RequestResult.Success)?.let { history ->
-                updateState { it.copy(watchedCount = history.data.size) }
-            }
-            // device/info не запрашиваем: бэкенд отвечает 500, а блок «Устройство» с экранов
-            // временно убран. Вернуть вместе с блоком, когда бэкенд починят.
         }
     }
 

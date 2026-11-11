@@ -6,6 +6,7 @@ package com.filmax.feature.profile.common
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.domain.source.ContentSource
+import com.filmax.core.domain.source.capabilities
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.domain.user.model.initials
@@ -36,9 +37,9 @@ val ContentSource.label: String
         ContentSource.JELLYFIN -> "Домашний сервер"
     }
 
-/** Подпись под именем аккаунта: у домашнего сервера подписки нет, есть сам сервер. */
+/** Подпись под именем аккаунта: у источника без подписки (домашний сервер) — его название. */
 fun accountCaption(source: ContentSource, subscription: Subscription?): String =
-    if (source == ContentSource.JELLYFIN) ContentSource.JELLYFIN.label else subscription.label()
+    if (source.capabilities.subscription) subscription.label() else source.label
 
 /** Название палитры в Профиле. */
 val ThemePalette.label: String

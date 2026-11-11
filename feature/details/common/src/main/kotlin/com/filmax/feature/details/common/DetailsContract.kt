@@ -21,6 +21,8 @@ data class DetailsState(
     val selectedSeason: Int? = null,
     /** Открыта боковая панель с полным описанием. */
     val descriptionOpen: Boolean = false,
+    /** У источника есть папки-закладки: без них кнопки «В папку» нет вовсе. */
+    val foldersAvailable: Boolean = true,
 ) {
     /** Серии выбранного сезона; у фильма — пусто. */
     val seasonEpisodes: List<MediaTrack>

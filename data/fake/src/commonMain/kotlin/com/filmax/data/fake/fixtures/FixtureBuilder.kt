@@ -5,11 +5,11 @@ import com.filmax.core.domain.catalog.model.Duration
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemRating
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.catalog.model.VideoFile
 import com.filmax.core.domain.person.CastMember
 import com.filmax.data.fake.store.CatalogEntry
 import com.filmax.data.fake.store.MOVIE_SEASON
-import kotlin.math.roundToInt
 
 private const val SECONDS_IN_MINUTE = 60
 
@@ -17,7 +17,6 @@ private const val SECONDS_IN_MINUTE = 60
 private const val MOVIE_VIDEO_NUMBER = 1
 
 /** Рейтинг Filmax — средняя КП/IMDb ×10: на сервере это голоса, а сортировке нужен лишь порядок. */
-private const val RATING_SCALE = 10
 
 /** Сколько первых актёров получают роль; у остальных роль неизвестна, как часто бывает у TMDB. */
 private const val NAMED_ROLES = 4
@@ -47,8 +46,7 @@ private fun TitleSpec.toItem(tracks: List<MediaTrack>): Item = Item(
     director = director.name,
     cast = cast.joinToString(", ") { it.name },
     country = country.title,
-    // Внутри тайтла жанр приходит без типа: тип есть только в списке api/v1/genres.
-    genres = genres.map { it.copy(type = null) },
+    genres = genres,
     rating = rating(),
     posters = titlePosters(id),
     duration = durationOf(tracks),
@@ -114,17 +112,11 @@ private fun durationOf(tracks: List<MediaTrack>): Duration {
     )
 }
 
-/** Оценки строками, как после маппера (`7.0`, а не `7`); нет оценок — рейтинг Filmax 0. */
-private fun TitleSpec.rating(): ItemRating {
-    val scores = listOfNotNull(kinopoisk, imdb)
-    val filmax = if (scores.isEmpty()) 0 else (scores.average() * RATING_SCALE).roundToInt()
-    return ItemRating(
-        filmax = filmax,
-        filmaxPercentage = filmax.toString(),
-        imdb = imdb?.toString(),
-        kinopoisk = kinopoisk?.toString(),
-    )
-}
+/** Оценки как у kino.pub после маппера: КиноПоиск — главная, за ней IMDb. */
+private fun TitleSpec.rating(): ItemRating = ItemRating.of(
+    RatingSource.KINOPOISK to kinopoisk?.toString(),
+    RatingSource.IMDB to imdb?.toString(),
+)
 
 private fun TitleSpec.castMembers(): List<CastMember> = cast.mapIndexed { index, person ->
     CastMember(name = person.name, character = roleOf(index, person), photoUrl = personPhotoUrl(person.id))

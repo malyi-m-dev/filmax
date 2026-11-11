@@ -133,7 +133,7 @@ private fun MovieHeading(
             style = MovieHeadingStyle,
             modifier = Modifier.width(HeadingWidth).padding(top = 18.dp),
         )
-        MovieButtons(state.isFav, actions, sheets.folders, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
+        MovieButtons(state, actions, sheets.folders, focus, Modifier.fxEnter(BUTTONS_ENTER_INDEX))
     }
 }
 
@@ -143,7 +143,7 @@ private const val BUTTONS_ENTER_INDEX = 4
 /** «Смотреть», «Буду смотреть» / «В списке», «В папку», «Трейлер» — если он есть. */
 @Composable
 private fun MovieButtons(
-    inWatchLater: Boolean,
+    state: DetailsState,
     actions: DetailsActions,
     folders: DetailsFolders,
     focus: TvScreenFocus,
@@ -158,18 +158,21 @@ private fun MovieButtons(
             modifier = focus.item(PLAY_KEY),
         )
         TvButton(
-            if (inWatchLater) "В списке" else "Буду смотреть",
+            if (state.isFav) "В списке" else "Буду смотреть",
             onClick = actions.onToggleWatchLater,
             style = TvButtonStyle.Secondary,
-            leadingIcon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+            leadingIcon = if (state.isFav) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
         )
-        TvButton(
-            "В папку",
-            onClick = { folders.onEvent(FolderPickerEvent.Open) },
-            style = TvButtonStyle.Secondary,
-            leadingIcon = folderIcon(folders.state.inAnyFolder),
-            focusRequester = folders.buttonFocus,
-        )
+        // Папок у домашнего сервера нет — кнопки тоже нет, а не ошибка после нажатия.
+        if (state.foldersAvailable) {
+            TvButton(
+                "В папку",
+                onClick = { folders.onEvent(FolderPickerEvent.Open) },
+                style = TvButtonStyle.Secondary,
+                leadingIcon = folderIcon(folders.state.inAnyFolder),
+                focusRequester = folders.buttonFocus,
+            )
+        }
         actions.onTrailer?.let { onTrailer ->
             TvButton("Трейлер", onClick = onTrailer, style = TvButtonStyle.Secondary, leadingIcon = Icons.Rounded.Movie)
         }
@@ -202,8 +205,8 @@ private fun SimilarRail(similar: List<Item>, actions: DetailsActions, focus: TvS
                 meta = posterMeta(typeLabel(similarItem.type), similarItem.year),
                 posterUrl = similarItem.posters.medium.ifEmpty { similarItem.posters.big },
                 onClick = { actions.onOpenItem(similarItem.id) },
-                rating = ratingLabel(similarItem.rating.kinopoisk),
-                ratingHighlighted = isHighRating(similarItem.rating.kinopoisk),
+                rating = ratingLabel(similarItem.rating.primary),
+                ratingHighlighted = isHighRating(similarItem.rating.primary),
                 modifier = focus.item("similar:${similarItem.id}").tvRailEntry(index),
             )
         }

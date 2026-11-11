@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
-import com.filmax.core.domain.source.ContentSource
+import com.filmax.core.domain.source.capabilities
 import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.tv.designsystem.FxType
@@ -236,10 +236,10 @@ private fun ProfileHeader(profile: UserProfile?, modifier: Modifier) {
 /** Доступ к видео: подписка kino.pub или домашний сервер, которому подписка не нужна. */
 @Composable
 private fun AccessCard(state: ProfileState, modifier: Modifier) {
-    if (state.source == ContentSource.JELLYFIN) {
+    if (!state.source.capabilities.subscription) {
         TvSubscriptionCard(
             overline = "Источник",
-            value = ContentSource.JELLYFIN.label,
+            value = state.source.label,
             caption = "Своя медиатека, без подписки",
             modifier = modifier,
         )

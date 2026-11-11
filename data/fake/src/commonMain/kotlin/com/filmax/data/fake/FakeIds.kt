@@ -1,6 +1,7 @@
 package com.filmax.data.fake
 
-import com.filmax.core.domain.catalog.CatalogGenres
+import com.filmax.core.domain.catalog.ReferenceGenre
+import com.filmax.data.fake.fixtures.fixtureId
 
 /**
  * Опорные id фикстур — то, на что удобно сослаться из теста или что стоит открыть руками в
@@ -51,9 +52,12 @@ object FakeIds {
     const val CONCERT = 7001
 
     /** Жанр «Аниме»: тот же id, что у kino.pub и в каталоге приложения (аниме — жанр, а не тип). */
-    const val ANIME_GENRE = CatalogGenres.ANIME
+    val ANIME_GENRE = ReferenceGenre.ANIME.fixtureId
 
-    /** Серверная папка «Буду смотреть» — FavoritesRepositoryImpl находит её по названию. */
+    /** Id опорного жанра в фикстурах — тестам, которые сверяют выдачу ряда с его жанром. */
+    fun genreId(genre: ReferenceGenre): Int = genre.fixtureId
+
+    /** Серверная папка «Буду смотреть» — KinopubWatchlistRepository находит её по названию. */
     const val WATCHLIST_FOLDER = 1
 
     /** Папка на 25 тайтлов — две страницы. */

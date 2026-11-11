@@ -162,12 +162,15 @@ private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: S
             onClick = actions.onToggleWatchLater,
         )
         val folders = focus.sheets.folders
-        TvIconButton(
-            icon = folderIcon(folders.state.inAnyFolder),
-            contentDescription = "В папку",
-            onClick = { folders.onEvent(FolderPickerEvent.Open) },
-            modifier = Modifier.focusRequester(folders.buttonFocus),
-        )
+        // Папок у домашнего сервера нет — кнопки тоже нет, а не ошибка после нажатия.
+        if (state.foldersAvailable) {
+            TvIconButton(
+                icon = folderIcon(folders.state.inAnyFolder),
+                contentDescription = "В папку",
+                onClick = { folders.onEvent(FolderPickerEvent.Open) },
+                modifier = Modifier.focusRequester(folders.buttonFocus),
+            )
+        }
         actions.onTrailer?.let { onTrailer ->
             TvIconButton(icon = Icons.Rounded.Movie, contentDescription = "Трейлер", onClick = onTrailer)
         }

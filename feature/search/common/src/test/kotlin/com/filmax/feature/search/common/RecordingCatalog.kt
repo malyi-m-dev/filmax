@@ -2,6 +2,7 @@ package com.filmax.feature.search.common
 
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
@@ -26,7 +27,7 @@ internal class RecordingCatalog(
 
     override suspend fun getItems(
         type: ItemType,
-        genreId: Int?,
+        genre: GenreFilter?,
         filters: CatalogFilters,
         sort: SortOption,
         page: Int,
@@ -34,7 +35,7 @@ internal class RecordingCatalog(
         requests += type to page
         delay(latencyOf(type))
         if (offline) return RequestResult.Error(OFFLINE_MESSAGE)
-        return delegate.getItems(type, genreId, filters, sort, page)
+        return delegate.getItems(type, genre, filters, sort, page)
     }
 
     companion object {

@@ -7,6 +7,8 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.model.Country
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.source.SourceCapabilities
+import com.filmax.core.presentation.format.shortTitle
 
 /** Типы в порядке чипов. null — «Все» (объединение типов, см. SearchScreenModel). */
 val TypeOptions = listOf(
@@ -17,19 +19,23 @@ val TypeOptions = listOf(
     ItemType.DOCUMENTARY to "Документальные",
 )
 
-/** Поля сортировки в порядке меню/перебора чипа. Русские подписи — из макета. */
-val SortOptions = listOf(
+/** Подписи полей сортировки в порядке меню/перебора чипа. Русские подписи — из макета. */
+private val SortLabels = listOf(
     CatalogSort.UPDATED to "Обновлённые",
     CatalogSort.CREATED to "Добавленные",
-    CatalogSort.RATING to "Рейтинг Filmax",
+    CatalogSort.RATING to "Рейтинг",
     CatalogSort.VIEWS to "Просмотры",
     CatalogSort.YEAR to "Год",
     CatalogSort.KINOPOISK_RATING to "Рейтинг КП",
     CatalogSort.IMDB_RATING to "Рейтинг IMDb",
 )
 
+/** Поля сортировки, которые есть у источника, — с подписями, в порядке меню. */
+fun SourceCapabilities.sortOptions(): List<Pair<CatalogSort, String>> =
+    SortLabels.filter { (field, _) -> field in sorts }
+
 fun sortLabel(sort: CatalogSort): String =
-    SortOptions.firstOrNull { it.first == sort }?.second ?: SortOptions.first().second
+    SortLabels.firstOrNull { it.first == sort }?.second ?: SortLabels.first().second
 
 /** Применённый фильтр чипом над сеткой: подпись и фильтры без него — то, что оставит «✕». */
 data class AppliedFilter(val label: String, val without: CatalogFilters)
@@ -40,8 +46,9 @@ data class AppliedFilter(val label: String, val without: CatalogFilters)
  */
 fun CatalogFilters.applied(countries: List<Country>): List<AppliedFilter> = buildList {
     yearLabel()?.let { add(AppliedFilter(it, copy(yearFrom = null, yearTo = null))) }
-    kpRatingFrom?.let { add(AppliedFilter("КП $it+", copy(kpRatingFrom = null))) }
-    imdbRatingFrom?.let { add(AppliedFilter("IMDb $it+", copy(imdbRatingFrom = null))) }
+    minRatings.forEach { (source, threshold) ->
+        add(AppliedFilter("${source.shortTitle} $threshold+", withMinRating(source, null)))
+    }
     countryId?.let { id ->
         add(AppliedFilter(countries.firstOrNull { it.id == id }?.title ?: "Страна", copy(countryId = null)))
     }

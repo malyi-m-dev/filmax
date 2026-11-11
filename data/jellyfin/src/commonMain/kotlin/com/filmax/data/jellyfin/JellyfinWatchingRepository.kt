@@ -56,15 +56,6 @@ internal class JellyfinWatchingRepository(
     }
 
     /**
-     * Своего «Буду смотреть» у сервера нет — эту роль играет избранное, и переключает его
-     * [JellyfinFavoritesRepository]. Здесь — только чтение: сценарии «Буду смотреть» зовут оба
-     * репозитория подряд, и второй переключатель вернул бы отметку обратно.
-     */
-    override suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean> = context.request { _ ->
-        api.userData(context.ids.requireGuid(itemId)).isFavorite == true
-    }
-
-    /**
      * «Убрать из истории» — снять отметку просмотра: сервер стирает с ней и дату просмотра, и
      * точку «продолжить». У сериала снимается со всех серий.
      */

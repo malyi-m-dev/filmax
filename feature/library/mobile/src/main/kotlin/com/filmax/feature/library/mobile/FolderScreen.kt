@@ -189,7 +189,7 @@ private fun LazyGridScope.folderItems(state: FolderState, onEvent: (FolderEvent)
             title = item.title,
             posterUrl = item.posters.medium,
             onClick = { onOpenItem(item.id) },
-            rating = ratingLabel(item.rating.kinopoisk),
+            rating = ratingLabel(item.rating.primary),
             meta = posterMeta(typeLabel(item.type), item.year),
             // Долгий тап убирает тайтл из папки — так же, как долгое «ОК» на пульте.
             onLongClick = { onEvent(FolderEvent.RemoveItem(item.id)) },

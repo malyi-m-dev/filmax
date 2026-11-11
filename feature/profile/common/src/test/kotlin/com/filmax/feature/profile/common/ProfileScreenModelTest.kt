@@ -6,12 +6,10 @@ import com.filmax.core.domain.source.ContentSource
 import com.filmax.data.fake.FakeAuthRepository
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeContentSourceRepository
-import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakePlaybackSettingsRepository
 import com.filmax.data.fake.FakeThemeSettingsRepository
 import com.filmax.data.fake.FakeUserRepository
-import com.filmax.data.fake.FakeWatchingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -175,9 +173,7 @@ class ProfileScreenModelTest {
 
     private fun model(auth: FakeAuthRepository = FakeAuthRepository(backend)) = ProfileScreenModel(
         user = FakeUserRepository(backend),
-        watching = FakeWatchingRepository(backend),
         auth = auth,
-        favorites = FakeFavoritesRepository(),
         settings = ProfileSettings(playback, theme, sources),
     )
 }

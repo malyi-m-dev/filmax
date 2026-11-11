@@ -190,8 +190,8 @@ private fun LazyGridScope.posters(
                 .then(reveal)
                 .fxEnter(index % CATALOG_COLUMNS)
                 .then(focus.screen.item("grid:${item.id}")),
-            rating = ratingLabel(item.rating.kinopoisk),
-            ratingHighlighted = isHighRating(item.rating.kinopoisk),
+            rating = ratingLabel(item.rating.primary),
+            ratingHighlighted = isHighRating(item.rating.primary),
             size = TvPosterSize.Grid,
             ratingAlignment = Alignment.TopStart,
         )

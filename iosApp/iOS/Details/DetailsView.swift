@@ -24,7 +24,7 @@ struct DetailsView: View {
         .task {
             if viewModel.item == nil { await viewModel.load() }
         }
-        .task { await viewModel.observeFavorite() }
+        .task { await viewModel.observeWatchlist() }
     }
 
     private func content(_ item: Item) -> some View {
@@ -80,9 +80,6 @@ struct DetailsView: View {
                     .background(Theme.accent)
                     .foregroundColor(.white)
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-            }
-            iconButton(viewModel.isFavorite ? "heart.fill" : "heart") {
-                Task { await viewModel.toggleFavorite() }
             }
             iconButton(viewModel.inWatchlist ? "checkmark" : "plus") {
                 Task { await viewModel.toggleWatchlist() }

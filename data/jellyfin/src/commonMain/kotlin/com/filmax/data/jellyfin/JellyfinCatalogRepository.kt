@@ -4,6 +4,7 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
@@ -35,26 +36,16 @@ internal class JellyfinCatalogRepository(
     override suspend fun getItems(type: ItemType, sort: CatalogSort, page: Int): RequestResult<ItemPage> =
         page(type.toQuery().copy(sortBy = sort.sortBy(type)), page)
 
-    override suspend fun getItemsByGenre(
-        type: ItemType,
-        genreId: Int,
-        sort: CatalogSort,
-        page: Int,
-    ): RequestResult<ItemPage> = context.request { mapper ->
-        val query = type.toQuery().copy(sortBy = sort.sortBy(type)).withGenre(genreId, ids)
-        itemPage(api.items(query.paged(page)), page, mapper)
-    }
-
     override suspend fun getItems(
         type: ItemType,
-        genreId: Int?,
+        genre: GenreFilter?,
         filters: CatalogFilters,
         sort: SortOption,
         page: Int,
     ): RequestResult<ItemPage> = context.request { mapper ->
         val query = type.toQuery().filtered(filters)
             .copy(sortBy = sort.field.sortBy(type), ascending = sort.ascending)
-            .withGenre(genreId, ids)
+            .withGenre(genre, ids)
         itemPage(api.items(query.paged(page)), page, mapper)
     }
 

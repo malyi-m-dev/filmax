@@ -196,7 +196,7 @@ private fun HeroMeta(item: Item, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ratingLabel(item.rating.kinopoisk ?: item.rating.imdb)?.let { FilmaxRatingPill(it) }
+        ratingLabel(item.rating.primary)?.let { FilmaxRatingPill(it) }
         if (parts.isNotEmpty()) {
             Text(
                 parts.joinToString(" · "),

@@ -78,9 +78,6 @@ internal class WatchingRepositoryImpl(
     override suspend fun toggleWatched(itemId: Int): RequestResult<Unit> =
         safeRequest { api.toggleWatched(itemId) }
 
-    override suspend fun toggleWatchlist(itemId: Int): RequestResult<Boolean> =
-        safeRequest { api.toggleWatchlist(itemId)["watching"] == 1 }
-
     override suspend fun clearHistory(itemId: Int): RequestResult<Unit> =
         safeRequest { api.clearItemHistory(itemId) }
 }

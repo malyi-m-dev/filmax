@@ -30,8 +30,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -158,7 +158,7 @@ private fun LazyGridScope.continueItems(entries: List<WatchHistory>, actions: Mi
     }
 }
 
-private fun LazyGridScope.watchlistItems(items: List<FavoriteItem>, actions: MineActions, cards: GridFocus) {
+private fun LazyGridScope.watchlistItems(items: List<WatchlistItem>, actions: MineActions, cards: GridFocus) {
     if (items.isEmpty()) {
         emptyItem(MineEmptyText.Watchlist, Icons.Rounded.BookmarkBorder)
         return

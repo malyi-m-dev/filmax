@@ -5,14 +5,13 @@ import com.filmax.core.domain.catalog.model.Pagination
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
-import com.filmax.core.domain.user.model.Subscription
 import com.filmax.core.domain.user.model.UserProfile
 
 /**
- * Профиль на домашнем сервере. Подписки нет — сервер свой, поэтому доступ всегда открыт, и
- * плеер не показывает плашку «нужна подписка». Папок-закладок у сервера в смысле kino.pub нет
- * (плейлисты раскладывают сериал на серии), поэтому папки пока только у kino.pub, а «Буду
- * смотреть» здесь — избранное сервера.
+ * Профиль на домашнем сервере. Подписки нет — сервер свой: экраны знают это из возможностей
+ * источника и плашку подписки не показывают. Папок-закладок у сервера в смысле kino.pub нет
+ * (плейлисты раскладывают сериал на серии) — их нет и в возможностях, «Буду смотреть» здесь —
+ * избранное сервера.
  */
 // Реализация всего контракта UserRepository — столько же методов.
 @Suppress("TooManyFunctions")
@@ -25,7 +24,7 @@ internal class JellyfinUserRepository(private val context: JellyfinContext) : Us
             username = user.name.orEmpty(),
             email = null,
             avatarUrl = mapper.images.user(user.id, user.primaryImageTag),
-            subscription = Subscription(active = true, endsAt = null, daysLeft = null),
+            subscription = null,
         )
     }
 

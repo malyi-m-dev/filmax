@@ -27,8 +27,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Country
+import com.filmax.core.domain.source.SourceCapabilities
+import com.filmax.core.presentation.format.title
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvButton
@@ -46,7 +49,7 @@ import com.filmax.core.tv.designsystem.tvLazyFocusItem
 import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
-import com.filmax.feature.search.common.SortOptions
+import com.filmax.feature.search.common.sortOptions
 
 /** Поля панели — как у панели описания в деталях. */
 private val SheetPadding = PaddingValues(start = 34.dp, end = 40.dp, top = 30.dp, bottom = 30.dp)
@@ -58,8 +61,8 @@ private val ChipGap = 8.dp
 @Composable
 internal fun CatalogSheetContent(state: SearchState, dispatch: (SearchEvent) -> Unit) {
     when (state.sheet) {
-        CatalogSheet.SORT -> SortSheet(state.sort, dispatch)
-        CatalogSheet.FILTERS -> FiltersSheet(state.filtersDraft, state.countries, dispatch)
+        CatalogSheet.SORT -> SortSheet(state.sort, state.capabilities.sortOptions(), dispatch)
+        CatalogSheet.FILTERS -> FiltersSheet(state.filtersDraft, state.capabilities, state.countries, dispatch)
     }
 }
 
@@ -68,12 +71,12 @@ internal fun CatalogSheetContent(state: SearchState, dispatch: (SearchEvent) -> 
  * тут нечего, а лишнее «Применить» на пульте — лишнее нажатие. Первый вход фокуса — на текущее поле.
  */
 @Composable
-private fun SortSheet(sort: SortOption, dispatch: (SearchEvent) -> Unit) {
+private fun SortSheet(sort: SortOption, options: List<Pair<CatalogSort, String>>, dispatch: (SearchEvent) -> Unit) {
     val current = remember { FocusRequester() }
     Column(Modifier.fillMaxSize().padding(SheetPadding)) {
         SheetHeading(overline = "Сортировка", title = "Сначала показывать")
         Column(Modifier.offset(x = -TvTextRowInset).padding(top = 14.dp).tvFocusGroup(fallback = current)) {
-            SortOptions.forEach { (field, label) ->
+            options.forEach { (field, label) ->
                 val selected = field == sort.field
                 TvTextRow(
                     text = label,
@@ -104,7 +107,12 @@ private fun SortSheet(sort: SortOption, dispatch: (SearchEvent) -> Unit) {
  * перебор чипов «ОК»-ом естественен. Правки — черновик в модели; выдачу меняет только «Применить».
  */
 @Composable
-private fun FiltersSheet(draft: CatalogFilters, countries: List<Country>, dispatch: (SearchEvent) -> Unit) {
+private fun FiltersSheet(
+    draft: CatalogFilters,
+    capabilities: SourceCapabilities,
+    countries: List<Country>,
+    dispatch: (SearchEvent) -> Unit,
+) {
     val edit: (CatalogFilters) -> Unit = { dispatch(SearchEvent.EditFilters(it)) }
     val firstChip = remember { FocusRequester() }
     Column(
@@ -117,9 +125,11 @@ private fun FiltersSheet(draft: CatalogFilters, countries: List<Country>, dispat
     ) {
         SheetHeading(overline = "Каталог", title = "Фильтры")
         YearSection(draft, edit, Modifier.focusRequester(firstChip))
-        RatingSection("Рейтинг КиноПоиска", draft.kpRatingFrom) { edit(draft.copy(kpRatingFrom = it)) }
-        RatingSection("Рейтинг IMDb", draft.imdbRatingFrom) { edit(draft.copy(imdbRatingFrom = it)) }
-        CountrySection(countries, draft.countryId) { edit(draft.copy(countryId = it)) }
+        // Пороги — только по оценкам источника, страна — если источник по ней фильтрует.
+        capabilities.ratings.forEach { source ->
+            RatingSection("Рейтинг ${source.title}", draft.minRating(source)) { edit(draft.withMinRating(source, it)) }
+        }
+        if (capabilities.countries) CountrySection(countries, draft.countryId) { edit(draft.copy(countryId = it)) }
         FilterSection("Качество и статус") {
             TvChip(label = "Только 4K", selected = draft.only4k, onClick = { edit(draft.copy(only4k = !draft.only4k)) })
             // Тумблер: включён — только завершённые, выключен — любые (null). «Только идущие» домен

@@ -21,7 +21,7 @@ struct TvDetailsView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .task { if viewModel.item == nil { await viewModel.load() } }
-        .task { await viewModel.observeFavorite() }
+        .task { await viewModel.observeWatchlist() }
     }
 
     private func content(_ item: Item) -> some View {
@@ -80,13 +80,6 @@ struct TvDetailsView: View {
                 Label("Смотреть", systemImage: "play.fill").padding(.horizontal, DS.Spacing.lg)
             }
             .buttonStyle(.borderedProminent).tint(Theme.accent)
-
-            Button {
-                Task { await viewModel.toggleFavorite() }
-            } label: {
-                Label("В избранное", systemImage: viewModel.isFavorite ? "heart.fill" : "heart")
-            }
-            .buttonStyle(.bordered).tint(Theme.accent)
 
             Button {
                 Task { await viewModel.toggleWatchlist() }

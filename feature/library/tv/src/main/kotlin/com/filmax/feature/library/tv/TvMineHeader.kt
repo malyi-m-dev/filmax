@@ -48,9 +48,9 @@ internal fun MineHeader(state: MineState, actions: MineActions, focus: MineFocus
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             TvSegmentedTabs(
-                segments = MineSegment.entries.map { TvSegment(it.label, state.countOf(it)) },
-                selectedIndex = state.segment.ordinal,
-                onSelect = { index -> actions.onEvent(MineEvent.SelectSegment(MineSegment.entries[index])) },
+                segments = state.segments.map { TvSegment(it.label, state.countOf(it)) },
+                selectedIndex = state.segments.indexOf(state.segment),
+                onSelect = { index -> actions.onEvent(MineEvent.SelectSegment(state.segments[index])) },
             )
             Spacer(Modifier.weight(1f))
             SegmentAction(state, actions, focus)

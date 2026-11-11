@@ -1,6 +1,6 @@
 package com.filmax.core.domain.user.model
 
-import com.filmax.core.domain.favorites.WATCHLIST_FOLDER_TITLE
+import com.filmax.core.domain.watchlist.WATCHLIST_FOLDER_TITLE
 
 /** Сколько цветов у папок. Сами цвета — в дизайн-системе ТВ, домен хранит только номер. */
 const val FOLDER_TINT_COUNT = 6

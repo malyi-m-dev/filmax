@@ -2,11 +2,11 @@ package com.filmax.shared
 
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.favorites.FavoritesRepository
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
 import com.filmax.core.domain.search.SearchRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
+import com.filmax.core.domain.watchlist.WatchlistRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 
@@ -20,7 +20,7 @@ import org.koin.core.component.get
  * Из Swift:
  * ```swift
  * let details = try await RepositoryProvider.shared.catalog.getItemDetails(id: 42)
- * for await ids in RepositoryProvider.shared.favorites.favoriteIds { … }
+ * for await items in RepositoryProvider.shared.watchlist.items { … }
  * ```
  *
  * Контракты методов и структуры возвращаемых моделей — см. `docs/ios-shared-layer.md` (§7–§8).
@@ -36,14 +36,14 @@ object RepositoryProvider : KoinComponent {
     /** Поиск по названию, актёру, режиссёру. */
     val search: SearchRepository get() = get()
 
-    /** Профиль, настройки устройства, папки закладок. */
+    /** Профиль и папки закладок. */
     val user: UserRepository get() = get()
 
-    /** История, прогресс просмотра, watchlist/watched, уведомления. */
+    /** История, прогресс просмотра, отметка «просмотрено». */
     val watching: WatchingRepository get() = get()
 
-    /** Избранное (локальное, реактивные `Flow`). */
-    val favorites: FavoritesRepository get() = get()
+    /** «Буду смотреть» текущего источника (реактивные `Flow`). */
+    val watchlist: WatchlistRepository get() = get()
 
     /** Настройки воспроизведения (качество/аудио/субтитры, локально). */
     val playbackSettings: PlaybackSettingsRepository get() = get()

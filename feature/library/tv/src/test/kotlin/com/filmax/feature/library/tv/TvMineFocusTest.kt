@@ -5,17 +5,17 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
-import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
-import com.filmax.data.fake.FakeFavoritesRepository
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeFolderAppearanceRepository
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
+import com.filmax.data.fake.InMemoryWatchlistRepository
 import com.filmax.feature.library.common.MineScreenModel
 import com.filmax.feature.library.common.MineSegment
 import kotlinx.coroutines.runBlocking
@@ -56,7 +56,7 @@ class TvMineFocusTest {
     private val calls = mutableListOf<String>()
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val watching = FakeWatchingRepository(backend)
-    private val favorites = FakeFavoritesRepository()
+    private val watchlist = InMemoryWatchlistRepository()
 
     @Before
     fun leanbackDevice() {
@@ -163,17 +163,17 @@ class TvMineFocusTest {
     }
 
     private fun addToWatchlist(vararg titles: Pair<Int, String>) = runBlocking {
-        titles.forEach { (id, title) -> favorites.add(FavoriteItem(id, title, "", 2021, 100, rating = "8.1")) }
+        titles.forEach { (id, title) -> watchlist.add(WatchlistItem(id, title, "", 2021, 100, rating = 8.1)) }
     }
 
     private fun showMine(): MineScreenModel {
         val user = FakeUserRepository(backend)
         val model = MineScreenModel(
             watching = watching,
-            favorites = favorites,
+            watchlist = watchlist,
             folders = BookmarkFolders(user, FakeFolderAppearanceRepository()),
-            removeFromWatchLater = RemoveFromWatchLaterUseCase(favorites, watching),
             clock = Clock.systemDefaultZone(),
+            sources = FakeContentSourceRepository(),
         )
         compose.setContent {
             FilmaxTvTheme {

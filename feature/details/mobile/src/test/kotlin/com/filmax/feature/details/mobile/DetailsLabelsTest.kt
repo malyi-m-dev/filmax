@@ -62,7 +62,7 @@ class DetailsLabelsTest {
         cast = "",
         country = "",
         genres = listOf(Genre(1, "Драма")),
-        rating = ItemRating(filmax = 0, filmaxPercentage = "", imdb = null, kinopoisk = null),
+        rating = ItemRating(),
         posters = Posters(small = "", medium = "", big = "", wide = null),
         duration = Duration(averageMinutes = minutes, totalMinutes = null),
         tracklist = tracks,

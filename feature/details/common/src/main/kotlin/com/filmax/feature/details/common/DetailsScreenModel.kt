@@ -5,10 +5,12 @@ import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.favorites.FavoritesRepository
-import com.filmax.core.domain.favorites.model.toFavoriteItem
 import com.filmax.core.domain.person.CastRepository
-import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
+import com.filmax.core.domain.source.ContentSourceRepository
+import com.filmax.core.domain.source.capabilities
+import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
+import com.filmax.core.domain.watchlist.WatchlistRepository
+import com.filmax.core.domain.watchlist.model.toWatchlistItem
 import com.filmax.core.presentation.BaseScreenModel
 import com.filmax.feature.details.common.navigation.DetailsRoute
 import kotlinx.coroutines.FlowPreview
@@ -20,10 +22,13 @@ import kotlinx.coroutines.flow.debounce
 class DetailsScreenModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
-    private val favorites: FavoritesRepository,
+    private val watchlist: WatchlistRepository,
     private val cast: CastRepository,
-    private val toggleWatchLater: ToggleWatchLaterUseCase,
-) : BaseScreenModel<DetailsState, DetailsSideEffect, DetailsEvent>(DetailsState()) {
+    private val toggleWatchlist: ToggleWatchlistUseCase,
+    sources: ContentSourceRepository,
+) : BaseScreenModel<DetailsState, DetailsSideEffect, DetailsEvent>(
+    DetailsState(foldersAvailable = sources.source.value.capabilities.folders),
+) {
 
     private val route = savedStateHandle.toRoute<DetailsRoute>()
 
@@ -74,7 +79,7 @@ class DetailsScreenModel(
                     }
                     // Down-sync: если на сервере фильм уже в watchlist — заносим в локальный кэш.
                     if (itemResult.data.inWatchlist) {
-                        favorites.add(itemResult.data.toFavoriteItem())
+                        watchlist.adopt(itemResult.data.toWatchlistItem())
                     }
                     loadCast(itemResult.data.imdbId)
                 }
@@ -102,7 +107,7 @@ class DetailsScreenModel(
 
     private fun observeFavoriteState() {
         screenModelScope {
-            favorites.isFavorite(route.itemId).collect { favorite ->
+            watchlist.contains(route.itemId).collect { favorite ->
                 updateState { it.copy(isFav = favorite) }
             }
         }
@@ -110,7 +115,7 @@ class DetailsScreenModel(
 
     private fun toggleFav() {
         val item = state.item ?: return
-        screenModelScope { toggleWatchLater(item) }
+        screenModelScope { toggleWatchlist(item) }
     }
 
     private fun observeSeasonRequests() {

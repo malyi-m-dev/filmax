@@ -8,8 +8,6 @@ import com.filmax.core.domain.usecase.auth.RequestDeviceCodeUseCase
 import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.home.HomeFeed
-import com.filmax.core.domain.usecase.watching.RemoveFromWatchLaterUseCase
-import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
 import com.filmax.core.network.di.networkModule
@@ -38,10 +36,8 @@ val domainUseCaseModule = module {
     factory { RequestDeviceCodeUseCase(get()) }
     factory { PollForTokenUseCase(get()) }
     factory { LogoutUseCase(get()) }
-    factory { ToggleWatchlistUseCase(get()) }
     factory { ToggleWatchedUseCase(get()) }
-    factory { ToggleWatchLaterUseCase(favorites = get(), watching = get()) }
-    factory { RemoveFromWatchLaterUseCase(favorites = get(), watching = get()) }
+    factory { ToggleWatchlistUseCase(watchlist = get()) }
     factory { BookmarkFolders(user = get(), appearance = get()) }
 }
 

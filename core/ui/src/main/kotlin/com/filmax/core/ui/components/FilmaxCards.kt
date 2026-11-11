@@ -189,14 +189,11 @@ private val FrameScrim = Brush.verticalGradient(
 )
 
 /**
- * Оценка для пилюли: в домене строка вида «8.312», на экране нужен один знак.
+ * Оценка для пилюли: в домене число вида 8.312, на экране нужен один знак.
  *
  * Ноль — это «оценки нет», а не «ноль баллов»: kino.pub отдаёт `0` для тайтлов без рейтинга,
  * и печатать «0.0» под постером — врать зрителю.
  */
-fun ratingLabel(raw: String?): String? = ratingLabel(raw?.toDoubleOrNull())
-
-/** То же для уже разобранной оценки (`rating.external` — усреднённая IMDb+КП). */
 fun ratingLabel(value: Double?): String? =
     value?.takeIf { it > 0 }?.let { String.format(Locale.US, "%.1f", it) }
 
@@ -204,7 +201,7 @@ fun ratingLabel(value: Double?): String? =
 private const val HIGH_RATING = 8.0
 
 /** Высокая ли оценка — такую пилюля выделяет вторым акцентом. */
-fun isHighRating(raw: String?): Boolean = (raw?.toDoubleOrNull() ?: 0.0) >= HIGH_RATING
+fun isHighRating(value: Double?): Boolean = (value ?: 0.0) >= HIGH_RATING
 
 /** Собирает мету `тип · год`, пропуская пустые части. */
 fun posterMeta(type: String?, year: Int): String? {

@@ -22,6 +22,7 @@ import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeSearchRepository
@@ -59,7 +60,11 @@ class TvCatalogFocusTest {
     val images = FakeImagesRule()
 
     private val backend = FakeBackend(latency = FakeLatency.None)
-    private val model = SearchScreenModel(FakeSearchRepository(backend), FakeCatalogRepository(backend))
+    private val model = SearchScreenModel(
+        FakeSearchRepository(backend),
+        FakeCatalogRepository(backend),
+        FakeContentSourceRepository(),
+    )
 
     @Before
     fun leanbackDevice() {

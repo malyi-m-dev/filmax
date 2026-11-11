@@ -9,10 +9,10 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.common.RequestResult
-import com.filmax.core.domain.favorites.FavoritesRepository
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.playback.StreamRepository
 import com.filmax.core.domain.search.SearchRepository
+import com.filmax.core.domain.watchlist.WatchlistRepository
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import kotlinx.coroutines.flow.Flow
 
 internal class RoutingAuthRepository(private val switch: SourceSwitch<AuthRepository>) : AuthRepository {
@@ -42,21 +42,19 @@ internal class RoutingSearchRepository(private val switch: SourceSwitch<SearchRe
         switch.current.searchByDirector(director, perPage)
 }
 
-internal class RoutingFavoritesRepository(
-    private val switch: SourceSwitch<FavoritesRepository>,
-) : FavoritesRepository {
+internal class RoutingWatchlistRepository(
+    private val switch: SourceSwitch<WatchlistRepository>,
+) : WatchlistRepository {
 
-    override val favorites: Flow<List<FavoriteItem>> = switch.flow { it.favorites }
+    override val items: Flow<List<WatchlistItem>> = switch.flow { it.items }
 
-    override val favoriteIds: Flow<Set<Int>> = switch.flow { it.favoriteIds }
+    override fun contains(itemId: Int): Flow<Boolean> = switch.flow { it.contains(itemId) }
 
-    override fun isFavorite(id: Int): Flow<Boolean> = switch.flow { it.isFavorite(id) }
+    override suspend fun add(item: WatchlistItem) = switch.current.add(item)
 
-    override suspend fun toggle(item: FavoriteItem): Boolean = switch.current.toggle(item)
+    override suspend fun remove(itemId: Int) = switch.current.remove(itemId)
 
-    override suspend fun add(item: FavoriteItem) = switch.current.add(item)
-
-    override suspend fun remove(id: Int) = switch.current.remove(id)
+    override suspend fun adopt(item: WatchlistItem) = switch.current.adopt(item)
 }
 
 internal class RoutingStreamRepository(private val switch: SourceSwitch<StreamRepository>) : StreamRepository {

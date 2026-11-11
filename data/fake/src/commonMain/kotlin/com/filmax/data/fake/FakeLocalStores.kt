@@ -1,7 +1,5 @@
 package com.filmax.data.fake
 
-import com.filmax.core.domain.favorites.FavoritesRepository
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.feedback.FeedbackPromptState
 import com.filmax.core.domain.feedback.FeedbackPromptStore
 import com.filmax.core.domain.playback.PlaybackSettings
@@ -10,6 +8,8 @@ import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.domain.settings.ThemeSettingsRepository
 import com.filmax.core.domain.user.FolderAppearanceRepository
 import com.filmax.core.domain.user.model.FolderAppearance
+import com.filmax.core.domain.watchlist.WatchlistRepository
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,27 +20,26 @@ import kotlinx.coroutines.flow.update
 // к kino.pub не ходят, поэтому мок-сборка берёт их как есть, а юнит-тестам ScreenModel'ей нужны
 // эти: чистое состояние на каждый тест, без Android-контекста.
 
-/** «Буду смотреть» в памяти — вместо локального кэша избранного. */
-class FakeFavoritesRepository : FavoritesRepository {
-    private val items = MutableStateFlow<List<FavoriteItem>>(emptyList())
+/**
+ * «Буду смотреть» в памяти, без «сервера»: тестам ScreenModel'ей, которым нужен пустой список и
+ * тайтлы с произвольными id и оценками. Список и папки фейкового сервера ведёт
+ * [FakeWatchlistRepository].
+ */
+class InMemoryWatchlistRepository : WatchlistRepository {
+    private val state = MutableStateFlow<List<WatchlistItem>>(emptyList())
 
-    override val favorites: Flow<List<FavoriteItem>> = items
-    override val favoriteIds: Flow<Set<Int>> = items.map { list -> list.mapTo(HashSet()) { it.id } }
+    override val items: Flow<List<WatchlistItem>> = state
 
-    override fun isFavorite(id: Int): Flow<Boolean> = items.map { list -> list.any { it.id == id } }
+    override fun contains(itemId: Int): Flow<Boolean> = state.map { list -> list.any { it.id == itemId } }
 
-    override suspend fun toggle(item: FavoriteItem): Boolean {
-        val present = items.value.any { it.id == item.id }
-        items.value = if (present) items.value.filterNot { it.id == item.id } else items.value + item
-        return !present
+    override suspend fun add(item: WatchlistItem) = adopt(item)
+
+    override suspend fun remove(itemId: Int) {
+        state.update { list -> list.filterNot { it.id == itemId } }
     }
 
-    override suspend fun add(item: FavoriteItem) {
-        if (items.value.none { it.id == item.id }) items.value = items.value + item
-    }
-
-    override suspend fun remove(id: Int) {
-        items.value = items.value.filterNot { it.id == id }
+    override suspend fun adopt(item: WatchlistItem) {
+        state.update { list -> if (list.any { it.id == item.id }) list else list + item }
     }
 }
 

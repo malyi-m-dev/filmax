@@ -252,8 +252,8 @@ private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, actions: Fold
             cards.handoff.handOff(cards.keys, key)
             removing = true
         },
-        rating = ratingLabel(item.rating.kinopoisk),
-        ratingHighlighted = isHighRating(item.rating.kinopoisk),
+        rating = ratingLabel(item.rating.primary),
+        ratingHighlighted = isHighRating(item.rating.primary),
         modifier = Modifier
             .animateItem(fadeOutSpec = null)
             .fxEnter(FIRST_POSTER_ENTER + index % GRID_COLUMNS)

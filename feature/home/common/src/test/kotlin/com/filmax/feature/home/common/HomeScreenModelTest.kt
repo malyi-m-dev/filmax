@@ -1,18 +1,20 @@
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogRepository
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.LastValueCache
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
-import com.filmax.core.domain.usecase.watching.ToggleWatchLaterUseCase
+import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
-import com.filmax.data.fake.FakeFavoritesRepository
 import com.filmax.data.fake.FakeFeedbackPromptStore
+import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
 import com.filmax.data.fake.FakeUserRepository
 import com.filmax.data.fake.FakeWatchingRepository
+import com.filmax.data.fake.FakeWatchlistRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -152,13 +154,13 @@ class HomeScreenModelTest {
 
     private fun homeModel(catalog: CatalogRepository = FakeCatalogRepository(backend)): HomeScreenModel {
         val watching = FakeWatchingRepository(backend)
-        val favorites = FakeFavoritesRepository()
+        val watchlist = FakeWatchlistRepository(backend)
         return HomeScreenModel(
             getHomeFeed = GetHomeFeedUseCase(catalog, watching, LastValueCache()),
             catalog = catalog,
             user = FakeUserRepository(backend),
-            favorites = favorites,
-            toggleWatchLater = ToggleWatchLaterUseCase(favorites, watching),
+            watchlist = watchlist,
+            toggleWatchlist = ToggleWatchlistUseCase(watchlist),
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),
         )
     }
@@ -167,10 +169,17 @@ class HomeScreenModelTest {
 
     /** Тайтл из выдачи источника: тот же тип и, если источник с жанром, тот же жанр. */
     private fun Item.belongsTo(source: TitleSource): Boolean = when (source) {
-        is TitleSource.Catalog ->
-            type == source.type && (source.genreId == null || genres.any { it.id == source.genreId })
+        is TitleSource.Catalog -> type == source.type && source.genre.let { genre ->
+            genre == null || genres.any { it.id == genre.fixtureId }
+        }
         is TitleSource.Shortcut -> type == source.type
     }
+
+    private val GenreFilter.fixtureId: Int
+        get() = when (this) {
+            is GenreFilter.Listed -> id
+            is GenreFilter.Reference -> FakeIds.genreId(genre)
+        }
 
     private companion object {
         /** Страница каталога фейка — потолок «точного» счёта подборки. */

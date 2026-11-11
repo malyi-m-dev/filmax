@@ -49,6 +49,7 @@ import com.filmax.core.designsystem.GlassState
 import com.filmax.core.designsystem.ShapeFull
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.format.shortTitle
 import com.filmax.core.ui.components.FilmaxActionTile
 import com.filmax.core.ui.components.FilmaxBadge
 import com.filmax.core.ui.components.FilmaxGlassHeader
@@ -90,7 +91,12 @@ internal fun DetailsHead(item: Item, state: DetailsState, inAnyFolder: Boolean, 
                 Text(it, style = FilmaxType.meta, color = FilmaxColors.TextDim, modifier = Modifier.padding(top = 6.dp))
             }
             DetailsMeta(item = item, series = series, modifier = Modifier.padding(top = 12.dp))
-            ActionTiles(item = item, isFav = state.isFav, inAnyFolder = inAnyFolder, actions = actions)
+            ActionTiles(
+                item = item,
+                isFav = state.isFav,
+                inAnyFolder = inAnyFolder.takeIf { state.foldersAvailable },
+                actions = actions,
+            )
         }
     }
 }
@@ -146,9 +152,11 @@ private fun DetailsMeta(item: Item, series: SeriesData?, modifier: Modifier = Mo
         verticalArrangement = Arrangement.spacedBy(6.dp),
         itemVerticalAlignment = Alignment.CenterVertically,
     ) {
-        ratingLabel(item.rating.kinopoisk ?: item.rating.imdb)?.let { FilmaxRatingPill(it) }
-        ratingLabel(item.rating.kinopoisk)?.let { MetaText("КП $it") }
-        ratingLabel(item.rating.imdb)?.let { MetaText("IMDb $it") }
+        ratingLabel(item.rating.primary)?.let { FilmaxRatingPill(it) }
+        // Каждая оценка — с подписью источника: «КП 8.1», «IMDb 7.9» или «Рейтинг 7.5» у сервера.
+        item.rating.values.forEach { rating ->
+            ratingLabel(rating.value)?.let { MetaText("${rating.source.shortTitle} $it") }
+        }
         volumeLabel(item, series)?.let { MetaText(it) }
         if (hasUhd(item)) FilmaxBadge("4K")
     }
@@ -161,10 +169,11 @@ private fun MetaText(text: String) {
 
 /**
  * Плитки действий под заголовком. «Скачать» макета не рисуем: kino.pub не отдаёт файлы для
- * офлайна, а плитка, которая ничего не скачивает, — обман.
+ * офлайна, а плитка, которая ничего не скачивает, — обман. [inAnyFolder] = null — у источника
+ * нет папок, плитки «В папку» нет.
  */
 @Composable
-private fun ActionTiles(item: Item, isFav: Boolean, inAnyFolder: Boolean, actions: DetailsActions) {
+private fun ActionTiles(item: Item, isFav: Boolean, inAnyFolder: Boolean?, actions: DetailsActions) {
     // Трейлер показываем, только если url — играбельный http(s) (kino.pub отдаёт прямой HLS).
     val trailerUrl = item.trailer?.url?.takeIf { it.startsWith("http") }
     Row(
@@ -186,13 +195,15 @@ private fun ActionTiles(item: Item, isFav: Boolean, inAnyFolder: Boolean, action
             active = isFav,
             modifier = Modifier.weight(1f),
         )
-        FilmaxActionTile(
-            icon = if (inAnyFolder) Icons.Filled.Folder else Icons.Filled.CreateNewFolder,
-            label = "В папку",
-            onClick = { actions.onFolders(FolderPickerEvent.Open) },
-            active = inAnyFolder,
-            modifier = Modifier.weight(1f),
-        )
+        if (inAnyFolder != null) {
+            FilmaxActionTile(
+                icon = if (inAnyFolder) Icons.Filled.Folder else Icons.Filled.CreateNewFolder,
+                label = "В папку",
+                onClick = { actions.onFolders(FolderPickerEvent.Open) },
+                active = inAnyFolder,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 

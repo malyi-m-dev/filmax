@@ -2,10 +2,12 @@
 package com.filmax.data.jellyfin
 
 import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.CatalogGenres
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
+import com.filmax.core.domain.catalog.ReferenceGenre
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.data.jellyfin.mapper.IsoDates
 import com.filmax.data.jellyfin.remote.ItemsQuery
 
@@ -56,13 +58,13 @@ internal fun CatalogShortcut.toQuery(type: ItemType): ItemsQuery = when (this) {
 }
 
 /**
- * Фильтры каталога. Отдельной оценки Кинопоиска у сервера нет: оба порога сводятся к общей
- * оценке сервера. Страну сервер не фильтрует — список стран для фильтра пуст, и её не выбрать.
+ * Фильтры каталога. Порог берётся по оценке сервера — другой у него нет, и экран другие не
+ * предлагает (`SourceCapabilities.ratings`). Страну сервер не фильтрует — её тоже не предложат.
  */
 internal fun ItemsQuery.filtered(filters: CatalogFilters): ItemsQuery = copy(
     minPremiereDate = filters.yearFrom?.let(IsoDates::startOfYear),
     maxPremiereDate = filters.yearTo?.let(IsoDates::endOfYear),
-    minCommunityRating = listOfNotNull(filters.kpRatingFrom, filters.imdbRatingFrom).maxOrNull()?.toDouble(),
+    minCommunityRating = filters.minRating(RatingSource.COMMUNITY)?.toDouble(),
     is4K = filters.only4k.takeIf { it },
     seriesStatus = when (filters.onlyFinished) {
         true -> listOf(STATUS_ENDED)
@@ -72,15 +74,13 @@ internal fun ItemsQuery.filtered(filters: CatalogFilters): ItemsQuery = copy(
 )
 
 /**
- * Жанр выдачи. Опорные жанры kino.pub ([CatalogGenres]) экраны передают их числом — ряды Главной
- * «Комедии», «Мультфильмы», фильтр «Аниме». На сервере таких id нет, поэтому они ищутся по имени;
- * прочие id — жанры самого сервера из справочника ([JellyfinIds] выдаёт их от 2³⁰ и с опорными
- * не путает).
+ * Жанр выдачи. Опорные жанры ([ReferenceGenre]: ряды Главной «Комедии», «Мультфильмы», раздел
+ * «Аниме») ищутся по имени — их id у сервера нет; жанры справочника — по своему GUID.
  */
-internal fun ItemsQuery.withGenre(genreId: Int?, ids: JellyfinIds): ItemsQuery = when (genreId) {
+internal fun ItemsQuery.withGenre(genre: GenreFilter?, ids: JellyfinIds): ItemsQuery = when (genre) {
     null -> this
-    in REFERENCE_GENRES -> copy(genres = REFERENCE_GENRES.getValue(genreId))
-    else -> copy(genreIds = listOf(ids.requireGuid(genreId)))
+    is GenreFilter.Reference -> copy(genres = genre.genre.names)
+    is GenreFilter.Listed -> copy(genreIds = listOf(ids.requireGuid(genre.id)))
 }
 
 private const val DATE_CREATED = "DateCreated"
@@ -98,10 +98,11 @@ private val DOCUMENTARY_GENRES = listOf("Documentary", "Документальн
 private val TV_SHOW_GENRES = listOf("Reality", "Talk", "Game Show", "реалити-шоу", "ток-шоу")
 private val CONCERT_GENRES = listOf("Music", "Concert", "Музыка", "музыка", "Концерт")
 
-private val REFERENCE_GENRES: Map<Int, List<String>> = mapOf(
-    CatalogGenres.COMEDY to listOf("Comedy", "Комедия", "комедия"),
-    CatalogGenres.SCI_FI to listOf("Science Fiction", "Sci-Fi & Fantasy", "Фантастика", "фантастика"),
-    CatalogGenres.CARTOON to listOf("Animation", "Мультфильм", "мультфильм"),
-    CatalogGenres.ANIME to ANIME_GENRES,
-    CatalogGenres.DORAMA to listOf("Дорама", "дорама", "K-Drama"),
-)
+private val ReferenceGenre.names: List<String>
+    get() = when (this) {
+        ReferenceGenre.COMEDY -> listOf("Comedy", "Комедия", "комедия")
+        ReferenceGenre.SCI_FI -> listOf("Science Fiction", "Sci-Fi & Fantasy", "Фантастика", "фантастика")
+        ReferenceGenre.CARTOON -> listOf("Animation", "Мультфильм", "мультфильм")
+        ReferenceGenre.ANIME -> ANIME_GENRES
+        ReferenceGenre.DORAMA -> listOf("Дорама", "дорама", "K-Drama")
+    }

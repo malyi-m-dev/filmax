@@ -1,9 +1,9 @@
 package com.filmax.data.jellyfin
 
 import com.filmax.core.domain.common.getOrNull
-import com.filmax.core.domain.favorites.FavoritesRepository
-import com.filmax.core.domain.favorites.model.FavoriteItem
-import com.filmax.core.domain.favorites.model.toFavoriteItem
+import com.filmax.core.domain.watchlist.WatchlistRepository
+import com.filmax.core.domain.watchlist.model.WatchlistItem
+import com.filmax.core.domain.watchlist.model.toWatchlistItem
 import com.filmax.data.jellyfin.remote.ItemsQuery
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -21,12 +21,12 @@ import kotlinx.coroutines.launch
  * Список перечитывается при каждом входе: до входа сервера нет, а после выхода прежний список
  * показывать нельзя. Отметка ставится оптимистично — сердечко реагирует сразу, сервер догоняет.
  */
-internal class JellyfinFavoritesRepository(
+internal class JellyfinWatchlistRepository(
     private val context: JellyfinContext,
     scope: CoroutineScope,
-) : FavoritesRepository {
+) : WatchlistRepository {
 
-    private val state = MutableStateFlow<List<FavoriteItem>>(emptyList())
+    private val state = MutableStateFlow<List<WatchlistItem>>(emptyList())
 
     init {
         scope.launch {
@@ -36,26 +36,23 @@ internal class JellyfinFavoritesRepository(
         }
     }
 
-    override val favorites: Flow<List<FavoriteItem>> = state.asStateFlow()
+    override val items: Flow<List<WatchlistItem>> = state.asStateFlow()
 
-    override val favoriteIds: Flow<Set<Int>> = state.map { list -> list.map { it.id }.toSet() }
+    override fun contains(itemId: Int): Flow<Boolean> = state.map { list -> list.any { it.id == itemId } }
 
-    override fun isFavorite(id: Int): Flow<Boolean> = state.map { list -> list.any { it.id == id } }
-
-    override suspend fun toggle(item: FavoriteItem): Boolean {
-        val added = state.value.none { it.id == item.id }
-        if (added) add(item) else remove(item.id)
-        return added
-    }
-
-    override suspend fun add(item: FavoriteItem) {
-        state.update { list -> list.filterNot { it.id == item.id } + item }
+    override suspend fun add(item: WatchlistItem) {
+        adopt(item)
         context.request { _ -> context.api.setFavorite(context.ids.requireGuid(item.id), favorite = true) }
     }
 
-    override suspend fun remove(id: Int) {
-        state.update { list -> list.filterNot { it.id == id } }
-        context.request { _ -> context.api.setFavorite(context.ids.requireGuid(id), favorite = false) }
+    override suspend fun remove(itemId: Int) {
+        state.update { list -> list.filterNot { it.id == itemId } }
+        context.request { _ -> context.api.setFavorite(context.ids.requireGuid(itemId), favorite = false) }
+    }
+
+    // Избранным тайтл отметили в вебе Jellyfin после входа: список его просто подхватывает.
+    override suspend fun adopt(item: WatchlistItem) {
+        state.update { list -> list.filterNot { it.id == item.id } + item }
     }
 
     private suspend fun refresh() {
@@ -65,7 +62,7 @@ internal class JellyfinFavoritesRepository(
             sortBy = listOf(SORT_NAME),
             ascending = true,
         )
-        context.request { mapper -> context.api.items(query).items.orEmpty().map { mapper.item(it).toFavoriteItem() } }
+        context.request { mapper -> context.api.items(query).items.orEmpty().map { mapper.item(it).toWatchlistItem() } }
             .getOrNull()
             ?.let { list -> state.value = list.distinctBy { it.id } }
     }

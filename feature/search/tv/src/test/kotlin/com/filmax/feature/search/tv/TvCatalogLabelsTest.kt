@@ -6,6 +6,7 @@ import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.ui.components.VoiceSearchError
 import com.filmax.core.ui.components.voiceErrorText
 import com.filmax.feature.search.common.CatalogCount
@@ -34,7 +35,7 @@ class TvCatalogLabelsTest {
 
     @Test
     fun `summary names type and genre but not the all chip`() {
-        val sciFi = Genre(id = 4, title = "Фантастика", type = "movie")
+        val sciFi = Genre(id = 4, title = "Фантастика")
         val state =
             SearchState(genres = listOf(sciFi), selectedGenreId = 4, catalogCount = CatalogCount(42, exact = true))
 
@@ -59,7 +60,9 @@ class TvCatalogLabelsTest {
     @Test
     fun `filters chip counts applied filters`() {
         assertEquals("Фильтры", filtersChipLabel(CatalogFilters()))
-        assertEquals("Фильтры · 2", filtersChipLabel(CatalogFilters(only4k = true, kpRatingFrom = 7)))
+        val filters = CatalogFilters(only4k = true).withMinRating(RatingSource.KINOPOISK, 7)
+
+        assertEquals("Фильтры · 2", filtersChipLabel(filters))
     }
 
     @Test

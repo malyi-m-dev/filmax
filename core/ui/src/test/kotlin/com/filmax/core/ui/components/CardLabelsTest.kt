@@ -10,16 +10,14 @@ class CardLabelsTest {
 
     @Test
     fun `rating keeps one decimal`() {
-        assertEquals("8.3", ratingLabel("8.312"))
+        assertEquals("8.3", ratingLabel(8.312))
         assertEquals("7.0", ratingLabel(7.0))
     }
 
     @Test
     fun `zero or missing rating means no rating, not zero points`() {
-        assertNull(ratingLabel("0"))
         assertNull(ratingLabel(0.0))
-        assertNull(ratingLabel(null as String?))
-        assertNull(ratingLabel("нет"))
+        assertNull(ratingLabel(null))
     }
 
     @Test

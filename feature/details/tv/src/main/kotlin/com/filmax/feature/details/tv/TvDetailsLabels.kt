@@ -4,6 +4,7 @@ package com.filmax.feature.details.tv
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.presentation.format.title
 import com.filmax.core.tv.designsystem.TvEpisodeRowModel
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
@@ -28,11 +29,13 @@ internal fun overline(item: Item, series: SeriesData?): String = listOfNotNull(
     item.country.substringBefore(',').trim().takeIf { it.isNotBlank() },
 ).joinToString(" · ")
 
-/** Бейджи оценок: Кинопоиск — главный, IMDb — вторым. Ноль — «оценки нет», бейджа нет. */
-internal fun ratingBadges(item: Item): List<RatingBadge> = listOfNotNull(
-    ratingLabel(item.rating.kinopoisk)?.let { RatingBadge(it, "КиноПоиск", highlighted = true) },
-    ratingLabel(item.rating.imdb)?.let { RatingBadge(it, "IMDb", highlighted = false) },
-)
+/**
+ * Бейджи оценок в порядке источника: главная (у kino.pub — Кинопоиск) выделена, остальные — за
+ * ней. Ноль — «оценки нет», бейджа нет.
+ */
+internal fun ratingBadges(item: Item): List<RatingBadge> = item.rating.values.mapIndexedNotNull { index, rating ->
+    ratingLabel(rating.value)?.let { RatingBadge(it, rating.source.title, highlighted = index == 0) }
+}
 
 /** Мета рядом с оценками: фильм — жанры и длительность, сериал — год и жанры. */
 internal fun metaLine(item: Item, series: SeriesData?): String = listOfNotNull(

@@ -227,7 +227,7 @@ private const val DESCRIPTION_LINES = 3
 @Composable
 private fun HeroMeta(item: Item, modifier: Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        ratingLabel(item.rating.kinopoisk)?.let { TvRatingPill(it) }
+        ratingLabel(item.rating.primary)?.let { TvRatingPill(it) }
         TvMetaRow(heroMetaParts(item))
     }
 }

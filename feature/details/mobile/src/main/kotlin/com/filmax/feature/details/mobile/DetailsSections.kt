@@ -144,7 +144,7 @@ private fun SimilarRow(similar: List<Item>, onOpenItem: (Int) -> Unit) {
                     title = item.title,
                     posterUrl = item.posters.medium,
                     onClick = { onOpenItem(item.id) },
-                    rating = ratingLabel(item.rating.kinopoisk),
+                    rating = ratingLabel(item.rating.primary),
                     meta = posterMeta(typeLabel(item.type), item.year),
                     modifier = Modifier.width(FilmaxMetrics.PosterWidth),
                 )

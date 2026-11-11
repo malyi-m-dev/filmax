@@ -4,9 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.feedback.FeedbackPrompts
 import com.filmax.core.domain.playback.PlaybackSettings
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.data.fake.FakeBackend
 import com.filmax.data.fake.FakeCatalogRepository
+import com.filmax.data.fake.FakeContentSourceRepository
 import com.filmax.data.fake.FakeFeedbackPromptStore
 import com.filmax.data.fake.FakeIds
 import com.filmax.data.fake.FakeLatency
@@ -53,6 +55,8 @@ class PlayerScreenModelTest {
     private val backend = FakeBackend(latency = FakeLatency.None)
     private val models = mutableListOf<PlayerScreenModel>()
     private val tvLink = FakeTvLinkReceiver()
+    private val user = FakeUserRepository(backend)
+    private val sources = FakeContentSourceRepository()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -85,6 +89,21 @@ class PlayerScreenModelTest {
         val next = assertNotNull(loaded(FakeIds.LONG_SERIES, season = 4, videoId = LAST_OF_S4).states.value.nextTrack)
 
         assertEquals(5 to 1, next.seasonNumber to next.number)
+    }
+
+    @Test
+    fun `inactive kinopub subscription shows the subscription notice`() = runTest(dispatcher) {
+        user.expireSubscription()
+
+        assertTrue(loaded(FakeIds.HERO_MOVIE).states.value.subscriptionRequired)
+    }
+
+    @Test
+    fun `home server never asks for a subscription`() = runTest(dispatcher) {
+        user.expireSubscription()
+        sources.select(ContentSource.JELLYFIN)
+
+        assertFalse(loaded(FakeIds.HERO_MOVIE).states.value.subscriptionRequired)
     }
 
     @Test
@@ -319,8 +338,9 @@ class PlayerScreenModelTest {
             repositories = PlayerRepositories(
                 catalog = FakeCatalogRepository(backend),
                 watching = FakeWatchingRepository(backend),
-                user = FakeUserRepository(backend),
+                user = user,
                 streams = FakeStreamRepository(),
+                sources = sources,
             ),
             playbackSettings = settings,
             feedbackPrompts = FeedbackPrompts(FakeFeedbackPromptStore(), appVersion = "test", now = { 0L }),

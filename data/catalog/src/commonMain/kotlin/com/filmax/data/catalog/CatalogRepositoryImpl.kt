@@ -4,6 +4,7 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
+import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.CollectionPage
@@ -12,6 +13,7 @@ import com.filmax.core.domain.catalog.model.Genre
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
+import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.safeRequest
 import com.filmax.data.catalog.mapper.toDomain
@@ -28,31 +30,23 @@ internal class CatalogRepositoryImpl(
 ) : CatalogRepository {
 
     override suspend fun getItems(type: ItemType, sort: CatalogSort, page: Int): RequestResult<ItemPage> =
-        safeRequest { api.getItems(type.apiValue, sort.descending, page).toDomain() }
-
-    override suspend fun getItemsByGenre(
-        type: ItemType,
-        genreId: Int,
-        sort: CatalogSort,
-        page: Int,
-    ): RequestResult<ItemPage> =
-        safeRequest { api.getItemsByGenre(type.apiValue, genreId, sort.descending, page).toDomain() }
+        safeRequest { api.getItems(type.kinopubValue, SortOption(sort).kinopubSort, page).toDomain() }
 
     override suspend fun getItems(
         type: ItemType,
-        genreId: Int?,
+        genre: GenreFilter?,
         filters: CatalogFilters,
         sort: SortOption,
         page: Int,
     ): RequestResult<ItemPage> =
-        safeRequest { api.getFilteredItems(filters.toQuery(type, genreId, sort, page)).toDomain() }
+        safeRequest { api.getFilteredItems(filters.toQuery(type, genre, sort, page)).toDomain() }
 
     override suspend fun getShortcutItems(
         shortcut: CatalogShortcut,
         type: ItemType,
         page: Int,
     ): RequestResult<ItemPage> =
-        safeRequest { api.getItemsByShortcut(shortcut.path, type.apiValue, page).toDomain() }
+        safeRequest { api.getItemsByShortcut(shortcut.kinopubPath, type.kinopubValue, page).toDomain() }
 
     override suspend fun getItemDetails(id: Int): RequestResult<Item> =
         safeRequest { api.getItemDetails(id).item.toDomain() }
@@ -79,26 +73,24 @@ internal class CatalogRepositoryImpl(
 }
 
 /**
- * Короткие перегрузки без [SortOption] всегда сортируют по убыванию: «популярное», «лучшее»
- * и «свежее» читаются сверху вниз. kino.pub: минус-префикс = DESC (см. [SortOption.apiValue]).
- */
-private val CatalogSort.descending: String get() = "-$apiValue"
-
-/**
  * Разворачивает доменные [CatalogFilters] в параметры `api/v1/items`. Диапазоны года и пороги
  * рейтингов уходят повторяемыми `conditions[]`, страна/качество/завершённость — отдельными
  * параметрами (так их принимает kino.pub).
  */
 private fun CatalogFilters.toQuery(
     type: ItemType,
-    genreId: Int?,
+    genre: GenreFilter?,
     sort: SortOption,
     page: Int,
 ): ItemsQuery = ItemsQuery(
-    type = type.apiValue,
-    sort = sort.apiValue,
+    type = type.kinopubValue,
+    sort = sort.kinopubSort,
     page = page,
-    genreId = genreId,
+    genreId = when (genre) {
+        null -> null
+        is GenreFilter.Listed -> genre.id
+        is GenreFilter.Reference -> genre.genre.kinopubId
+    },
     countryId = countryId,
     quality = if (only4k) QUALITY_4K else null,
     // finished=1 — только завершённые, finished=0 — только продолжающиеся, отсутствие — любые.
@@ -109,6 +101,6 @@ private fun CatalogFilters.toQuery(
 private fun CatalogFilters.buildConditions(): List<String> = buildList {
     yearFrom?.let { add("year>=$it") }
     yearTo?.let { add("year<=$it") }
-    kpRatingFrom?.let { add("kinopoisk_rating>=$it") }
-    imdbRatingFrom?.let { add("imdb_rating>=$it") }
+    minRating(RatingSource.KINOPOISK)?.let { add("kinopoisk_rating>=$it") }
+    minRating(RatingSource.IMDB)?.let { add("imdb_rating>=$it") }
 }

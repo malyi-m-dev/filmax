@@ -17,11 +17,11 @@ struct TvLibraryView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .task { await viewModel.load() }
-        .task { await viewModel.observeFavorites() }
+        .task { await viewModel.observeWatchlist() }
     }
 
     private var isEmpty: Bool {
-        viewModel.history.isEmpty && viewModel.favorites.isEmpty && viewModel.folders.isEmpty
+        viewModel.history.isEmpty && viewModel.watchlist.isEmpty && viewModel.folders.isEmpty
     }
 
     private var content: some View {
@@ -30,8 +30,8 @@ struct TvLibraryView: View {
                 if !viewModel.history.isEmpty {
                     TvHistoryRail(title: "Продолжить просмотр", items: viewModel.history)
                 }
-                if !viewModel.favorites.isEmpty {
-                    localRail(title: "Избранное", cards: viewModel.favorites.map {
+                if !viewModel.watchlist.isEmpty {
+                    localRail(title: "Буду смотреть", cards: viewModel.watchlist.map {
                         LocalCard(id: $0.id, title: $0.title, poster: $0.posterSmall)
                     })
                 }

@@ -96,8 +96,8 @@ private fun PosterRail(row: HomeRow.Titles, actions: RailActions, focus: TvScree
                 meta = posterMeta(typeLabel(item.type), item.year),
                 posterUrl = item.posters.medium.ifEmpty { item.posters.big },
                 onClick = { actions.onOpenItem(item.id) },
-                rating = ratingLabel(item.rating.kinopoisk),
-                ratingHighlighted = isHighRating(item.rating.kinopoisk),
+                rating = ratingLabel(item.rating.primary),
+                ratingHighlighted = isHighRating(item.rating.primary),
                 rank = (index + 1).takeIf { ranked && index < RANKED_COUNT },
                 modifier = focus.item(returnKey(row.id, item.id)).tvRailEntry(index),
             )

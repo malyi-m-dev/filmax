@@ -3,8 +3,8 @@
 // MineScreenModel и проверяют тесты с фиксированным «сейчас».
 package com.filmax.feature.library.common
 
-import com.filmax.core.domain.favorites.model.FavoriteItem
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.domain.watchlist.model.WatchlistItem
 import java.text.Collator
 import java.time.Instant
 import java.time.LocalDate
@@ -66,10 +66,10 @@ fun changedLabel(updatedAt: Long?, now: ZonedDateTime): String? {
     return "изменена ${dayLabel(day, now.toLocalDate()).replaceFirstChar { it.lowercase(Russian) }}"
 }
 
-fun sortedWatchlist(items: List<FavoriteItem>, sort: WatchlistSort): List<FavoriteItem> = when (sort) {
+fun sortedWatchlist(items: List<WatchlistItem>, sort: WatchlistSort): List<WatchlistItem> = when (sort) {
     WatchlistSort.NEWEST -> items
     // Без оценки — в конец: «по рейтингу» значит «сначала лучшее из известного».
-    WatchlistSort.RATING -> items.sortedByDescending { it.rating?.toDoubleOrNull() ?: Double.NEGATIVE_INFINITY }
+    WatchlistSort.RATING -> items.sortedByDescending { it.rating ?: Double.NEGATIVE_INFINITY }
     WatchlistSort.TITLE -> items.sortedWith(compareBy(TitleCollator) { it.title })
 }
 

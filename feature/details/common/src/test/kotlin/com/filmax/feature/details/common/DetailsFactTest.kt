@@ -56,7 +56,7 @@ class DetailsFactTest {
         cast = "",
         country = "Норвегия, Дания",
         genres = listOf(Genre(id = 1, title = "Фэнтези"), Genre(id = 2, title = "Приключения")),
-        rating = ItemRating(filmax = 0, filmaxPercentage = "", imdb = null, kinopoisk = null),
+        rating = ItemRating(),
         posters = Posters(small = "", medium = "", big = "", wide = null),
         duration = Duration(averageMinutes = 131.0, totalMinutes = null),
         tracklist = listOf(
