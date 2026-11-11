@@ -2,56 +2,63 @@ import Combine
 import Foundation
 import Shared
 
-/// Презентейшен поиска (iOS + tvOS) поверх общего `SearchRepository`. Дебаунс ввода — здесь;
-/// сам поиск (по названию/актёру/режиссёру) — в общем слое.
+/// Поиск (iOS и tvOS) поверх общего `SearchRepository`: дебаунс ввода, недавние запросы и
+/// подсказки. Повторы id убирает `ArrangeCatalog` — сетка с дублем ключа падает.
 @MainActor
 final class SearchViewModel: ObservableObject {
     @Published var query = "" { didSet { scheduleSearch() } }
     @Published var results: [Item] = []
+    @Published var recent: [String] = []
     @Published var isLoading = false
     @Published var error: String?
-    /// true — пользователь ещё не искал (стартовое состояние).
-    @Published var isIdle = true
 
+    let trending = ["Мстители", "Дюна", "Офис", "Ведьмак", "Интерстеллар", "Во все тяжкие", "Оппенгеймер"]
+
+    /// true — запрос короче двух символов: показываем подсказки, а не выдачу.
+    var isIdle: Bool { query.trimmingCharacters(in: .whitespacesAndNewlines).count < Self.minQueryLength }
+
+    private static let minQueryLength = 2
+    private static let recentLimit = 8
     private let search = RepositoryProvider.shared.search
     private var task: Task<Void, Never>?
+
+    /// Открыт результат — запрос запоминается в недавних, а не каждая набранная подстрока.
+    func remember() {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= Self.minQueryLength else { return }
+        recent = Array(([trimmed] + recent.filter { $0 != trimmed }).prefix(Self.recentLimit))
+    }
 
     private func scheduleSearch() {
         task?.cancel()
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 2 else {
+        guard trimmed.count >= Self.minQueryLength else {
             results = []
             error = nil
-            isIdle = true
             isLoading = false
             return
         }
         task = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 400_000_000) // дебаунс 400 мс
+            try? await Task.sleep(nanoseconds: 300_000_000)
             if Task.isCancelled { return }
-            await self?.performSearch(trimmed)
+            await self?.perform(trimmed)
         }
     }
 
-    private func performSearch(_ text: String) async {
+    private func perform(_ text: String) async {
         isLoading = true
         error = nil
-        isIdle = false
-        do {
-            let result = try await search.search(query: text, type: nil, perPage: 24)
-            // Пока шёл запрос, пользователь мог набрать дальше (новый task отменил этот) —
-            // не затираем свежие результаты устаревшим ответом.
-            if Task.isCancelled { return }
-            switch onEnum(of: result) {
-            case .success(let success):
-                results = (success.data as? [Item]) ?? []
-            case .error(let requestError):
-                error = requestError.message ?? "Не удалось выполнить поиск."
-                results = []
-            }
-        } catch {
-            if Task.isCancelled { return }
-            self.error = error.localizedDescription
+        let result: Loaded<[Item]> = await request(fallback: "Не удалось выполнить поиск.") {
+            try await self.search.search(query: text, type: nil, perPage: 30)
+        }
+        // Пока шёл запрос, зритель набрал дальше — устаревший ответ свежий не затирает.
+        if Task.isCancelled { return }
+        switch result {
+        case .value(let items):
+            results = ArrangeCatalog.shared.firstPage(items: items, sort: SortOption(field: .views, ascending: false))
+        case .failure(let message):
+            error = message
+            results = []
         }
         isLoading = false
     }

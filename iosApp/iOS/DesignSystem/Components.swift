@@ -210,3 +210,71 @@ struct OfflineBanner: View {
         .background(Theme.accentSoft)
     }
 }
+
+// MARK: - Ряды и сетки тайтлов
+
+/// Горизонтальный ряд тайтлов с заголовком; [onReachEnd] — догрузка, когда показан последний.
+struct ItemRail: View {
+    let title: String
+    let items: [Item]
+    var onReachEnd: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            SectionHeader(title: title).padding(.horizontal, DS.Spacing.md)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: DS.Spacing.md) {
+                    ForEach(items, id: \.id) { item in
+                        NavigationLink(value: AppRoute.details(itemId: item.id)) {
+                            PosterCard(posterURL: item.posterURL, title: item.title, subtitle: item.posterMeta, ratingText: item.ratingText)
+                        }
+                        .buttonStyle(.plain)
+                        .onAppear { if item.id == items.last?.id { onReachEnd?() } }
+                    }
+                }
+                .padding(.horizontal, DS.Spacing.md)
+            }
+        }
+    }
+}
+
+/// Адаптивная сетка постеров: на iPad колонок больше, на iPhone — три.
+struct ItemGrid: View {
+    let items: [Item]
+    var onReachEnd: (() -> Void)? = nil
+
+    private let columns = [GridItem(.adaptive(minimum: 108), spacing: DS.Spacing.md, alignment: .top)]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: DS.Spacing.lg) {
+            ForEach(items, id: \.id) { item in
+                NavigationLink(value: AppRoute.details(itemId: item.id)) {
+                    PosterCard(posterURL: item.posterURL, title: item.title, subtitle: item.posterMeta, ratingText: item.ratingText, width: 108)
+                }
+                .buttonStyle(.plain)
+                .onAppear { if item.id == items.last?.id { onReachEnd?() } }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.md)
+    }
+}
+
+/// Чип-фильтр: выбранный — акцентом.
+struct FilterChip: View {
+    let title: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 14, weight: .semibold))
+                .padding(.horizontal, DS.Spacing.md)
+                .padding(.vertical, DS.Spacing.sm)
+                .background(selected ? Theme.accent : Theme.surfaceHigh)
+                .foregroundColor(.white)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}

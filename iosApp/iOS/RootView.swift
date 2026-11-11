@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Корневой экран iOS: сессия-гейт → онбординг или главный (iPhone/iPad).
-/// `SessionViewModel` — общий (Shared/), различается только набор View.
+/// Корень iOS: вход → вкладки. Смена источника пересобирает вкладки (`.id`), как граф на Android
+/// возвращается к корню: экраны прежнего источника не должны пережить переключение.
 struct RootView: View {
     @StateObject private var session = SessionViewModel()
 
@@ -12,7 +12,7 @@ struct RootView: View {
             case .none:
                 ProgressView().tint(Theme.accent)
             case .some(true):
-                MainTabView()
+                MainTabView().id(session.source)
             case .some(false):
                 OnboardingView()
             }

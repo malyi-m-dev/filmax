@@ -1,48 +1,53 @@
 import SwiftUI
 import Shared
 
-/// Поиск для iPhone/iPad: поле ввода (`.searchable`) + сетка результатов поверх `SearchViewModel`.
+/// Поиск iPhone/iPad: системное поле `.searchable`, недавние запросы и подсказки, пока запрос
+/// короткий, иначе — сетка результатов.
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
 
-    private let columns = [GridItem(.adaptive(minimum: 110), spacing: DS.Spacing.md)]
-
     var body: some View {
-        Group {
-            if viewModel.isLoading {
-                LoadingView()
+        ScrollView {
+            if viewModel.isIdle {
+                suggestions
+            } else if viewModel.isLoading && viewModel.results.isEmpty {
+                LoadingView().frame(minHeight: 300)
             } else if let error = viewModel.error {
-                ErrorView(message: error, systemImage: "magnifyingglass")
-            } else if viewModel.isIdle {
-                EmptyStateView(message: "Найдите фильм, сериал или аниме", systemImage: "magnifyingglass")
+                ErrorView(message: error)
             } else if viewModel.results.isEmpty {
-                EmptyStateView(message: "Ничего не найдено", systemImage: "magnifyingglass")
+                EmptyStateView(message: "Ничего не нашлось", systemImage: "magnifyingglass")
             } else {
-                grid
+                ItemGrid(items: viewModel.results).padding(.top, DS.Spacing.sm)
             }
         }
-        .navigationTitle("Поиск")
         .background(Theme.background.ignoresSafeArea())
-        .searchable(text: $viewModel.query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Название, актёр, режиссёр")
+        .navigationTitle("Поиск")
+        .searchable(text: $viewModel.query, prompt: "Фильмы, сериалы, актёры")
+        // В недавние — отправленный запрос, а не каждая набранная подстрока.
+        .onSubmit(of: .search) { viewModel.remember() }
+        .autocorrectionDisabled()
     }
 
-    private var grid: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: DS.Spacing.lg) {
-                ForEach(viewModel.results, id: \.id) { item in
-                    NavigationLink(value: AppRoute.details(itemId: item.id)) {
-                        PosterCard(
-                            posterURL: item.posterURL,
-                            title: item.title,
-                            subtitle: item.metaLine,
-                            ratingText: item.ratingText,
-                            width: 110
-                        )
-                    }
-                    .buttonStyle(.plain)
+    private var suggestions: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.lg) {
+            if !viewModel.recent.isEmpty { querySection(title: "Недавние", queries: viewModel.recent, icon: "clock") }
+            querySection(title: "Часто ищут", queries: viewModel.trending, icon: "flame")
+        }
+        .padding(DS.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func querySection(title: String, queries: [String], icon: String) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.sm) {
+            SectionHeader(title: title)
+            ForEach(queries, id: \.self) { query in
+                Button {
+                    viewModel.query = query
+                } label: {
+                    Label(query, systemImage: icon).foregroundColor(Theme.text)
                 }
+                .padding(.vertical, DS.Spacing.xs)
             }
-            .padding(DS.Spacing.md)
         }
     }
 }

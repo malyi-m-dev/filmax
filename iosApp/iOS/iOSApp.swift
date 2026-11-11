@@ -1,14 +1,21 @@
 import SwiftUI
+import UIKit
 import Shared
 
-// Точка входа iOS-приложения Filmax.
-// Бизнес-логика (data/domain) — общая из KMP-фреймворка `Shared`; презентейшен целиком на Swift.
+/// Точка входа iPhone/iPad. Data/domain — общие из KMP-фреймворка `Shared`, презентейшен — SwiftUI.
 @main
 struct iOSApp: App {
     init() {
-        // Инициализация Koin из общего кода (те же модули, что и на Android).
-        // Дефолтные параметры Kotlin не переносятся в Swift-интероп — передаём пустую декларацию явно.
-        KoinKt.doInitKoin(appDeclaration: { _ in })
+        // Версию приложения и устройство знает только приложение, а нужны они домашнему серверу
+        // (заголовок клиента Jellyfin). Дефолтные параметры Kotlin в Swift не видны — передаём явно.
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let client = ClientInfo(
+            appVersion: version,
+            isTv: false,
+            device: UIDevice.current.model,
+            os: "iOS \(UIDevice.current.systemVersion)"
+        )
+        KoinKt.doInitKoin(client: client, appDeclaration: { _ in })
     }
 
     var body: some Scene {

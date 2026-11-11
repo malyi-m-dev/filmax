@@ -1,57 +1,53 @@
 # Filmax iOS + tvOS
 
-Apple-приложения Filmax на iPhone/iPad **и** Apple TV: онбординг с авторизацией + полный набор экранов
-(Главная, Поиск, Детали, Плеер, Библиотека, Профиль, Подборки) поверх общего KMP-слоя.
+Apple-приложения Filmax на iPhone/iPad и Apple TV — те же разделы и сценарии, что у Android, но
+нативные: `TabView` и `NavigationStack`, формы и списки iOS, системный плеер `AVPlayerViewController`,
+фокус Apple TV. Data/domain — общий KMP-слой (фреймворк `Shared`).
 
-> Требуется **iOS/tvOS 16.0+** (рутовая навигация на `NavigationStack`/`navigationDestination`).
+> Требуется **iOS/tvOS 16.0+**. Справочник по общему слою для Swift —
+> [`docs/ios-shared-layer.md`](../docs/ios-shared-layer.md), сборка на Mac — [`docs/BUILD_MACOS.md`](../docs/BUILD_MACOS.md).
 
-> 📖 **Справочник по общему data/domain-слою для Swift** — [`docs/ios-shared-layer.md`](../docs/ios-shared-layer.md): все use-case'ы, репозитории, модели, интероп SKIE, обработка ошибок и рецепты.
+## Что есть
 
-## Архитектура
-- **Общее (KMP, `:shared`):** data + domain — репозитории, use-case'ы, модели, сеть, хранилище токенов (`multiplatform-settings`). Экспортируется как статический фреймворк `Shared` (таргеты iOS **и** tvOS); **SKIE** даёт дружелюбный Swift-интероп (Flow → AsyncSequence, sealed → enum, suspend → async).
-- **Презентейшен на Swift, раздельно iOS/tvOS:** общие ViewModel'и (`ObservableObject`) переиспользуются обоими; различаются только SwiftUI-View (тач-навигация на iOS vs focus engine/пульт на tvOS). На Apple разделение TV/mobile — это **отдельные таргеты**, а не runtime-флаг (в отличие от Android).
+| Раздел | iPhone/iPad | Apple TV |
+|---|---|---|
+| Вход | kino.pub по коду или домашний сервер Jellyfin (поиск в сети, адрес, пароль, Quick Connect) | то же, на ТВ по умолчанию — Quick Connect |
+| Главная | герой, «Продолжить», новинки, подборки, тематические ряды как на Android | то же рядами |
+| Каталог | чипы типа и жанра, сортировка и фильтры по возможностям источника, подгрузка | то же, поиск — внутри Каталога |
+| Поиск | отдельная вкладка, недавние и подсказки | — |
+| Моё | Продолжить · Буду смотреть · Папки · История; папок у домашнего сервера нет | то же |
+| Детали | оценки с подписью источника, сезоны и серии, «Буду смотреть», «В папку», состав, похожие | то же |
+| Плеер | `AVPlayer`: прогресс по адресу серии, качество, запасной CDN, следующая серия | то же |
+| Профиль | аккаунт и подписка, источник, воспроизведение, выход | то же |
 
-Структура (`iosApp/`):
-```
-Shared/    ← общий Swift для ОБОИХ таргетов
-  Theme.swift · SessionViewModel · Onboarding/
-  DesignSystem/  (токены DS, PosterImage)         Navigation/ (AppRoute, AppTab)
-  Support/ (ModelFormatting, псевдонимы типов)
-  Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← ViewModel'и (общие)
-iOS/       ← таргет Filmax (iPhone/iPad)
-  iOSApp.swift (@main) · RootView · Navigation/MainTabView (TabView + NavigationStack)
-  DesignSystem/Components (PosterCard, FilmaxButton, SectionHeader, RatingBadge, Loading/Error/Empty)
-  Onboarding/ · Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← SwiftUI-View
-tvOS/      ← таргет Filmax-tvOS (Apple TV)
-  tvOSApp.swift (@main) · TvRootView · Navigation/TvMainTabView (верхний таб-бар + focus)
-  DesignSystem/Components (TvPosterCard + focus-стиль, Tv-состояния)
-  Onboarding/ · Home/ · Details/ · Player/ · Search/ · Library/ · Profile/ · Collections/  ← Tv-View
-```
-ViewModel'и (`Shared/`) вызывают общие use-case'ы/репозитории KMP и одинаковы на обеих платформах;
-различаются только SwiftUI-View (тач vs focus). `Koin` инициализируется в точке входа каждого таргета.
+Не повторяют Android: связь телефона с телевизором (протокол Android в локальной сети), окно отзыва
+и фото актёров TMDB (ключи и SDK только в Android-сборке), внешние субтитры SRT.
 
-**Навигация:** единый контракт `AppRoute` (`Shared/Navigation`) кладётся в `NavigationStack` каждой вкладки;
-платформенные `appDestinations()`/`tvAppDestinations()` разворачивают маршрут в свою View. Стеки push-переходов
-(Детали → Плеер) сохраняются по вкладкам.
+## Устройство
 
-## Как собрать и запустить (только macOS + Xcode)
-> 🛠 **Полная инструкция по сборке на Mac (предустановки, iOS + Android, траблшутинг)** — [`docs/BUILD_MACOS.md`](../docs/BUILD_MACOS.md). Ниже — краткий путь.
+- **Общее (KMP, `:shared`):** репозитории обоих источников, use case'ы, переключатель источника,
+  фасад для Swift (`CatalogKit`, `HomeShelves`, `CatalogPager`, `ArrangeCatalog`). Логика, которая
+  должна совпадать с Android, живёт здесь, а не в Swift — её проверяют тесты `:shared` и домена.
+- **`Shared/`** — Swift для обоих таргетов: ViewModel'и экранов, тема, маршруты (`AppRoute`,
+  `PlayTarget`), интероп (`Support/KotlinInterop.swift`), поверхность плеера.
+- **`iOS/`** и **`tvOS/`** — SwiftUI-экраны своих таргетов. ViewModel'и общие, различаются только View.
 
-1. Установить генератор проекта: `brew install xcodegen`.
-2. В папке `iosApp/`: `xcodegen generate` → появится `Filmax.xcodeproj` (с двумя схемами).
-3. Открыть `Filmax.xcodeproj`, выбрать схему и симулятор, **Run**:
-   - **`Filmax`** → симулятор iPhone/iPad;
-   - **`Filmax-tvOS`** → симулятор Apple TV.
-   - Перед сборкой app автоматически прогонит `:shared:embedAndSignAppleFrameworkForXcode` (см. preBuildScript в `project.yml`) — соберёт KMP-фреймворк под нужную платформу.
-   - Для запуска на устройстве проставить `DEVELOPMENT_TEAM` в `project.yml`.
+Смена источника пересобирает вкладки (`.id(session.source)`), как граф Android возвращается к корню.
 
-## Что проверить (DoD #9)
-- Приложение запускается; онбординг проходится (приветствие → фичи → код активации).
-- Авторизация: код появляется, ввод на `kino.pub/device` под аккаунтом KinoPub переводит на главный экран.
-- Токен сохраняется (перезапуск приложения → сразу главный экран, минуя онбординг).
+## Как собрать (только macOS + Xcode)
 
-## Заметки по интеропу (проверено на Mac, Xcode + симулятор iPhone)
-- **`Flow<Boolean>` приходит как `KotlinBoolean`, не `Bool`** → в `Shared/SessionViewModel` берём `authenticated.boolValue`.
-- **`RequestResult<T>` (sealed) разбирается через SKIE `onEnum(of:)`** (`.success`/`.error`) — работает. НО generic-параметр `Success<T>.data` стирается в ObjC-мосте до `Any?`, поэтому payload надо кастовать: `guard let deviceCode = success.data as? DeviceCode else { … }` (см. `Shared/Onboarding/OnboardingViewModel`). Это ограничение ObjC-моста, не SKIE; каст нужен на каждый generic-результат, пока не заведём типизированные обёртки/хелпер.
-- **suspend-функции** вызываются как `async` (`try await useCase.invoke()`) — работает без обёрток.
-- **Koin-инициализатор из Swift:** `KoinKt.doInitKoin(appDeclaration: { _ in })`. Дефолтный параметр Kotlin (`appDeclaration = {}`) в Swift-интероп не переносится — передаём пустую декларацию явно (в `iOS/iOSApp` и `tvOS/tvOSApp`).
+1. `brew install xcodegen`, в `iosApp/` — `xcodegen generate`.
+2. Открыть `Filmax.xcodeproj`, схема **`Filmax`** (iPhone/iPad) или **`Filmax-tvOS`** (Apple TV), Run.
+   Перед сборкой прогоняется `:shared:embedAndSignAppleFrameworkForXcode` (preBuildScript в `project.yml`).
+3. Для устройства — `DEVELOPMENT_TEAM` в `project.yml`.
+
+Swift-код в репозитории собирается только на Mac: в CI и в Linux-окружении проверяется Kotlin-часть
+(`./gradlew :shared:testDebugUnitTest`). После правок общего слоя соберите обе схемы.
+
+## Заметки по интеропу (проверено на Mac)
+
+- `Flow<Boolean>` приходит как `KotlinBoolean` → `.boolValue`.
+- `RequestResult<T>` — sealed interface: в Swift протокол без generic-параметра; разбор — `onEnum(of:)`,
+  данные успеха — `Any?` с приведением типа. Обёртка — `request(fallback:_:)`.
+- `suspend` → `async throws`, `object` → `.shared`, companion → `.Companion.shared`.
+- `KoinKt.doInitKoin(client:appDeclaration:)` — дефолтные параметры Kotlin в Swift не видны, всё явно.

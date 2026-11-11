@@ -1,54 +1,67 @@
 import Combine
 import Shared
 
-/// Презентейшен Профиля (iOS + tvOS): аккаунт, подписка, реальные настройки воспроизведения, выход.
-/// Данные — общие `UserRepository` + `PlaybackSettingsRepository` + `LogoutUseCase`.
-/// Никаких настроек-«пустышек» (учтён урок #41 на Android) — только то, что реально сохраняется.
+/// Профиль (iOS и tvOS): аккаунт, подписка (только у источника с подпиской), настройки
+/// воспроизведения, источник контента и выход — как Профиль на Android.
 @MainActor
 final class ProfileViewModel: ObservableObject {
     @Published var profile: UserProfile?
     @Published var settings: PlaybackSettings?
+    @Published var source: ContentSource = .kinopub
     @Published var isLoading = false
     @Published var error: String?
 
+    let qualityOptions: [String] = PlaybackSettings.Companion.shared.qualityOptions
+    let audioOptions: [String] = PlaybackSettings.Companion.shared.audioOptions
+    let subtitleOptions: [String] = PlaybackSettings.Companion.shared.subtitleOptions
+    let sourceOptions: [ContentSource] = [.kinopub, .jellyfin]
+
     private let user = RepositoryProvider.shared.user
     private let playback = RepositoryProvider.shared.playbackSettings
-    private let logout = UseCaseProvider.shared.logoutUseCase()
+    private let sources = RepositoryProvider.shared.sources
+    private let logoutUseCase = UseCaseProvider.shared.logoutUseCase()
 
-    /// Списки опций настроек воспроизведения (значения совпадают с `PlaybackSettings.Companion`
-    /// в общем слое; сами значения сохраняются/читаются через `PlaybackSettingsRepository`).
-    let qualityOptions = ["Авто", "2160p", "1080p", "720p", "480p", "360p"]
-    let audioOptions = ["Оригинал", "Русский", "English"]
-    let subtitleOptions = ["Выкл", "Русский", "English"]
+    /// Есть ли у источника подписка: у домашнего сервера её нет — карточка показывает сам сервер.
+    var hasSubscription: Bool { CatalogKit.shared.capabilities(source: source).subscription }
+
+    /// Подпись под именем: «Подписка до 12 декабря · 47 дн.» или название источника.
+    var accountCaption: String {
+        guard hasSubscription else { return source.label }
+        guard let subscription = profile?.subscription, subscription.active else { return "Подписка не активна" }
+        guard let days = subscription.daysLeft?.int32Value else { return "Подписка активна" }
+        return "Подписка активна · осталось \(days) дн."
+    }
 
     func load() async {
+        source = sources.source.value
         isLoading = true
         error = nil
-        do {
-            let result = try await user.getProfile()
-            switch onEnum(of: result) {
-            case .success(let success):
-                profile = success.data as? UserProfile
-            case .error(let requestError):
-                error = requestError.message ?? "Не удалось загрузить профиль."
-            }
-        } catch {
-            self.error = error.localizedDescription
+        let result: Loaded<UserProfile> = await request(fallback: "Не удалось загрузить профиль.") {
+            try await self.user.getProfile()
+        }
+        switch result {
+        case .value(let loaded): profile = loaded
+        case .failure(let message): error = message
         }
         isLoading = false
     }
 
-    /// Реактивно держит текущие настройки воспроизведения из общего слоя (Flow).
     func observeSettings() async {
         for await value in playback.settings { settings = value }
     }
 
-    func setQuality(_ quality: String) async { try? await playback.setQuality(quality: quality) }
-    func setAudio(_ language: String) async { try? await playback.setAudioLanguage(language: language) }
-    func setSubtitle(_ language: String) async { try? await playback.setSubtitleLanguage(language: language) }
+    func setQuality(_ value: String) async { try? await playback.setQuality(quality: value) }
+    func setAudio(_ value: String) async { try? await playback.setAudioLanguage(language: value) }
+    func setSubtitles(_ value: String) async { try? await playback.setSubtitleLanguage(language: value) }
 
-    func signOut() {
-        // Чистит токены общим слоем; `ObserveAuthStateUseCase` вернёт на онбординг.
-        Task { _ = try? await logout.invoke() }
+    /// Смена источника: сессия пересоберёт корень — ко входу, если в новый источник не входили.
+    func select(_ next: ContentSource) async {
+        guard next != source else { return }
+        try? await sources.select(source: next)
+    }
+
+    /// Выход — только из текущего источника: вход в другой сохраняется.
+    func logout() async {
+        _ = try? await logoutUseCase.invoke()
     }
 }

@@ -1,6 +1,10 @@
 package com.filmax.feature.search.common
 
+import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogPage
+import com.filmax.core.domain.catalog.CatalogPager
+import com.filmax.core.domain.catalog.CatalogQuery
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.ItemType

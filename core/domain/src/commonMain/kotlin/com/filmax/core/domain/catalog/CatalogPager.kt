@@ -1,9 +1,5 @@
-package com.filmax.feature.search.common
+package com.filmax.core.domain.catalog
 
-import com.filmax.core.domain.catalog.CatalogFilters
-import com.filmax.core.domain.catalog.CatalogRepository
-import com.filmax.core.domain.catalog.GenreFilter
-import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
@@ -14,7 +10,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
 /** Что запрашивает витрина: типы (у «Все» и «Аниме» их несколько), жанр, фильтры и сортировка. */
-internal data class CatalogQuery(
+data class CatalogQuery(
     val types: List<ItemType>,
     val genre: GenreFilter?,
     val filters: CatalogFilters,
@@ -22,7 +18,7 @@ internal data class CatalogQuery(
 )
 
 /** Чем кончилась загрузка страницы витрины. */
-internal sealed interface CatalogPage {
+sealed interface CatalogPage {
     data class Loaded(val items: List<Item>) : CatalogPage
     data class Failed(val message: String?) : CatalogPage
 
@@ -45,7 +41,7 @@ internal sealed interface CatalogPage {
  * загружена ([loaded]). Ответ для любой другой — [CatalogPage.Outdated]: быстрые переключения
  * чипов запускают загрузки параллельно, и выиграть должна последняя, а не самая быстрая.
  */
-internal class CatalogPager(private val catalog: CatalogRepository) {
+class CatalogPager(private val catalog: CatalogRepository) {
 
     /** Выдача, чья первая страница загружена; null — ещё ничего или первая страница упала. */
     var loaded: CatalogQuery? = null
@@ -155,3 +151,6 @@ private fun interleave(lists: List<List<Item>>): List<Item> {
     val depth = lists.maxOf { it.size }
     return (0 until depth).flatMap { index -> lists.mapNotNull { it.getOrNull(index) } }
 }
+
+/** Число тайтлов витрины: [exact] = false — оценка «около» по числу страниц. */
+data class CatalogCount(val value: Int, val exact: Boolean)

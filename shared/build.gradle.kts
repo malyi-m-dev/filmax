@@ -55,6 +55,11 @@ kotlin {
             api(koinBom)
             api(libs.koin.core)
         }
+        // Фасад для Swift проверяется здесь: на Linux Swift не собрать, а логика рядов и запроса
+        // витрины должна совпадать с Android.
+        commonTest.dependencies {
+            implementation(project(":data:fake"))
+        }
     }
 }
 

@@ -4,6 +4,7 @@ package com.filmax.feature.search.common
 
 import com.filmax.core.domain.catalog.ArrangeCatalog
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogQuery
 import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.ReferenceGenre
 import com.filmax.core.domain.catalog.model.Item

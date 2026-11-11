@@ -1,5 +1,6 @@
 package com.filmax.feature.search.common
 
+import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
@@ -83,9 +84,6 @@ data class SearchState(
     val otherResults: List<Item>
         get() = if (bestMatch == null) emptyList() else results.drop(1)
 }
-
-/** Число тайтлов витрины: [exact] = false — оценка «около» по числу страниц. */
-data class CatalogCount(val value: Int, val exact: Boolean)
 
 /** Раскладка экранной клавиатуры поиска на ТВ. */
 enum class KeyboardLayout { RU, EN, DIGITS }

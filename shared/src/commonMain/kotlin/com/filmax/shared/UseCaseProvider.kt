@@ -4,6 +4,7 @@ import com.filmax.core.domain.usecase.auth.LogoutUseCase
 import com.filmax.core.domain.usecase.auth.ObserveAuthStateUseCase
 import com.filmax.core.domain.usecase.auth.PollForTokenUseCase
 import com.filmax.core.domain.usecase.auth.RequestDeviceCodeUseCase
+import com.filmax.core.domain.usecase.bookmarks.BookmarkFolders
 import com.filmax.core.domain.usecase.home.GetHomeFeedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchedUseCase
 import com.filmax.core.domain.usecase.watching.ToggleWatchlistUseCase
@@ -27,4 +28,6 @@ object UseCaseProvider : KoinComponent {
     fun logoutUseCase(): LogoutUseCase = get()
     fun toggleWatchlistUseCase(): ToggleWatchlistUseCase = get()
     fun toggleWatchedUseCase(): ToggleWatchedUseCase = get()
+    fun bookmarkFolders(): BookmarkFolders = get()
+    fun homeShelves(): HomeShelves = get()
 }

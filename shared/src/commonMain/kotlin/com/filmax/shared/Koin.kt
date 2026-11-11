@@ -1,6 +1,7 @@
 package com.filmax.shared
 
 import com.filmax.core.domain.common.LastValueCache
+import com.filmax.core.domain.feedback.ClientInfo
 import com.filmax.core.domain.usecase.auth.LogoutUseCase
 import com.filmax.core.domain.usecase.auth.ObserveAuthStateUseCase
 import com.filmax.core.domain.usecase.auth.PollForTokenUseCase
@@ -59,12 +60,17 @@ val sharedDataModules = listOf(
 val sharedModules = listOf(kinopubNetworkModule, platformNetworkModule) + sharedDataModules + domainUseCaseModule
 
 /**
- * Инициализация Koin из общего кода.
- * iOS вызывает `KoinKt.doInitKoin()` в `iOSApp.swift`; Android может переиспользовать,
- * передав feature-модули через [appDeclaration].
+ * Инициализация Koin из общего кода: iOS вызывает `KoinKt.doInitKoin(client:appDeclaration:)` в
+ * точке входа таргета. [client] — версия приложения и устройство: их знает только приложение, а
+ * нужны они домашнему серверу (заголовок клиента, профиль кодеков ТВ).
  */
-fun doInitKoin(appDeclaration: KoinAppDeclaration = {}): KoinApplication =
+fun doInitKoin(client: ClientInfo, appDeclaration: KoinAppDeclaration = {}): KoinApplication =
     startKoin {
         appDeclaration()
-        modules(sharedModules)
+        modules(sharedModules + module { single { client } } + appleModule)
     }
+
+/** То, что нужно только Swift-презентейшену: ряды Главной. */
+private val appleModule = module {
+    factory { HomeShelves(catalog = get()) }
+}

@@ -1,6 +1,7 @@
 package com.filmax.feature.search.tv
 
 import androidx.compose.ui.graphics.Color
+import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
@@ -9,7 +10,6 @@ import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.ui.components.VoiceSearchError
 import com.filmax.core.ui.components.voiceErrorText
-import com.filmax.feature.search.common.CatalogCount
 import com.filmax.feature.search.common.SearchState
 import kotlin.test.Test
 import kotlin.test.assertEquals

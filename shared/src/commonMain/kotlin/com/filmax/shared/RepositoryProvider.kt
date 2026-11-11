@@ -3,7 +3,10 @@ package com.filmax.shared
 import com.filmax.core.domain.auth.AuthRepository
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.playback.PlaybackSettingsRepository
+import com.filmax.core.domain.playback.StreamRepository
 import com.filmax.core.domain.search.SearchRepository
+import com.filmax.core.domain.source.ContentSourceRepository
+import com.filmax.core.domain.source.HomeServerRepository
 import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watchlist.WatchlistRepository
@@ -47,4 +50,13 @@ object RepositoryProvider : KoinComponent {
 
     /** Настройки воспроизведения (качество/аудио/субтитры, локально). */
     val playbackSettings: PlaybackSettingsRepository get() = get()
+
+    /** Источник контента: kino.pub или домашний сервер; `source.value` — текущий. */
+    val sources: ContentSourceRepository get() = get()
+
+    /** Вход на домашний сервер: поиск в сети, адрес, пароль или Quick Connect. */
+    val homeServer: HomeServerRepository get() = get()
+
+    /** Потоки трека под запуск: домашний сервер выдаёт ссылки на каждый старт. */
+    val streams: StreamRepository get() = get()
 }

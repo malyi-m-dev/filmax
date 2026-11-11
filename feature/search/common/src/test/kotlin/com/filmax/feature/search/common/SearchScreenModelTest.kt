@@ -1,6 +1,7 @@
 package com.filmax.feature.search.common
 
 import androidx.lifecycle.SavedStateHandle
+import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.CatalogSort

@@ -2,118 +2,141 @@ import Combine
 import Foundation
 import Shared
 
-/// Презентейшен плеера (iOS + tvOS). Общий слой отдаёт URL/треки и хранит прогресс — движок
-/// нативный (`AVPlayer`) во View. Здесь: выбор трека/качества, применение `PlaybackSettings`,
-/// сохранение прогресса через `WatchingRepository`.
+/// Плеер (iOS и tvOS). Видео играет нативный `AVPlayer` во View, а здесь — что играть: трек по
+/// адресу, потоки под этот запуск (`StreamRepository`: домашний сервер выдаёт ссылки на каждый
+/// старт), качество, запасные варианты доставки, следующая серия и прогресс.
 @MainActor
 final class PlayerViewModel: ObservableObject {
     let itemId: Int32
-    let videoId: Int32?
 
     @Published var item: Item?
     @Published var track: MediaTrack?
     @Published var streamURL: URL?
-    @Published var settings: PlaybackSettings?
+    @Published var qualities: [String] = []
+    @Published var currentQuality: String?
+    @Published var nextTarget: PlayTarget?
     @Published var error: String?
     @Published var isLoading = false
-    /// Стартовая позиция (сек) — возобновление с `MediaTrack.watchedSeconds`.
+    /// Стартовая позиция (сек): сохранённый прогресс; досмотренное — сначала, а не с титров.
     @Published var startSeconds: Double = 0
 
+    private let target: PlayTarget?
     private let catalog = RepositoryProvider.shared.catalog
+    private let streams = RepositoryProvider.shared.streams
     private let watching = RepositoryProvider.shared.watching
     private let playback = RepositoryProvider.shared.playbackSettings
 
-    init(itemId: Int32, videoId: Int32?) {
-        self.itemId = itemId
-        self.videoId = videoId
-    }
+    /// Варианты доставки текущего качества: hls4 → hls → http (разные CDN).
+    private var variants: [URL] = []
+    private var variantIndex = 0
+    private var lastSentSeconds: Int?
 
-    /// Доступные качества текущего трека (+ «Авто») — для меню в оверлее.
-    var qualityOptions: [String] {
-        var options = ["Авто"]
-        options.append(contentsOf: (track?.files ?? []).map { $0.quality })
-        return options
+    /// Порог отправки прогресса — реже тика плеера, но чаще, чем теряется место (как на Android).
+    private static let progressStepSeconds = 5
+    private static let auto = PlaybackSettings.Companion.shared.QualityAuto
+
+    init(itemId: Int32, target: PlayTarget?) {
+        self.itemId = itemId
+        self.target = target
     }
 
     func load() async {
         isLoading = true
         error = nil
-        let currentSettings = await firstSettings()
-        settings = currentSettings
-        do {
-            let result = try await catalog.getItemDetails(id: itemId)
-            switch onEnum(of: result) {
-            case .success(let success):
-                guard let loaded = success.data as? Item else {
-                    error = "Некорректный ответ сервера."
-                    isLoading = false
-                    return
-                }
-                item = loaded
-                resolveTrackAndURL(item: loaded, settings: currentSettings)
-            case .error(let requestError):
-                error = requestError.message ?? "Не удалось получить поток."
-            }
-        } catch {
-            self.error = error.localizedDescription
+        let result: Loaded<Item> = await request(fallback: "Не удалось получить тайтл.") {
+            try await self.catalog.getItemDetails(id: self.itemId)
         }
+        guard case .value(let loaded) = result else {
+            if case .failure(let message) = result { error = message }
+            isLoading = false
+            return
+        }
+        item = loaded
+        guard let listed = pick(from: loaded) else {
+            error = "У тайтла нет видео."
+            isLoading = false
+            return
+        }
+        let playable: Loaded<MediaTrack> = await request(fallback: "Не удалось получить поток.") {
+            try await self.streams.playable(itemId: self.itemId, track: listed)
+        }
+        guard case .value(let ready) = playable else {
+            if case .failure(let message) = playable { error = message }
+            isLoading = false
+            return
+        }
+        track = ready
+        startSeconds = ready.watchStatus == 1 ? 0 : Double(ready.watchedSeconds)
+        nextTarget = next(after: ready, in: loaded)?.target
+        qualities = ready.files.map { $0.quality }
+        await start(quality: preferredQuality(ready.files))
         isLoading = false
     }
 
-    /// Пересобрать URL после смены качества/дорожки из оверлея.
-    func applyQuality(_ quality: String) async {
-        try? await playback.setQuality(quality: quality)
-        if let item, let updated = await firstSettings() {
-            settings = updated
-            resolveTrackAndURL(item: item, settings: updated)
-        }
+    /// Смена качества — с той же позиции (её держит View) и с первого варианта доставки.
+    func select(quality: String) async {
+        guard quality != currentQuality else { return }
+        await start(quality: quality)
     }
 
-    func setAudio(_ language: String) async { try? await playback.setAudioLanguage(language: language) }
-    func setSubtitle(_ language: String) async { try? await playback.setSubtitleLanguage(language: language) }
+    /// Поток не пошёл — следующий вариант доставки того же качества; false — варианты кончились.
+    func streamFailed() -> Bool {
+        guard variantIndex + 1 < variants.count else {
+            error = "Не удалось воспроизвести видео."
+            return false
+        }
+        variantIndex += 1
+        streamURL = variants[variantIndex]
+        return true
+    }
 
-    /// Сохранить прогресс (вызывается периодически из View и на выходе). Адрес — `track.ref`:
-    /// серия с сезоном или видео фильма по НОМЕРУ, а не по id трека.
+    /// Прогресс — по НОМЕРУ видео с сезоном (`VideoRef`), а не по id трека.
     func saveProgress(seconds: Int) async {
-        guard let track else { return }
-        _ = try? await watching.saveProgress(itemId: itemId, video: track.ref, timeSeconds: Int32(seconds))
+        guard let track, seconds > 0 else { return }
+        if let sent = lastSentSeconds, abs(seconds - sent) < Self.progressStepSeconds { return }
+        lastSentSeconds = seconds
+        _ = try? await watching.saveProgress(itemId: itemId, video: track.target.ref, timeSeconds: Int32(seconds))
     }
 
-    // MARK: - Приватное
+    /// Трек адреса; без адреса — серия «продолжить» у сериала, первое видео у фильма.
+    private func pick(from item: Item) -> MediaTrack? {
+        if let target, let match = item.tracklist.first(where: { target.matches($0) }) { return match }
+        return item.isEpisodic ? item.resumeTrack : item.tracklist.first
+    }
 
-    private func resolveTrackAndURL(item: Item, settings: PlaybackSettings?) {
-        let chosen = pickTrack(item.tracklist)
-        track = chosen
-        startSeconds = Double(chosen?.watchedSeconds ?? 0)
-        streamURL = chosen.flatMap { resolveURL(files: $0.files, quality: settings?.quality) }
-        if streamURL == nil {
-            error = "Нет доступного потока для воспроизведения."
+    private func next(after track: MediaTrack, in item: Item) -> MediaTrack? {
+        guard let index = item.tracklist.firstIndex(where: { $0.seasonNumber == track.seasonNumber && $0.number == track.number }),
+              item.tracklist.indices.contains(index + 1) else { return nil }
+        return item.tracklist[index + 1]
+    }
+
+    private func start(quality: String?) async {
+        guard let file = track?.files.first(where: { $0.quality == quality }) ?? track?.files.first else {
+            error = "Нет доступного потока."
+            return
         }
+        currentQuality = file.quality
+        variants = [file.hls4, file.hls, file.http].compactMap { $0 }.compactMap { URL(string: $0) }
+        variantIndex = 0
+        streamURL = variants.first
+        if streamURL == nil { error = "Нет доступного потока." }
     }
 
-    private func pickTrack(_ tracklist: [MediaTrack]) -> MediaTrack? {
-        if let videoId, let match = tracklist.first(where: { $0.id == videoId }) {
-            return match
+    /// Качество из настроек; «Авто» или такого нет — лучшее доступное.
+    private func preferredQuality(_ files: [VideoFile]) async -> String? {
+        var preferred = Self.auto
+        for await settings in playback.settings {
+            preferred = settings.quality
+            break
         }
-        return tracklist.first
+        let labels = files.map { $0.quality }
+        if preferred != Self.auto, labels.contains(preferred) { return preferred }
+        return labels.max { height($0) < height($1) }
     }
 
-    /// Выбор файла по качеству из настроек; «Авто»/нет совпадения → первый доступный.
-    private func resolveURL(files: [VideoFile], quality: String?) -> URL? {
-        let file: VideoFile?
-        if let quality, quality != "Авто", let match = files.first(where: { $0.quality == quality }) {
-            file = match
-        } else {
-            file = files.first
-        }
-        guard let file else { return nil }
-        let urlString = file.hls ?? file.hls4 ?? file.http
-        return urlString.flatMap { URL(string: $0) }
-    }
-
-    /// Берёт текущее значение настроек воспроизведения (первое эмиссия Flow).
-    private func firstSettings() async -> PlaybackSettings? {
-        for await value in playback.settings { return value }
-        return nil
+    /// Высота кадра из подписи качества: «1080p» → 1080, «4K» → 2160.
+    private func height(_ label: String) -> Int {
+        if label.uppercased().contains("4K") { return 2160 }
+        return Int(label.filter { $0.isNumber }) ?? 0
     }
 }

@@ -7,6 +7,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
@@ -15,7 +16,6 @@ import com.filmax.core.ui.components.isHighRating
 import com.filmax.core.ui.components.posterMeta
 import com.filmax.core.ui.components.ratingLabel
 import com.filmax.core.ui.components.typeLabel
-import com.filmax.feature.search.common.CatalogCount
 import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.TypeOptions

@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// Корневой таб-каркас iPhone/iPad: `TabView` + отдельный `NavigationStack` в каждой вкладке,
-/// чтобы стеки push-переходов (Детали/Плеер) сохранялись по вкладкам. Заменяет `MainPlaceholderView`.
+/// Вкладки iPhone/iPad — как на Android-телефоне: Главная · Каталог · Поиск · Моё · Профиль. У каждой
+/// свой `NavigationStack`, поэтому стеки переходов (Детали → Плеер) живут по вкладкам.
 struct MainTabView: View {
     var body: some View {
         TabView {
             tab(.home) { HomeView() }
+            tab(.catalog) { CatalogView() }
             tab(.search) { SearchView() }
-            tab(.library) { LibraryView() }
+            tab(.mine) { MineView() }
             tab(.profile) { ProfileView() }
         }
         .tint(Theme.accent)
@@ -22,18 +23,22 @@ struct MainTabView: View {
 }
 
 extension View {
-    /// Регистрирует переходы `AppRoute` → экраны iOS. Вешается на корень каждого `NavigationStack`.
+    /// Переходы `AppRoute` → экраны iOS. Вешается на корень каждого `NavigationStack`.
     func appDestinations() -> some View {
         navigationDestination(for: AppRoute.self) { route in
             switch route {
             case .details(let itemId):
                 DetailsView(itemId: itemId)
-            case .player(let itemId, let videoId):
-                PlayerView(itemId: itemId, videoId: videoId)
+            case .player(let itemId, let target):
+                PlayerView(itemId: itemId, target: target)
             case .collection(let id, let title):
                 CollectionDetailView(collectionId: id, title: title)
             case .collectionsList:
                 CollectionsView()
+            case .folder(let id, let title):
+                FolderView(folderId: id, title: title)
+            case .filmography(let name, let isDirector):
+                FilmographyView(name: name, isDirector: isDirector)
             }
         }
     }

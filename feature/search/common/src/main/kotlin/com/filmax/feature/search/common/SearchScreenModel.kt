@@ -2,6 +2,8 @@ package com.filmax.feature.search.common
 
 import androidx.lifecycle.SavedStateHandle
 import com.filmax.core.domain.catalog.ArrangeCatalog
+import com.filmax.core.domain.catalog.CatalogPage
+import com.filmax.core.domain.catalog.CatalogPager
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.common.getOrNull
