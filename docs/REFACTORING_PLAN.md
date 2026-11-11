@@ -1,90 +1,155 @@
-# Filmax — План рефакторинга и развития
+# Filmax — План рефакторинга
 
-_Документ живой. Обновлять по мере выполнения пунктов._
+_Документ живой: пункт сделан — вычеркнуть и дописать, чем закрыт. Аудит — ноябрь 2026, после
+появления второго источника (домашний сервер Jellyfin)._
 
----
+Код: ~52,7 тыс. строк основного кода и ~10,4 тыс. строк тестов. detekt-baseline'ы пустые.
+Закрыто из прошлого плана: detekt + ktlint и гейт `detektMain`, Koin вместо Hilt, MVI на
+`BaseScreenModel`, data/domain в `commonMain`, показ ошибок (модалка и офлайн-баннер),
+пагинация подборок.
 
-## 1. Технический долг (найдено при ревью)
-
-| # | Проблема | Где | Приоритет |
-|---|----------|-----|-----------|
-| 1 | ✅ ~~**Нет статического анализа/форматтера**~~ — подключены **detekt + ktlint**, baseline проекта = 0, добавлен гейт `detektMain` (type-resolution) в CI | весь проект | ✅ закрыто |
-| 2 | **34 хардкод-цвета** `Color(0xFFB4305A)` вне дизайн-системы | `feature/*`, `core/ui` | 🟡 средний |
-| 3 | **Строки захардкожены** в Composable («Подборки», «Смотреть», …) — мешают i18n и KMP | `feature/*` | 🟡 средний |
-| 4 | **Состояние табов строкой** (`"about"/"cast"/"similar"`) вместо enum | `DetailsScreen` | 🟢 низкий |
-| 5 | **Нет обработки ошибок в UI** — `error` лежит в state, но не показывается | все экраны | 🟡 средний |
-| 6 | **Нет пагинации** в bottom sheet подборок (есть только page=1) | `feature:collections` | 🟢 низкий |
-| 8 | ✅ ~~**DI на Hilt** (Android-only) — блокер для KMP~~ — мигрировано на **Koin 4.0.4** | — | ✅ закрыто |
-| 9 | ✅ ~~**`androidx.lifecycle.ViewModel`** в фичах — Android-only~~ — мигрировано на общий **`BaseScreenModel` + MVI** (`core:presentation`) | — | ✅ закрыто |
-| 10 | Магические `dp`/`sp` россыпью | `feature/*` | 🟢 низкий |
+Приоритеты: 🔴 — ошибка, которую видит пользователь; 🟠 — мешает следующей фиче или источнику;
+🟡 — копится и дорожает; 🟢 — гигиена. Размер: S — до дня, M — 2–4 дня, L — неделя и больше.
 
 ---
 
-## 2. Рефакторинг — ближайшие шаги (без смены архитектуры)
+## 0. Сначала — ошибки
 
-1. **Подключить ktlint + detekt + `.editorconfig`** в `build-logic`, прогнать
-   `ktlintFormat`, включить проверку в CI. Закрывает #1 и предотвращает регресс отступов/`!!`.
-2. **Вынести цвета и формы** — заменить 34 `Color(0xFF…)` на токены `MaterialTheme.colorScheme`
-   / `core:designsystem`. Единый акцент вместо повторяющегося `Color(0xFFB4305A)` (#2).
-3. **Строковые ресурсы** — перенести UI-тексты Android в `strings.xml` (#3). (На iOS тексты
-   нативные — презентейшен раздельный, не общий.)
-4. **Единый показ ошибок** — общий `Snackbar`/error-state компонент в `core:ui`, подключить ко
-   всем экранам (#5).
-5. **Enum вместо строк** для табов деталей; пагинация подборок через `loadMore` по паттерну
-   из старого `CategoriesViewModel.loadMoreGenreItems` (#4, #6).
-6. **Тесты**: unit на `*ViewModel` (fake `CatalogRepository`) и на мапперы в `data/*`;
-   далее — Compose UI-тесты ключевых экранов (#7).
+| # | Что | Где | Приоритет | Размер |
+|---|-----|-----|-----------|--------|
+| 0.1 | Фильтр «КП от N» опустошает каталог домашнего сервера: каталог перепроверяет выдачу на клиенте по `rating.kinopoisk`, а у сервера этой оценки нет | `SearchScreenModel.kt` — `Item.matches` | 🔴 | S |
+| 0.2 | На домашнем сервере видны действия, которых у него нет: создание папки заканчивается ошибкой «Папки пока есть только у kino.pub», фильтр по стране и КП показан, но ничего не делает | детали (выбор папки), «Моё», фильтры каталога | 🔴 | M — закрывается §1.2 |
+
+## 1. Домен без kino.pub 🟠
+
+Домен писался под один источник, и его формат проступает в контрактах. Со вторым источником
+это уже стоило обходов в `data:jellyfin`. Третий источник (Plex, свои торренты) без этого
+шага повторит их все.
+
+1. **Формат запроса kino.pub — в data.** `ItemType.apiValue`, `CatalogSort.apiValue`,
+   `SortOption.apiValue`, `CatalogShortcut.path` — это строки параметров kino.pub.
+   `CatalogGenres` — id жанров kino.pub, которые сервер ищет по имени. План: перечисления в
+   домене без строк, перевод в параметры — в `data:catalog`. Опорные жанры — `enum
+   ReferenceGenre` вместо чисел (сейчас `JellyfinQueries.REFERENCE_GENRES` угадывает их по
+   значению). iOS-слой зовёт короткие сигнатуры: проверить сборку `:shared`. **M**
+2. **Что умеет источник.** `SourceCapabilities`: папки, оценка КП, страны, уведомления,
+   подписка, настройки устройства. Экраны прячут недоступное вместо ошибки при нажатии.
+   Закрывает 0.2. **M**
+3. **Оценки.** `ItemRating(filmax, filmaxPercentage, imdb, kinopoisk)` — поля kino.pub, а
+   сервер кладёт свою оценку в `imdb`. Нужна нейтральная модель: список оценок с источником,
+   UI показывает доступные. Тогда 0.1 и `sortLocally` перестают зависеть от КП. **S–M**
+4. **«Буду смотреть» — один контракт.** Сейчас состояние живёт в трёх местах:
+   `FavoritesRepository`, `WatchingRepository.toggleWatchlist` и `ToggleWatchLaterUseCase`,
+   который дёргает оба. У Jellyfin `toggleWatchlist` из-за этого только читает флаг, иначе
+   второй переключатель вернул бы отметку обратно. План: `WatchlistRepository` с `observe`,
+   `add`, `remove` — у kino.pub поверх папки и флага, у сервера поверх избранного. **M**
+5. **Адрес видео.** Серия — это «`videoId` = номер + сезон». Сезон ≤ 0 означает фильм, а
+   прогресс пишется двумя методами, `saveProgress` и `saveProgressSerial`. План: `VideoRef`
+   (фильм | серия(сезон, номер)) в `PlayerRoute`, прогрессе и `StreamRepository`. Инвариант
+   из CLAUDE.md станет типом, а не соглашением. **M**
+
+## 2. Мёртвый код 🟡
+
+| Что | Почему мёртвое | Решение |
+|-----|----------------|---------|
+| Настройки устройства: `DeviceSettingsScreen` (387 строк), `TvDeviceSettingsScreen` (277), модель, контракт, маппер, `get/updateDeviceSettings` | Маршрут есть, но `Destination.DeviceSettings` никто не открывает: бэкенд отвечает 500 | Удалить (git помнит) или спрятать за `SourceCapabilities`. Держать ~800 строк неоткрываемого UI — плата без пользы |
+| «Скачать»: `DetailsState.isDownloaded`, `ToggleDownload`, `DownloadsRepository` | На Android ни один экран это не рисует; хранятся только метаданные. iOS показывает их в «Моём» | Решить: делать настоящие загрузки (пункт «Развития») или убрать из Android-деталей |
+| Уведомления: `getNotifications`, `markNotificationRead`, `markAllNotificationsRead` | Экранов нет; три реализации (kino.pub, сервер, фейк) | Убрать из контракта |
+| Use case'ы дважды: `shared/Koin.kt` `useCaseModule` и `app/di/UseCaseModule.kt` + `HomeModule` | `GetHomeFeedUseCase` и `LastValueCache` регистрируются в двух местах | Один модуль в `commonMain`, Android и iOS берут его |
+
+## 3. Плеер 🟠 L
+
+`PlayerScreenModel` — 659 строк, самый большой класс проекта. В нём сразу: создание ExoPlayer,
+выбор и подписи дорожек, лестница качества и потолок декодера, переход на запасной CDN со
+сторожем старта, троттлинг прогресса, проверка подписки, пульт телефона. Тестировать это можно
+только через Robolectric, а каждая правка задевает соседние куски.
+
+Разрезать на части с чистыми входами-выходами:
+- `PlaybackEngine` — интерфейс над Media3: `setStream`, позиция, дорожки, события. Реализация на
+  ExoPlayer остаётся в `feature:player:common`, в тестах — фейк;
+- `StreamFallback` — варианты доставки, fail-fast и сторож старта (сейчас `failFast`, `startWatch`,
+  `streamVariantIndex` размазаны по классу);
+- `ProgressReporter` — троттлинг и выбор метода записи (уходит вместе с §1.5);
+- `AudioTracks` — подписи, ключ озвучки, память на тайтл;
+- `QualityLadder` уже отдельный — образец.
+
+ScreenModel остаётся оркестратором ~200 строк. Порядок: сначала тесты-характеристики на
+текущее поведение (fallback, потолок декодера, озвучка), потом вынос по одной части.
+
+## 4. Каталог и поиск 🟡 M
+
+`SearchScreenModel` (389 строк) держит два экрана: витрину каталога с пагинацией и поиск по
+запросу. Плюс локальная досортировка и перефильтрация выдачи (`arranged`, `sortLocally`,
+`Item.matches`), которые повторяют работу сервера и ломаются на втором источнике (0.1).
+- Разделить `CatalogScreenModel` (витрина, `CatalogPager`) и `SearchScreenModel` (запрос,
+  недавние, клавиатура ТВ).
+- Локальную обработку вынести в доменный `ArrangeCatalog` с тестами. Решать по возможностям
+  источника (§1.2), а не по полям kino.pub.
+
+## 5. Data и инфраструктура
+
+1. 🟠 **`core:network` — на деле сеть kino.pub**: `BASE_URL`, OAuth-обновление токенов,
+   `kinopubSingle`. Разделить на общее (движок, JSON, `Settings`) и kino.pub (клиент, OAuth).
+   Заодно решить, собирать ли kino.pub из пяти модулей (`auth/catalog/search/user/watching`) в
+   один `data:kinopub`, как сделан `data:jellyfin`: сейчас их связи держатся на квалификаторах.
+   **M**
+2. 🟠 **Одно хранилище на всё.** SharedPreferences `filmax_tokens` хранит токены kino.pub и
+   сервера, кэш «Буду смотреть», выбор источника, настройки плеера и таблицу id сервера
+   (`JellyfinIds` — JSON, растёт с медиатекой и читается на старте вместе со всем файлом).
+   Развести: секреты — в зашифрованное хранилище (Keystore / `EncryptedSharedPreferences`,
+   Keychain на iOS уже так), настройки — отдельно, таблицу id — в файл или БД. **M**
+3. 🟡 **`FavoritesRepositoryImpl`** создаёт свою область на `Dispatchers.Default` (правило
+   проекта: диспетчеры инжектятся) и ходит в сеть из `init` при первом же создании. Сделать как
+   у `JellyfinFavoritesRepository`: область из DI, обновление по входу. **S**
+4. 🟢 **`ErrorReporting.reporter`** — глобальная изменяемая переменная, 22 обращения. Раздавать
+   через Koin; в тестах не придётся подменять глобальное состояние. **S**
+
+## 6. Презентационный слой 🟢 S
+
+- `screenModelScope { snapshot -> … }` — 108 вызовов, снимок почти никто не читает (`_ ->`,
+  неиспользуемый `snapshot`). API: `launch { }` и свойство `state`. Механическая замена одним
+  коммитом.
+- 38 `@Suppress("LongParameterList")` — в основном публичный API компонентов дизайн-системы,
+  где это оправдано комментарием. Пересмотреть только экраны: им нужен объект `*Actions`.
+
+## 7. Тесты 🟡
+
+| Модуль | Сейчас | Что покрыть первым |
+|--------|--------|--------------------|
+| `core:network` | 0 | Обновление токенов: свежий access в хранилище, 4xx → выход, сбой сети → не выходить. Критично: ошибка здесь разлогинивает всех |
+| `data:watching` | 0 | «Буду смотреть»: перенос старого списка, дедуп страниц, оптимистичное обновление |
+| `data:search`, `data:tmdb` | 0 | Запросы на подменённом движке, как в `data:catalog` |
+| `feature:*:mobile` | почти 0 | Robolectric-тесты ключевых экранов телефона, как у ТВ: онбординг, детали, плеер |
+
+## 8. iOS 🟡
+
+- iOS не знает о втором источнике: `sharedModules` без `jellyfinModule` и `sourceModule`.
+  Добавить их — дёшево, данные и контракты уже общие; экран входа на SwiftUI — отдельно.
+- Документация отстала: ARCHITECTURE пишет «готов онбординг», а в `iosApp/` уже Главная,
+  Детали, «Моё», Поиск, Плеер, Профиль. Обновить вместе с первым же пунктом.
+
+## 9. Гигиена 🟢
+
+- `Color(0x…)` вне дизайн-систем — 6 файлов (было 34): `BackdropGradients`, `PosterImage`,
+  `TvSideNavParts`, `TvVoiceOverlay`, `TvPlayerPanel`, `PlayerVolume`. В токены.
+- Строки UI в Composable (~150). Переносить в `strings.xml`, только если планируется
+  локализация; иначе пункт закрыть как «не нужно».
 
 ---
 
-## 3. Дорожная карта KMP (стратегическая цель)
+## Порядок
 
-Цель: **общий `data` + `domain` на Kotlin Multiplatform**, а презентейшен — нативный на каждой
-платформе: Android — Compose, **iOS/Apple TV — SwiftUI (НЕ Compose Multiplatform)**.
+1. **Неделя 1:** 0.1 (точечно, сразу) → §2 мёртвый код → §6 API ScreenModel. Дёшево, сокращает
+   код, на котором дальше всё строится.
+2. **Неделя 2–3:** §1 домен без kino.pub (1.2 закрывает 0.2) → §8 iOS-источники.
+3. **Параллельно, кто свободен:** §7 тесты `core:network` и `data:watching` — до §5.
+4. **Дальше:** §3 плеер (сначала тесты-характеристики) → §4 каталог → §5 data.
 
-### Этап A — Подготовка (Android-only, но KMP-ready)
-- ✅ ~~Заменить **Hilt → Koin**~~ — **сделано** (Koin 4.0.4, DSL-модули по одному на Gradle-модуль,
-  `koinViewModel`/`koinNavViewModel`, `startKoin` в `FilmaxApplication`). Снят блокер #8. KSP удалён.
-  ✅ Переезд `koinNavViewModel` → `koinViewModel` сделан (Details/Player; `SavedStateHandle`
-  из nav-бэкстека резолвится корректно). Осталось: проверка DI-графа на устройстве.
-- ✅ ~~Заменить `androidx.lifecycle.ViewModel` на **общий `ScreenModel` + MVI**
-  (State / Event / SideEffect)~~ — **сделано**. Модуль `core:presentation` с
-  `BaseScreenModel<STATE, SIDE_EFFECT, EVENT>` (наследует `ViewModel` — единственное
-  место касания androidx; `dispatch`/`updateState`/`postSideEffect`/`collectAsState`/
-  `collectSideEffect`). Все 8 фич + `RootScreenModel` мигрированы, контракты вынесены в
-  `*Contract.kt` (State/Event/SideEffect). `Onboarding`→`SideEffect.Authenticated`,
-  `Profile`→`SideEffect.LoggedOut`. Koin `viewModelOf`/`koinViewModel` без изменений.
-  Снят #9. Осталось (Этап C): вынести `BaseScreenModel` в commonMain поверх Decompose.
-- Ввести `Interactor`-слой между `ScreenModel` и `Repository`.(Там где необходимо)
+Каждый пункт — отдельный PR с зелёным CI, приложение собирается на каждом шаге. Перенос кода не
+меняет поведение: если меняет — это отдельный пункт с записью в CHANGELOG.
 
-### Этап B — Вынос data/domain в commonMain ✅ сделано
-- ✅ `core:domain` (модели, репозитории-интерфейсы, `RequestResult`, UseCase) — в `commonMain`.
-- ✅ `core:network` + `data:*` на **Ktor Client** + `kotlinx.serialization`; общий код в `commonMain`,
-  платформенное (Darwin-клиент Ktor, `KeychainSettings`) — в `appleMain`.
-- ✅ Хранилище токенов/настроек — **multiplatform-settings**; DI-модули Koin — в `commonMain`.
-- ✅ Модуль `:shared` собирает фреймворк `Shared` (таргеты iOS + tvOS) c **SKIE**;
-  `RepositoryProvider`/`UseCaseProvider` — Swift-фасады общего слоя.
+## Стратегия KMP (без изменений)
 
-### Этап C — iOS/Apple TV презентейшен на SwiftUI (в работе)
-- **НЕ Compose Multiplatform.** iOS-презентейшен пишется нативно на **SwiftUI** поверх общего
-  data/domain; ViewModel'и (Swift `ObservableObject`) переиспользуют KMP use-case'ы/репозитории.
-- Платформенные движки: плеер — Media3/ExoPlayer на Android, **AVPlayer** на iOS.
-- Роадмап экранов iOS/tvOS — в Backlog доски (метка `ios`).
-
-### Этап D — iOS/tvOS-приложение ✅ каркас готов
-- ✅ `iosApp/` — таргеты `Filmax` (iPhone/iPad) и `Filmax-tvOS` (Apple TV) на SwiftUI,
-  `KoinKt.doInitKoin()` на старте, онбординг + авторизация на общем слое (XcodeGen `project.yml`).
-- Осталось: экраны (Главная/Детали/Плеер/…), iOS-CI. Сборка — `docs/BUILD_MACOS.md`.
-
-### Порядок
-A → B можно начинать сразу (наибольшая ценность, наименьший риск). C и D — после
-стабилизации общего data/domain. Мигрировать **по одной фиче за раз**, оставляя
-приложение собираемым на каждом шаге.
-
----
-
-## 4. Definition of Done для миграции фичи на KMP
-- `domain` и `data` фичи лежат в `commonMain`, не зависят от Android SDK.
-- DI через Koin-модуль в `commonMain`.
-- `ScreenModel` (MVI) вместо `ViewModel`.
-- UI: Android — Compose; iOS/Apple TV — SwiftUI поверх общего слоя (не Compose MP).
+Общие `data` + `domain` на Kotlin Multiplatform, презентейшен нативный: Android — Compose,
+iOS/Apple TV — SwiftUI (не Compose Multiplatform). Сборка iOS — [`BUILD_MACOS.md`](BUILD_MACOS.md),
+общий слой — [`ios-shared-layer.md`](ios-shared-layer.md).
