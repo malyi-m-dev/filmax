@@ -4,6 +4,7 @@
 package com.filmax.feature.details.common
 
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.presentation.format.durationLabel
 
 private const val SECONDS_IN_MINUTE = 60
 

@@ -26,6 +26,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
@@ -37,12 +39,15 @@ import com.filmax.core.domain.tvlink.RemoteCommand
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxErrorModal
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.details.common.DetailsEvent
+import com.filmax.feature.details.common.DetailsSamples
 import com.filmax.feature.details.common.DetailsScreenModel
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerScreenModel
 import com.filmax.feature.details.common.FolderPickerState
+import com.filmax.feature.details.common.play
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -61,7 +66,22 @@ internal data class DetailsActions(
     val onPlayTrailer: (url: String, title: String) -> Unit,
     val onDetails: (DetailsEvent) -> Unit,
     val onFolders: (FolderPickerEvent) -> Unit,
-)
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = DetailsActions(
+            onBack = {},
+            onPlay = {},
+            onPlayOnTv = {},
+            onShare = {},
+            onOpenItem = {},
+            onOpenPerson = { _, _ -> },
+            onPlayTrailer = { _, _ -> },
+            onDetails = {},
+            onFolders = {},
+        )
+    }
+}
 
 /**
  * Мобильные Детали поверх общих [DetailsScreenModel] и [FolderPickerScreenModel] (itemId берётся
@@ -118,7 +138,6 @@ fun DetailsScreen(
 @Composable
 private fun DetailsContent(item: Item, state: DetailsState, folderState: FolderPickerState, actions: DetailsActions) {
     val glass = rememberGlassState()
-    val target = playTarget(item, state.series, state.seasonEpisodes)
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val listState = rememberLazyListState()
     // Стекло под кнопками — когда начало текста ушло под статус-бар, а не когда уехала вся шапка.
@@ -153,9 +172,8 @@ private fun DetailsContent(item: Item, state: DetailsState, folderState: FolderP
             onShare = actions.onShare,
         )
         DetailsPlayPanel(
-            label = playLabel(item, state.series, target),
-            onPlay = target?.let { { actions.onPlay(it.video) } },
-            onPlayOnTv = target?.let { { actions.onPlayOnTv(it.video) } },
+            play = state.play,
+            actions = actions,
             glass = glass,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
@@ -198,3 +216,19 @@ internal val PanelBottom = 20.dp
 
 /** Позиция старта на ТВ — с прогресса, сохранённого у источника. */
 private const val FROM_SAVED = -1
+
+private class DetailsStatePreviews : PreviewParameterProvider<DetailsState> {
+    override val values = DetailsSamples.all.asSequence()
+}
+
+/** Детали из состояния: лента, стекло и панель «Смотреть» — без моделей и навигатора. */
+@PhonePreviews
+@Composable
+private fun DetailsScreenPreview(@PreviewParameter(DetailsStatePreviews::class) state: DetailsState) {
+    val item = state.item ?: return
+    FilmaxTheme {
+        Box(Modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
+            DetailsContent(item = item, state = state, folderState = FolderPickerState(), actions = DetailsActions.None)
+        }
+    }
+}

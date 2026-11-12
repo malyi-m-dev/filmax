@@ -23,7 +23,10 @@ import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvDescription
 import com.filmax.core.tv.designsystem.TvRatingBadge
 import com.filmax.core.tv.designsystem.fxEnter
-import com.filmax.feature.details.common.SeriesData
+import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.headingMeta
+import com.filmax.feature.details.common.originOverline
+import com.filmax.feature.details.common.ratingBadges
 
 /**
  * Кегли шапки. У фильма шапка — весь первый экран, у сериала — колонка рядом с панелью серий,
@@ -57,8 +60,8 @@ internal data class HeadingDescription(val onOpen: () -> Unit, val focus: FocusR
  */
 @Composable
 internal fun DetailsHeading(
+    state: DetailsState,
     item: Item,
-    series: SeriesData?,
     description: HeadingDescription,
     style: HeadingStyle,
     modifier: Modifier = Modifier,
@@ -66,7 +69,7 @@ internal fun DetailsHeading(
     val colors = LocalFxColors.current
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            overline(item, series).uppercase(),
+            state.originOverline.uppercase(),
             style = FxType.overline,
             color = colors.accentText,
             modifier = Modifier.fxEnter(0)
@@ -79,7 +82,7 @@ internal fun DetailsHeading(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.fxEnter(1),
         )
-        RatingsRow(item, series, style, Modifier.fxEnter(2))
+        RatingsRow(state, style, Modifier.fxEnter(2))
         if (item.plot.isNotBlank()) {
             TvDescription(
                 text = item.plot,
@@ -93,10 +96,10 @@ internal fun DetailsHeading(
 
 /** Бейджи оценок и мета рядом: «7.9 КиноПоиск  7.6 IMDb  Фэнтези, Приключения · 2 ч 11 мин». */
 @Composable
-private fun RatingsRow(item: Item, series: SeriesData?, style: HeadingStyle, modifier: Modifier) {
-    val meta = metaLine(item, series)
+private fun RatingsRow(state: DetailsState, style: HeadingStyle, modifier: Modifier) {
+    val meta = state.headingMeta
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ratingBadges(item).forEach { badge ->
+        state.ratingBadges.forEach { badge ->
             TvRatingBadge(badge.value, badge.source, highlighted = badge.highlighted)
         }
         if (meta.isNotBlank()) {

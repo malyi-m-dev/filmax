@@ -66,6 +66,8 @@ import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.tv.designsystem.tvScrollFades
 import com.filmax.feature.details.common.DetailsState
+import com.filmax.feature.details.common.seasonChipLabel
+import com.filmax.feature.details.common.seasonSummary
 import com.filmax.feature.details.common.startEpisode
 import com.filmax.feature.details.common.startEpisodeIndex
 
@@ -140,7 +142,7 @@ private fun PanelHeader(state: DetailsState) {
         verticalAlignment = Alignment.Bottom
     ) {
         Text("Эпизоды", style = FxType.rowTitle, color = colors.text, modifier = Modifier.weight(1f))
-        seasonSummary(state.seasonEpisodes)?.let { Text(it, style = FxType.metaOnImage, color = colors.textDim) }
+        state.seasonSummary?.let { Text(it, style = FxType.metaOnImage, color = colors.textDim) }
     }
 }
 

@@ -9,18 +9,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvSheetHost
 import com.filmax.core.tv.designsystem.TvTextSheet
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.feature.details.common.DetailsEvent
+import com.filmax.feature.details.common.DetailsSamples
 import com.filmax.feature.details.common.DetailsScreenModel
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
 import com.filmax.feature.details.common.FolderPickerScreenModel
+import com.filmax.feature.details.common.descriptionMeta
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -90,7 +96,7 @@ private fun DescriptionSheet(state: DetailsState, item: Item, actions: DetailsAc
             TvTextSheet(
                 overline = "Описание",
                 title = item.title,
-                meta = sheetMeta(item, state.series).ifBlank { null },
+                meta = state.descriptionMeta,
                 text = item.plot,
                 onClose = actions.onCloseDescription,
             )
@@ -125,7 +131,22 @@ internal data class DetailsActions(
     val onSelectSeason: (Int) -> Unit,
     /** Сезон стрелкой с серии — применяется сразу, без паузы выбора чипом. */
     val onSwitchSeason: (Int) -> Unit,
-)
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = DetailsActions(
+            onPlay = {},
+            onToggleWatchLater = {},
+            onTrailer = null,
+            onOpenItem = {},
+            onOpenPerson = { _, _ -> },
+            onOpenDescription = {},
+            onCloseDescription = {},
+            onSelectSeason = {},
+            onSwitchSeason = {},
+        )
+    }
+}
 
 private fun detailsActions(item: Item, screenModel: DetailsScreenModel, navigator: Navigator): DetailsActions {
     // Трейлер — только если url играбельный http(s): kino.pub отдаёт прямой HLS.
@@ -143,4 +164,15 @@ private fun detailsActions(item: Item, screenModel: DetailsScreenModel, navigato
         onSelectSeason = { number -> screenModel.dispatch(DetailsEvent.SelectSeason(number)) },
         onSwitchSeason = { number -> screenModel.dispatch(DetailsEvent.SwitchSeason(number)) },
     )
+}
+
+private class DetailsStatePreviews : PreviewParameterProvider<DetailsState> {
+    override val values = DetailsSamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvDetailsScreenPreview(@PreviewParameter(DetailsStatePreviews::class) state: DetailsState) {
+    val item = state.item ?: return
+    FilmaxTvTheme { DetailsWithSheet(state = state, item = item, actions = DetailsActions.None) }
 }

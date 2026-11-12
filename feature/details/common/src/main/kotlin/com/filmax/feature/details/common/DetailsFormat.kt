@@ -6,6 +6,7 @@ package com.filmax.feature.details.common
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.person.CastMember
+import com.filmax.core.presentation.format.durationLabel
 
 /** Статусы просмотра kino.pub (`watching.status`): -1 не начат, 0 в процессе, 1 досмотрен. */
 const val WATCH_STATUS_IN_PROGRESS = 0
@@ -14,8 +15,6 @@ const val WATCH_STATUS_FINISHED = 1
 // Модули русских правил склонения по числу (последние две / одна цифра).
 private const val PLURAL_MOD_HUNDRED = 100
 private const val PLURAL_MOD_TEN = 10
-
-private const val MINUTES_IN_HOUR = 60
 
 /**
  * Производные данные сериала для экрана: сезоны (сгруппированы и отсортированы) и точка «продолжить».
@@ -78,20 +77,6 @@ fun volumeLabel(item: Item, series: SeriesData?): String? = when {
 }
 
 /**
- * «2 ч 46 мин» / «46 мин» / «2 ч» — пустые часы и минуты опускаем. Так же пишут карточки
- * (`durationLabel` в core:ui): раньше здесь выходило «2 ч 0 мин».
- */
-internal fun durationLabel(minutes: Int): String {
-    val hours = minutes / MINUTES_IN_HOUR
-    val rest = minutes % MINUTES_IN_HOUR
-    return when {
-        hours > 0 && rest > 0 -> "$hours ч $rest мин"
-        hours > 0 -> "$hours ч"
-        else -> "$rest мин"
-    }
-}
-
-/**
  * Люди для секции «Актёры»: если фото из TMDB доехали — берём их (с ролями), иначе строим карточки
  * из строки имён kino.pub (`item.cast`, имена через запятую) без фото. Так каст кликабелен всегда,
  * а фото — приятное дополнение, а не условие.
@@ -119,7 +104,8 @@ private fun seasonsWord(count: Int): String = when {
     else -> "сезонов"
 }
 
-private fun episodesWord(count: Int): String = when {
+/** «серия», «серии», «серий» — по числу [count]: объём сериала и сезона. */
+internal fun episodesWord(count: Int): String = when {
     count % PLURAL_MOD_HUNDRED in 11..14 -> "серий"
     count % PLURAL_MOD_TEN == 1 -> "серия"
     count % PLURAL_MOD_TEN in 2..4 -> "серии"

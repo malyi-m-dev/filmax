@@ -62,7 +62,9 @@ import com.filmax.core.ui.components.KenBurnsImage
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
+import com.filmax.feature.details.common.PlayButton
 import com.filmax.feature.details.common.SeriesData
+import com.filmax.feature.details.common.genreOverline
 import com.filmax.feature.details.common.hasUhd
 import com.filmax.feature.details.common.volumeLabel
 
@@ -78,7 +80,7 @@ internal fun DetailsHead(item: Item, state: DetailsState, inAnyFolder: Boolean, 
                 .padding(top = if (series == null) FilmaxMetrics.MovieContentTop else FilmaxMetrics.SeriesContentTop)
                 .padding(horizontal = FilmaxMetrics.ScreenPadding),
         ) {
-            FilmaxOverline(detailsOverline(item))
+            FilmaxOverline(state.genreOverline)
             Text(
                 item.title,
                 style = FilmaxType.title,
@@ -253,17 +255,16 @@ internal fun DetailsTopBar(
 
 /**
  * Плавающая панель «Смотреть»: главная кнопка с подписью, что именно сыграет, и «на телевизоре».
- * Сериал без серий играть нечем ([onPlay] = null) — панели нет вовсе.
+ * Сериал без серий играть нечем ([play] = null) — панели нет вовсе.
  */
 @Composable
 internal fun DetailsPlayPanel(
-    label: PlayLabel,
-    onPlay: (() -> Unit)?,
-    onPlayOnTv: (() -> Unit)?,
+    play: PlayButton?,
+    actions: DetailsActions,
     glass: GlassState,
     modifier: Modifier = Modifier,
 ) {
-    if (onPlay == null) return
+    if (play == null) return
     GlassPanel(
         state = glass,
         shape = ShapeFull,
@@ -280,17 +281,17 @@ internal fun DetailsPlayPanel(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             FilmaxPlayButton(
-                title = label.title,
-                subtitle = label.subtitle,
+                title = play.title,
+                subtitle = play.subtitle,
                 icon = Icons.Filled.PlayArrow,
-                onClick = onPlay,
-                progress = label.progress,
+                onClick = { actions.onPlay(play.video) },
+                progress = play.progress,
                 modifier = Modifier.weight(1f),
             )
             FilmaxIconButton(
                 Icons.Filled.Cast,
                 contentDescription = "Смотреть на телевизоре",
-                onClick = onPlayOnTv,
+                onClick = { actions.onPlayOnTv(play.video) },
                 size = FilmaxMetrics.IconButtonLarge,
             )
         }

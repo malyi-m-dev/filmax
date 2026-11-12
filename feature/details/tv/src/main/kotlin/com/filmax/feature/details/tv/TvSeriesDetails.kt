@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
-import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvBackHint
@@ -41,6 +40,7 @@ import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent
+import com.filmax.feature.details.common.play
 import com.filmax.feature.details.common.resolveCast
 
 private val InfoTop = 24.dp
@@ -118,8 +118,8 @@ private fun SeriesInfo(
         TvBackHint("Назад")
         Column(Modifier.padding(top = HeadingTop), verticalArrangement = Arrangement.spacedBy(CastGap)) {
             DetailsHeading(
+                state = state,
                 item = item,
-                series = state.series,
                 description = HeadingDescription(actions.onOpenDescription, focus.sheets.description),
                 style = SeriesHeadingStyle,
             )
@@ -147,13 +147,12 @@ private fun CastLine(state: DetailsState, item: Item, modifier: Modifier) {
 /** «Продолжить · S4E7» и круглые «В список» / «В папку» / «Трейлер»: место в колонке занимают серии. */
 @Composable
 private fun SeriesButtons(state: DetailsState, actions: DetailsActions, focus: SeriesFocus, modifier: Modifier) {
-    val resume = state.series?.resume
-    // Кнопка играет серию «продолжить», иначе первую серию выбранного сезона.
-    val target = resume ?: state.seasonEpisodes.firstOrNull()
+    // Что играет и как подписана — решает модель (серия «продолжить», иначе первая серия сезона).
+    val play = state.play
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(ButtonGap)) {
         TvButton(
-            playLabel(resume),
-            onClick = { target?.let { actions.onPlay(it.ref) } },
+            play?.titleWithEpisode ?: "Смотреть",
+            onClick = { play?.let { actions.onPlay(it.video) } },
             leadingIcon = Icons.Rounded.PlayArrow,
             modifier = focus.screen.item(PLAY_KEY).focusRequester(focus.play),
         )

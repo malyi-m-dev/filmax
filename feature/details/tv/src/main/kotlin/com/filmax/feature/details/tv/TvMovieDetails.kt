@@ -127,8 +127,8 @@ private fun MovieHeading(
     ) {
         TvBackHint("Назад")
         DetailsHeading(
+            state = state,
             item = item,
-            series = null,
             description = HeadingDescription(actions.onOpenDescription, sheets.description),
             style = MovieHeadingStyle,
             modifier = Modifier.width(HeadingWidth).padding(top = 18.dp),
