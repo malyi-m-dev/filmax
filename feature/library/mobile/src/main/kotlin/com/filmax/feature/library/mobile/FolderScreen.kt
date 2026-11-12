@@ -57,6 +57,10 @@ import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.titlesLabel
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonSize
 import com.filmax.core.ui.components.FilmaxConfirmSheet
@@ -69,10 +73,6 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxStatusBarGlass
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderScreenModel
 import com.filmax.feature.library.common.FolderSideEffect

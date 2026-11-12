@@ -49,6 +49,7 @@ import com.filmax.core.designsystem.GlassState
 import com.filmax.core.designsystem.ShapeFull
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.presentation.format.shortTitle
 import com.filmax.core.ui.components.FilmaxActionTile
 import com.filmax.core.ui.components.FilmaxBadge
@@ -58,7 +59,6 @@ import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPlayButton
 import com.filmax.core.ui.components.FilmaxRatingPill
 import com.filmax.core.ui.components.KenBurnsImage
-import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent

@@ -10,7 +10,7 @@ import androidx.compose.material.icons.rounded.Subtitles
 import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.filmax.core.domain.catalog.model.MediaTrack
-import com.filmax.core.ui.components.formatPlayerTime
+import com.filmax.core.presentation.format.formatPlayerTime
 import com.filmax.feature.player.common.PlayerTab
 
 /** `watching.status` kino.pub: 1 — досмотрено. */

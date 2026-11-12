@@ -36,6 +36,9 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.format.continueMeta
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.titlesLabel
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxContinueCard
 import com.filmax.core.ui.components.FilmaxCreateFolderCard
@@ -44,10 +47,7 @@ import com.filmax.core.ui.components.FilmaxFolderCard
 import com.filmax.core.ui.components.FilmaxHistoryRow
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxTextButton
-import com.filmax.core.ui.components.continueMeta
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState

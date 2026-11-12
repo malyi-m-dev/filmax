@@ -34,6 +34,7 @@ import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.glow
+import com.filmax.core.presentation.format.formatPlayerTime
 
 /**
  * Ползунок перемотки со временем: слева позиция, справа остаток. Пока его тянут, приходят

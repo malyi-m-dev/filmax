@@ -35,6 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.format.isHighRating
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
@@ -50,10 +54,6 @@ import com.filmax.core.tv.designsystem.bringIntoViewAsWhole
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvRailEntry
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.DetailsFact
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent

@@ -11,11 +11,11 @@ import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.format.isHighRating
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.tv.designsystem.TvSpotlight
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.search.common.MIN_QUERY_LENGTH
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.TypeOptions

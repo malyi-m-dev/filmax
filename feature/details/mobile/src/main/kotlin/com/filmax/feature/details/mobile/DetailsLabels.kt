@@ -7,8 +7,8 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.catalog.model.ref
-import com.filmax.core.ui.components.durationLabel
-import com.filmax.core.ui.components.typeLabel
+import com.filmax.core.presentation.format.durationLabel
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.feature.details.common.SeriesData
 import com.filmax.feature.details.common.episodeProgress
 import com.filmax.feature.details.common.hasUhd

@@ -30,6 +30,7 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.format.titlesLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxCheckRow
 import com.filmax.core.ui.components.FilmaxFolderEditor
@@ -39,7 +40,6 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxSheetScope
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
-import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsState
 import com.filmax.feature.details.common.FolderPickerEvent

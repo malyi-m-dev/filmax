@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvButton
@@ -56,7 +57,6 @@ import com.filmax.core.tv.designsystem.fxStaticOverlay
 import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.ui.components.PosterImage
-import com.filmax.core.ui.components.ratingLabel
 import kotlinx.coroutines.delay
 
 /** Что hero показывает: тайтлы карусели, текущий и его отметка «Буду смотреть». */

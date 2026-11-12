@@ -9,6 +9,8 @@ android {
 dependencies {
     api(project(":core:designsystem"))
     implementation(project(":core:domain"))
+    // Подписи (время плеера и др.) — чистые функции core:presentation: их зовут и модели экранов.
+    implementation(project(":core:presentation"))
 
     val bom = platform(libs.compose.bom)
     implementation(bom)

@@ -12,6 +12,12 @@ import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.format.continueMeta
+import com.filmax.core.presentation.format.isHighRating
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.posterUrl
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.tv.designsystem.TvCardSize
 import com.filmax.core.tv.designsystem.TvCollectionCard
 import com.filmax.core.tv.designsystem.TvCollectionTints
@@ -20,12 +26,6 @@ import com.filmax.core.tv.designsystem.TvProgressCard
 import com.filmax.core.tv.designsystem.TvRail
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.tvRailEntry
-import com.filmax.core.ui.components.continueMeta
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.posterUrl
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
 

@@ -32,6 +32,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watchlist.model.WatchlistItem
+import com.filmax.core.presentation.format.isHighRating
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -47,9 +50,6 @@ import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvFolderTint
 import com.filmax.core.tv.designsystem.tvScrollFades
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState

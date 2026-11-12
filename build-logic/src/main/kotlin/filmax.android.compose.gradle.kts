@@ -19,3 +19,11 @@ android {
     kotlinOptions { jvmTarget = JvmTarget.JVM_17.target }
     buildFeatures { compose = true }
 }
+
+// Превью рисует Android Studio по ui-tooling. Он нужен только отладочной сборке: аннотации
+// @Preview (ui-tooling-preview) уже в бандле compose, а релизу инструменты студии ни к чему.
+val catalog = extensions.getByType<VersionCatalogsExtension>().named("libs")
+dependencies {
+    "debugImplementation"(platform(catalog.findLibrary("compose-bom").get()))
+    "debugImplementation"(catalog.findLibrary("compose-ui-tooling").get())
+}

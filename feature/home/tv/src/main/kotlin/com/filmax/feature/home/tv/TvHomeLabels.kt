@@ -4,7 +4,7 @@ package com.filmax.feature.home.tv
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.ui.components.durationLabel
+import com.filmax.core.presentation.format.durationLabel
 import com.filmax.feature.home.common.HomeRowId
 
 /**

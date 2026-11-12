@@ -94,6 +94,10 @@ style:
     ignoreEnums: true
     ignoreRanges: true
     ignoreExtensionFunctions: true
+  # Превью вызывает Android Studio, а не код: приватная функция-превью «неиспользуема» только для detekt.
+  UnusedPrivateMember:
+    active: true
+    ignoreAnnotated: ['Preview', 'PhonePreviews', 'TvPreviews', 'ComponentPreview', 'TvComponentPreview']
 
 potential-bugs:
   active: true

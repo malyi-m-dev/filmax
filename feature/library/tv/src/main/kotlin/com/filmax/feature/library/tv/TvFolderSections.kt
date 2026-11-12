@@ -47,6 +47,11 @@ import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.UserFolder
+import com.filmax.core.presentation.format.durationLabel
+import com.filmax.core.presentation.format.isHighRating
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.titlesLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.TvBackHint
 import com.filmax.core.tv.designsystem.TvButton
@@ -61,11 +66,6 @@ import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.fxEnter
 import com.filmax.core.tv.designsystem.rememberTvScrollFades
 import com.filmax.core.tv.designsystem.tvScrollFades
-import com.filmax.core.ui.components.durationLabel
-import com.filmax.core.ui.components.isHighRating
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.titlesLabel
 import com.filmax.feature.library.common.FolderEvent
 import com.filmax.feature.library.common.FolderState
 

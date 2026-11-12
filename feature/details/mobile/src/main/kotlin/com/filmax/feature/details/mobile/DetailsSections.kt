@@ -24,13 +24,13 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.person.CastMember
+import com.filmax.core.presentation.format.posterMeta
+import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.ui.components.FilmaxCastCard
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxSectionHeader
 import com.filmax.core.ui.components.FilmaxTextButton
-import com.filmax.core.ui.components.posterMeta
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.DetailsEvent
 import com.filmax.feature.details.common.DetailsFact
 import com.filmax.feature.details.common.DetailsState

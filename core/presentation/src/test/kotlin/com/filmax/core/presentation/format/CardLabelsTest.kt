@@ -1,12 +1,22 @@
-package com.filmax.core.ui.components
+package com.filmax.core.presentation.format
 
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.watching.model.WatchProgress
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class CardLabelsTest {
+
+    @Test
+    fun `rating is high from eight`() {
+        assertTrue(isHighRating(8.0))
+        assertTrue(isHighRating(9.1))
+        assertFalse(isHighRating(7.9))
+        assertFalse(isHighRating(null))
+    }
 
     @Test
     fun `rating keeps one decimal`() {

@@ -4,10 +4,10 @@ package com.filmax.feature.details.tv
 
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.MediaTrack
+import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.presentation.format.title
+import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.tv.designsystem.TvEpisodeRowModel
-import com.filmax.core.ui.components.ratingLabel
-import com.filmax.core.ui.components.typeLabel
 import com.filmax.feature.details.common.SeriesData
 import com.filmax.feature.details.common.WATCH_STATUS_FINISHED
 import com.filmax.feature.details.common.WATCH_STATUS_IN_PROGRESS
