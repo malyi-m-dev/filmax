@@ -27,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
@@ -41,9 +43,12 @@ import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.tvlink.common.RemoteEvent
 import com.filmax.feature.tvlink.common.RemoteScreenModel
 import com.filmax.feature.tvlink.common.RemoteSideEffect
+import com.filmax.feature.tvlink.common.RemoteState
+import com.filmax.feature.tvlink.common.TvLinkSamples
 import com.filmax.feature.tvlink.common.message
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -62,7 +67,18 @@ fun RemoteScreen(
             RemoteSideEffect.Close -> navigator.back()
         }
     }
-    val dispatch = screenModel::dispatch
+    RemoteScreen(state = state, onEvent = screenModel::dispatch, onBack = navigator::back, modifier = modifier)
+}
+
+/** Пульт из состояния — без Koin и навигатора: его рисуют превью. */
+@Composable
+internal fun RemoteScreen(
+    state: RemoteState,
+    onEvent: (RemoteEvent) -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val dispatch = onEvent
     Column(
         modifier
             .fillMaxSize()
@@ -73,7 +89,7 @@ fun RemoteScreen(
     ) {
         RemoteTopBar(
             session = state.session,
-            onBack = navigator::back,
+            onBack = onBack,
             onForget = { dispatch(RemoteEvent.Forget) },
         )
         Box(
@@ -194,4 +210,14 @@ private fun NotConnected(dispatch: (RemoteEvent) -> Unit) {
             dispatch(RemoteEvent.ChooseTv)
         }, modifier = Modifier.fillMaxWidth())
     }
+}
+
+private class RemoteStatePreviews : PreviewParameterProvider<RemoteState> {
+    override val values = TvLinkSamples.remote.asSequence()
+}
+
+@PhonePreviews
+@Composable
+private fun RemoteScreenPreview(@PreviewParameter(RemoteStatePreviews::class) state: RemoteState) {
+    FilmaxTheme { RemoteScreen(state = state, onEvent = {}, onBack = {}) }
 }

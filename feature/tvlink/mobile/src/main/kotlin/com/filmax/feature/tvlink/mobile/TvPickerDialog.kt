@@ -29,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogWindowProvider
 import com.filmax.core.designsystem.FilmaxColors
@@ -41,6 +43,8 @@ import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxListRow
 import com.filmax.core.ui.components.FilmaxTextField
+import com.filmax.core.ui.preview.ComponentPreview
+import com.filmax.feature.tvlink.common.TvLinkSamples
 import com.filmax.feature.tvlink.common.TvPickerEvent
 import com.filmax.feature.tvlink.common.TvPickerScreenModel
 import com.filmax.feature.tvlink.common.TvPickerSideEffect
@@ -66,6 +70,12 @@ fun TvPickerDialog(
             TvPickerSideEffect.Close -> navigator.back()
         }
     }
+    TvPickerDialog(state = state, onEvent = screenModel::dispatch)
+}
+
+/** Окно из состояния — без Koin и навигатора: его рисуют превью. */
+@Composable
+internal fun TvPickerDialog(state: TvPickerState, onEvent: (TvPickerEvent) -> Unit) {
     // Окно диалога по умолчанию сдвигается за клавиатурой целиком, и всё, что ниже поля адреса
     // (ошибка, «Подключиться»), оставалось под ней. Ужатое окно прокручивается к нужному блоку.
     val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
@@ -82,23 +92,20 @@ fun TvPickerDialog(
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text(
-                if (state.withTitle) "Смотреть на телевизоре" else "Подключить телевизор",
-                style = FilmaxType.sheetTitle,
-            )
+            Text(state.title, style = FilmaxType.sheetTitle)
             Text(
                 "Телевизоры с Filmax вашего аккаунта kino.pub в этой Wi-Fi сети",
                 style = FilmaxType.meta,
                 color = FilmaxColors.TextSecondary,
             )
-            Devices(state, screenModel::dispatch)
+            Devices(state, onEvent)
             state.failure?.let { failure ->
                 ErrorText(failure.reason.message(failure.deviceName))
             }
-            ManualAddress(state, screenModel::dispatch)
+            ManualAddress(state, onEvent)
             FilmaxButton(
                 text = "Отмена",
-                onClick = { screenModel.dispatch(TvPickerEvent.Dismiss) },
+                onClick = { onEvent(TvPickerEvent.Dismiss) },
                 style = FilmaxButtonStyle.Secondary,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -199,4 +206,14 @@ private fun AddressInput(state: TvPickerState, dispatch: (TvPickerEvent) -> Unit
 @Composable
 private fun ErrorText(text: String) {
     Text(text, style = FilmaxType.meta, color = FilmaxColors.Error)
+}
+
+private class TvPickerStatePreviews : PreviewParameterProvider<TvPickerState> {
+    override val values = TvLinkSamples.picker.asSequence()
+}
+
+@ComponentPreview
+@Composable
+private fun TvPickerDialogPreview(@PreviewParameter(TvPickerStatePreviews::class) state: TvPickerState) {
+    FilmaxTheme { TvPickerDialog(state = state, onEvent = {}) }
 }

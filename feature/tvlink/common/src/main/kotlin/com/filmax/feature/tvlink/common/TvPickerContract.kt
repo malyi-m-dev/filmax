@@ -22,7 +22,10 @@ data class TvPickerState(
     val addressInvalid: Boolean = false,
     /** Окно открыто ради тайтла (а не ради пульта): заголовок и кнопки говорят «Смотреть на ТВ». */
     val withTitle: Boolean = false,
-)
+) {
+    /** Заголовок окна: ради тайтла — «Смотреть на телевизоре», ради пульта — «Подключить телевизор». */
+    val title: String get() = if (withTitle) "Смотреть на телевизоре" else "Подключить телевизор"
+}
 
 sealed interface TvPickerEvent {
     data class Choose(val deviceId: String) : TvPickerEvent
