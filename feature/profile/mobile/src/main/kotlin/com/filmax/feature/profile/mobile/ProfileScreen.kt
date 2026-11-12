@@ -1,5 +1,6 @@
-// Профиль: аватар и подписка сверху, ниже — группы настроек. Варианты настройки выбирают в шторке;
-// какая открыта и что в ней, решает общий с ТВ ProfileScreenModel. Шторки — в ProfileSheets.
+// Профиль: модель и экран из состояния — аватар и подписка сверху, ниже группы настроек (секции — в
+// ProfileSections). Какая шторка открыта и что в ней, решает общий с ТВ ProfileScreenModel; шторки —
+// в ProfileSheets.
 
 package com.filmax.feature.profile.mobile
 
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -17,64 +17,61 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.StarRate
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
-import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.radialWash
 import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.domain.feedback.FeedbackTrigger
-import com.filmax.core.domain.source.capabilities
-import com.filmax.core.domain.user.model.UserProfile
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
-import com.filmax.core.ui.components.FilmaxAvatar
 import com.filmax.core.ui.components.FilmaxSettingsDivider
 import com.filmax.core.ui.components.FilmaxSettingsGroup
 import com.filmax.core.ui.components.FilmaxSettingsRow
 import com.filmax.core.ui.components.FilmaxStatusBarGlass
-import com.filmax.core.ui.components.FilmaxSubscriptionCard
 import com.filmax.core.ui.components.FilmaxVersionLabel
 import com.filmax.core.ui.components.LocalNavBarPadding
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.profile.common.ProfileEvent
+import com.filmax.feature.profile.common.ProfileSamples
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSetting
 import com.filmax.feature.profile.common.ProfileSideEffect
 import com.filmax.feature.profile.common.ProfileState
-import com.filmax.feature.profile.common.activeUntil
-import com.filmax.feature.profile.common.daysLabel
-import com.filmax.feature.profile.common.initialsOrFallback
-import com.filmax.feature.profile.common.label
-import com.filmax.feature.profile.common.valueOf
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
 /** Переходы и действия Профиля одним объектом: порог LongParameterList у detekt — 6. */
-private data class ProfileActions(
+internal data class ProfileActions(
     val onEvent: (ProfileEvent) -> Unit,
     val onCheckUpdates: () -> Unit,
     val onRate: () -> Unit,
     /** Пульт телевизора в той же сети. */
     val onOpenRemote: () -> Unit,
+    /** Каталог компонентов — только у debug-сборки; null — строки нет. */
     val onOpenDesignSystem: (() -> Unit)?,
-)
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = ProfileActions(
+            onEvent = {},
+            onCheckUpdates = {},
+            onRate = {},
+            onOpenRemote = {},
+            onOpenDesignSystem = null,
+        )
+    }
+}
 
 /**
  * [onCheckUpdates] — не навигация, а действие: обновления живут в `:app` (GitHub Releases),
@@ -96,6 +93,21 @@ fun ProfileScreen(
             ProfileSideEffect.LoggedOut -> navigator.root(Destination.Onboarding)
         }
     }
+    val actions = remember(screenModel, navigator, onCheckUpdates, showDesignSystem) {
+        ProfileActions(
+            onEvent = screenModel::dispatch,
+            onCheckUpdates = onCheckUpdates,
+            onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) },
+            onOpenRemote = { navigator.open(Destination.Remote) },
+            onOpenDesignSystem = { navigator.open(Destination.DesignSystem) }.takeIf { showDesignSystem },
+        )
+    }
+    ProfileScreen(state = state, actions = actions, modifier = modifier)
+}
+
+/** Профиль из состояния — без Koin и навигатора: его рисуют превью. */
+@Composable
+internal fun ProfileScreen(state: ProfileState, actions: ProfileActions, modifier: Modifier = Modifier) {
     val palette = FilmaxTheme.palette
     Box(
         modifier
@@ -106,23 +118,10 @@ fun ProfileScreen(
         if (state.loading) {
             CircularProgressIndicator(color = palette.accent, modifier = Modifier.align(Alignment.Center))
         } else {
-            ProfileContent(
-                state = state,
-                actions = ProfileActions(
-                    onEvent = screenModel::dispatch,
-                    onCheckUpdates = onCheckUpdates,
-                    onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) },
-                    onOpenRemote = { navigator.open(Destination.Remote) },
-                    onOpenDesignSystem = if (showDesignSystem) {
-                        { navigator.open(Destination.DesignSystem) }
-                    } else {
-                        null
-                    },
-                ),
-            )
+            ProfileContent(state = state, actions = actions)
         }
     }
-    ProfileSheets(state = state, onEvent = screenModel::dispatch)
+    ProfileSheets(state = state, onEvent = actions.onEvent)
 }
 
 @Composable
@@ -170,107 +169,12 @@ private fun ProfileColumn(state: ProfileState, actions: ProfileActions, modifier
     }
 }
 
-@Composable
-private fun ProfileHeader(profile: UserProfile?) {
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        FilmaxAvatar(initials = profile.initialsOrFallback())
-        Text(
-            profile?.username ?: "Гость",
-            style = FilmaxType.profileName,
-            color = FilmaxColors.Text,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        profile?.email?.takeIf { it.isNotBlank() }?.let {
-            Text(
-                it,
-                style = FilmaxType.bodySmall,
-                color = FilmaxColors.TextDim,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-        }
-    }
+private class ProfileStatePreviews : PreviewParameterProvider<ProfileState> {
+    override val values = ProfileSamples.all.asSequence()
 }
 
-/** Доступ к видео: подписка kino.pub или домашний сервер, которому подписка не нужна. */
+@PhonePreviews
 @Composable
-private fun AccessCard(state: ProfileState) {
-    if (!state.source.capabilities.subscription) {
-        FilmaxSubscriptionCard(
-            title = state.source.label,
-            subtitle = "Своя медиатека, без подписки",
-            active = true,
-        )
-    } else {
-        SubscriptionCard(state.profile)
-    }
-}
-
-/** Подписка — справочная карточка: менять её из приложения kino.pub не даёт. */
-@Composable
-private fun SubscriptionCard(profile: UserProfile?) {
-    val subscription = profile?.subscription
-    val active = subscription?.active == true
-    val subtitle = if (active) {
-        listOfNotNull(subscription?.activeUntil(), subscription?.daysLeft?.let { "ещё ${daysLabel(it)}" })
-            .joinToString(" · ")
-            .ifBlank { null }
-    } else {
-        "Без подписки kino.pub видео не играет"
-    }
-    FilmaxSubscriptionCard(
-        title = if (active) "Filmax Премиум" else "Нет подписки",
-        subtitle = subtitle,
-        active = active
-    )
-}
-
-/**
- * Настройки воспроизведения и оформления реальны: качество, аудио и субтитры хранятся локально и
- * применяются в плеере, палитра перекрашивает приложение сразу. Заглушек на экране нет.
- */
-@Composable
-private fun PlaybackGroup(state: ProfileState, onEvent: (ProfileEvent) -> Unit) {
-    FilmaxSettingsGroup(title = "Просмотр") {
-        SettingRow(state, ProfileSetting.QUALITY, Icons.Filled.HighQuality, onEvent)
-        FilmaxSettingsDivider()
-        SettingRow(state, ProfileSetting.AUDIO, Icons.Filled.GraphicEq, onEvent)
-        FilmaxSettingsDivider()
-        SettingRow(state, ProfileSetting.SUBTITLES, Icons.Filled.Subtitles, onEvent)
-        FilmaxSettingsDivider()
-        SettingRow(state, ProfileSetting.PALETTE, Icons.Filled.Palette, onEvent)
-    }
-}
-
-@Composable
-private fun SettingRow(
-    state: ProfileState,
-    setting: ProfileSetting,
-    icon: ImageVector,
-    onEvent: (ProfileEvent) -> Unit,
-) {
-    FilmaxSettingsRow(
-        icon = icon,
-        label = setting.label,
-        value = state.valueOf(setting),
-        onClick = { onEvent(ProfileEvent.OpenSetting(setting)) },
-    )
-}
-
-/**
- * Приложение ставится APK из GitHub Releases, магазина с автообновлением нет — значит проверка
- * должна быть доступна руками, а не только один раз при старте.
- */
-@Composable
-private fun AppGroup(actions: ProfileActions) {
-    FilmaxSettingsGroup(title = "Приложение") {
-        FilmaxSettingsRow(Icons.Filled.SystemUpdate, "Проверить обновления", onClick = actions.onCheckUpdates)
-        FilmaxSettingsDivider()
-        FilmaxSettingsRow(Icons.Filled.StarRate, "Оценить приложение", onClick = actions.onRate)
-        actions.onOpenDesignSystem?.let {
-            FilmaxSettingsDivider()
-            FilmaxSettingsRow(Icons.Filled.Widgets, "Дизайн-система", onClick = it)
-        }
-    }
+private fun ProfileScreenPreview(@PreviewParameter(ProfileStatePreviews::class) state: ProfileState) {
+    FilmaxTheme { ProfileScreen(state = state, actions = ProfileActions.None) }
 }

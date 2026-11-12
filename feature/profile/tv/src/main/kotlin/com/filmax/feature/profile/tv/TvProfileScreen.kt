@@ -9,10 +9,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.filmax.core.domain.feedback.FeedbackTrigger
 import com.filmax.core.domain.settings.ThemePalette
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvConfirmDialog
 import com.filmax.core.tv.designsystem.TvConfirmSpec
@@ -20,8 +23,10 @@ import com.filmax.core.tv.designsystem.TvOption
 import com.filmax.core.tv.designsystem.TvOptionSheet
 import com.filmax.core.tv.designsystem.TvOptionSheetState
 import com.filmax.core.tv.designsystem.TvSheetHost
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.core.tv.designsystem.tvSectionBackground
 import com.filmax.feature.profile.common.ProfileEvent
+import com.filmax.feature.profile.common.ProfileSamples
 import com.filmax.feature.profile.common.ProfileScreenModel
 import com.filmax.feature.profile.common.ProfileSetting
 import com.filmax.feature.profile.common.ProfileSideEffect
@@ -56,8 +61,12 @@ fun TvProfileScreen(
             ProfileSideEffect.LoggedOut -> navigator.root(Destination.Onboarding)
         }
     }
-    val onRate = { navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name)) }
-    ProfileContent(state, ProfileActions(screenModel::dispatch, onCheckUpdates, onRate), modifier, remoteCard)
+    val actions = remember(screenModel, navigator, onCheckUpdates) {
+        ProfileActions(screenModel::dispatch, onCheckUpdates, onRate = {
+            navigator.open(Destination.Feedback(FeedbackTrigger.Profile.name))
+        })
+    }
+    TvProfileScreen(state = state, actions = actions, modifier = modifier, remoteCard = remoteCard)
 }
 
 /** Действия экрана: события модели, ручная проверка обновлений (её модель живёт в :app) и оценка. */
@@ -66,7 +75,12 @@ internal data class ProfileActions(
     val onCheckUpdates: () -> Unit,
     /** Окно оценки приложения. */
     val onRate: () -> Unit = {},
-)
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = ProfileActions(onEvent = {}, onCheckUpdates = {})
+    }
+}
 
 /**
  * Куда вернуть фокус: на строку настройки, чья панель закрылась, и на «Выйти», когда закрылся
@@ -77,9 +91,9 @@ internal class ProfileFocus {
     val logout = FocusRequester()
 }
 
-/** Экран из состояния — без Koin и навигатора: так его собирают UI-тесты фокуса. */
+/** Профиль из состояния — без Koin и навигатора: его рисуют превью и UI-тесты фокуса. */
 @Composable
-internal fun ProfileContent(
+internal fun TvProfileScreen(
     state: ProfileState,
     actions: ProfileActions,
     modifier: Modifier = Modifier,
@@ -131,4 +145,14 @@ private fun optionSheet(state: ProfileState): TvOptionSheetState {
         options = labels.mapIndexed { index, label -> TvOption(label, swatches?.getOrNull(index)) },
         selectedIndex = labels.indexOf(state.valueOf(setting)),
     )
+}
+
+private class ProfileStatePreviews : PreviewParameterProvider<ProfileState> {
+    override val values = ProfileSamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvProfileScreenPreview(@PreviewParameter(ProfileStatePreviews::class) state: ProfileState) {
+    FilmaxTvTheme { TvProfileScreen(state = state, actions = ProfileActions.None) }
 }
