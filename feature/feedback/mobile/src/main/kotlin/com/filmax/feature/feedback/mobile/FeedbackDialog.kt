@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxTheme
@@ -21,7 +23,9 @@ import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
 import com.filmax.core.ui.components.FilmaxRatingStars
 import com.filmax.core.ui.components.FilmaxTextArea
+import com.filmax.core.ui.preview.ComponentPreview
 import com.filmax.feature.feedback.common.FeedbackEvent
+import com.filmax.feature.feedback.common.FeedbackSamples
 import com.filmax.feature.feedback.common.FeedbackScreenModel
 import com.filmax.feature.feedback.common.FeedbackSideEffect
 import com.filmax.feature.feedback.common.FeedbackState
@@ -42,6 +46,12 @@ fun FeedbackDialog(
             FeedbackSideEffect.Close -> navigator.back()
         }
     }
+    FeedbackDialog(state = state, onEvent = screenModel::dispatch)
+}
+
+/** Окно из состояния — без Koin и навигатора: его рисуют превью. */
+@Composable
+internal fun FeedbackDialog(state: FeedbackState, onEvent: (FeedbackEvent) -> Unit) {
     Surface(
         shape = ShapeSidePanel,
         color = FilmaxTheme.palette.background,
@@ -49,7 +59,7 @@ fun FeedbackDialog(
         border = BorderStroke(1.dp, FilmaxColors.PanelBorder),
     ) {
         Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (state.sent) ThankYou(screenModel::dispatch) else Form(state, screenModel::dispatch)
+            if (state.sent) ThankYou(onEvent) else Form(state, onEvent)
         }
     }
 }
@@ -73,9 +83,9 @@ private fun Form(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit) {
             modifier = Modifier.weight(1f),
         )
         FilmaxButton(
-            text = if (state.sending) "Отправляем…" else "Отправить",
+            text = state.sendLabel,
             onClick = { dispatch(FeedbackEvent.Send) },
-            enabled = state.rating > 0 && !state.sending,
+            enabled = state.canSend,
             modifier = Modifier.weight(1f),
         )
     }
@@ -86,4 +96,14 @@ private fun ThankYou(dispatch: (FeedbackEvent) -> Unit) {
     Text("Спасибо!", style = FilmaxType.sheetTitle, color = FilmaxColors.Text)
     Text("Отзыв отправлен — мы его прочитаем.", style = FilmaxType.body, color = FilmaxColors.TextSecondary)
     FilmaxButton(text = "Готово", onClick = { dispatch(FeedbackEvent.Dismiss) }, modifier = Modifier.fillMaxWidth())
+}
+
+private class FeedbackStatePreviews : PreviewParameterProvider<FeedbackState> {
+    override val values = FeedbackSamples.all.asSequence()
+}
+
+@ComponentPreview
+@Composable
+private fun FeedbackDialogPreview(@PreviewParameter(FeedbackStatePreviews::class) state: FeedbackState) {
+    FilmaxTheme { FeedbackDialog(state = state, onEvent = {}) }
 }

@@ -18,6 +18,9 @@ data class FeedbackState(
 ) {
     val canSend: Boolean get() = rating > 0 && !sending && !sent
 
+    /** Подпись главной кнопки: пока отзыв в пути — «Отправляем…», чтобы второй раз не нажимали. */
+    val sendLabel: String get() = if (sending) "Отправляем…" else "Отправить"
+
     /** Заголовок окна — по поводу, с которым оно открылось. */
     val title: String
         get() = when (trigger) {

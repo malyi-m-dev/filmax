@@ -22,11 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.input.KeyboardLayout
 import com.filmax.core.presentation.input.keyboardRows
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvButton
@@ -37,9 +40,11 @@ import com.filmax.core.tv.designsystem.TvKeyboardLayouts
 import com.filmax.core.tv.designsystem.TvKeyboardStyle
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvRatingStars
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.feature.feedback.common.FeedbackEvent
 import com.filmax.feature.feedback.common.FeedbackInput
+import com.filmax.feature.feedback.common.FeedbackSamples
 import com.filmax.feature.feedback.common.FeedbackScreenModel
 import com.filmax.feature.feedback.common.FeedbackSideEffect
 import com.filmax.feature.feedback.common.FeedbackState
@@ -63,11 +68,17 @@ fun TvFeedbackScreen(
             FeedbackSideEffect.Close -> navigator.back()
         }
     }
+    TvFeedbackScreen(state = state, onEvent = screenModel::dispatch)
+}
+
+/** Окно из состояния — без Koin и навигатора: его рисуют превью. */
+@Composable
+internal fun TvFeedbackScreen(state: FeedbackState, onEvent: (FeedbackEvent) -> Unit) {
     Box(
         Modifier.fillMaxSize().background(LocalFxColors.current.background),
         contentAlignment = Alignment.Center,
     ) {
-        if (state.sent) ThankYou(screenModel::dispatch) else FeedbackForm(state, screenModel::dispatch)
+        if (state.sent) ThankYou(onEvent) else FeedbackForm(state, onEvent)
     }
 }
 
@@ -105,7 +116,7 @@ private fun RatingColumn(state: FeedbackState, dispatch: (FeedbackEvent) -> Unit
         state.error?.let { Text(it, style = FxType.meta, color = colors.error) }
         Row(Modifier.tvFocusGroup(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             TvButton(
-                text = if (state.sending) "Отправляем…" else "Отправить",
+                text = state.sendLabel,
                 onClick = { dispatch(FeedbackEvent.Send) },
                 focusRequester = send,
             )
@@ -170,4 +181,14 @@ private fun ThankYou(dispatch: (FeedbackEvent) -> Unit) {
             modifier = Modifier.onPlaced { if (!focusPlaced) focusPlaced = done.requestFocus() },
         )
     }
+}
+
+private class FeedbackStatePreviews : PreviewParameterProvider<FeedbackState> {
+    override val values = FeedbackSamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvFeedbackScreenPreview(@PreviewParameter(FeedbackStatePreviews::class) state: FeedbackState) {
+    FilmaxTvTheme { TvFeedbackScreen(state = state, onEvent = {}) }
 }
