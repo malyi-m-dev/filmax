@@ -175,8 +175,12 @@ class MineScreenModelTest {
 
         model.dispatch(MineEvent.ConfirmRemove)
         advanceUntilIdle()
-        assertNull(model.states.value.confirm)
         assertEquals(listOf(1012), model.states.value.watchlist.map { it.id })
+
+        // Шторка доехала вниз и закрылась сама.
+        model.dispatch(MineEvent.DismissRemove)
+        advanceUntilIdle()
+        assertNull(model.states.value.confirm)
     }
 
     @Test

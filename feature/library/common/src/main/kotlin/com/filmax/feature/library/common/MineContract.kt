@@ -107,7 +107,11 @@ sealed interface MineEvent {
 
     /** Долгий тап на телефоне: спросить, убрать ли тайтл. */
     data class AskRemove(val confirm: MineConfirm) : Removal
+
+    /** «Убрать» в шторке: убирает, но шторку не закрывает — она уезжает сама. */
     data object ConfirmRemove : Removal
+
+    /** Шторка подтверждения закрылась: доехала после «Убрать» или её смахнули. */
     data object DismissRemove : Removal
 
     data object AskClearHistory : MineEvent

@@ -160,11 +160,14 @@ class MineScreenModel(
         }
     }
 
-    /** «Убрать» в шторке: что убирать, модель знает сама — это и есть открытое подтверждение. */
+    /**
+     * «Убрать» в шторке: что убирать, модель знает сама — это и есть открытое подтверждение. Само
+     * подтверждение не снимаем: шторка уезжает с анимацией и закрывается [MineEvent.DismissRemove].
+     * Сними его модель сразу — шторка исчезла бы из композиции рывком, на полпути.
+     */
     private fun confirmRemove() {
         screenModelScope {
             val asked = state.confirm ?: return@screenModelScope
-            updateState { it.copy(confirm = null) }
             when (asked) {
                 is MineConfirm.Watchlist -> watchlist.remove(asked.itemId)
                 is MineConfirm.History -> removeFromHistory(asked.itemId)
