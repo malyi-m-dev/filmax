@@ -4,7 +4,6 @@ import android.content.pm.PackageManager
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
@@ -20,8 +19,9 @@ import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.getOrNull
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.toTitleCard
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.data.fake.FakeBackend
@@ -62,7 +62,7 @@ class TvCollectionFocusTest {
     val images = FakeImagesRule()
 
     private val calls = mutableListOf<String>()
-    private lateinit var items: List<Item>
+    private lateinit var items: List<TitleCard>
     private var state by mutableStateOf(CollectionDetailState())
 
     @Before
@@ -71,11 +71,12 @@ class TvCollectionFocusTest {
             .setSystemFeature(PackageManager.FEATURE_LEANBACK, true)
         items = runBlocking {
             val catalog = FakeCatalogRepository(FakeBackend(latency = FakeLatency.None))
-            checkNotNull(catalog.getCollectionItems(FakeIds.LARGE_COLLECTION).getOrNull()).items
+            val page = checkNotNull(catalog.getCollectionItems(FakeIds.LARGE_COLLECTION).getOrNull())
+            page.items.map { it.toTitleCard() }
         }
-        state = CollectionDetailState(loading = false, items = items, page = 1, hasNextPage = true)
+        state = CollectionDetailState(title = TITLE, loading = false, items = items, page = 1, hasNextPage = true)
         compose.setContent {
-            FilmaxTvTheme { CollectionContent(state, HEADER, actions()) }
+            FilmaxTvTheme { TvCollectionDetailScreen(state, actions()) }
         }
         compose.waitForIdle()
     }
@@ -134,6 +135,7 @@ class TvCollectionFocusTest {
         onPlay = { id -> calls += "play $id" },
         onLoadMore = { calls += "load more" },
         onFocusRow = { row -> state = state.copy(focusedRow = row) },
+        onRetry = {},
     )
 
     private fun focusedMatcher(text: String): SemanticsMatcher {
@@ -168,11 +170,6 @@ class TvCollectionFocusTest {
 
         /** Масштаб 1.06 поднимает верх постера на ~6dp, остальное — округления раскладки. */
         val PIVOT_TOLERANCE = 10.dp
-        val HEADER = CollectionHeaderModel(
-            title = "Зрители рекомендуют",
-            caption = null,
-            cover = null,
-            tint = Color.DarkGray,
-        )
+        const val TITLE = "Зрители рекомендуют"
     }
 }

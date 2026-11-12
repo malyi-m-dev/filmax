@@ -2,20 +2,8 @@ package com.filmax.feature.collections.tv
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class TvCollectionLabelsTest {
-
-    @Test
-    fun `caption agrees the word with the number`() {
-        assertEquals("1 фильм", titlesCaption(1))
-        assertEquals("24 фильма", titlesCaption(24))
-        assertEquals("45 фильмов", titlesCaption(45))
-        assertEquals("11 фильмов", titlesCaption(11))
-        assertEquals("112 фильмов", titlesCaption(112))
-        assertEquals("101 фильм", titlesCaption(101))
-        assertNull(titlesCaption(null))
-    }
 
     @Test
     fun `cards fall into rows of six`() {

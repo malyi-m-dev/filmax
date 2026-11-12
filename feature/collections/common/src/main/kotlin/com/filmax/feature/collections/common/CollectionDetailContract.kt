@@ -1,10 +1,16 @@
 package com.filmax.feature.collections.common
 
-import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.format.filmsLabel
+import com.filmax.core.presentation.format.titlesLabel
 
 data class CollectionDetailState(
+    /** Id подборки из маршрута — по нему экраны берут её оттенок. */
+    val collectionId: Int = 0,
+    /** Название из маршрута: шапка показывает его сразу, не дожидаясь первой страницы. */
+    val title: String = "",
     val loading: Boolean = true,
-    val items: List<Item> = emptyList(),
+    val items: List<TitleCard> = emptyList(),
     val error: String? = null,
     /** Последняя загруженная страница (1-based). */
     val page: Int = 0,
@@ -26,6 +32,15 @@ data class CollectionDetailState(
      * следующая, kino.pub знает лишь число страниц, а «примерно 40» на экране — неправда.
      */
     val titlesCount: Int? get() = items.size.takeUnless { loading || hasNextPage || items.isEmpty() }
+
+    /** «12 тайтлов» под названием на телефоне; null — число не точное. */
+    val titlesCaption: String? get() = titlesCount?.let(::titlesLabel)
+
+    /** «12 фильмов» в шапке ТВ, как в макете; null — число не точное. */
+    val filmsCaption: String? get() = titlesCount?.let(::filmsLabel)
+
+    /** Постеры веера в шапке телефона — по порядку подборки. */
+    val fanPosters: List<String> get() = items.map { it.posterUrl }
 
     /** С какого тайтла начинается просмотр подборки: первый в её порядке. */
     val startItemId: Int? get() = items.firstOrNull()?.id

@@ -52,6 +52,8 @@ class CollectionDetailScreenModelTest {
         assertEquals(PAGE_SIZE, state.items.size)
         assertTrue(state.hasNextPage)
         assertNull(state.titlesCount, "пока есть следующая страница, числа на экране быть не должно")
+        assertNull(state.titlesCaption)
+        assertNull(state.filmsCaption)
         assertEquals(state.items.first().id, state.startItemId)
         assertNotNull(state.cover, "у подборки фикстур есть обложка — шапка без кадра")
     }
@@ -80,6 +82,17 @@ class CollectionDetailScreenModelTest {
         val state = loaded(SMALL_COLLECTION).states.value
 
         assertEquals(SMALL_COLLECTION_SIZE, state.titlesCount)
+        assertEquals("6 тайтлов", state.titlesCaption)
+        assertEquals("6 фильмов", state.filmsCaption)
+    }
+
+    @Test
+    fun `title and id come from the route before the first page`() = runTest(dispatcher) {
+        val state = loaded(SMALL_COLLECTION).states.value
+
+        assertEquals("Подборка", state.title)
+        assertEquals(SMALL_COLLECTION, state.collectionId)
+        assertEquals(state.items.map { it.posterUrl }, state.fanPosters)
     }
 
     @Test

@@ -13,18 +13,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.filmax.core.domain.error.AppError
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvCollectionTints
 import com.filmax.core.tv.designsystem.TvErrorState
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.ui.components.appErrorText
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import com.filmax.feature.collections.common.CollectionDetailState
+import com.filmax.feature.collections.common.CollectionSamples
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -42,8 +48,6 @@ private const val BOTTOM_FADE_LAYER = 3f
  */
 @Composable
 fun TvCollectionDetailScreen(
-    collectionId: Int,
-    title: String,
     modifier: Modifier = Modifier,
     screenModel: CollectionDetailScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
@@ -51,9 +55,22 @@ fun TvCollectionDetailScreen(
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
     val actions = remember(screenModel, navigator) { collectionActions(screenModel, navigator) }
+    TvCollectionDetailScreen(state = state, actions = actions, modifier = modifier, error = appError)
+}
+
+/**
+ * Подборка из состояния — без Koin и навигатора: её рисуют превью и UI-тест фокуса. Стартовый
+ * фокус — первый постер; возврат из деталей — на тот, с которого ушли.
+ */
+@Composable
+internal fun TvCollectionDetailScreen(
+    state: CollectionDetailState,
+    actions: CollectionActions,
+    modifier: Modifier = Modifier,
+    error: AppError? = null,
+) {
     // Своей заливки нет: фон — у окна (FilmaxTvTheme), под шапкой и сеткой он и так этого цвета.
     Box(modifier.fillMaxSize()) {
-        val error = appError
         when {
             state.loading -> CircularProgressIndicator(
                 color = LocalFxColors.current.accent,
@@ -63,10 +80,10 @@ fun TvCollectionDetailScreen(
             // Показывать нечего и есть ошибка — объясняемся и даём «Повторить» (фокусу нужна цель).
             error != null && state.items.isEmpty() -> {
                 val text = appErrorText(error)
-                TvErrorState(title = text.title, message = text.message, onRetry = screenModel::retry)
+                TvErrorState(title = text.title, message = text.message, onRetry = actions.onRetry)
             }
 
-            else -> CollectionContent(state, headerModel(collectionId, title, state), actions)
+            else -> CollectionContent(state, actions)
         }
     }
 }
@@ -78,33 +95,33 @@ internal data class CollectionActions(
     val onLoadMore: () -> Unit,
     /** Строка сетки с фокусом; null — фокус в шапке. */
     val onFocusRow: (Int?) -> Unit,
-)
+    val onRetry: () -> Unit,
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = CollectionActions(onOpenItem = {}, onPlay = {}, onLoadMore = {}, onFocusRow = {}, onRetry = {})
+    }
+}
 
 private fun collectionActions(screenModel: CollectionDetailScreenModel, navigator: Navigator) = CollectionActions(
     onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
     onPlay = { itemId -> navigator.open(Destination.Player(itemId = itemId)) },
     onLoadMore = { screenModel.dispatch(CollectionDetailEvent.LoadMore) },
     onFocusRow = { row -> screenModel.dispatch(CollectionDetailEvent.FocusRow(row)) },
+    onRetry = screenModel::retry,
 )
 
 /** Цвет полосы — по id подборки: у одной подборки он одинаковый при каждом входе. */
-private fun headerModel(collectionId: Int, title: String, state: CollectionDetailState) = CollectionHeaderModel(
-    title = title,
-    caption = titlesCaption(state.titlesCount),
+private fun headerModel(state: CollectionDetailState) = CollectionHeaderModel(
+    title = state.title,
+    caption = state.filmsCaption,
     cover = state.cover,
-    tint = TvCollectionTints[collectionId.mod(TvCollectionTints.size)],
+    tint = TvCollectionTints[state.collectionId.mod(TvCollectionTints.size)],
 )
 
-/**
- * Сетка и шапка над ней. internal — UI-тест фокуса собирает экран из состояния, без Koin и
- * ScreenModel. Стартовый фокус — первый постер; возврат из деталей — на тот, с которого ушли.
- */
+/** Сетка и шапка над ней: шапка ходит слоями вокруг сетки и сворачивается по решению модели. */
 @Composable
-internal fun CollectionContent(
-    state: CollectionDetailState,
-    header: CollectionHeaderModel,
-    actions: CollectionActions
-) {
+private fun CollectionContent(state: CollectionDetailState, actions: CollectionActions) {
     val focus = rememberTvScreenFocus()
     val gridActions =
         remember(actions) { CollectionGridActions(actions.onOpenItem, actions.onLoadMore, actions.onFocusRow) }
@@ -112,7 +129,7 @@ internal fun CollectionContent(
         // Сетка — между слоями шапки: раскрытая лежит под постерами, свёрнутая полоса — над ними.
         CollectionGrid(state.items, state.headerCollapsed, focus, gridActions, Modifier.zIndex(GRID_LAYER))
         CollectionHeader(
-            model = header,
+            model = headerModel(state),
             collapsed = state.headerCollapsed,
             onPlay = state.startItemId?.let { itemId -> { actions.onPlay(itemId) } },
             onFocused = { actions.onFocusRow(null) },
@@ -131,4 +148,16 @@ private fun BottomFade(modifier: Modifier) {
             .height(BottomFadeHeight)
             .background(Brush.verticalGradient(listOf(Color.Transparent, background))),
     )
+}
+
+private class CollectionStatePreviews : PreviewParameterProvider<CollectionDetailState> {
+    override val values = CollectionSamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvCollectionDetailScreenPreview(
+    @PreviewParameter(CollectionStatePreviews::class) state: CollectionDetailState,
+) {
+    FilmaxTvTheme { TvCollectionDetailScreen(state = state, actions = CollectionActions.None) }
 }

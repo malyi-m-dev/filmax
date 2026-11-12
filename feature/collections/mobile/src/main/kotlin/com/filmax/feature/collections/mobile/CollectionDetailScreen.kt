@@ -46,6 +46,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
@@ -56,13 +58,10 @@ import com.filmax.core.designsystem.GlassState
 import com.filmax.core.designsystem.glassSource
 import com.filmax.core.designsystem.oklch
 import com.filmax.core.designsystem.rememberGlassState
-import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.domain.error.AppError
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.titlesLabel
-import com.filmax.core.presentation.format.typeLabel
+import com.filmax.core.presentation.cards.TitleCard
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonSize
 import com.filmax.core.ui.components.FilmaxEmptyState
@@ -75,9 +74,11 @@ import com.filmax.core.ui.components.FilmaxPosterSkeleton
 import com.filmax.core.ui.components.PosterImage
 import com.filmax.core.ui.components.bleed
 import com.filmax.core.ui.components.collectionHue
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.collections.common.CollectionDetailEvent
 import com.filmax.feature.collections.common.CollectionDetailScreenModel
 import com.filmax.feature.collections.common.CollectionDetailState
+import com.filmax.feature.collections.common.CollectionSamples
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -87,55 +88,81 @@ private const val SKELETON_COUNT = 9
 
 /**
  * Одна подборка — сетка её тайтлов под шапкой её оттенка. «Смотреть подряд» начинает с первого
- * тайтла подборки ([CollectionDetailState.startItemId]).
+ * тайтла подборки ([CollectionDetailState.startItemId]). Название и id — из маршрута, через модель.
  */
 @Composable
 fun CollectionDetailScreen(
-    collectionId: Int,
-    title: String,
     modifier: Modifier = Modifier,
     screenModel: CollectionDetailScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
     val appError by screenModel.collectErrorAsState()
-    val hue = collectionHue(collectionId)
+    val actions = remember(screenModel, navigator) { collectionActions(screenModel, navigator) }
+    CollectionDetailScreen(state = state, actions = actions, modifier = modifier, error = appError)
+}
+
+/** Подборка из состояния — без Koin и навигатора: её рисуют превью. */
+@Composable
+internal fun CollectionDetailScreen(
+    state: CollectionDetailState,
+    actions: CollectionActions,
+    modifier: Modifier = Modifier,
+    error: AppError? = null,
+) {
+    val hue = collectionHue(state.collectionId)
     val glass = rememberGlassState()
     val gridState = rememberLazyGridState()
     val collapsed by remember { derivedStateOf { gridState.firstVisibleItemIndex > 0 } }
 
     Box(modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
         CollectionGrid(
-            title = title,
             hue = hue,
             state = state,
             gridState = gridState,
-            actions = CollectionActions(
-                onOpenItem = { navigator.open(Destination.Details(it)) },
-                onPlay = { navigator.open(Destination.Player(itemId = it)) },
-                onLoadMore = { screenModel.dispatch(CollectionDetailEvent.LoadMore) },
-            ),
+            actions = actions,
             modifier = Modifier.glassSource(glass),
         )
-        CollectionTopBar(title = title, hue = hue, collapsed = collapsed, glass = glass, onBack = navigator::back)
-        appError?.let { error ->
-            FilmaxErrorModal(error = error, onDismiss = screenModel::dismissError, onPrimary = screenModel::retry)
+        CollectionTopBar(title = state.title, hue = hue, collapsed = collapsed, glass = glass, onBack = actions.onBack)
+        error?.let {
+            FilmaxErrorModal(error = it, onDismiss = actions.onDismissError, onPrimary = actions.onRetry)
         }
     }
 }
 
-/** Переходы и догрузка подборки одним объектом. */
-private data class CollectionActions(
+/** Переходы, догрузка и ошибка подборки одним объектом. */
+internal data class CollectionActions(
     val onOpenItem: (Int) -> Unit,
     val onPlay: (Int) -> Unit,
     val onLoadMore: () -> Unit,
+    val onBack: () -> Unit,
+    val onDismissError: () -> Unit,
+    val onRetry: () -> Unit,
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = CollectionActions(
+            onOpenItem = {},
+            onPlay = {},
+            onLoadMore = {},
+            onBack = {},
+            onDismissError = {},
+            onRetry = {},
+        )
+    }
+}
+
+private fun collectionActions(screenModel: CollectionDetailScreenModel, navigator: Navigator) = CollectionActions(
+    onOpenItem = { navigator.open(Destination.Details(it)) },
+    onPlay = { navigator.open(Destination.Player(itemId = it)) },
+    onLoadMore = { screenModel.dispatch(CollectionDetailEvent.LoadMore) },
+    onBack = navigator::back,
+    onDismissError = screenModel::dismissError,
+    onRetry = screenModel::retry,
 )
 
-// Сетка подборки: шапка, тайтлы, их состояние прокрутки и переходы — одна точка сборки экрана.
-@Suppress("LongParameterList")
 @Composable
 private fun CollectionGrid(
-    title: String,
     hue: Float,
     state: CollectionDetailState,
     gridState: LazyGridState,
@@ -165,7 +192,7 @@ private fun CollectionGrid(
     ) {
         item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
             val onPlay = state.startItemId?.let { id -> { actions.onPlay(id) } }
-            CollectionHeader(title = title, hue = hue, state = state, onPlay = onPlay)
+            CollectionHeader(hue = hue, state = state, onPlay = onPlay)
         }
         when {
             state.loading && state.items.isEmpty() -> items(
@@ -184,7 +211,7 @@ private fun CollectionGrid(
         items(
             state.items,
             key = { it.id }
-        ) { item -> CollectionPoster(item, onClick = { actions.onOpenItem(item.id) }) }
+        ) { card -> CollectionPoster(card, onClick = { actions.onOpenItem(card.id) }) }
         if (state.loadingMore) items(FilmaxMetrics.POSTER_COLUMNS, key = { "more-$it" }) { FilmaxPosterSkeleton() }
     }
 }
@@ -194,7 +221,7 @@ private fun CollectionGrid(
  * Обложки нет — остаётся градиент, веер держит шапку сам.
  */
 @Composable
-private fun CollectionHeader(title: String, hue: Float, state: CollectionDetailState, onPlay: (() -> Unit)?) {
+private fun CollectionHeader(hue: Float, state: CollectionDetailState, onPlay: (() -> Unit)?) {
     Box(Modifier.fillMaxWidth().bleed(FilmaxMetrics.GridPadding)) {
         CollectionBackdrop(cover = state.cover, hue = hue)
         Column(
@@ -202,14 +229,14 @@ private fun CollectionHeader(title: String, hue: Float, state: CollectionDetailS
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             FilmaxPosterFan(
-                posters = state.items.map { it.posters.medium },
+                posters = state.fanPosters,
                 centerWidth = 120.dp,
                 sideWidth = 104.dp,
                 angle = 9f,
                 step = 74.dp,
                 modifier = Modifier.height(FanHeight),
             )
-            CollectionHeading(title = title, hue = hue, count = state.titlesCount)
+            CollectionHeading(title = state.title, hue = hue, caption = state.titlesCaption)
             onPlay?.let {
                 FilmaxButton(
                     text = "Смотреть подряд",
@@ -249,7 +276,7 @@ private fun BoxScope.CollectionBackdrop(cover: String?, hue: Float) {
 
 /** Надзаголовок оттенком подборки, название и — когда известно точно — число тайтлов. */
 @Composable
-private fun CollectionHeading(title: String, hue: Float, count: Int?) {
+private fun CollectionHeading(title: String, hue: Float, caption: String?) {
     FilmaxOverline(
         "Подборка редакции",
         color = oklch(lightness = 0.85f, chroma = 0.1f, hue = hue),
@@ -264,9 +291,9 @@ private fun CollectionHeading(title: String, hue: Float, count: Int?) {
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.padding(top = 8.dp, start = 24.dp, end = 24.dp),
     )
-    count?.let {
+    caption?.let {
         Text(
-            titlesLabel(it),
+            it,
             style = FilmaxType.meta,
             color = FilmaxColors.TextSecondary,
             modifier = Modifier.padding(top = 6.dp)
@@ -311,16 +338,28 @@ private fun CollectionTopBar(title: String, hue: Float, collapsed: Boolean, glas
 }
 
 @Composable
-private fun CollectionPoster(item: Item, onClick: () -> Unit) {
+private fun CollectionPoster(card: TitleCard, onClick: () -> Unit) {
     FilmaxPosterCard(
-        title = item.title,
-        posterUrl = item.posters.medium.ifEmpty { item.posters.big },
+        title = card.title,
+        posterUrl = card.posterUrl,
         onClick = onClick,
-        rating = ratingLabel(item.rating.external),
-        meta = posterMeta(typeLabel(item.type), item.year),
+        rating = card.rating,
+        meta = card.typeAndYear,
     )
 }
 
 private val CoverBlur = 40.dp
 private val FanHeight = 196.dp
 private const val BACKDROP_BOTTOM_ALPHA = 0.96f
+
+private class CollectionStatePreviews : PreviewParameterProvider<CollectionDetailState> {
+    override val values = CollectionSamples.all.asSequence()
+}
+
+@PhonePreviews
+@Composable
+private fun CollectionDetailScreenPreview(
+    @PreviewParameter(CollectionStatePreviews::class) state: CollectionDetailState,
+) {
+    FilmaxTheme { CollectionDetailScreen(state = state, actions = CollectionActions.None) }
+}

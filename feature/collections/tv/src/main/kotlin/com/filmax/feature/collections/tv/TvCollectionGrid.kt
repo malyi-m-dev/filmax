@@ -31,11 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.presentation.format.isHighRating
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.typeLabel
+import com.filmax.core.presentation.cards.TitleCard
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
@@ -77,7 +73,7 @@ internal class CollectionGridActions(
  */
 @Composable
 internal fun CollectionGrid(
-    items: List<Item>,
+    items: List<TitleCard>,
     collapsed: Boolean,
     focus: TvScreenFocus,
     actions: CollectionGridActions,
@@ -101,7 +97,7 @@ internal fun CollectionGrid(
 
 @Composable
 private fun PosterGrid(
-    items: List<Item>,
+    items: List<TitleCard>,
     gridState: LazyGridState,
     focus: TvScreenFocus,
     actions: CollectionGridActions,
@@ -119,11 +115,11 @@ private fun PosterGrid(
             bottom = TvMetrics.SafeVertical + TvMetrics.FocusInset,
         ),
     ) {
-        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+        itemsIndexed(items, key = { _, card -> card.id }) { index, card ->
             CollectionPoster(
-                item = item,
-                onClick = { actions.onOpenItem(item.id) },
-                modifier = focus.item(posterKey(item.id))
+                card = card,
+                onClick = { actions.onOpenItem(card.id) },
+                modifier = focus.item(posterKey(card.id))
                     // Сетка поднимается вслед за шапкой: первая колонка — после её надзаголовка.
                     .fxEnter(index % COLLECTION_COLUMNS + GRID_ENTER_AFTER_HEADER)
                     .onFocusChanged { if (it.hasFocus) actions.onFocusRow(gridRow(index)) },
@@ -143,14 +139,14 @@ internal fun posterKey(itemId: Int): String = "collection:$itemId"
  * название, мета и оценка только у карточки в фокусе, сетка обложек читается картиной.
  */
 @Composable
-private fun CollectionPoster(item: Item, onClick: () -> Unit, modifier: Modifier) {
+private fun CollectionPoster(card: TitleCard, onClick: () -> Unit, modifier: Modifier) {
     TvPosterCard(
-        title = item.title,
-        meta = posterMeta(typeLabel(item.type), item.year),
-        posterUrl = item.posters.medium.ifEmpty { item.posters.big },
+        title = card.title,
+        meta = card.typeAndYear,
+        posterUrl = card.posterUrl,
         onClick = onClick,
-        rating = ratingLabel(item.rating.primary),
-        ratingHighlighted = isHighRating(item.rating.primary),
+        rating = card.rating,
+        ratingHighlighted = card.ratingHigh,
         size = TvPosterSize.Rail,
         details = TvPosterDetails.OnFocus,
         modifier = modifier,

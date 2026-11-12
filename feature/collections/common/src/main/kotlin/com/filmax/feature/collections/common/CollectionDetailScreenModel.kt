@@ -7,16 +7,16 @@ import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.toTitleCard
 import com.filmax.feature.collections.common.navigation.CollectionDetailRoute
 
 class CollectionDetailScreenModel(
     savedStateHandle: SavedStateHandle,
     private val catalog: CatalogRepository,
 ) : BaseScreenModel<CollectionDetailState, CollectionDetailSideEffect, CollectionDetailEvent>(
-    CollectionDetailState(),
+    initialState(savedStateHandle),
 ) {
-
-    private val route = savedStateHandle.toRoute<CollectionDetailRoute>()
 
     init {
         onFetchData()
@@ -38,12 +38,12 @@ class CollectionDetailScreenModel(
     override fun onFetchData() {
         screenModelScope {
             updateState { it.copy(loading = true, error = null) }
-            when (val result = catalog.getCollectionItems(route.collectionId, page = 1)) {
+            when (val result = catalog.getCollectionItems(state.collectionId, page = 1)) {
                 is RequestResult.Success ->
                     updateState {
                         it.copy(
                             loading = false,
-                            items = result.data.items.distinctBy(Item::id),
+                            items = result.data.items.distinctBy(Item::id).map { item -> item.toTitleCard() },
                             page = 1,
                             hasNextPage = result.data.pagination.hasNextPage,
                             loadingMore = false,
@@ -69,13 +69,14 @@ class CollectionDetailScreenModel(
         val nextPage = current.page + 1
         screenModelScope {
             updateState { it.copy(loadingMore = true) }
-            when (val result = catalog.getCollectionItems(route.collectionId, page = nextPage)) {
+            when (val result = catalog.getCollectionItems(state.collectionId, page = nextPage)) {
                 is RequestResult.Success -> updateState { loaded ->
                     loaded.copy(
                         loadingMore = false,
                         // Дубли гасим по id: LazyGrid падает на неуникальном ключе, а границы
                         // страниц у kino.pub плывут, если подборку правят во время просмотра.
-                        items = (loaded.items + result.data.items).distinctBy(Item::id),
+                        items = (loaded.items + result.data.items.map { item -> item.toTitleCard() })
+                            .distinctBy(TitleCard::id),
                         page = nextPage,
                         hasNextPage = result.data.pagination.hasNextPage,
                     )
@@ -86,6 +87,12 @@ class CollectionDetailScreenModel(
             }
         }
     }
+}
+
+/** Название и id подборки — из маршрута: шапка не ждёт сети, чтобы их показать. */
+private fun initialState(savedStateHandle: SavedStateHandle): CollectionDetailState {
+    val route = savedStateHandle.toRoute<CollectionDetailRoute>()
+    return CollectionDetailState(collectionId = route.collectionId, title = route.title)
 }
 
 /**
