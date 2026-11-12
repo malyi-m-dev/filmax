@@ -23,13 +23,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.typeLabel
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.TvDimGroup
 import com.filmax.core.tv.designsystem.TvMetrics
 import com.filmax.core.tv.designsystem.TvOnSurface
@@ -37,7 +37,9 @@ import com.filmax.core.tv.designsystem.TvOnSurfaceVariant
 import com.filmax.core.tv.designsystem.TvPosterCard
 import com.filmax.core.tv.designsystem.TvScreenFocus
 import com.filmax.core.tv.designsystem.TvSurfaceContainerHighest
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
+import com.filmax.feature.search.common.FilmographySamples
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
@@ -60,12 +62,18 @@ fun TvFilmographyScreen(
     screenModel: FilmographyScreenModel = koinViewModel(),
     navigator: Navigator = koinInject(),
 ) {
-    val onBack: () -> Unit = navigator::back
-    val onOpenItem: (Int) -> Unit = { itemId -> navigator.open(Destination.Details(itemId)) }
     val state by screenModel.collectAsState()
+    BackHandler { navigator.back() }
+    TvFilmographyScreen(
+        state = state,
+        onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
+        modifier = modifier,
+    )
+}
 
-    BackHandler { onBack() }
-
+/** Фильмография из состояния — без Koin и навигатора: её рисуют превью. */
+@Composable
+internal fun TvFilmographyScreen(state: FilmographyState, onOpenItem: (Int) -> Unit, modifier: Modifier = Modifier) {
     // Фон — у окна (FilmaxTvTheme): своя сплошная заливка экрана — лишний слой цвета на каждом кадре.
     Column(
         modifier = modifier
@@ -105,14 +113,14 @@ private fun FilmographyBody(state: FilmographyState, onOpenItem: (Int) -> Unit) 
             CircularProgressIndicator(color = TvOnSurface)
         }
 
-        state.items.isEmpty() -> FilmographyEmpty(error = state.error)
+        state.items.isEmpty() -> FilmographyEmpty(title = state.emptyTitle, error = state.error)
 
         else -> FilmographyGrid(items = state.items, onOpenItem = onOpenItem)
     }
 }
 
 @Composable
-private fun FilmographyGrid(items: List<Item>, onOpenItem: (Int) -> Unit) {
+private fun FilmographyGrid(items: List<TitleCard>, onOpenItem: (Int) -> Unit) {
     val focus = rememberTvScreenFocus()
 
     // В сетке только постеры — фокус в ней всегда на постере, и соседи приглушаются.
@@ -120,7 +128,7 @@ private fun FilmographyGrid(items: List<Item>, onOpenItem: (Int) -> Unit) {
 }
 
 @Composable
-private fun FilmographyPosters(items: List<Item>, focus: TvScreenFocus, onOpenItem: (Int) -> Unit) {
+private fun FilmographyPosters(items: List<TitleCard>, focus: TvScreenFocus, onOpenItem: (Int) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(GRID_COLUMNS),
         modifier = Modifier.fillMaxSize().then(focus.containerModifier),
@@ -134,35 +142,32 @@ private fun FilmographyPosters(items: List<Item>, focus: TvScreenFocus, onOpenIt
         horizontalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
         verticalArrangement = Arrangement.spacedBy(TvMetrics.CardGap),
     ) {
-        items(items, key = { item -> item.id }) { item ->
+        items(items, key = { card -> card.id }) { card ->
             FilmographyPoster(
-                item = item,
-                modifier = focus.item("filmography:${item.id}"),
-                onClick = { onOpenItem(item.id) },
+                card = card,
+                modifier = focus.item("filmography:${card.id}"),
+                onClick = { onOpenItem(card.id) },
             )
         }
     }
 }
 
 @Composable
-private fun FilmographyPoster(
-    item: Item,
-    modifier: Modifier,
-    onClick: () -> Unit,
-) {
+private fun FilmographyPoster(card: TitleCard, modifier: Modifier, onClick: () -> Unit) {
     TvPosterCard(
-        title = item.title,
-        meta = posterMeta(typeLabel(item.type), item.year),
-        posterUrl = item.posters.medium.ifEmpty { item.posters.big },
+        title = card.title,
+        meta = card.typeAndYear,
+        posterUrl = card.posterUrl,
         onClick = onClick,
         modifier = modifier,
-        rating = ratingLabel(item.rating.external),
+        rating = card.rating,
+        ratingHighlighted = card.ratingHigh,
     )
 }
 
 /** Сбой сети — не «ничего не найдено»: сетка пуста по обеим причинам, а причины разные. */
 @Composable
-private fun FilmographyEmpty(error: String?) {
+private fun FilmographyEmpty(title: String, error: String?) {
     Column(
         modifier = Modifier.fillMaxSize().padding(bottom = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -175,7 +180,7 @@ private fun FilmographyEmpty(error: String?) {
             modifier = Modifier.size(38.dp),
         )
         Text(
-            text = if (error == null) "Ничего не найдено" else "Не удалось загрузить",
+            text = title,
             style = MaterialTheme.typography.titleMedium,
             color = TvOnSurface,
             modifier = Modifier.padding(top = 12.dp),
@@ -189,4 +194,14 @@ private fun FilmographyEmpty(error: String?) {
             )
         }
     }
+}
+
+private class FilmographyStatePreviews : PreviewParameterProvider<FilmographyState> {
+    override val values = FilmographySamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvFilmographyScreenPreview(@PreviewParameter(FilmographyStatePreviews::class) state: FilmographyState) {
+    FilmaxTvTheme { TvFilmographyScreen(state = state, onOpenItem = {}) }
 }

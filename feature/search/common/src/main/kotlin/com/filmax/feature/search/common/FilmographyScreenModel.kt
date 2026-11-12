@@ -5,6 +5,7 @@ import androidx.navigation.toRoute
 import com.filmax.core.domain.common.RequestResult
 import com.filmax.core.domain.search.SearchRepository
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.core.presentation.cards.toTitleCard
 import com.filmax.feature.search.common.navigation.FilmographyRoute
 
 /**
@@ -39,7 +40,7 @@ class FilmographyScreenModel(
             }
             when (result) {
                 is RequestResult.Success -> updateState {
-                    it.copy(loading = false, items = result.data)
+                    it.copy(loading = false, items = result.data.map { item -> item.toTitleCard() })
                 }
 
                 is RequestResult.Error -> {

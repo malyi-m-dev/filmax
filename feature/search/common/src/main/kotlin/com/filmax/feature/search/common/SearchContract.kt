@@ -2,6 +2,7 @@ package com.filmax.feature.search.common
 
 import com.filmax.core.domain.catalog.CatalogCount
 import com.filmax.core.domain.catalog.CatalogFilters
+import com.filmax.core.domain.catalog.CatalogSection
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Country
@@ -11,11 +12,15 @@ import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.source.ContentSource
 import com.filmax.core.domain.source.SourceCapabilities
 import com.filmax.core.domain.source.capabilities
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.toTitleCard
 
 /** С этой длины запроса имеет смысл идти в поиск — короче отдаётся мусор релевантности. */
 const val MIN_QUERY_LENGTH = 2
 
 data class SearchState(
+    /** Раздел с Главной («Фильмы», «4K и HDR»), которым открыт Каталог; null — вкладка Каталога. */
+    val section: CatalogSection? = null,
     val query: String = "",
     val filter: ItemType? = null,
     /** Сортировка выдачи каталога: поле + направление. VIEWS = «Просмотры» — дефолт витрины. */
@@ -29,13 +34,17 @@ data class SearchState(
     val selectedGenreId: Int? = null,
     /** Страны для фильтра. Пусты, пока экран не запросил [SearchEvent.LoadCatalog]. */
     val countries: List<Country> = emptyList(),
-    /** Результаты поиска по [query]. Пусты, пока запрос короче [MIN_QUERY_LENGTH]. */
-    val results: List<Item> = emptyList(),
     /**
-     * Выдача каталога по фильтрам без запроса. Живёт отдельно от [results], потому что на
-     * телефоне пустой запрос значит «показать подсказки», а не «показать витрину».
+     * Результаты поиска по [query] — тайтлы целиком: их фильтрует и досортировывает модель. Экран
+     * рисует [resultCards]. Пусты, пока запрос короче [MIN_QUERY_LENGTH].
      */
-    val catalogItems: List<Item> = emptyList(),
+    internal val results: List<Item> = emptyList(),
+    /**
+     * Выдача каталога по фильтрам без запроса — тайтлы целиком: следующую страницу модель вливает
+     * в них с пересортировкой. Экран рисует [catalogCards]. Живёт отдельно от [results], потому что
+     * на телефоне пустой запрос значит «показать подсказки», а не «показать витрину».
+     */
+    internal val catalogItems: List<Item> = emptyList(),
     /**
      * Включается экраном, которому витрина нужна (TV-Каталог). Без этого флага телефонный
      * поиск на каждом открытии тянул бы выдачу, которую никогда не рисует.
@@ -59,37 +68,46 @@ data class SearchState(
     val searchOpen: Boolean = false,
     /** ТВ: раскладка экранной клавиатуры. */
     val keyboardLayout: KeyboardLayout = KeyboardLayout.RU,
-    /** ТВ: открыта боковая панель каталога. */
+    /** Открыта шторка (телефон) или боковая панель (ТВ) каталога. */
     val sheetOpen: Boolean = false,
     /**
-     * ТВ: какая панель — сортировка или фильтры. Закрытие её не сбрасывает: панель доигрывает
-     * уход с прежним содержимым, а фокус возвращается на чип, который её открыл.
+     * Какая панель — сортировка, жанр или фильтры. Закрытие её не сбрасывает: панель доигрывает
+     * уход с прежним содержимым, а фокус ТВ возвращается на чип, который её открыл.
      */
     val sheet: CatalogSheet = CatalogSheet.SORT,
     /**
-     * ТВ: фильтры, которые правят в панели. Уходят в [filters] только по «Применить» — иначе
-     * выдача перезапрашивалась бы на каждый чип.
+     * Фильтры, которые правят в панели. Уходят в [filters] только по «Применить» — иначе выдача
+     * перезапрашивалась бы на каждый сдвиг ползунка и чип.
      */
     val filtersDraft: CatalogFilters = CatalogFilters(),
 ) {
+    /**
+     * Карточки найденного с готовыми подписями. Лениво и один раз на снимок: снимок меняется на
+     * каждую букву запроса, а карточки нужны только тому, кто их рисует.
+     */
+    val resultCards: List<TitleCard> by lazy { results.map { it.toTitleCard() } }
+
+    /** Карточки витрины — так же, лениво и один раз на снимок. */
+    val catalogCards: List<TitleCard> by lazy { catalogItems.map { it.toTitleCard() } }
+
     /** Что показывает сетка каталога: поиск — с [MIN_QUERY_LENGTH] символов, иначе витрина. */
-    val visibleItems: List<Item>
-        get() = if (query.length >= MIN_QUERY_LENGTH) results else catalogItems
+    val visibleCards: List<TitleCard>
+        get() = if (query.length >= MIN_QUERY_LENGTH) resultCards else catalogCards
 
     /** Лучшее совпадение поиска — первый результат крупной карточкой; без запроса его нет. */
-    val bestMatch: Item?
-        get() = results.firstOrNull()?.takeIf { query.length >= MIN_QUERY_LENGTH }
+    val bestMatch: TitleCard?
+        get() = resultCards.firstOrNull()?.takeIf { query.length >= MIN_QUERY_LENGTH }
 
     /** Остальные результаты поиска — под лучшим совпадением. */
-    val otherResults: List<Item>
-        get() = if (bestMatch == null) emptyList() else results.drop(1)
+    val otherResults: List<TitleCard>
+        get() = if (bestMatch == null) emptyList() else resultCards.drop(1)
 }
 
 /** Раскладка экранной клавиатуры поиска на ТВ. */
 enum class KeyboardLayout { RU, EN, DIGITS }
 
-/** Боковая панель каталога на ТВ. */
-enum class CatalogSheet { SORT, FILTERS }
+/** Панель каталога: сортировка, жанр (только телефон — на ТВ жанры рядом чипов) и фильтры. */
+enum class CatalogSheet { SORT, GENRE, FILTERS }
 
 sealed interface SearchEvent {
     data class QueryChange(val query: String) : SearchEvent
@@ -99,16 +117,22 @@ sealed interface SearchEvent {
 
     data class FilterChange(val filter: ItemType?) : Selection
 
-    /** Смена сортировки целиком (поле и/или направление) — UI собирает [SortOption] сам. */
+    /**
+     * Смена сортировки целиком (поле и/или направление) — UI собирает [SortOption] сам. Панель не
+     * закрывает: на телефоне шторка уезжает сама, на ТВ экран следом шлёт [CloseSheet].
+     */
     data class SortChange(val sort: SortOption) : Selection
 
     /** null — снять фильтр по жанру. */
     data class GenreChange(val genreId: Int?) : Selection
 
-    /** Применить диапазонные фильтры (лист «Фильтры» на телефоне). */
+    /** Применить диапазонные фильтры целиком: «✕» на чипе применённого фильтра. */
     data class ApplyFilters(val filters: CatalogFilters) : Selection
 
-    /** Сбросить диапазонные фильтры в дефолт (кнопка «Сбросить»). Сортировку не трогает. */
+    /**
+     * Сбросить диапазонные фильтры в дефолт: «Сбросить» в шторке телефона и на пустой выдаче.
+     * Сортировку не трогает.
+     */
     data object ResetFilters : Selection
 
     /** Тап по подсказке (тренды/недавние): подставить запрос и сразу искать. */
@@ -147,20 +171,24 @@ sealed interface SearchEvent {
 
     data class SwitchLayout(val layout: KeyboardLayout) : Keyboard
 
-    /** ТВ: боковые панели каталога — сортировка и фильтры. */
+    /**
+     * Панели каталога. Выбор в панели её не закрывает — закрывает [CloseSheet]: шторка телефона
+     * шлёт его, когда доехала вниз (закрой её модель сразу — шторка исчезла бы рывком), ТВ — следом
+     * за выбором.
+     */
     sealed interface Sheet : SearchEvent
 
-    /** ТВ: открыть панель; у фильтров черновик начинается с применённых. */
+    /** Открыть панель; у фильтров черновик начинается с применённых. */
     data class OpenSheet(val sheet: CatalogSheet) : Sheet
     data object CloseSheet : Sheet
 
-    /** ТВ: правка фильтров в панели — только черновик, выдача не трогается. */
+    /** Правка фильтров в панели — только черновик, выдача не трогается. */
     data class EditFilters(val filters: CatalogFilters) : Sheet
 
     /** ТВ: «Сбросить» в панели фильтров — черновик к дефолту; выдачу меняет только «Применить». */
     data object ResetDraftFilters : Sheet
 
-    /** ТВ: «Применить» в панели фильтров — черновик становится фильтрами выдачи. */
+    /** «Применить» в панели фильтров — черновик становится фильтрами выдачи. */
     data object ApplyDraftFilters : Sheet
 }
 

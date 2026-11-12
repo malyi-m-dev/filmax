@@ -24,25 +24,27 @@ import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.typeLabel
+import com.filmax.core.presentation.cards.TitleCard
 import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
+import com.filmax.core.ui.preview.PhonePreviews
+import com.filmax.feature.search.common.FilmographySamples
 import com.filmax.feature.search.common.FilmographyScreenModel
 import com.filmax.feature.search.common.FilmographyState
 import org.koin.androidx.compose.koinViewModel
@@ -50,6 +52,14 @@ import org.koin.compose.koinInject
 
 /** Скелетонов, пока грузятся работы: два ряда. */
 private const val SKELETON_COUNT = 6
+
+/** Переходы фильмографии: в детали работы и назад. */
+internal data class FilmographyActions(val onOpenItem: (Int) -> Unit, val onBack: () -> Unit) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = FilmographyActions(onOpenItem = {}, onBack = {})
+    }
+}
 
 /**
  * Фильмография человека — сетка его работ. Открывается из деталей по тапу на актёра или
@@ -62,6 +72,15 @@ fun FilmographyScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
+    val actions = remember(navigator) {
+        FilmographyActions(onOpenItem = { navigator.open(Destination.Details(it)) }, onBack = navigator::back)
+    }
+    FilmographyScreen(state = state, actions = actions, modifier = modifier)
+}
+
+/** Фильмография из состояния — без Koin и навигатора: её рисуют превью. */
+@Composable
+internal fun FilmographyScreen(state: FilmographyState, actions: FilmographyActions, modifier: Modifier = Modifier) {
     val palette = FilmaxTheme.palette
     Box(
         modifier
@@ -83,9 +102,9 @@ fun FilmographyScreen(
         ) {
             // Шапка едет вместе с сеткой: имя — заголовок страницы, а не панели над ней.
             item(key = "header", span = { GridItemSpan(maxLineSpan) }) {
-                FilmographyHeader(heading = state.heading, onBack = navigator::back)
+                FilmographyHeader(heading = state.heading, onBack = actions.onBack)
             }
-            filmographyItems(state = state, onOpenItem = { navigator.open(Destination.Details(it)) })
+            filmographyItems(state = state, onOpenItem = actions.onOpenItem)
         }
     }
 }
@@ -117,22 +136,32 @@ private fun LazyGridScope.filmographyItems(state: FilmographyState, onOpenItem: 
             // Сбой сети — не «ничего не найдено»: сетка пуста по обеим причинам, а причины разные.
             FilmaxEmptyState(
                 icon = if (state.error == null) Icons.Filled.SearchOff else Icons.Filled.CloudOff,
-                title = if (state.error == null) "Ничего не найдено" else "Не удалось загрузить",
+                title = state.emptyTitle,
                 subtitle = state.error,
                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
             )
         }
     }
-    items(state.items, key = { it.id }) { item -> FilmographyPoster(item = item, onClick = { onOpenItem(item.id) }) }
+    items(state.items, key = { it.id }) { card -> FilmographyPoster(card = card, onClick = { onOpenItem(card.id) }) }
 }
 
 @Composable
-private fun FilmographyPoster(item: Item, onClick: () -> Unit) {
+private fun FilmographyPoster(card: TitleCard, onClick: () -> Unit) {
     FilmaxPosterCard(
-        title = item.title,
-        posterUrl = item.posters.medium.ifEmpty { item.posters.big },
+        title = card.title,
+        posterUrl = card.posterUrl,
         onClick = onClick,
-        rating = ratingLabel(item.rating.external),
-        meta = posterMeta(typeLabel(item.type), item.year),
+        rating = card.rating,
+        meta = card.typeAndYear,
     )
+}
+
+private class FilmographyStatePreviews : PreviewParameterProvider<FilmographyState> {
+    override val values = FilmographySamples.all.asSequence()
+}
+
+@PhonePreviews
+@Composable
+private fun FilmographyScreenPreview(@PreviewParameter(FilmographyStatePreviews::class) state: FilmographyState) {
+    FilmaxTheme { FilmographyScreen(state = state, actions = FilmographyActions.None) }
 }

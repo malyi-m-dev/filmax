@@ -27,17 +27,17 @@ private val BrowseTypes = listOf(ItemType.MOVIE, ItemType.SERIES, ItemType.DOCUM
  */
 private val AnimeTypes = listOf(ItemType.MOVIE, ItemType.SERIES)
 
-/** Выборка после события: тип, сортировка (выбор в панели её закрывает), жанр, фильтры. */
+/** Выборка после события: тип, сортировка, жанр, фильтры. Панель закрывает отдельное событие. */
 internal fun SearchState.withSelection(event: SearchEvent.Selection): SearchState = when (event) {
     is SearchEvent.FilterChange -> copy(filter = event.filter)
-    is SearchEvent.SortChange -> copy(sort = event.sort, sheetOpen = false)
+    is SearchEvent.SortChange -> copy(sort = event.sort)
     is SearchEvent.GenreChange -> copy(selectedGenreId = event.genreId)
     is SearchEvent.ApplyFilters -> copy(filters = event.filters)
     SearchEvent.ResetFilters -> copy(filters = CatalogFilters())
 }
 
 /**
- * Боковые панели ТВ. Панель фильтров открывается с черновиком, равным применённым фильтрам: закрытая
+ * Панели каталога. Панель фильтров открывается с черновиком, равным применённым фильтрам: закрытая
  * без «Применить», она не оставляет следов, а «Применить» переносит черновик в выдачу.
  */
 internal fun SearchState.withSheet(event: SearchEvent.Sheet): SearchState = when (event) {
@@ -45,7 +45,7 @@ internal fun SearchState.withSheet(event: SearchEvent.Sheet): SearchState = when
     SearchEvent.CloseSheet -> copy(sheetOpen = false)
     is SearchEvent.EditFilters -> copy(filtersDraft = event.filters)
     SearchEvent.ResetDraftFilters -> copy(filtersDraft = CatalogFilters())
-    SearchEvent.ApplyDraftFilters -> copy(filters = filtersDraft, sheetOpen = false)
+    SearchEvent.ApplyDraftFilters -> copy(filters = filtersDraft)
 }
 
 /**

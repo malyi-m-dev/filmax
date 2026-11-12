@@ -29,7 +29,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
@@ -52,7 +51,10 @@ import com.filmax.feature.search.common.KeyboardLayoutLabels
 import com.filmax.feature.search.common.SPACE_KEY
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
+import com.filmax.feature.search.common.bestMatchMeta
 import com.filmax.feature.search.common.keyboardRows
+import com.filmax.feature.search.common.moreResults
+import com.filmax.feature.search.common.searchHint
 
 /** Результаты справа — по четыре постера 106dp с шагом 16dp на 470dp колонки. */
 private const val RESULT_COLUMNS = 4
@@ -164,7 +166,7 @@ private fun SearchResults(
     AnimatedContent(
         targetState = state,
         modifier = modifier.fillMaxSize(),
-        contentKey = { it.results },
+        contentKey = { it.resultCards },
         transitionSpec = { resultsTransition(reduced) },
         label = "searchResults",
     ) { shown ->
@@ -189,7 +191,7 @@ private fun ResultsContent(
 ) {
     val match = state.bestMatch
     if (match == null) {
-        SearchHint(searchHint(state), Modifier)
+        SearchHint(state.searchHint, Modifier)
         return
     }
     val highlight = LocalFxColors.current.accentText
@@ -207,7 +209,7 @@ private fun ResultsContent(
         fullWidth("match-title") { TvOverline("Лучшее совпадение", accent = false) }
         fullWidth("match") {
             TvSpotlightCard(
-                spotlight = bestMatchSpotlight(match, state.query, highlight),
+                spotlight = bestMatchSpotlight(match, state.bestMatchMeta, state.query, highlight),
                 onClick = { actions.onOpenResult(match.id) },
                 modifier = Modifier
                     .focusRequester(bestMatch)
@@ -215,24 +217,25 @@ private fun ResultsContent(
                     .then(focus.screen.item(BEST_MATCH_KEY)),
             )
         }
-        otherResults(state.otherResults, actions, focus)
+        otherResults(state, actions, focus)
     }
 }
 
-private fun LazyGridScope.otherResults(items: List<Item>, actions: CatalogActions, focus: CatalogScreenFocus) {
-    if (items.isEmpty()) return
+private fun LazyGridScope.otherResults(state: SearchState, actions: CatalogActions, focus: CatalogScreenFocus) {
+    val cards = state.otherResults
+    if (cards.isEmpty()) return
     fullWidth("more-title") {
-        TvOverline(moreResultsLabel(items.size), Modifier.padding(top = MoreResultsTop), accent = false)
+        TvOverline(state.moreResults, Modifier.padding(top = MoreResultsTop), accent = false)
     }
     // Мелкие постеры — чистые, как в макете: подпись и оценка на 106dp не читаются, а тайтл
     // называет лучшее совпадение над ними и озвучка — по названию на картинке.
-    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+    itemsIndexed(cards, key = { _, card -> card.id }) { index, card ->
         TvPosterCard(
-            title = item.title,
+            title = card.title,
             meta = null,
-            posterUrl = posterUrl(item),
-            onClick = { actions.onOpenResult(item.id) },
-            modifier = Modifier.fxEnter(index % RESULT_COLUMNS).then(focus.screen.item("result:${item.id}")),
+            posterUrl = card.posterUrl,
+            onClick = { actions.onOpenResult(card.id) },
+            modifier = Modifier.fxEnter(index % RESULT_COLUMNS).then(focus.screen.item("result:${card.id}")),
             size = TvPosterSize.Compact,
             details = TvPosterDetails.None,
         )

@@ -63,6 +63,8 @@ internal fun CatalogSheetContent(state: SearchState, dispatch: (SearchEvent) -> 
     when (state.sheet) {
         CatalogSheet.SORT -> SortSheet(state.sort, state.capabilities.sortOptions(), dispatch)
         CatalogSheet.FILTERS -> FiltersSheet(state.filtersDraft, state.capabilities, state.countries, dispatch)
+        // Жанры на ТВ — рядом чипов в шапке, панели жанра нет.
+        CatalogSheet.GENRE -> Unit
     }
 }
 
@@ -73,6 +75,10 @@ internal fun CatalogSheetContent(state: SearchState, dispatch: (SearchEvent) -> 
 @Composable
 private fun SortSheet(sort: SortOption, options: List<Pair<CatalogSort, String>>, dispatch: (SearchEvent) -> Unit) {
     val current = remember { FocusRequester() }
+    val choose: (SortOption) -> Unit = { option ->
+        dispatch(SearchEvent.SortChange(option))
+        dispatch(SearchEvent.CloseSheet)
+    }
     Column(Modifier.fillMaxSize().padding(SheetPadding)) {
         SheetHeading(overline = "Сортировка", title = "Сначала показывать")
         Column(Modifier.offset(x = -TvTextRowInset).padding(top = 14.dp).tvFocusGroup(fallback = current)) {
@@ -81,7 +87,7 @@ private fun SortSheet(sort: SortOption, options: List<Pair<CatalogSort, String>>
                 TvTextRow(
                     text = label,
                     selected = selected,
-                    onClick = { dispatch(SearchEvent.SortChange(sort.copy(field = field))) },
+                    onClick = { choose(sort.copy(field = field)) },
                     modifier = if (selected) Modifier.focusRequester(current) else Modifier,
                 )
             }
@@ -91,12 +97,12 @@ private fun SortSheet(sort: SortOption, options: List<Pair<CatalogSort, String>>
             TvChip(
                 label = "По убыванию",
                 selected = !sort.ascending,
-                onClick = { dispatch(SearchEvent.SortChange(sort.copy(ascending = false))) },
+                onClick = { choose(sort.copy(ascending = false)) },
             )
             TvChip(
                 label = "По возрастанию",
                 selected = sort.ascending,
-                onClick = { dispatch(SearchEvent.SortChange(sort.copy(ascending = true))) },
+                onClick = { choose(sort.copy(ascending = true)) },
             )
         }
     }
@@ -141,7 +147,13 @@ private fun FiltersSheet(
             )
         }
         Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            TvButton(text = "Применить", onClick = { dispatch(SearchEvent.ApplyDraftFilters) })
+            TvButton(
+                text = "Применить",
+                onClick = {
+                    dispatch(SearchEvent.ApplyDraftFilters)
+                    dispatch(SearchEvent.CloseSheet)
+                },
+            )
             TvButton(
                 text = "Сбросить",
                 onClick = { dispatch(SearchEvent.ResetDraftFilters) },

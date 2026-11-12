@@ -52,6 +52,9 @@ import com.filmax.feature.search.common.CatalogSheet
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.TypeOptions
+import com.filmax.feature.search.common.catalogSummary
+import com.filmax.feature.search.common.filtersChip
+import com.filmax.feature.search.common.sortChip
 
 private const val SEARCH_PLACEHOLDER = "Название фильма или сериала"
 
@@ -97,7 +100,7 @@ internal fun CatalogHeader(
                 modifier = Modifier.padding(top = TypesToGenres).focusRequester(genreRow),
             )
         }
-        CatalogSummary(catalogSummary(state), Modifier.padding(top = GenresToSummary))
+        CatalogSummary(state.catalogSummary, Modifier.padding(top = GenresToSummary))
     }
 }
 
@@ -168,7 +171,7 @@ private fun TypeRow(
         }
         ChipDivider()
         TvChip(
-            label = sortChipLabel(state.sort),
+            label = state.sortChip,
             selected = false,
             onClick = { dispatch(SearchEvent.OpenSheet(CatalogSheet.SORT)) },
             leadingIcon = Icons.Rounded.SwapVert,
@@ -176,7 +179,7 @@ private fun TypeRow(
             modifier = chip.focusRequester(openers.sort),
         )
         TvChip(
-            label = filtersChipLabel(state.filters),
+            label = state.filtersChip,
             selected = state.filters.activeCount > 0,
             onClick = { dispatch(SearchEvent.OpenSheet(CatalogSheet.FILTERS)) },
             leadingIcon = Icons.Rounded.Tune,

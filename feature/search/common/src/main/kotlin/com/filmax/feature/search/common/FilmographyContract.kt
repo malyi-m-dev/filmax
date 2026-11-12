@@ -1,6 +1,6 @@
 package com.filmax.feature.search.common
 
-import com.filmax.core.domain.catalog.model.Item
+import com.filmax.core.presentation.cards.TitleCard
 
 /**
  * Состояние экрана «Фильмография». [heading] — имя человека для заголовка: вью не читает
@@ -9,9 +9,13 @@ import com.filmax.core.domain.catalog.model.Item
 data class FilmographyState(
     val loading: Boolean = true,
     val heading: String = "",
-    val items: List<Item> = emptyList(),
+    val items: List<TitleCard> = emptyList(),
     val error: String? = null,
-)
+) {
+    /** Пустая сетка — по сбою сети или потому, что работ нет: причины разные, и подпись тоже. */
+    val emptyTitle: String
+        get() = if (error == null) "Ничего не найдено" else "Не удалось загрузить"
+}
 
 /** Retry — повтор загрузки после сбоя сети. */
 sealed interface FilmographyEvent {

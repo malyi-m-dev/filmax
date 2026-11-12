@@ -91,15 +91,18 @@ fun TvCatalogScreen(
 
     val screenFocus = rememberTvScreenFocus(startAt = SEARCH_KEY)
     val focus = remember(screenFocus, catalogFocus) { CatalogScreenFocus(screenFocus, catalogFocus) }
-    TvCatalogContent(state = state, actions = actions, focus = focus, voice = voice, modifier = modifier)
+    TvCatalogScreen(state = state, actions = actions, focus = focus, voice = voice, modifier = modifier)
 }
 
 /**
- * Экран целиком: витрина или поиск, боковые панели над ними и голосовой оверлей поверх всего.
+ * Каталог из состояния: витрина или поиск, боковые панели над ними и голосовой оверлей поверх всего.
  * Сетка помнит прокрутку, пока открыт поиск, — состояние списка живёт здесь, над обоими режимами.
+ * Кроме состояния и действий экран берёт механику, которую создаёт часть с моделью: фокус (его
+ * двигают эффекты модели) и распознаватель речи. Превью у каталога нет: распознавателю нужна
+ * Activity с разрешением на микрофон — экран проверяет UI-тест фокуса на настоящей модели.
  */
 @Composable
-internal fun TvCatalogContent(
+internal fun TvCatalogScreen(
     state: SearchState,
     actions: CatalogActions,
     focus: CatalogScreenFocus,
@@ -210,7 +213,8 @@ internal class SheetOpeners {
     val filters = FocusRequester()
 
     fun of(sheet: CatalogSheet): FocusRequester = when (sheet) {
-        CatalogSheet.SORT -> sort
+        // Панели жанра на ТВ нет — её чип никогда не открывает; возврат на сортировку как на соседа.
+        CatalogSheet.SORT, CatalogSheet.GENRE -> sort
         CatalogSheet.FILTERS -> filters
     }
 }

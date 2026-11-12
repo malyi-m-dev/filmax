@@ -1,5 +1,5 @@
 // Шторки каталога: сортировка, жанр и фильтры (год, оценки, страна, 4K, завершённость). Выбор в
-// сортировке и жанре применяется сразу; фильтры копятся черновиком до «Применить».
+// сортировке и жанре применяется сразу; фильтры копятся черновиком модели до «Применить».
 
 package com.filmax.feature.search.mobile
 
@@ -38,7 +38,6 @@ import com.filmax.core.domain.catalog.CatalogFilters
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.SortOption
 import com.filmax.core.domain.catalog.model.Country
-import com.filmax.core.domain.source.SourceCapabilities
 import com.filmax.core.presentation.format.title
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonStyle
@@ -50,6 +49,8 @@ import com.filmax.core.ui.components.FilmaxSettingsRow
 import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxToggleRow
 import com.filmax.core.ui.components.filmaxSliderColors
+import com.filmax.feature.search.common.CatalogSheet
+import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchState
 import com.filmax.feature.search.common.sortOptions
 import java.time.Year
@@ -60,23 +61,26 @@ private const val MIN_YEAR = 1902
 /** Верх шкалы рейтинга — по обеим внешним оценкам kino.pub 0–10. */
 private const val RATING_MAX = 10
 
+/**
+ * Открытая шторка — по [SearchState.sheet]. Выбор шлёт событие и уводит шторку вниз; закрытие
+ * ([SearchEvent.CloseSheet]) модель получает, когда шторка доехала, — так она уходит с анимацией.
+ */
 @Composable
-internal fun CatalogSheetHost(sheet: CatalogSheet, state: SearchState, actions: CatalogActions, onDismiss: () -> Unit) {
-    when (sheet) {
-        CatalogSheet.Sort -> SortSheet(
+internal fun CatalogSheetHost(state: SearchState, onEvent: (SearchEvent) -> Unit) {
+    val onDismiss = { onEvent(SearchEvent.CloseSheet) }
+    when (state.sheet) {
+        CatalogSheet.SORT -> SortSheet(
             sort = state.sort,
             options = state.capabilities.sortOptions(),
-            onSort = actions.onSort,
+            onSort = { onEvent(SearchEvent.SortChange(it)) },
             onDismiss = onDismiss,
         )
-        CatalogSheet.Genre -> GenreSheet(state = state, onGenre = actions.onGenre, onDismiss = onDismiss)
-        CatalogSheet.Filters -> FiltersSheet(
-            filters = state.filters,
-            capabilities = state.capabilities,
-            countries = state.countries,
-            onApply = actions.onFilters,
+        CatalogSheet.GENRE -> GenreSheet(
+            state = state,
+            onGenre = { onEvent(SearchEvent.GenreChange(it)) },
             onDismiss = onDismiss,
         )
+        CatalogSheet.FILTERS -> FiltersSheet(state = state, onEvent = onEvent, onDismiss = onDismiss)
     }
 }
 
@@ -150,18 +154,14 @@ private fun GenreSheet(state: SearchState, onGenre: (Int?) -> Unit, onDismiss: (
 }
 
 /**
- * Фильтры каталога. Правки копятся в черновике и уходят в модель только по «Применить» — тянуть
- * сеть на каждый сдвиг ползунка незачем; «Сбросить» применяет пустые фильтры сразу.
+ * Фильтры каталога. Правки копятся черновиком в модели ([SearchState.filtersDraft]) и уходят в выдачу
+ * только по «Применить» — тянуть сеть на каждый сдвиг ползунка незачем; «Сбросить» применяет пустые
+ * фильтры сразу.
  */
 @Composable
-private fun FiltersSheet(
-    filters: CatalogFilters,
-    capabilities: SourceCapabilities,
-    countries: List<Country>,
-    onApply: (CatalogFilters) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var draft by remember { mutableStateOf(filters) }
+private fun FiltersSheet(state: SearchState, onEvent: (SearchEvent) -> Unit, onDismiss: () -> Unit) {
+    val draft = state.filtersDraft
+    val edit: (CatalogFilters) -> Unit = { onEvent(SearchEvent.EditFilters(it)) }
     FilmaxSheet(onDismiss = onDismiss, title = "Фильтры") {
         val sheet = this
         Column(
@@ -173,25 +173,25 @@ private fun FiltersSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            YearSection(draft) { from, to -> draft = draft.copy(yearFrom = from, yearTo = to) }
+            YearSection(draft) { from, to -> edit(draft.copy(yearFrom = from, yearTo = to)) }
             // Пороги — только по оценкам, которые есть у источника.
-            capabilities.ratings.forEach { source ->
+            state.capabilities.ratings.forEach { source ->
                 RatingSection(
                     title = "Рейтинг ${source.title}",
                     value = draft.minRating(source),
-                ) { draft = draft.withMinRating(source, it) }
+                ) { edit(draft.withMinRating(source, it)) }
             }
             // Страну не предлагаем источнику, который по ней не фильтрует.
             FilterToggles(
                 draft = draft,
-                countries = countries.takeIf { capabilities.countries }.orEmpty(),
-                onChange = { draft = it },
+                countries = state.countries.takeIf { state.capabilities.countries }.orEmpty(),
+                onChange = edit,
             )
             Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 FilmaxButton(
                     text = "Сбросить",
                     onClick = {
-                        onApply(CatalogFilters())
+                        onEvent(SearchEvent.ResetFilters)
                         sheet.dismiss()
                     },
                     style = FilmaxButtonStyle.Secondary,
@@ -200,7 +200,7 @@ private fun FiltersSheet(
                 FilmaxButton(
                     text = "Применить",
                     onClick = {
-                        onApply(draft)
+                        onEvent(SearchEvent.ApplyDraftFilters)
                         sheet.dismiss()
                     },
                     modifier = Modifier.weight(1f),

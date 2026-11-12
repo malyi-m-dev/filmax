@@ -11,7 +11,10 @@ import com.filmax.core.domain.catalog.model.ItemType
  * Выборка раздела каталога поверх состояния; без раздела — витрина по умолчанию. Раздел задаёт
  * стартовую выборку, дальше зритель меняет её чипами, как в обычном Каталоге.
  */
-internal fun SearchState.withSection(section: CatalogSection?): SearchState = when (section) {
+internal fun SearchState.withSection(section: CatalogSection?): SearchState =
+    copy(section = section).withSelectionOf(section)
+
+private fun SearchState.withSelectionOf(section: CatalogSection?): SearchState = when (section) {
     null -> this
     CatalogSection.MOVIES -> copy(filter = ItemType.MOVIE)
     CatalogSection.SERIES -> copy(filter = ItemType.SERIES)

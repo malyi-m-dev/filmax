@@ -38,11 +38,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Text
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.presentation.format.isHighRating
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.typeLabel
+import com.filmax.core.presentation.cards.TitleCard
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.PivotBringIntoViewSpec
@@ -158,21 +154,21 @@ private fun LazyGridScope.catalogCells(
 ) {
     when {
         state.loading -> skeletons(INITIAL_SKELETONS)
-        state.catalogItems.isEmpty() -> fullWidth("status") { CatalogStatus(state, actions) }
+        state.catalogCards.isEmpty() -> fullWidth("status") { CatalogStatus(state, actions) }
         else -> {
-            posters(state.catalogItems, actions, focus, aboveFirstRow)
-            if (state.catalogLoadingMore) skeletons(loadMoreSkeletons(state.catalogItems.size))
+            posters(state.catalogCards, actions, focus, aboveFirstRow)
+            if (state.catalogLoadingMore) skeletons(loadMoreSkeletons(state.catalogCards.size))
         }
     }
 }
 
 private fun LazyGridScope.posters(
-    items: List<Item>,
+    cards: List<TitleCard>,
     actions: CatalogActions,
     focus: CatalogScreenFocus,
     aboveFirstRow: () -> Float,
 ) {
-    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+    itemsIndexed(cards, key = { _, card -> card.id }) { index, card ->
         // Первая строка показывается с шапкой, остальные — целиком с подписью, на опорной точке.
         val reveal = if (index < CATALOG_COLUMNS) {
             Modifier.bringIntoViewWithAbove(
@@ -182,16 +178,16 @@ private fun LazyGridScope.posters(
             Modifier.bringIntoViewAsWhole()
         }
         TvPosterCard(
-            title = item.title,
-            meta = posterMeta(typeLabel(item.type), item.year),
-            posterUrl = posterUrl(item),
-            onClick = { actions.onOpenItem(item.id) },
+            title = card.title,
+            meta = card.typeAndYear,
+            posterUrl = card.posterUrl,
+            onClick = { actions.onOpenItem(card.id) },
             modifier = filterChangeFade()
                 .then(reveal)
                 .fxEnter(index % CATALOG_COLUMNS)
-                .then(focus.screen.item("grid:${item.id}")),
-            rating = ratingLabel(item.rating.primary),
-            ratingHighlighted = isHighRating(item.rating.primary),
+                .then(focus.screen.item("grid:${card.id}")),
+            rating = card.rating,
+            ratingHighlighted = card.ratingHigh,
             size = TvPosterSize.Grid,
             ratingAlignment = Alignment.TopStart,
         )
@@ -216,9 +212,6 @@ private fun LazyGridItemScope.filterChangeFade(): Modifier =
 private fun LazyGridScope.fullWidth(key: String, content: @Composable () -> Unit) {
     item(key = key, span = { GridItemSpan(maxLineSpan) }) { content() }
 }
-
-/** Постер для сетки: средний, если есть, — большой на 152dp не нужен. */
-internal fun posterUrl(item: Item): String = item.posters.medium.ifEmpty { item.posters.big }
 
 /**
  * Скелетоны догрузки: добить неполную последнюю строку и ещё строка — столько места займёт

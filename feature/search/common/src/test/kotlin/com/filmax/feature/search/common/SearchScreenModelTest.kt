@@ -162,8 +162,8 @@ class SearchScreenModelTest {
 
         val state = model.states.value
         assertEquals(FakeIds.LONG_SERIES, state.bestMatch?.id)
-        assertEquals(state.results.drop(1), state.otherResults)
-        assertEquals(state.results, state.visibleItems)
+        assertEquals(state.resultCards.drop(1), state.otherResults)
+        assertEquals(state.resultCards, state.visibleCards)
     }
 
     @Test
@@ -246,7 +246,10 @@ class SearchScreenModelTest {
 
         model.dispatch(SearchEvent.ApplyDraftFilters)
         advanceUntilIdle()
+        assertTrue(model.states.value.sheetOpen, "«Применить» не закрывает панель — её закрывает экран")
 
+        model.dispatch(SearchEvent.CloseSheet)
+        advanceUntilIdle()
         val state = model.states.value
         assertFalse(state.sheetOpen)
         assertEquals(CatalogSheet.FILTERS, state.sheet, "панель забыла, какой была, — фокус не вернётся на чип")
@@ -279,7 +282,7 @@ class SearchScreenModelTest {
     }
 
     @Test
-    fun `picking a sort closes the sort sheet and reloads the catalog`() = runTest(dispatcher) {
+    fun `picking a sort reloads the catalog and leaves closing the sheet to the screen`() = runTest(dispatcher) {
         val model = catalogModel()
         model.dispatch(SearchEvent.OpenSheet(CatalogSheet.SORT))
         advanceUntilIdle()
@@ -287,6 +290,10 @@ class SearchScreenModelTest {
 
         val byYear = model.states.value.sort.copy(field = CatalogSort.YEAR)
         model.dispatch(SearchEvent.SortChange(byYear))
+        advanceUntilIdle()
+
+        assertTrue(model.states.value.sheetOpen, "выбор не закрывает панель — шторка телефона уезжает сама")
+        model.dispatch(SearchEvent.CloseSheet)
         advanceUntilIdle()
 
         val state = model.states.value

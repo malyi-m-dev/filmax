@@ -89,14 +89,14 @@ class TvCatalogFocusTest {
         assertFocusedHas(FIRST_GENRE)
         pressKey(Key.DirectionDown)
 
-        assertPosterFocused(model.states.value.catalogItems.first().title)
+        assertPosterFocused(model.states.value.catalogCards.first().title)
     }
 
     @Test
     fun `up from the grid returns to the genre the viewer left`() {
         showCatalog()
         repeat(DOWN_TO_GRID) { pressKey(Key.DirectionDown) }
-        assertPosterFocused(model.states.value.catalogItems.first().title)
+        assertPosterFocused(model.states.value.catalogCards.first().title)
 
         pressKey(Key.DirectionUp)
 
@@ -142,7 +142,7 @@ class TvCatalogFocusTest {
 
         pressKey(Key.DirectionUp)
 
-        assertPosterFocused(model.states.value.catalogItems.first().title)
+        assertPosterFocused(model.states.value.catalogCards.first().title)
         assertTrue(fieldShown(), "первая строка вернулась без шапки")
     }
 
@@ -300,7 +300,7 @@ class TvCatalogFocusTest {
 
     /** Какой постер в фокусе: «вниз» с жанра справа попадает не в первую колонку сетки. */
     private fun focusedPosterTitle(): String =
-        model.states.value.catalogItems.map { it.title }.firstOrNull(::posterFocused)
+        model.states.value.catalogCards.map { it.title }.firstOrNull(::posterFocused)
             ?: error("в фокусе не постер, а ${focusedTexts()}")
 
     /** Тексты узла в фокусе — для сообщения о провале: куда фокус ушёл на самом деле. */
