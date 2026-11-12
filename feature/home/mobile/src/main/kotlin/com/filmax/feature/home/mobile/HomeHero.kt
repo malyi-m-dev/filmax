@@ -39,22 +39,20 @@ import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.radialWash
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.presentation.format.durationLabel
-import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxOverline
 import com.filmax.core.ui.components.FilmaxPageDots
 import com.filmax.core.ui.components.FilmaxRatingPill
 import com.filmax.core.ui.components.KenBurnsImage
+import com.filmax.feature.home.common.HeroCard
 import kotlinx.coroutines.delay
 
 /** Действия hero над тайтлом карусели. */
 internal data class HeroActions(
-    val onPlay: (Item) -> Unit,
-    val onOpenItem: (Item) -> Unit,
-    val onToggleWatchLater: (Item) -> Unit,
+    val onPlay: (HeroCard) -> Unit,
+    val onOpenItem: (HeroCard) -> Unit,
+    val onToggleWatchLater: (HeroCard) -> Unit,
 )
 
 /**
@@ -62,14 +60,14 @@ internal data class HeroActions(
  * «Кен Бёрнс» идёт только у кадра на экране. Тап по кадру — детали тайтла.
  */
 @Composable
-internal fun HomeHero(heroes: List<Item>, watchLaterIds: Set<Int>, height: Dp, actions: HeroActions) {
+internal fun HomeHero(heroes: List<HeroCard>, watchLaterIds: Set<Int>, height: Dp, actions: HeroActions) {
     val pager = rememberPagerState { heroes.size }
     AutoAdvance(pager)
     Box(Modifier.fillMaxWidth().height(height)) {
         HorizontalPager(state = pager, modifier = Modifier.fillMaxSize(), key = { heroes[it].id }) { page ->
             val hero = heroes[page]
             HeroPage(
-                item = hero,
+                hero = hero,
                 running = page == pager.settledPage,
                 inWatchLater = hero.id in watchLaterIds,
                 actions = actions,
@@ -94,18 +92,18 @@ private fun AutoAdvance(pager: PagerState) {
 }
 
 @Composable
-private fun HeroPage(item: Item, running: Boolean, inWatchLater: Boolean, actions: HeroActions) {
+private fun HeroPage(hero: HeroCard, running: Boolean, inWatchLater: Boolean, actions: HeroActions) {
     val palette = FilmaxTheme.palette
     Box(
         Modifier
             .fillMaxSize()
-            .clickable(role = Role.Button) { actions.onOpenItem(item) },
+            .clickable(role = Role.Button) { actions.onOpenItem(hero) },
     ) {
         // Вертикальный постер, а не широкий кадр: hero на телефоне выше, чем шире, и кадр 16:9
         // резался бы по центру до неузнаваемости.
         KenBurnsImage(
-            url = item.posters.big.ifBlank { item.posters.wide.orEmpty() },
-            contentDescription = item.title,
+            url = hero.posterUrl,
+            contentDescription = hero.title,
             running = running,
             modifier = Modifier.fillMaxSize(),
         )
@@ -116,7 +114,7 @@ private fun HeroPage(item: Item, running: Boolean, inWatchLater: Boolean, action
                 .background(heroFade(palette.background)),
         )
         HeroContent(
-            item = item,
+            hero = hero,
             inWatchLater = inWatchLater,
             actions = actions,
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -137,7 +135,7 @@ private const val HERO_FADE_MIDDLE = 0.72f
 private const val HERO_FADE_MIDDLE_ALPHA = 0.78f
 
 @Composable
-private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions, modifier: Modifier = Modifier) {
+private fun HeroContent(hero: HeroCard, inWatchLater: Boolean, actions: HeroActions, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -147,7 +145,7 @@ private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions,
     ) {
         FilmaxOverline("Выбор редакции")
         Text(
-            item.title,
+            hero.title,
             style = FilmaxType.hero,
             color = FilmaxColors.Text,
             textAlign = TextAlign.Center,
@@ -155,7 +153,7 @@ private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 10.dp),
         )
-        HeroMeta(item = item, modifier = Modifier.padding(top = 12.dp))
+        HeroMeta(hero = hero, modifier = Modifier.padding(top = 12.dp))
         Row(
             Modifier.fillMaxWidth().padding(top = 18.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -163,20 +161,20 @@ private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions,
         ) {
             FilmaxButton(
                 text = "Смотреть",
-                onClick = { actions.onPlay(item) },
+                onClick = { actions.onPlay(hero) },
                 icon = Icons.Filled.PlayArrow,
                 modifier = Modifier.weight(1f),
             )
             FilmaxIconButton(
                 if (inWatchLater) Icons.Filled.Check else Icons.Filled.Add,
                 contentDescription = if (inWatchLater) "Убрать из «Буду смотреть»" else "Буду смотреть",
-                onClick = { actions.onToggleWatchLater(item) },
+                onClick = { actions.onToggleWatchLater(hero) },
                 size = FilmaxMetrics.IconButtonLarge,
             )
             FilmaxIconButton(
                 Icons.Outlined.Info,
                 contentDescription = "О тайтле",
-                onClick = { actions.onOpenItem(item) },
+                onClick = { actions.onOpenItem(hero) },
                 size = FilmaxMetrics.IconButtonLarge,
             )
         }
@@ -185,21 +183,16 @@ private fun HeroContent(item: Item, inWatchLater: Boolean, actions: HeroActions,
 
 /** Мета hero: пилюля рейтинга и «Фантастика · 2024 · 2 ч 46 мин». */
 @Composable
-private fun HeroMeta(item: Item, modifier: Modifier = Modifier) {
-    val parts = buildList {
-        item.genres.firstOrNull()?.title?.let(::add)
-        if (item.year > 0) add(item.year.toString())
-        item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let { add(durationLabel(it)) }
-    }
+private fun HeroMeta(hero: HeroCard, modifier: Modifier = Modifier) {
     Row(
         modifier,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ratingLabel(item.rating.primary)?.let { FilmaxRatingPill(it) }
-        if (parts.isNotEmpty()) {
+        hero.rating?.let { FilmaxRatingPill(it) }
+        if (hero.meta.isNotEmpty()) {
             Text(
-                parts.joinToString(" · "),
+                hero.meta.joinToString(" · "),
                 style = FilmaxType.meta,
                 color = FilmaxColors.TextSecondary,
                 maxLines = 1,

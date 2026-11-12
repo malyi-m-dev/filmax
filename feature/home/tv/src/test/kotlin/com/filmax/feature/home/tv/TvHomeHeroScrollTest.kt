@@ -16,12 +16,15 @@ import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.cards.toTitleCard
+import com.filmax.core.presentation.cards.watchCard
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
 import com.filmax.feature.home.common.HomeState
 import com.filmax.feature.home.common.RowPaging
+import com.filmax.feature.home.common.toHeroCard
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -120,29 +123,22 @@ class TvHomeHeroScrollTest {
         /** Сколько рядов вниз уйти от hero: глубже экрана, чтобы лента прокрутилась. */
         const val ROWS_TO_DIVE = 3
 
-        val NoActions = TvHomeActions(
-            hero = HeroActions(onPlay = {}, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
-            rails = RailActions(
-                onOpenItem = {},
-                onPlay = { _, _ -> },
-                onOpenCollection = { _, _ -> },
-                onLoadMore = {}
-            ),
-            onReload = {},
-            onOpenCatalog = {},
-        )
+        val NoActions = TvHomeActions.None
 
         fun homeState() = HomeState(
             loading = false,
-            heroes = listOf(item(id = 1, title = "Дом на краю карты")),
+            heroes = listOf(item(id = 1, title = "Дом на краю карты").toHeroCard()),
             rows = listOf(
                 HomeRow.Continue((40..45).map(::started)),
-                HomeRow.Titles(HomeRowId.TRENDING, RowPaging((10..17).map { item(id = it, title = "Тайтл $it") })),
-                HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging((20..27).map { item(id = it, title = "Сериал $it") })),
+                HomeRow.Titles(HomeRowId.TRENDING, RowPaging((10..17).map { card(id = it, title = "Тайтл $it") })),
+                HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging((20..27).map { card(id = it, title = "Сериал $it") })),
             ),
         )
 
-        fun started(id: Int) = WatchHistory(itemId = id, title = "Начато $id", posterSmall = "", progress = null)
+        fun started(id: Int) =
+            watchCard(WatchHistory(itemId = id, title = "Начато $id", posterSmall = "", progress = null))
+
+        fun card(id: Int, title: String) = item(id, title).toTitleCard()
 
         fun item(id: Int, title: String) = Item(
             id = id,

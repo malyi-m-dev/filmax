@@ -4,8 +4,8 @@ package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.CatalogRepository
 import com.filmax.core.domain.catalog.model.Collection
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.common.RequestResult
+import com.filmax.core.presentation.cards.TitleCard
 
 /** Карусель hero — к следующему тайтлу по кругу; один тайтл не листается. */
 fun HomeState.withNextHero(): HomeState =
@@ -45,7 +45,10 @@ internal fun HomeState.unloadedThemeRows(): List<HomeRow.Titles> = rows
     .filter { it.id in THEME_SOURCES && it.isEmpty && !it.paging.loadingMore }
 
 /** Ряд тайтлов [id] с изменённой пагинацией; другие ряды не меняются. */
-internal fun HomeRow.withTitlesPaging(id: HomeRowId, transform: (RowPaging<Item>) -> RowPaging<Item>): HomeRow =
+internal fun HomeRow.withTitlesPaging(
+    id: HomeRowId,
+    transform: (RowPaging<TitleCard>) -> RowPaging<TitleCard>,
+): HomeRow =
     if (this is HomeRow.Titles && this.id == id) copy(paging = transform(paging)) else this
 
 /** Ряд подборок с изменённой пагинацией; другие ряды не меняются. */

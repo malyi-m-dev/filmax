@@ -12,6 +12,9 @@ import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.initials
 import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.toTitleCard
+import com.filmax.core.presentation.cards.watchCard
 
 class HomeScreenModel(
     private val getHomeFeed: GetHomeFeedUseCase,
@@ -21,6 +24,12 @@ class HomeScreenModel(
     private val toggleWatchlist: ToggleWatchlistUseCase,
     private val feedbackPrompts: FeedbackPrompts,
 ) : BaseScreenModel<HomeState, HomeSideEffect, HomeEvent>(HomeState()) {
+
+    /**
+     * Тайтлы hero целиком: «Буду смотреть» отмечает тайтл, а экран знает только id карточки —
+     * по нему модель и находит тайтл.
+     */
+    private var heroItems: Map<Int, Item> = emptyMap()
 
     init {
         onFetchData()
@@ -44,7 +53,10 @@ class HomeScreenModel(
             HomeEvent.Load -> onFetchData()
             is HomeEvent.LoadMoreRow -> loadMoreRow(event.id)
             HomeEvent.NextHero -> screenModelScope { updateState { current -> current.withNextHero() } }
-            is HomeEvent.ToggleWatchLater -> screenModelScope { toggleWatchlist(event.item) }
+            is HomeEvent.ToggleWatchLater ->
+                heroItems[event.itemId]?.let { item -> screenModelScope { toggleWatchlist(item) } }
+            HomeEvent.OpenSections -> screenModelScope { updateState { it.copy(sectionsOpen = true) } }
+            HomeEvent.CloseSections -> screenModelScope { updateState { it.copy(sectionsOpen = false) } }
         }
     }
 
@@ -52,10 +64,11 @@ class HomeScreenModel(
         screenModelScope {
             updateState { it.copy(loading = true, error = null) }
             val feed = getHomeFeed()
+            heroItems = feed.heroes.associateBy { it.id }
             updateState { current ->
                 current.copy(
                     loading = false,
-                    heroes = feed.heroes,
+                    heroes = feed.heroes.map { it.toHeroCard() },
                     heroIndex = 0,
                     rows = current.rowsFor(feed),
                     error = feed.error,
@@ -131,8 +144,11 @@ class HomeScreenModel(
             updateRows { current ->
                 current.withTitlesPaging(row.id) { paging ->
                     when (result) {
-                        is RequestResult.Success ->
-                            paging.append(result.data.items, Item::id, result.data.pagination.hasNextPage)
+                        is RequestResult.Success -> paging.append(
+                            result.data.items.map { it.toTitleCard() },
+                            TitleCard::id,
+                            result.data.pagination.hasNextPage,
+                        )
                         is RequestResult.Error -> paging.copy(loadingMore = false)
                     }
                 }
@@ -175,12 +191,12 @@ private const val COLLECTION_PREVIEWS_LIMIT = 6
  * тематических рядов — [THEME_SOURCES]).
  */
 private fun HomeState.rowsFor(feed: HomeFeed): List<HomeRow> = listOf(
-    HomeRow.Continue(feed.continueWatching),
-    HomeRow.Titles(HomeRowId.TRENDING, RowPaging(feed.trending)),
+    HomeRow.Continue(feed.continueWatching.map { watchCard(it) }),
+    HomeRow.Titles(HomeRowId.TRENDING, RowPaging(feed.trending.map { it.toTitleCard() })),
     HomeRow.Collections(RowPaging(feed.collections)),
-    HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou)),
+    HomeRow.Titles(HomeRowId.FOR_YOU, RowPaging(feed.forYou.map { it.toTitleCard() })),
     // Новинки — сводка двух источников, листать её из каталога нечем.
-    HomeRow.Titles(HomeRowId.FRESH, RowPaging(feed.fresh, endReached = true)),
+    HomeRow.Titles(HomeRowId.FRESH, RowPaging(feed.fresh.map { it.toTitleCard() }, endReached = true)),
 ) + themeRows()
 
 /**

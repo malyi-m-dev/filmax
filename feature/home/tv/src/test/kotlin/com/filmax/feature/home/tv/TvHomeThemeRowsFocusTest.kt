@@ -22,12 +22,15 @@ import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.catalog.model.Posters
 import com.filmax.core.domain.catalog.model.RatingSource
 import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.cards.toTitleCard
+import com.filmax.core.presentation.cards.watchCard
 import com.filmax.core.testing.FakeImagesRule
 import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.feature.home.common.HomeRow
 import com.filmax.feature.home.common.HomeRowId
 import com.filmax.feature.home.common.HomeState
 import com.filmax.feature.home.common.RowPaging
+import com.filmax.feature.home.common.toHeroCard
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -102,6 +105,7 @@ class TvHomeThemeRowsFocusTest {
         hero = HeroActions(onPlay = { played = true }, onDetails = {}, onToggleWatchLater = {}, onNext = {}),
         rails = RailActions(onOpenItem = {}, onPlay = { _, _ -> }, onOpenCollection = { _, _ -> }, onLoadMore = {}),
         onReload = {},
+        onRetry = {},
         onOpenCatalog = {},
     )
 
@@ -147,19 +151,22 @@ class TvHomeThemeRowsFocusTest {
 
         fun fullFeed() = HomeState(
             loading = false,
-            heroes = listOf(item(id = 1, title = "Дом на краю карты")),
+            heroes = listOf(item(id = 1, title = "Дом на краю карты").toHeroCard()),
             rows = ROW_IDS.map(::row),
         )
 
         fun row(id: HomeRowId): HomeRow = when (id) {
             HomeRowId.CONTINUE -> HomeRow.Continue(CARD_IDS.map(::started))
             HomeRowId.COLLECTIONS -> HomeRow.Collections(RowPaging(CARD_IDS.map(::collection)))
-            else -> HomeRow.Titles(id, RowPaging(CARD_IDS.map { item(id = it, title = cardTitle(id, it)) }))
+            else -> HomeRow.Titles(id, RowPaging(CARD_IDS.map { card(id = it, title = cardTitle(id, it)) }))
         }
 
-        fun started(id: Int) = WatchHistory(itemId = id, title = "Начато $id", posterSmall = "", progress = null)
+        fun started(id: Int) =
+            watchCard(WatchHistory(itemId = id, title = "Начато $id", posterSmall = "", progress = null))
 
         fun collection(id: Int) = Collection(id = id, title = "Подборка $id", description = null, posters = null)
+
+        fun card(id: Int, title: String) = item(id, title).toTitleCard()
 
         fun item(id: Int, title: String) = Item(
             id = id,

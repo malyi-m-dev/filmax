@@ -121,7 +121,7 @@ private fun LazyListScope.heroItem(
     val hero = HeroModel(
         heroes = state.heroes,
         index = state.heroIndex,
-        inWatchLater = state.hero?.id in state.watchLaterIds
+        inWatchLater = state.heroInWatchLater,
     )
     if (hero.current == null) return
     item(key = "hero") {

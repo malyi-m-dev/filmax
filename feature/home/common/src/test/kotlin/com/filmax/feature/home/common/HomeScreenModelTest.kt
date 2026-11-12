@@ -81,8 +81,9 @@ class HomeScreenModelTest {
 
         val loaded = model.states.value
         THEME_SOURCES.forEach { (id, source) ->
-            val items = loaded.titles(id).paging.items
-            assertTrue(items.isNotEmpty(), "ряд $id пуст на мок-данных — на mock-сборке его не будет")
+            val cards = loaded.titles(id).paging.items
+            assertTrue(cards.isNotEmpty(), "ряд $id пуст на мок-данных — на mock-сборке его не будет")
+            val items = cards.map { card -> checkNotNull(catalog.served[card.id]) }
             assertTrue(items.all { it.belongsTo(source) }, "в ряду $id чужие тайтлы: ${items.map { it.title }}")
         }
     }
@@ -147,9 +148,28 @@ class HomeScreenModelTest {
         val hero = checkNotNull(model.states.value.hero)
         val wasMarked = hero.id in model.states.value.watchLaterIds
 
-        model.dispatch(HomeEvent.ToggleWatchLater(hero))
+        model.dispatch(HomeEvent.ToggleWatchLater(hero.id))
 
         assertEquals(!wasMarked, hero.id in model.states.value.watchLaterIds)
+    }
+
+    @Test
+    fun `sections sheet is opened and closed by the model`() {
+        val model = homeModel()
+
+        model.dispatch(HomeEvent.OpenSections)
+        assertTrue(model.states.value.sectionsOpen)
+
+        model.dispatch(HomeEvent.CloseSections)
+        assertFalse(model.states.value.sectionsOpen)
+    }
+
+    @Test
+    fun `hero card tells the first genre to the phone and three to the tv`() {
+        val hero = checkNotNull(homeModel().states.value.hero)
+
+        assertTrue(hero.meta.size <= 3)
+        assertTrue(hero.wideMeta.first().split(" · ").size <= 3)
     }
 
     private fun homeModel(catalog: CatalogRepository = FakeCatalogRepository(backend)): HomeScreenModel {

@@ -1,10 +1,7 @@
-// Подписи и правила отображения ТВ-Главной — чистые функции, без UI: заголовки рядов,
-// плашки новинок, «высокая» оценка, число тайтлов в подборке, мета hero.
+// Подписи и правила отображения ТВ-Главной — чистые функции, без UI: заголовки рядов и бегунок
+// прокрутки. Подписи карточек (плашки новинок, число фильмов, мета hero) считает модель.
 package com.filmax.feature.home.tv
 
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.catalog.model.ItemType
-import com.filmax.core.presentation.format.durationLabel
 import com.filmax.feature.home.common.HomeRowId
 
 /**
@@ -37,28 +34,6 @@ internal val HomeRowId.heading: RailHeading
 /** Сколько первых тайтлов «В тренде» несут номер: топ-10, дальше номер теряет смысл. */
 internal const val RANKED_COUNT = 10
 
-/** Плашка на карточке новинки: фильм — премьера, сериал — новинка каталога. */
-internal fun freshBadge(type: ItemType): String = if (type == ItemType.MOVIE) "Премьера" else "Новинка"
-
-/** «24 фильма», «1 фильм», «3 фильма» — подпись подборки; null, если число неизвестно. */
-internal fun collectionCaption(count: Int?): String? = count?.let { "$it ${filmsWord(it)}" }
-
-private fun filmsWord(count: Int): String {
-    val lastTwo = count % HUNDRED
-    val last = count % TEN
-    return when {
-        lastTwo in TEENS -> "фильмов"
-        last == 1 -> "фильм"
-        last in FEW -> "фильма"
-        else -> "фильмов"
-    }
-}
-
-private const val HUNDRED = 100
-private const val TEN = 10
-private val TEENS = 11..14
-private val FEW = 2..4
-
 /** Бегунок индикатора прокрутки: начало и длина в долях дорожки. */
 internal data class ScrollThumb(val start: Float, val length: Float) {
     companion object {
@@ -76,14 +51,4 @@ internal fun scrollThumb(position: Float, visibleCount: Int, total: Int): Scroll
     if (total <= 0 || visibleCount >= total) return ScrollThumb.Whole
     val hidden = (total - visibleCount).toFloat()
     return ScrollThumb(start = (position / hidden).coerceIn(0f, 1f), length = visibleCount.toFloat() / total)
-}
-
-/** Больше трёх жанров мета-строка hero не вмещает по ширине текстового блока. */
-private const val MAX_HERO_GENRES = 3
-
-/** Мета hero после пилюли рейтинга: жанры через точку, год, длительность. */
-internal fun heroMetaParts(item: Item): List<String> = buildList {
-    item.genres.take(MAX_HERO_GENRES).joinToString(" · ") { it.title }.takeIf { it.isNotBlank() }?.let(::add)
-    if (item.year > 0) add(item.year.toString())
-    item.duration.averageMinutes?.toInt()?.takeIf { it > 0 }?.let { add(durationLabel(it)) }
 }

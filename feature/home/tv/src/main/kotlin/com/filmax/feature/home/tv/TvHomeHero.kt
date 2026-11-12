@@ -38,8 +38,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvButton
@@ -57,18 +55,19 @@ import com.filmax.core.tv.designsystem.fxStaticOverlay
 import com.filmax.core.tv.designsystem.kenBurns
 import com.filmax.core.tv.designsystem.tvFocusGroup
 import com.filmax.core.ui.components.PosterImage
+import com.filmax.feature.home.common.HeroCard
 import kotlinx.coroutines.delay
 
 /** Что hero показывает: тайтлы карусели, текущий и его отметка «Буду смотреть». */
-internal data class HeroModel(val heroes: List<Item>, val index: Int, val inWatchLater: Boolean) {
-    val current: Item? get() = heroes.getOrNull(index)
+internal data class HeroModel(val heroes: List<HeroCard>, val index: Int, val inWatchLater: Boolean) {
+    val current: HeroCard? get() = heroes.getOrNull(index)
 }
 
 /** Действия hero: смотреть, детали, «Буду смотреть» и смена тайтла карусели. */
 internal data class HeroActions(
-    val onPlay: (Item) -> Unit,
-    val onDetails: (Item) -> Unit,
-    val onToggleWatchLater: (Item) -> Unit,
+    val onPlay: (HeroCard) -> Unit,
+    val onDetails: (HeroCard) -> Unit,
+    val onToggleWatchLater: (HeroCard) -> Unit,
     val onNext: () -> Unit,
 )
 
@@ -106,7 +105,7 @@ private val TextBlockTop = 72.dp
  */
 @Composable
 internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenFocus, modifier: Modifier = Modifier) {
-    val item = model.current ?: return
+    val hero = model.current ?: return
     var focused by remember { mutableStateOf(false) }
     LaunchedEffect(focused, model.index) {
         if (focused && model.heroes.size > 1) {
@@ -122,8 +121,8 @@ internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenF
             .onFocusChanged { focused = it.hasFocus }
             .testTag(HERO_TEST_TAG),
     ) {
-        HeroBackdrop(item, running = focused)
-        HeroText(item, model.inWatchLater, actions, focus)
+        HeroBackdrop(hero, running = focused)
+        HeroText(hero, model.inWatchLater, actions, focus)
         if (model.heroes.size > 1) {
             TvPageIndicator(
                 count = model.heroes.size,
@@ -140,10 +139,10 @@ internal fun TvHomeHero(model: HeroModel, actions: HeroActions, focus: TvScreenF
  * анимация фона не давала ленте простаивать — каждый кадр перекомпоновывался весь экран.
  */
 @Composable
-private fun BoxScope.HeroBackdrop(item: Item, running: Boolean) {
-    Crossfade(targetState = item, animationSpec = tween(BACKDROP_CROSSFADE_MS), label = "heroBackdrop") { shown ->
+private fun BoxScope.HeroBackdrop(hero: HeroCard, running: Boolean) {
+    Crossfade(targetState = hero, animationSpec = tween(BACKDROP_CROSSFADE_MS), label = "heroBackdrop") { shown ->
         PosterImage(
-            url = shown.posters.wide ?: shown.posters.big,
+            url = shown.backdropUrl,
             contentDescription = null,
             modifier = Modifier.fillMaxSize().kenBurns(running),
             shape = RectangleShape,
@@ -189,26 +188,26 @@ private const val SCRIM_BOTTOM_CLEAR = 0.5f
  * фокус с собой (он ушёл бы в меню).
  */
 @Composable
-private fun HeroText(item: Item, inWatchLater: Boolean, actions: HeroActions, focus: TvScreenFocus) {
+private fun HeroText(hero: HeroCard, inWatchLater: Boolean, actions: HeroActions, focus: TvScreenFocus) {
     val colors = LocalFxColors.current
     Column(
         Modifier.padding(start = TvMetrics.SectionStart, top = TextBlockTop).widthIn(max = TextBlockWidth),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        key(item.id) {
+        key(hero.id) {
             TvOverline("Выбор редакции", Modifier.fxEnter(0))
             Text(
-                item.title,
+                hero.title,
                 style = FxType.hero,
                 color = colors.text,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.fxEnter(1),
             )
-            HeroMeta(item, Modifier.fxEnter(2))
-            if (item.plot.isNotBlank()) {
+            HeroMeta(hero, Modifier.fxEnter(2))
+            if (hero.plot.isNotBlank()) {
                 Text(
-                    item.plot,
+                    hero.plot,
                     style = DescriptionStyle,
                     color = colors.textSecondary,
                     maxLines = DESCRIPTION_LINES,
@@ -217,7 +216,7 @@ private fun HeroText(item: Item, inWatchLater: Boolean, actions: HeroActions, fo
                 )
             }
         }
-        HeroButtons(item, inWatchLater, actions, focus, Modifier.padding(top = 6.dp))
+        HeroButtons(hero, inWatchLater, actions, focus, Modifier.padding(top = 6.dp))
     }
 }
 
@@ -225,16 +224,16 @@ private const val DESCRIPTION_LINES = 3
 
 /** Пилюля оценки Кинопоиска и мета через отступы: жанры, год, длительность. */
 @Composable
-private fun HeroMeta(item: Item, modifier: Modifier) {
+private fun HeroMeta(hero: HeroCard, modifier: Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        ratingLabel(item.rating.primary)?.let { TvRatingPill(it) }
-        TvMetaRow(heroMetaParts(item))
+        hero.rating?.let { TvRatingPill(it) }
+        TvMetaRow(hero.wideMeta)
     }
 }
 
 @Composable
 private fun HeroButtons(
-    item: Item,
+    hero: HeroCard,
     inWatchLater: Boolean,
     actions: HeroActions,
     focus: TvScreenFocus,
@@ -250,21 +249,21 @@ private fun HeroButtons(
     ) {
         TvButton(
             "Смотреть",
-            onClick = { actions.onPlay(item) },
+            onClick = { actions.onPlay(hero) },
             leadingIcon = Icons.Rounded.PlayArrow,
             focusRequester = play,
             modifier = focus.item(HERO_PLAY_KEY),
         )
         TvButton(
             "Подробнее",
-            onClick = { actions.onDetails(item) },
+            onClick = { actions.onDetails(hero) },
             style = TvButtonStyle.Secondary,
             modifier = focus.item(HERO_DETAILS_KEY)
         )
         TvIconButton(
             icon = if (inWatchLater) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
             contentDescription = if (inWatchLater) "Убрать из «Буду смотреть»" else "Буду смотреть",
-            onClick = { actions.onToggleWatchLater(item) },
+            onClick = { actions.onToggleWatchLater(hero) },
             modifier = focus.item(HERO_WATCH_LATER_KEY),
         )
     }

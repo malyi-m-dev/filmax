@@ -16,12 +16,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.domain.catalog.model.VideoRef
-import com.filmax.core.presentation.format.continueMeta
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.posterUrl
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.titlesLabel
-import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.ui.components.FilmaxCollectionCard
 import com.filmax.core.ui.components.FilmaxContinueCard
 import com.filmax.core.ui.components.FilmaxPosterCard
@@ -87,15 +81,15 @@ private fun LazyListScope.continueRow(
 ) {
     item(key = row.id.name) {
         TitledRow(title = row.id.title, count = row.entries.size) {
-            items(row.entries, key = { it.itemId }) { entry ->
+            items(row.entries, key = { it.itemId }) { card ->
                 // Ряд продолжения ведёт сразу в плеер, минуя детали: недосмотренный эпизод — адрес
                 // из истории, позицию внутри трека восстановит PlayerScreenModel.
                 FilmaxContinueCard(
-                    title = entry.title,
-                    meta = continueMeta(entry.progress),
-                    imageUrl = entry.wideOrPoster,
-                    progress = entry.progress?.fraction ?: 0f,
-                    onClick = { onPlay(entry.itemId, entry.progress?.video) },
+                    title = card.title,
+                    meta = card.continueMeta,
+                    imageUrl = card.imageUrl,
+                    progress = card.progress,
+                    onClick = { onPlay(card.itemId, card.video) },
                     modifier = Modifier.width(FilmaxMetrics.ContinueWidth),
                 )
             }
@@ -107,12 +101,12 @@ private fun LazyListScope.topTenRow(row: HomeRow.Titles, onOpenItem: (Int) -> Un
     val top = row.paging.items.take(TOP_COUNT)
     item(key = row.id.name) {
         TitledRow(title = row.id.title) {
-            itemsIndexed(top, key = { _, rowItem -> rowItem.id }) { index, rowItem ->
+            itemsIndexed(top, key = { _, card -> card.id }) { index, card ->
                 FilmaxTopTenCard(
                     rank = index + 1,
-                    title = rowItem.title,
-                    posterUrl = rowItem.posters.medium,
-                    onClick = { onOpenItem(rowItem.id) },
+                    title = card.title,
+                    posterUrl = card.posterUrl,
+                    onClick = { onOpenItem(card.id) },
                 )
             }
         }
@@ -124,22 +118,22 @@ private fun LazyListScope.posterRow(
     onOpenItem: (Int) -> Unit,
     onEvent: (HomeEvent) -> Unit,
 ) {
-    val rowItems = row.paging.items
+    val cards = row.paging.items
     item(key = row.id.name) {
         TitledRow(title = row.id.title) {
-            itemsIndexed(rowItems, key = { _, rowItem -> rowItem.id }) { index, rowItem ->
+            itemsIndexed(cards, key = { _, card -> card.id }) { index, card ->
                 // Хвостовая карточка скомпонована — ряд долистан почти до конца: просим
                 // следующую страницу. Ленивый ряд композит только видимое (+префетч), так что
                 // триггер дешёвый; повторные вызовы гасит идемпотентность модели.
-                if (index == rowItems.lastIndex) {
-                    LaunchedEffect(rowItems.size) { onEvent(HomeEvent.LoadMoreRow(row.id)) }
+                if (index == cards.lastIndex) {
+                    LaunchedEffect(cards.size) { onEvent(HomeEvent.LoadMoreRow(row.id)) }
                 }
                 FilmaxPosterCard(
-                    title = rowItem.title,
-                    posterUrl = rowItem.posters.medium,
-                    onClick = { onOpenItem(rowItem.id) },
-                    rating = ratingLabel(rowItem.rating.primary),
-                    meta = posterMeta(typeLabel(rowItem.type), rowItem.year),
+                    title = card.title,
+                    posterUrl = card.posterUrl,
+                    onClick = { onOpenItem(card.id) },
+                    rating = card.rating,
+                    meta = card.typeAndYear,
                     modifier = Modifier.width(FilmaxMetrics.PosterWidth),
                 )
             }
@@ -152,22 +146,21 @@ private fun LazyListScope.collectionsRow(
     onOpenCollection: (id: Int, title: String) -> Unit,
     onEvent: (HomeEvent) -> Unit,
 ) {
-    val collections = row.paging.items
+    val cards = row.cards
     item(key = row.id.name) {
         TitledRow(title = row.id.title) {
-            itemsIndexed(collections, key = { _, collection -> collection.id }) { index, collection ->
+            itemsIndexed(cards, key = { _, card -> card.id }) { index, card ->
                 // Хвостовая карточка скомпонована — просим следующую страницу (как у постер-рядов).
-                if (index == collections.lastIndex) {
-                    LaunchedEffect(collections.size) { onEvent(HomeEvent.LoadMoreRow(row.id)) }
+                if (index == cards.lastIndex) {
+                    LaunchedEffect(cards.size) { onEvent(HomeEvent.LoadMoreRow(row.id)) }
                 }
                 // Число тайтлов — только точное (превью знает его у подборок в одну страницу).
-                val preview = row.previews[collection.id]
                 FilmaxCollectionCard(
-                    title = collection.title,
-                    hue = collectionHue(collection.id),
-                    onClick = { onOpenCollection(collection.id, collection.title) },
-                    subtitle = preview?.count?.let(::titlesLabel),
-                    posterUrl = preview?.posters?.firstOrNull() ?: collection.posterUrl(),
+                    title = card.title,
+                    hue = collectionHue(card.id),
+                    onClick = { onOpenCollection(card.id, card.title) },
+                    subtitle = card.titlesCount,
+                    posterUrl = card.posters.firstOrNull(),
                 )
             }
         }

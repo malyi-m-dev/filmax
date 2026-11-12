@@ -1,8 +1,10 @@
 package com.filmax.feature.home.common
 
 import com.filmax.core.domain.catalog.model.Collection
-import com.filmax.core.domain.catalog.model.Item
-import com.filmax.core.domain.watching.model.WatchHistory
+import com.filmax.core.presentation.cards.CollectionCard
+import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.WatchCard
+import com.filmax.core.presentation.cards.toCollectionCard
 
 /**
  * Ряды ленты. Идентификатор — единственное, чем экран адресует ряд: по нему просят догрузку
@@ -54,7 +56,7 @@ sealed interface HomeRow {
     val isEmpty: Boolean
 
     /** «Продолжить» — история просмотра целиком, страниц у неё нет. */
-    data class Continue(val entries: List<WatchHistory>) : HomeRow {
+    data class Continue(val entries: List<WatchCard>) : HomeRow {
         override val id: HomeRowId get() = HomeRowId.CONTINUE
         override val isEmpty: Boolean get() = entries.isEmpty()
     }
@@ -63,7 +65,7 @@ sealed interface HomeRow {
      * Ряд тайтлов: «В тренде», «Новинки», тематические ряды. Догружается из каталога; тематический
      * до первой страницы пуст, и экран его пропускает.
      */
-    data class Titles(override val id: HomeRowId, val paging: RowPaging<Item>) : HomeRow {
+    data class Titles(override val id: HomeRowId, val paging: RowPaging<TitleCard>) : HomeRow {
         override val isEmpty: Boolean get() = paging.items.isEmpty()
     }
 
@@ -77,6 +79,13 @@ sealed interface HomeRow {
     ) : HomeRow {
         override val id: HomeRowId get() = HomeRowId.COLLECTIONS
         override val isEmpty: Boolean get() = paging.items.isEmpty()
+
+        /** Карточки с превью, где оно уже пришло, — их и рисуют экраны. */
+        val cards: List<CollectionCard>
+            get() = paging.items.map { collection ->
+                val preview = previews[collection.id]
+                collection.toCollectionCard(posters = preview?.posters, count = preview?.count)
+            }
     }
 }
 
@@ -92,17 +101,23 @@ data class HomeState(
     /** Инициалы текущего пользователя для аватара в шапке (пусто — пока не загружено). */
     val initials: String = "",
     /** «Выбор редакции» — тайтлы карусели hero. */
-    val heroes: List<Item> = emptyList(),
+    val heroes: List<HeroCard> = emptyList(),
     /** Какой тайтл карусели сейчас на экране. */
     val heroIndex: Int = 0,
     /** Тайтлы в «Буду смотреть» — по ним кнопка hero залита или пуста. */
     val watchLaterIds: Set<Int> = emptySet(),
     val rows: List<HomeRow> = emptyList(),
+    /** Телефон: открыта шторка «Разделы». */
+    val sectionsOpen: Boolean = false,
     val error: String? = null,
 ) {
     /** Тайтл hero на экране. Телефон показывает только его. */
-    val hero: Item?
+    val hero: HeroCard?
         get() = heroes.getOrNull(heroIndex)
+
+    /** Тайтл hero на экране уже в «Буду смотреть» — кнопка залита. */
+    val heroInWatchLater: Boolean
+        get() = hero?.id in watchLaterIds
 
     /**
      * Показывать нечего: ни hero, ни одного непустого ряда. Холодный старт без сети выглядит
@@ -125,7 +140,11 @@ sealed interface HomeEvent {
     data object NextHero : HomeEvent
 
     /** «Буду смотреть» для тайтла hero. */
-    data class ToggleWatchLater(val item: Item) : HomeEvent
+    data class ToggleWatchLater(val itemId: Int) : HomeEvent
+
+    /** Телефон: шторка «Разделы» в шапке. */
+    data object OpenSections : HomeEvent
+    data object CloseSections : HomeEvent
 }
 
 /**

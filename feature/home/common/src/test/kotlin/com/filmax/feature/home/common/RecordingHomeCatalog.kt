@@ -6,6 +6,7 @@ import com.filmax.core.domain.catalog.CatalogShortcut
 import com.filmax.core.domain.catalog.CatalogSort
 import com.filmax.core.domain.catalog.GenreFilter
 import com.filmax.core.domain.catalog.SortOption
+import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemPage
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.domain.common.RequestResult
@@ -28,6 +29,9 @@ internal class RecordingHomeCatalog(
 ) : CatalogRepository by delegate {
 
     val calls = mutableListOf<TitlesCall>()
+
+    /** Отданные тайтлы по id: в ряду лежат карточки, а проверке нужен сам тайтл с типом и жанрами. */
+    val served = mutableMapOf<Int, Item>()
 
     private val gate = CompletableDeferred<Unit>()
 
@@ -65,6 +69,7 @@ internal class RecordingHomeCatalog(
         calls += TitlesCall(source, page)
         if (source in held) gate.await()
         val result: RequestResult<ItemPage> = if (source in failing) RequestResult.Error(OFFLINE_MESSAGE) else request()
+        if (result is RequestResult.Success) result.data.items.forEach { served[it.id] = it }
         return if (endless && result is RequestResult.Success) result.withNextPage() else result
     }
 
