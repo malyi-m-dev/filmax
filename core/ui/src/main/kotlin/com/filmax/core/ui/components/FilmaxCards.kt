@@ -3,6 +3,7 @@ package com.filmax.core.ui.components
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
@@ -33,6 +35,7 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeCard
 import com.filmax.core.designsystem.ShapePoster
 import com.filmax.core.designsystem.glassFill
+import com.filmax.core.ui.preview.ComponentPreview
 
 /** Постер 2:3 — ширину задаёт место вызова, высота следует из пропорции. */
 const val POSTER_ASPECT = 2f / 3f
@@ -183,3 +186,29 @@ private val FrameScrim = Brush.verticalGradient(
     0.45f to Color.Transparent,
     1f to Color.Black.copy(alpha = 0.6f),
 )
+
+/** Постер с оценкой и мета-строкой и карточка «Продолжить» с прогрессом — без картинок, на плейсхолдере. */
+@ComponentPreview
+@Composable
+private fun FilmaxCardsPreview() {
+    FilmaxTheme {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            FilmaxPosterCard(
+                title = "Дом на краю карты",
+                posterUrl = "",
+                onClick = {},
+                rating = "8.1",
+                meta = "Фильм · 2022",
+                modifier = Modifier.width(FilmaxMetrics.PosterWidth),
+            )
+            FilmaxContinueCard(
+                title = "Хроники Пограничья",
+                meta = "S4 · осталось 18 мин",
+                imageUrl = "",
+                progress = 0.4f,
+                onClick = {},
+                modifier = Modifier.width(FilmaxMetrics.ContinueWidth),
+            )
+        }
+    }
+}

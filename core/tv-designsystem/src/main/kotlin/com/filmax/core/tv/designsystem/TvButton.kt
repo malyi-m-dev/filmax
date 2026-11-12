@@ -1,6 +1,7 @@
 package com.filmax.core.tv.designsystem
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import com.filmax.core.tv.designsystem.preview.TvComponentPreview
 
 private val ButtonHeight = 44.dp
 private val ButtonIconSize = 20.dp
@@ -114,5 +116,15 @@ internal fun buttonColors(style: TvButtonStyle): TvSurfaceColors {
         TvButtonStyle.Primary -> TvSurfaceColors(container = colors.accent, content = colors.onAccent)
         TvButtonStyle.Secondary -> TvSurfaceColors(container = colors.surfaceHigh, content = colors.text)
         TvButtonStyle.Light -> TvSurfaceColors(container = Color.White, content = colors.background)
+    }
+}
+
+@TvComponentPreview
+@Composable
+private fun TvButtonPreview() {
+    FilmaxTvTheme {
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvButtonStyle.entries.forEach { style -> TvButton(text = "Смотреть", onClick = {}, style = style) }
+        }
     }
 }

@@ -32,6 +32,7 @@ import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeFull
 import com.filmax.core.designsystem.glassFill
+import com.filmax.core.ui.preview.ComponentPreview
 
 /** Размер чипа: [Small] — сезоны в панели плеера, [Regular] — фильтры и сегменты, [Large] — ряд плеера. */
 enum class FilmaxChipSize(internal val height: Dp, internal val padding: Dp, internal val text: TextStyle) {
@@ -197,3 +198,15 @@ private val TabButtonHeight = 52.dp
 private val TabButtonShape = RoundedCornerShape(16.dp)
 private val CountdownFill = Color.White.copy(alpha = 0.16f)
 private const val COUNTDOWN_ACCENT_ALPHA = 0.85f
+
+@ComponentPreview
+@Composable
+private fun FilmaxChipPreview() {
+    FilmaxTheme {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FilmaxChip(label = "Фильмы", selected = true, onClick = {})
+            FilmaxChip(label = "Сериалы", selected = false, onClick = {})
+            FilmaxChip(label = "Сезон 2", selected = false, onClick = {}, size = FilmaxChipSize.Small)
+        }
+    }
+}

@@ -2,6 +2,7 @@ package com.filmax.core.tv.designsystem
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -16,6 +17,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
+import com.filmax.core.tv.designsystem.preview.TvComponentPreview
 
 /**
  * Вид чипа: заливка — сегменты и тип контента, контур — множественный выбор (жанры), компактный —
@@ -110,3 +112,16 @@ private fun chipPadding(style: TvChipStyle, hasIcon: Boolean, hasTrailing: Boole
 
 /** Невыбранный залитый чип — стекло 8%: тише вторичной кнопки (12%). */
 private const val FILLED_IDLE_ALPHA = 0.08f
+
+@TvComponentPreview
+@Composable
+private fun TvChipPreview() {
+    FilmaxTvTheme {
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            TvChipStyle.entries.forEach { style ->
+                TvChip(label = "Фантастика", selected = true, onClick = {}, style = style)
+                TvChip(label = "Драма", selected = false, onClick = {}, style = style)
+            }
+        }
+    }
+}

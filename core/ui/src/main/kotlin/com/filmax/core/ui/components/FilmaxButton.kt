@@ -31,6 +31,7 @@ import com.filmax.core.designsystem.FilmaxType
 import com.filmax.core.designsystem.ShapeFull
 import com.filmax.core.designsystem.glassFill
 import com.filmax.core.designsystem.glow
+import com.filmax.core.ui.preview.ComponentPreview
 
 /** Вид кнопки. */
 enum class FilmaxButtonStyle {
@@ -189,3 +190,16 @@ private val PlayIconSize = 26.dp
 private const val SUBTITLE_ALPHA = 0.82f
 private const val PROGRESS_ALPHA = 0.75f
 private const val DISABLED_ALPHA = 0.4f
+
+/** Все стили кнопки и выключенная — так видно, что «главная» одна, а остальные тише. */
+@ComponentPreview
+@Composable
+private fun FilmaxButtonPreview() {
+    FilmaxTheme {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            FilmaxButtonStyle.entries.forEach { style -> FilmaxButton(text = "Смотреть", onClick = {}, style = style) }
+            FilmaxButton(text = "Подробнее", onClick = {}, size = FilmaxButtonSize.Compact)
+            FilmaxButton(text = "Отправить", onClick = {}, enabled = false)
+        }
+    }
+}
