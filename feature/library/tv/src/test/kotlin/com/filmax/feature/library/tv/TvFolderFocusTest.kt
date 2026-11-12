@@ -127,7 +127,7 @@ class TvFolderFocusTest {
             FilmaxTvTheme {
                 val state by model.collectAsState()
                 model.collectSideEffect { effect -> if (effect == FolderSideEffect.Deleted) calls += "back" }
-                FolderContent(
+                TvFolderScreen(
                     state = state,
                     actions = FolderActions(
                         onEvent = model::dispatch,

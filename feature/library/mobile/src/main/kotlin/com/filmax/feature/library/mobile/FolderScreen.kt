@@ -43,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.filmax.core.designsystem.FilmaxColors
@@ -57,10 +59,6 @@ import com.filmax.core.designsystem.rememberGlassState
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.presentation.folders.FolderInput
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.titlesLabel
-import com.filmax.core.presentation.format.typeLabel
 import com.filmax.core.ui.components.FilmaxButton
 import com.filmax.core.ui.components.FilmaxButtonSize
 import com.filmax.core.ui.components.FilmaxConfirmSheet
@@ -73,7 +71,9 @@ import com.filmax.core.ui.components.FilmaxSheet
 import com.filmax.core.ui.components.FilmaxStatusBarGlass
 import com.filmax.core.ui.components.FolderEditorActions
 import com.filmax.core.ui.components.folderHue
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.library.common.FolderEvent
+import com.filmax.feature.library.common.FolderSamples
 import com.filmax.feature.library.common.FolderScreenModel
 import com.filmax.feature.library.common.FolderSideEffect
 import com.filmax.feature.library.common.FolderState
@@ -84,6 +84,20 @@ import org.koin.compose.koinInject
 private const val LOAD_MORE_TAIL = 6
 private const val SKELETON_COUNT = 6
 
+/** Действия открытой папки: события модели и переходы, которые исполняет навигатор. */
+internal data class FolderActions(
+    val onEvent: (FolderEvent) -> Unit,
+    val onOpenItem: (Int) -> Unit,
+    val onPlay: (Int) -> Unit,
+    val onBack: () -> Unit,
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = FolderActions(onEvent = {}, onOpenItem = {}, onPlay = {}, onBack = {})
+    }
+}
+
+/** Открытая папка на телефоне: модель и навигатор; удалили папку — назад в «Моё». */
 @Composable
 fun FolderScreen(
     modifier: Modifier = Modifier,
@@ -96,6 +110,20 @@ fun FolderScreen(
             FolderSideEffect.Deleted -> navigator.back()
         }
     }
+    val actions = remember(screenModel, navigator) {
+        FolderActions(
+            onEvent = screenModel::dispatch,
+            onOpenItem = { navigator.open(Destination.Details(it)) },
+            onPlay = { navigator.open(Destination.Player(itemId = it)) },
+            onBack = navigator::back,
+        )
+    }
+    FolderScreen(state = state, actions = actions, modifier = modifier)
+}
+
+/** Папка из состояния — без Koin и навигатора: её рисуют превью. */
+@Composable
+internal fun FolderScreen(state: FolderState, actions: FolderActions, modifier: Modifier = Modifier) {
     val hue = folderHue(state.folder?.tint ?: 0)
     Box(
         modifier
@@ -109,26 +137,14 @@ fun FolderScreen(
                 radiusY = 0.4f,
             ),
     ) {
-        FolderGrid(
-            state = state,
-            hue = hue,
-            onEvent = screenModel::dispatch,
-            onOpenItem = { navigator.open(Destination.Details(it)) },
-            onPlay = { navigator.open(Destination.Player(itemId = it)) },
-        )
-        FolderTopBar(onBack = navigator::back, onDelete = { screenModel.dispatch(FolderEvent.AskDelete) })
+        FolderGrid(state = state, hue = hue, actions = actions)
+        FolderTopBar(onBack = actions.onBack, onDelete = { actions.onEvent(FolderEvent.AskDelete) })
     }
-    FolderSheets(state = state, onEvent = screenModel::dispatch)
+    FolderSheets(state = state, onEvent = actions.onEvent)
 }
 
 @Composable
-private fun FolderGrid(
-    state: FolderState,
-    hue: Float,
-    onEvent: (FolderEvent) -> Unit,
-    onOpenItem: (Int) -> Unit,
-    onPlay: (Int) -> Unit,
-) {
+private fun FolderGrid(state: FolderState, hue: Float, actions: FolderActions) {
     val gridState = rememberLazyGridState()
     val loadMore by remember {
         derivedStateOf {
@@ -137,7 +153,7 @@ private fun FolderGrid(
             info.totalItemsCount > 0 && lastVisible >= info.totalItemsCount - LOAD_MORE_TAIL
         }
     }
-    LaunchedEffect(loadMore) { if (loadMore) onEvent(FolderEvent.LoadMore) }
+    LaunchedEffect(loadMore) { if (loadMore) actions.onEvent(FolderEvent.LoadMore) }
     val glass = rememberGlassState()
     val scrolled by remember {
         derivedStateOf { gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0 }
@@ -160,11 +176,11 @@ private fun FolderGrid(
             FolderHeader(
                 state = state,
                 hue = hue,
-                onPlay = state.items.firstOrNull()?.let { first -> { onPlay(first.id) } },
-                onRename = { onEvent(FolderEvent.StartRename) },
+                onPlay = state.items.firstOrNull()?.let { first -> { actions.onPlay(first.id) } },
+                onRename = { actions.onEvent(FolderEvent.StartRename) },
             )
         }
-        folderItems(state = state, onEvent = onEvent, onOpenItem = onOpenItem)
+        folderItems(state = state, onEvent = actions.onEvent, onOpenItem = actions.onOpenItem)
     }
 }
 
@@ -187,10 +203,10 @@ private fun LazyGridScope.folderItems(state: FolderState, onEvent: (FolderEvent)
     items(state.items, key = { it.id }) { item ->
         FilmaxPosterCard(
             title = item.title,
-            posterUrl = item.posters.medium,
+            posterUrl = item.posterUrl,
             onClick = { onOpenItem(item.id) },
-            rating = ratingLabel(item.rating.primary),
-            meta = posterMeta(typeLabel(item.type), item.year),
+            rating = item.rating,
+            meta = item.typeAndYear,
             // Долгий тап убирает тайтл из папки — так же, как долгое «ОК» на пульте.
             onLongClick = { onEvent(FolderEvent.RemoveItem(item.id)) },
         )
@@ -223,9 +239,9 @@ private fun FolderHeader(state: FolderState, hue: Float, onPlay: (() -> Unit)?, 
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 16.dp),
         )
-        state.folder?.let {
+        state.countLabel?.let {
             Text(
-                titlesLabel(it.count),
+                it,
                 style = FilmaxType.bodySmall,
                 color = FilmaxColors.TextSecondary,
                 modifier = Modifier.padding(top = 4.dp)
@@ -296,3 +312,13 @@ private fun FolderSheets(state: FolderState, onEvent: (FolderEvent) -> Unit) {
 private val FolderTop = 56.dp
 private val TileShape = RoundedCornerShape(22.dp)
 private const val TILE_GLOW_ALPHA = 0.6f
+
+private class FolderStatePreviews : PreviewParameterProvider<FolderState> {
+    override val values = FolderSamples.all.asSequence()
+}
+
+@PhonePreviews
+@Composable
+private fun FolderScreenPreview(@PreviewParameter(FolderStatePreviews::class) state: FolderState) {
+    FilmaxTheme { FolderScreen(state = state, actions = FolderActions.None) }
+}

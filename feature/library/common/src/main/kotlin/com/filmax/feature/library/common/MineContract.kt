@@ -1,8 +1,8 @@
 package com.filmax.feature.library.common
 
 import com.filmax.core.domain.user.model.UserFolder
-import com.filmax.core.domain.watching.model.WatchHistory
-import com.filmax.core.domain.watchlist.model.WatchlistItem
+import com.filmax.core.presentation.cards.WatchCard
+import com.filmax.core.presentation.cards.WatchlistCard
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
 
@@ -33,18 +33,29 @@ enum class FolderSort(val label: String) {
     TITLE("По названию"),
 }
 
-/** Карточка папки: папка с оформлением, постеры веера и когда её меняли («изменена вчера»). */
+/**
+ * Карточка папки: папка с оформлением, постеры веера, когда её меняли («изменена вчера»), счётчик
+ * «6 тайтлов» и подпись ТВ «6 тайтлов · изменена вчера».
+ */
 data class MineFolder(
     val folder: UserFolder,
     val posters: List<String>,
     val changed: String?,
+    val count: String,
+    val caption: String,
 )
 
-/** Запись истории и время просмотра «21:40» — подпись под карточкой. */
-data class HistoryEntry(val entry: WatchHistory, val time: String?)
-
 /** День истории: «Сегодня», «Вчера», «12 октября» или «Раньше» — для записей без времени. */
-data class HistoryDay(val label: String, val entries: List<HistoryEntry>)
+data class HistoryDay(val label: String, val entries: List<WatchCard>)
+
+/** Что «Моё» просит подтвердить — убрать тайтл; [title] — для текста шторки. */
+sealed interface MineConfirm {
+    val itemId: Int
+    val title: String
+
+    data class Watchlist(override val itemId: Int, override val title: String) : MineConfirm
+    data class History(override val itemId: Int, override val title: String) : MineConfirm
+}
 
 data class MineState(
     val loading: Boolean = true,
@@ -52,10 +63,10 @@ data class MineState(
     val segments: List<MineSegment> = MineSegment.entries,
     val segment: MineSegment = MineSegment.CONTINUE,
     /** Начатое и не досмотренное — сегмент «Продолжить». */
-    val continueWatching: List<WatchHistory> = emptyList(),
+    val continueWatching: List<WatchCard> = emptyList(),
     val history: List<HistoryDay> = emptyList(),
     /** «Буду смотреть» уже в порядке [watchlistSort]. */
-    val watchlist: List<WatchlistItem> = emptyList(),
+    val watchlist: List<WatchlistCard> = emptyList(),
     val watchlistSort: WatchlistSort = WatchlistSort.NEWEST,
     /** Папки пользователя уже в порядке [folderSort], без системной «Буду смотреть». */
     val folders: List<MineFolder> = emptyList(),
@@ -64,6 +75,8 @@ data class MineState(
     val draft: FolderDraft? = null,
     /** Открыт диалог «Очистить историю?». */
     val confirmClearHistory: Boolean = false,
+    /** Открыта шторка «Убрать тайтл?» (телефон: на ТВ долгое «ОК» убирает сразу). */
+    val confirm: MineConfirm? = null,
     val error: String? = null,
 ) {
     /** Счётчик сегмента; null — у сегмента счётчика нет (так в макете у «Продолжить» и «Истории»). */
@@ -83,11 +96,19 @@ sealed interface MineEvent {
 
     data object CycleFolderSort : MineEvent
 
+    /** Убрать тайтл: на ТВ — сразу долгим «ОК», на телефоне — после вопроса. */
+    sealed interface Removal : MineEvent
+
     /** Долгое «ОК» на постере «Буду смотреть». */
-    data class RemoveFromWatchlist(val itemId: Int) : MineEvent
+    data class RemoveFromWatchlist(val itemId: Int) : Removal
 
     /** Долгое «ОК» на карточке «Продолжить»: kino.pub убирает тайтл из истории целиком. */
-    data class RemoveFromContinue(val itemId: Int) : MineEvent
+    data class RemoveFromContinue(val itemId: Int) : Removal
+
+    /** Долгий тап на телефоне: спросить, убрать ли тайтл. */
+    data class AskRemove(val confirm: MineConfirm) : Removal
+    data object ConfirmRemove : Removal
+    data object DismissRemove : Removal
 
     data object AskClearHistory : MineEvent
     data object ConfirmClearHistory : MineEvent

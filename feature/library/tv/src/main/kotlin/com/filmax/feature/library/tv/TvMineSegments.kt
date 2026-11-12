@@ -30,11 +30,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.filmax.core.domain.watching.model.WatchHistory
-import com.filmax.core.domain.watchlist.model.WatchlistItem
-import com.filmax.core.presentation.format.isHighRating
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
+import com.filmax.core.presentation.cards.WatchCard
+import com.filmax.core.presentation.cards.WatchlistCard
 import com.filmax.core.tv.designsystem.FxMotion
 import com.filmax.core.tv.designsystem.ScrollToTopOnNavFocus
 import com.filmax.core.tv.designsystem.TvCardSize
@@ -128,7 +125,7 @@ private fun MineGrid(spec: GridSpec, cards: GridFocus, content: LazyGridScope.()
 /** Фокус карточек сетки: память экрана и передача фокуса соседу при удалении. */
 private class GridFocus(val screen: TvScreenFocus, val handoff: CardFocusHandoff)
 
-private fun LazyGridScope.continueItems(entries: List<WatchHistory>, actions: MineActions, cards: GridFocus) {
+private fun LazyGridScope.continueItems(entries: List<WatchCard>, actions: MineActions, cards: GridFocus) {
     if (entries.isEmpty()) {
         emptyItem(MineEmptyText.Continue, Icons.Rounded.PlayCircleOutline)
         return
@@ -139,26 +136,24 @@ private fun LazyGridScope.continueItems(entries: List<WatchHistory>, actions: Mi
         var removing by remember { mutableStateOf(false) }
         TvProgressCard(
             title = entry.title,
-            meta = remainingLabel(entry.progress),
-            posterUrl = entry.wideOrPoster,
-            progress = entry.progress?.fraction ?: 0f,
+            meta = entry.remaining,
+            posterUrl = entry.imageUrl,
+            progress = entry.progress,
             // OK — сразу в плеер, на ту же серию: номер серии уникален только внутри сезона.
-            onClick = {
-                actions.onPlay(entry.itemId, entry.progress?.video)
-            },
+            onClick = { actions.onPlay(entry.itemId, entry.video) },
             onLongClick = {
                 cards.handoff.handOff(keys, key)
                 removing = true
             },
             size = TvCardSize.Grid,
-            badge = episodeBadge(entry.progress),
+            badge = entry.episode,
             modifier = removableCard(index % ContinueGrid.columns, key, cards)
                 .collapseOnRemove(removing) { actions.onEvent(MineEvent.RemoveFromContinue(entry.itemId)) },
         )
     }
 }
 
-private fun LazyGridScope.watchlistItems(items: List<WatchlistItem>, actions: MineActions, cards: GridFocus) {
+private fun LazyGridScope.watchlistItems(items: List<WatchlistCard>, actions: MineActions, cards: GridFocus) {
     if (items.isEmpty()) {
         emptyItem(MineEmptyText.Watchlist, Icons.Rounded.BookmarkBorder)
         return
@@ -169,16 +164,16 @@ private fun LazyGridScope.watchlistItems(items: List<WatchlistItem>, actions: Mi
         var removing by remember { mutableStateOf(false) }
         TvPosterCard(
             title = item.title,
-            meta = posterMeta(type = null, year = item.year),
-            posterUrl = item.posterSmall,
+            meta = item.year,
+            posterUrl = item.posterUrl,
             onClick = { actions.onOpenItem(item.id) },
             // Долгое «ОК» — убрать из списка; фокус переходит на соседа, а не теряется.
             onLongClick = {
                 cards.handoff.handOff(keys, key)
                 removing = true
             },
-            rating = ratingLabel(item.rating),
-            ratingHighlighted = isHighRating(item.rating),
+            rating = item.rating,
+            ratingHighlighted = item.ratingHigh,
             size = TvPosterSize.Grid,
             modifier = removableCard(index % WatchlistGrid.columns, key, cards)
                 .collapseOnRemove(removing) { actions.onEvent(MineEvent.RemoveFromWatchlist(item.id)) },
@@ -216,7 +211,7 @@ private fun LazyGridScope.folderItems(
     itemsIndexed(state.folders, key = { _, folder -> folder.folder.id }) { index, folder ->
         TvFolderCard(
             title = folder.folder.title,
-            caption = folderCaption(folder),
+            caption = folder.caption,
             posters = folder.posters,
             tint = tvFolderTint(folder.folder.tint).card,
             onClick = { actions.onOpenFolder(folder.folder.id) },

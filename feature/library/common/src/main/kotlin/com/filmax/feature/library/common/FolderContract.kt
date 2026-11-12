@@ -1,9 +1,10 @@
 package com.filmax.feature.library.common
 
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.UserFolder
+import com.filmax.core.presentation.cards.TitleCard
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.format.titlesLabel
 
 /**
  * Экран открытой папки (телефон и ТВ). Содержимое постраничное — kino.pub отдаёт `bookmarks/{id}` по
@@ -12,7 +13,8 @@ import com.filmax.core.presentation.folders.FolderInput
 data class FolderState(
     val loading: Boolean = true,
     val folder: UserFolder? = null,
-    val items: List<Item> = emptyList(),
+    /** Тайтлы папки готовыми карточками; первый — для «Смотреть подряд». */
+    val items: List<TitleCard> = emptyList(),
     /** Последняя загруженная страница (0 — ещё ни одной). */
     val page: Int = 0,
     val loadingMore: Boolean = false,
@@ -22,7 +24,13 @@ data class FolderState(
     /** Открыт диалог «Удалить папку?». */
     val confirmDelete: Boolean = false,
     val error: String? = null,
-)
+) {
+    /** «6 тайтлов» под названием папки; null — папка ещё не загрузилась. */
+    val countLabel: String? get() = folder?.let { titlesLabel(it.count) }
+
+    /** Строка под названием в шапке ТВ: «6 тайтлов · ваша папка». */
+    val caption: String? get() = countLabel?.let { "$it · ваша папка" }
+}
 
 sealed interface FolderEvent {
     /** Сетка подошла к концу — догрузить следующую страницу. */

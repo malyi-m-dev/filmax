@@ -104,12 +104,12 @@ private fun HistoryDayRow(day: HistoryDay, dayIndex: Int, actions: MineActions, 
                     ),
                     horizontalArrangement = Arrangement.spacedBy(CardGap),
                 ) {
-                    itemsIndexed(day.entries, key = { _, dayEntry -> dayEntry.entry.itemId }) { index, (entry, time) ->
+                    itemsIndexed(day.entries, key = { _, card -> card.itemId }) { index, entry ->
                         TvProgressCard(
                             title = entry.title,
-                            meta = historyMeta(entry.progress, time),
-                            posterUrl = entry.wideOrPoster,
-                            progress = entry.progress?.fraction ?: 0f,
+                            meta = entry.episodeAndTime,
+                            posterUrl = entry.imageUrl,
+                            progress = entry.progress,
                             onClick = { actions.onOpenItem(entry.itemId) },
                             size = TvCardSize.Small,
                             modifier = Modifier

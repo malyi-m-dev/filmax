@@ -13,7 +13,7 @@ internal fun startKey(state: MineState): String? = when (state.segment) {
     MineSegment.CONTINUE -> state.continueWatching.firstOrNull()?.let { continueKey(it.itemId) }
     MineSegment.WATCHLIST -> state.watchlist.firstOrNull()?.let { watchlistKey(it.id) }
     MineSegment.FOLDERS -> CREATE_FOLDER_KEY
-    MineSegment.HISTORY -> state.history.firstOrNull()?.entries?.firstOrNull()?.let { historyKey(it.entry.itemId) }
+    MineSegment.HISTORY -> state.history.firstOrNull()?.entries?.firstOrNull()?.let { historyKey(it.itemId) }
 }
 
 internal fun continueKey(itemId: Int) = "continue:$itemId"

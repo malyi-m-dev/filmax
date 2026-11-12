@@ -35,10 +35,7 @@ import com.filmax.core.designsystem.FilmaxColors
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.designsystem.FilmaxType
-import com.filmax.core.domain.watching.model.WatchHistory
-import com.filmax.core.presentation.format.continueMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.titlesLabel
+import com.filmax.core.presentation.cards.WatchCard
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxContinueCard
 import com.filmax.core.ui.components.FilmaxCreateFolderCard
@@ -48,6 +45,7 @@ import com.filmax.core.ui.components.FilmaxHistoryRow
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxTextButton
 import com.filmax.core.ui.components.folderHue
+import com.filmax.feature.library.common.MineConfirm
 import com.filmax.feature.library.common.MineEvent
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
@@ -78,14 +76,14 @@ private fun ContinuePage(state: MineState, actions: MineActions, contentPadding:
                 "Начните фильм или сериал — он появится здесь",
             )
         }
-        items(state.continueWatching, key = { it.itemId }) { entry ->
+        items(state.continueWatching, key = { it.itemId }) { card ->
             FilmaxContinueCard(
-                title = entry.title,
-                meta = continueMeta(entry.progress),
-                imageUrl = entry.wideOrPoster,
-                progress = entry.progress?.fraction ?: 0f,
-                onClick = { actions.play(entry) },
-                onLongClick = { actions.onConfirm(MineConfirm.History(entry.itemId, entry.title)) },
+                title = card.title,
+                meta = card.continueMeta,
+                imageUrl = card.imageUrl,
+                progress = card.progress,
+                onClick = { actions.play(card) },
+                onLongClick = { actions.askRemove(MineConfirm.History(card.itemId, card.title)) },
             )
         }
     }
@@ -105,14 +103,14 @@ private fun WatchlistPage(state: MineState, actions: MineActions, contentPadding
                 "Отмечайте «Буду смотреть» в карточке тайтла",
             )
         }
-        items(state.watchlist, key = { it.id }) { item ->
+        items(state.watchlist, key = { it.id }) { card ->
             FilmaxPosterCard(
-                title = item.title,
-                posterUrl = item.posterSmall,
-                onClick = { actions.onOpenItem(item.id) },
-                rating = ratingLabel(item.rating),
-                meta = item.year.takeIf { it > 0 }?.toString(),
-                onLongClick = { actions.onConfirm(MineConfirm.Watchlist(item.id, item.title)) },
+                title = card.title,
+                posterUrl = card.posterUrl,
+                onClick = { actions.onOpenItem(card.id) },
+                rating = card.rating,
+                meta = card.year,
+                onLongClick = { actions.askRemove(MineConfirm.Watchlist(card.id, card.title)) },
             )
         }
     }
@@ -128,7 +126,7 @@ private fun FoldersPage(state: MineState, actions: MineActions, contentPadding: 
         items(state.folders, key = { it.folder.id }) { mine ->
             FilmaxFolderCard(
                 name = mine.folder.title,
-                count = titlesLabel(mine.folder.count),
+                count = mine.count,
                 hue = folderHue(mine.folder.tint),
                 posters = mine.posters,
                 onClick = { actions.onOpenFolder(mine.folder.id) },
@@ -174,15 +172,15 @@ private fun HistoryPage(state: MineState, actions: MineActions, contentPadding: 
                     modifier = Modifier.padding(start = FilmaxMetrics.ScreenPadding, top = 16.dp, bottom = 6.dp),
                 )
             }
-            items(day.entries, key = { "history-${day.label}-${it.entry.itemId}" }) { (entry, time) ->
+            items(day.entries, key = { "history-${day.label}-${it.itemId}" }) { card ->
                 FilmaxHistoryRow(
-                    title = entry.title,
-                    subtitle = historySubtitle(entry.progress),
-                    meta = historyMeta(entry.progress, time),
-                    imageUrl = entry.wideOrPoster,
-                    progress = entry.progress?.fraction ?: 0f,
-                    onClick = { actions.play(entry) },
-                    onMore = { actions.onConfirm(MineConfirm.History(entry.itemId, entry.title)) },
+                    title = card.title,
+                    subtitle = card.whatWatched,
+                    meta = card.whenWatched,
+                    imageUrl = card.imageUrl,
+                    progress = card.progress,
+                    onClick = { actions.play(card) },
+                    onMore = { actions.askRemove(MineConfirm.History(card.itemId, card.title)) },
                 )
             }
         }
@@ -228,8 +226,13 @@ private fun Loading() {
 }
 
 /** «Продолжить» и история ведут сразу в плеер: недосмотренная серия — адрес из истории. */
-private fun MineActions.play(entry: WatchHistory) {
-    onPlay(entry.itemId, entry.progress?.video)
+private fun MineActions.play(card: WatchCard) {
+    onPlay(card.itemId, card.video)
+}
+
+/** Долгий тап — не убирать сразу, а спросить: вернуть тайтл в историю будет нечем. */
+private fun MineActions.askRemove(confirm: MineConfirm) {
+    onEvent(MineEvent.AskRemove(confirm))
 }
 
 /** «Очистить историю» над днями — справа, на полях сетки. */

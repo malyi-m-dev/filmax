@@ -1,5 +1,6 @@
 // «Моё»: стеклянная шапка с сегментами и сегменты страницами, которые листаются пальцем. Сами
-// сегменты — в MineSegments, шторки создания папки и подтверждений — в MineSheets.
+// сегменты — в MineSegments, шторки создания папки и подтверждений — в MineSheets. Состояние
+// экрана целиком в MineScreenModel; в вёрстке — только прокрутка и замер шапки.
 
 package com.filmax.feature.library.mobile
 
@@ -32,6 +33,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.filmax.core.designsystem.FilmaxColors
@@ -48,7 +51,9 @@ import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxGlassHeader
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.LocalNavBarPadding
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.library.common.MineEvent
+import com.filmax.feature.library.common.MineSamples
 import com.filmax.feature.library.common.MineScreenModel
 import com.filmax.feature.library.common.MineSegment
 import com.filmax.feature.library.common.MineState
@@ -56,24 +61,27 @@ import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
-/** Что «Моё» просит подтвердить — убрать тайтл; [title] — для текста шторки. */
-internal sealed interface MineConfirm {
-    val itemId: Int
-    val title: String
-
-    data class Watchlist(override val itemId: Int, override val title: String) : MineConfirm
-    data class History(override val itemId: Int, override val title: String) : MineConfirm
-}
-
 /** Переходы и события «Моё» одним объектом: порог LongParameterList у detekt — 6. */
 internal data class MineActions(
     val onEvent: (MineEvent) -> Unit,
     val onOpenItem: (Int) -> Unit,
     val onPlay: (itemId: Int, video: VideoRef?) -> Unit,
     val onOpenFolder: (Int) -> Unit,
-    val onConfirm: (MineConfirm) -> Unit,
-)
+    val onOpenSearch: () -> Unit,
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = MineActions(
+            onEvent = {},
+            onOpenItem = {},
+            onPlay = { _, _ -> },
+            onOpenFolder = {},
+            onOpenSearch = {},
+        )
+    }
+}
 
+/** «Моё» на телефоне: модель, навигатор и перечитывание при возврате на экран. */
 @Composable
 fun MineScreen(
     modifier: Modifier = Modifier,
@@ -81,29 +89,35 @@ fun MineScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-    var confirm by remember { mutableStateOf<MineConfirm?>(null) }
     // Вернулись из папки, деталей или плеера — история и папки могли измениться.
     LifecycleResumeEffect(Unit) {
         screenModel.dispatch(MineEvent.Refresh)
         onPauseOrDispose { }
     }
-    val actions = remember(screenModel, navigator) {
-        MineActions(
-            onEvent = screenModel::dispatch,
-            onOpenItem = { navigator.open(Destination.Details(it)) },
-            onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
-            onOpenFolder = { navigator.open(Destination.BookmarkFolder(it)) },
-            onConfirm = { confirm = it },
-        )
-    }
-    Box(modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
-        MineBody(state = state, actions = actions, onOpenSearch = { navigator.open(Destination.Search) })
-    }
-    MineSheets(state = state, confirm = confirm, onEvent = screenModel::dispatch, onDismissConfirm = { confirm = null })
+    val actions = remember(screenModel, navigator) { mineActions(screenModel::dispatch, navigator) }
+    MineScreen(state = state, actions = actions, modifier = modifier)
 }
 
+/** «Моё» из состояния — без Koin и навигатора: его рисуют превью и UI-тесты. */
 @Composable
-private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () -> Unit) {
+internal fun MineScreen(state: MineState, actions: MineActions, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize().background(FilmaxTheme.palette.background)) {
+        MinePages(state = state, actions = actions)
+    }
+    MineSheets(state = state, onEvent = actions.onEvent)
+}
+
+private fun mineActions(onEvent: (MineEvent) -> Unit, navigator: Navigator) = MineActions(
+    onEvent = onEvent,
+    onOpenItem = { navigator.open(Destination.Details(it)) },
+    onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
+    onOpenFolder = { navigator.open(Destination.BookmarkFolder(it)) },
+    onOpenSearch = { navigator.open(Destination.Search) },
+)
+
+/** Шапка поверх страниц: её высоту замеряем, чтобы лента начиналась под стеклом. */
+@Composable
+private fun MinePages(state: MineState, actions: MineActions) {
     val glass = rememberGlassState()
     val density = LocalDensity.current
     var headerHeight by remember { mutableStateOf(0.dp) }
@@ -133,7 +147,7 @@ private fun MineBody(state: MineState, actions: MineActions, onOpenSearch: () ->
             segments = segments,
             pager = pager,
             glass = glass,
-            onOpenSearch = onOpenSearch,
+            onOpenSearch = actions.onOpenSearch,
             modifier = Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } },
         )
     }
@@ -182,4 +196,14 @@ private fun MineHeader(
             }
         }
     }
+}
+
+private class MineStatePreviews : PreviewParameterProvider<MineState> {
+    override val values = MineSamples.all.asSequence()
+}
+
+@PhonePreviews
+@Composable
+private fun MineScreenPreview(@PreviewParameter(MineStatePreviews::class) state: MineState) {
+    FilmaxTheme { MineScreen(state = state, actions = MineActions.None) }
 }

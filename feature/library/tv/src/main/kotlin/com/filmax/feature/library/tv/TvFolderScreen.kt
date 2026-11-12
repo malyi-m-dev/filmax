@@ -10,19 +10,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.filmax.core.domain.user.model.UserFolder
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvConfirmDialog
 import com.filmax.core.tv.designsystem.TvConfirmSpec
 import com.filmax.core.tv.designsystem.TvErrorState
 import com.filmax.core.tv.designsystem.TvFolderEditor
 import com.filmax.core.tv.designsystem.TvSheetHost
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvFolderTint
 import com.filmax.core.tv.designsystem.tvTintedBackground
 import com.filmax.feature.library.common.FolderEvent
+import com.filmax.feature.library.common.FolderSamples
 import com.filmax.feature.library.common.FolderScreenModel
 import com.filmax.feature.library.common.FolderSideEffect
 import com.filmax.feature.library.common.FolderState
@@ -49,16 +54,15 @@ fun TvFolderScreen(
             FolderSideEffect.Deleted -> navigator.back()
         }
     }
-    FolderContent(
-        state = state,
-        actions = FolderActions(
+    val actions = remember(screenModel, navigator) {
+        FolderActions(
             onEvent = screenModel::dispatch,
             onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
             onPlay = { itemId -> navigator.open(Destination.Player(itemId)) },
             onOpenCatalog = { navigator.open(Destination.Catalog) },
-        ),
-        modifier = modifier,
-    )
+        )
+    }
+    TvFolderScreen(state = state, actions = actions, modifier = modifier)
 }
 
 /** Действия экрана папки: события модели и переходы. */
@@ -68,14 +72,19 @@ internal data class FolderActions(
     /** Тайтл целиком с начала: фильм или первая серия сериала (PlayerRoute без сезона и серии). */
     val onPlay: (Int) -> Unit,
     val onOpenCatalog: () -> Unit,
-)
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = FolderActions(onEvent = {}, onOpenItem = {}, onPlay = {}, onOpenCatalog = {})
+    }
+}
 
 /** Куда вернуть фокус после панели переименования и диалога удаления. */
 internal data class FolderFocus(val rename: FocusRequester, val delete: FocusRequester)
 
-/** Экран из состояния — без Koin и навигатора: так его собирают UI-тесты фокуса. */
+/** Экран из состояния — без Koin и навигатора: так его собирают превью и UI-тесты фокуса. */
 @Composable
-internal fun FolderContent(state: FolderState, actions: FolderActions, modifier: Modifier = Modifier) {
+internal fun TvFolderScreen(state: FolderState, actions: FolderActions, modifier: Modifier = Modifier) {
     val folder = state.folder
     when {
         // Пока грузится первая страница, шапку не рисуем: фокус встаёт на первый постер, и
@@ -139,3 +148,13 @@ private fun renameActions(actions: FolderActions) = folderEditorActions(
     onConfirm = { actions.onEvent(FolderEvent.SubmitRename) },
     onCancel = { actions.onEvent(FolderEvent.CancelRename) },
 )
+
+private class FolderStatePreviews : PreviewParameterProvider<FolderState> {
+    override val values = FolderSamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvFolderScreenPreview(@PreviewParameter(FolderStatePreviews::class) state: FolderState) {
+    FilmaxTvTheme { TvFolderScreen(state = state, actions = FolderActions.None) }
+}

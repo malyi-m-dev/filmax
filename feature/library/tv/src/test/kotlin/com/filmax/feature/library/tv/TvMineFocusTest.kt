@@ -180,7 +180,7 @@ class TvMineFocusTest {
         compose.setContent {
             FilmaxTvTheme {
                 val state by model.collectAsState()
-                MineContent(state, actions(model))
+                TvMineScreen(state, actions(model))
             }
         }
         compose.waitForIdle()

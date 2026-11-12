@@ -10,6 +10,7 @@ import com.filmax.core.domain.user.UserRepository
 import com.filmax.core.domain.user.model.BookmarkFolder
 import com.filmax.core.domain.user.model.userFolders
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.core.presentation.cards.toTitleCard
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.feature.library.common.navigation.FolderRoute
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +70,7 @@ class FolderScreenModel(
                 it.copy(
                     loading = false,
                     folder = styled,
-                    items = itemPage?.items.orEmpty().distinctBy { item -> item.id },
+                    items = itemPage?.items.orEmpty().distinctBy { item -> item.id }.map { item -> item.toTitleCard() },
                     page = if (itemPage != null) FIRST_PAGE else 0,
                     endReached = itemPage?.pagination?.hasNextPage != true,
                     error = firstErrorMessage(listed, firstPage),
@@ -97,7 +98,8 @@ class FolderScreenModel(
             val itemPage = result.getOrNull()
             updateState {
                 it.copy(
-                    items = (it.items + itemPage?.items.orEmpty()).distinctBy { item -> item.id },
+                    items = (it.items + itemPage?.items.orEmpty().map { item -> item.toTitleCard() })
+                        .distinctBy { card -> card.id },
                     page = if (itemPage != null) nextPage else it.page,
                     loadingMore = false,
                     // Сбой страницы — не конец списка: следующая попытка повторит тот же запрос.

@@ -10,19 +10,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.tv.designsystem.FilmaxTvTheme
 import com.filmax.core.tv.designsystem.LocalFxColors
 import com.filmax.core.tv.designsystem.TvConfirmDialog
 import com.filmax.core.tv.designsystem.TvConfirmSpec
 import com.filmax.core.tv.designsystem.TvFolderEditor
 import com.filmax.core.tv.designsystem.TvFolderEditorActions
 import com.filmax.core.tv.designsystem.TvSheetHost
+import com.filmax.core.tv.designsystem.preview.TvPreviews
 import com.filmax.core.tv.designsystem.rememberTvScreenFocus
 import com.filmax.core.tv.designsystem.tvSectionBackground
 import com.filmax.feature.library.common.MineEvent
+import com.filmax.feature.library.common.MineSamples
 import com.filmax.feature.library.common.MineScreenModel
 import com.filmax.feature.library.common.MineState
 import org.koin.androidx.compose.koinViewModel
@@ -44,17 +49,16 @@ fun TvMineScreen(
         screenModel.dispatch(MineEvent.Refresh)
         onPauseOrDispose { }
     }
-    MineContent(
-        state = state,
-        actions = MineActions(
-            onEvent = screenModel::dispatch,
-            onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
-            onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
-            onOpenFolder = { folderId -> navigator.open(Destination.BookmarkFolder(folderId)) },
-        ),
-        modifier = modifier,
-    )
+    val actions = remember(screenModel, navigator) { mineActions(screenModel::dispatch, navigator) }
+    TvMineScreen(state = state, actions = actions, modifier = modifier)
 }
+
+private fun mineActions(onEvent: (MineEvent) -> Unit, navigator: Navigator) = MineActions(
+    onEvent = onEvent,
+    onOpenItem = { itemId -> navigator.open(Destination.Details(itemId)) },
+    onPlay = { itemId, video -> navigator.open(Destination.Player(itemId = itemId, video = video)) },
+    onOpenFolder = { folderId -> navigator.open(Destination.BookmarkFolder(folderId)) },
+)
 
 /** Действия экрана: события модели и переходы, которые исполняет навигатор. */
 internal data class MineActions(
@@ -63,7 +67,12 @@ internal data class MineActions(
     /** Серия «продолжить»; null — фильм или серия неизвестна: плеер возьмёт первый трек. */
     val onPlay: (itemId: Int, video: VideoRef?) -> Unit,
     val onOpenFolder: (Int) -> Unit,
-)
+) {
+    companion object {
+        /** Ничего не делает — для превью. */
+        val None = MineActions(onEvent = {}, onOpenItem = {}, onPlay = { _, _ -> }, onOpenFolder = {})
+    }
+}
 
 /**
  * Фокус-цели, к которым он возвращается после панели и диалога: «Создать папку» (закрыли
@@ -71,9 +80,9 @@ internal data class MineActions(
  */
 internal data class MineFocus(val createFolder: FocusRequester, val segmentAction: FocusRequester)
 
-/** Экран из состояния — без Koin и навигатора: так его собирают UI-тесты фокуса. */
+/** Экран из состояния — без Koin и навигатора: так его собирают превью и UI-тесты фокуса. */
 @Composable
-internal fun MineContent(state: MineState, actions: MineActions, modifier: Modifier = Modifier) {
+internal fun TvMineScreen(state: MineState, actions: MineActions, modifier: Modifier = Modifier) {
     val focus = remember { MineFocus(createFolder = FocusRequester(), segmentAction = FocusRequester()) }
     Box(modifier.fillMaxSize().tvSectionBackground()) {
         TvSheetHost(
@@ -125,3 +134,13 @@ private fun editorActions(actions: MineActions): TvFolderEditorActions = folderE
     onConfirm = { actions.onEvent(MineEvent.SubmitFolder) },
     onCancel = { actions.onEvent(MineEvent.CancelFolder) },
 )
+
+private class MineStatePreviews : PreviewParameterProvider<MineState> {
+    override val values = MineSamples.all.asSequence()
+}
+
+@TvPreviews
+@Composable
+private fun TvMineScreenPreview(@PreviewParameter(MineStatePreviews::class) state: MineState) {
+    FilmaxTvTheme { TvMineScreen(state = state, actions = MineActions.None) }
+}

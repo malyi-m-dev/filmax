@@ -5,6 +5,7 @@ package com.filmax.feature.library.common
 
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watchlist.model.WatchlistItem
+import com.filmax.core.presentation.cards.watchCard
 import java.text.Collator
 import java.time.Instant
 import java.time.LocalDate
@@ -46,7 +47,7 @@ fun historyDays(history: List<WatchHistory>, now: ZonedDateTime): List<HistoryDa
         .map { (day, entries) ->
             HistoryDay(
                 label = dayLabel(day, now.toLocalDate()),
-                entries = entries.map { HistoryEntry(it, it.lastSeenAt?.let { millis -> timeLabel(millis, zone) }) },
+                entries = entries.map { entry -> watchCard(entry, entry.lastSeenAt?.let { timeLabel(it, zone) }) },
             )
         }
 }

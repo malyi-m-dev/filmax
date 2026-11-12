@@ -101,7 +101,7 @@ class MineScreenModelTest {
         assertEquals(listOf("Сегодня", "Вчера", "11 октября", "5 октября"), days.map { it.label })
         assertEquals(
             listOf(FakeIds.LONG_SERIES, FakeIds.MOVIE_IN_PROGRESS, FakeIds.SHORT_SERIES),
-            days.first().entries.map { it.entry.itemId },
+            days.first().entries.map { it.itemId },
         )
         // Просмотр 20 минут назад от полудня — 11:40 по часам устройства.
         assertEquals("11:40", days.first().entries.first().time)
@@ -163,6 +163,47 @@ class MineScreenModelTest {
     }
 
     @Test
+    fun `phone asks before removing, and confirming removes exactly what was asked`() = runTest(dispatcher) {
+        watchlist.add(favorite(1012, "Первый"))
+        watchlist.add(favorite(2007, "Второй"))
+        val model = model()
+        advanceUntilIdle()
+
+        model.dispatch(MineEvent.AskRemove(MineConfirm.Watchlist(2007, "Второй")))
+        advanceUntilIdle()
+        assertEquals(MineConfirm.Watchlist(2007, "Второй"), model.states.value.confirm)
+
+        model.dispatch(MineEvent.ConfirmRemove)
+        advanceUntilIdle()
+        assertNull(model.states.value.confirm)
+        assertEquals(listOf(1012), model.states.value.watchlist.map { it.id })
+    }
+
+    @Test
+    fun `dismissed question keeps the title`() = runTest(dispatcher) {
+        watchlist.add(favorite(1012, "Первый"))
+        val model = model()
+        advanceUntilIdle()
+
+        model.dispatch(MineEvent.AskRemove(MineConfirm.Watchlist(1012, "Первый")))
+        model.dispatch(MineEvent.DismissRemove)
+        advanceUntilIdle()
+
+        assertNull(model.states.value.confirm)
+        assertEquals(listOf(1012), model.states.value.watchlist.map { it.id })
+    }
+
+    @Test
+    fun `watchlist cards carry the rating label and the year`() = runTest(dispatcher) {
+        watchlist.add(favorite(1012, "Первый", rating = 8.25))
+        val card = loaded().watchlist.single()
+
+        assertEquals("8.3", card.rating)
+        assertTrue(card.ratingHigh)
+        assertEquals("2020", card.year)
+    }
+
+    @Test
     fun `long press on continue forgets the title on the server`() = runTest(dispatcher) {
         val model = model()
         advanceUntilIdle()
@@ -172,7 +213,7 @@ class MineScreenModelTest {
 
         val state = model.states.value
         assertTrue(state.continueWatching.none { it.itemId == FakeIds.MOVIE_IN_PROGRESS })
-        assertTrue(state.history.flatMap { it.entries }.none { it.entry.itemId == FakeIds.MOVIE_IN_PROGRESS })
+        assertTrue(state.history.flatMap { it.entries }.none { it.itemId == FakeIds.MOVIE_IN_PROGRESS })
         assertTrue(watching.getHistory().getOrNull().orEmpty().none { it.itemId == FakeIds.MOVIE_IN_PROGRESS })
     }
 

@@ -13,8 +13,11 @@ import com.filmax.core.domain.watching.WatchingRepository
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watchlist.WatchlistRepository
 import com.filmax.core.presentation.BaseScreenModel
+import com.filmax.core.presentation.cards.watchCard
+import com.filmax.core.presentation.cards.watchlistCard
 import com.filmax.core.presentation.folders.FolderDraft
 import com.filmax.core.presentation.folders.FolderInput
+import com.filmax.core.presentation.format.titlesLabel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,8 +65,7 @@ class MineScreenModel(
             is MineEvent.SelectSegment -> update { it.copy(segment = event.segment) }
             MineEvent.CycleWatchlistSort -> update { it.copy(watchlistSort = it.watchlistSort.next()) }
             MineEvent.CycleFolderSort -> update { it.copy(folderSort = it.folderSort.next()) }
-            is MineEvent.RemoveFromWatchlist -> screenModelScope { watchlist.remove(event.itemId) }
-            is MineEvent.RemoveFromContinue -> removeFromHistory(event.itemId)
+            is MineEvent.Removal -> onRemoval(event)
             MineEvent.AskClearHistory -> update { it.copy(confirmClearHistory = true) }
             MineEvent.DismissClearHistory -> update { it.copy(confirmClearHistory = false) }
             MineEvent.ConfirmClearHistory -> clearHistory()
@@ -97,8 +99,8 @@ class MineScreenModel(
     private fun observeWatchlist() {
         screenModelScope {
             val sort = states.map { it.watchlistSort }.distinctUntilChanged()
-            combine(watchlist.items, sort) { items, order -> sortedWatchlist(items, order) }
-                .collect { items -> updateState { it.copy(watchlist = items) } }
+            combine(watchlist.items, sort) { items, order -> sortedWatchlist(items, order).map(::watchlistCard) }
+                .collect { cards -> updateState { it.copy(watchlist = cards) } }
         }
     }
 
@@ -114,13 +116,27 @@ class MineScreenModel(
     private fun mineFolders(loaded: FolderShelf, looks: Map<Int, FolderAppearance>): List<MineFolder> {
         val now = now()
         return userFolders(loaded.folders, looks).map { folder ->
-            MineFolder(folder, loaded.posters[folder.id].orEmpty(), changedLabel(folder.updatedAt, now))
+            val changed = changedLabel(folder.updatedAt, now)
+            val count = titlesLabel(folder.count)
+            MineFolder(
+                folder = folder,
+                posters = loaded.posters[folder.id].orEmpty(),
+                changed = changed,
+                count = count,
+                caption = listOfNotNull(count, changed).joinToString(" · "),
+            )
         }
     }
 
     private suspend fun applyHistory(result: RequestResult<List<WatchHistory>>) {
         val entries = result.getOrNull() ?: return
-        updateState { it.copy(continueWatching = continueEntries(entries), history = historyDays(entries, now())) }
+        val now = now()
+        updateState { current ->
+            current.copy(
+                continueWatching = continueEntries(entries).map { entry -> watchCard(entry) },
+                history = historyDays(entries, now),
+            )
+        }
     }
 
     /** Убирает тайтл из «Продолжить» сразу, затем просит сервер забыть его историю. */
@@ -134,11 +150,33 @@ class MineScreenModel(
         }
     }
 
+    private fun onRemoval(event: MineEvent.Removal) {
+        when (event) {
+            is MineEvent.RemoveFromWatchlist -> screenModelScope { watchlist.remove(event.itemId) }
+            is MineEvent.RemoveFromContinue -> removeFromHistory(event.itemId)
+            is MineEvent.AskRemove -> update { it.copy(confirm = event.confirm) }
+            MineEvent.ConfirmRemove -> confirmRemove()
+            MineEvent.DismissRemove -> update { it.copy(confirm = null) }
+        }
+    }
+
+    /** «Убрать» в шторке: что убирать, модель знает сама — это и есть открытое подтверждение. */
+    private fun confirmRemove() {
+        screenModelScope {
+            val asked = state.confirm ?: return@screenModelScope
+            updateState { it.copy(confirm = null) }
+            when (asked) {
+                is MineConfirm.Watchlist -> watchlist.remove(asked.itemId)
+                is MineConfirm.History -> removeFromHistory(asked.itemId)
+            }
+        }
+    }
+
     /** kino.pub чистит историю по тайтлу — поэтому по запросу на каждый тайтл истории. */
     private fun clearHistory() {
         screenModelScope {
             val current = state
-            val ids = current.history.flatMap { day -> day.entries.map { it.entry.itemId } }
+            val ids = current.history.flatMap { day -> day.entries.map { it.itemId } }
             updateState { it.copy(confirmClearHistory = false, history = emptyList(), continueWatching = emptyList()) }
             ids.forEach { id -> watching.clearHistory(id) }
         }

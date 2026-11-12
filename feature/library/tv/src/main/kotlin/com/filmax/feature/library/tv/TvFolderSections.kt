@@ -45,13 +45,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Icon
 import androidx.tv.material3.Text
-import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.user.model.UserFolder
-import com.filmax.core.presentation.format.durationLabel
-import com.filmax.core.presentation.format.isHighRating
-import com.filmax.core.presentation.format.posterMeta
-import com.filmax.core.presentation.format.ratingLabel
-import com.filmax.core.presentation.format.titlesLabel
+import com.filmax.core.presentation.cards.TitleCard
 import com.filmax.core.tv.designsystem.FxType
 import com.filmax.core.tv.designsystem.TvBackHint
 import com.filmax.core.tv.designsystem.TvButton
@@ -129,14 +124,14 @@ internal fun FolderHeader(folder: UserFolder, state: FolderState, actions: Folde
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            FolderTitleBlock(folder, Modifier.weight(1f))
+            FolderTitleBlock(folder, state.caption, Modifier.weight(1f))
             FolderButtons(state.items.firstOrNull(), actions, focus, Modifier.fxEnter(BUTTONS_ENTER))
         }
     }
 }
 
 @Composable
-private fun FolderTitleBlock(folder: UserFolder, modifier: Modifier) {
+private fun FolderTitleBlock(folder: UserFolder, caption: String?, modifier: Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Box(
             Modifier
@@ -157,7 +152,7 @@ private fun FolderTitleBlock(folder: UserFolder, modifier: Modifier) {
                 modifier = Modifier.fxEnter(0),
             )
             Text(
-                "${titlesLabel(folder.count)} · ваша папка",
+                caption.orEmpty(),
                 style = FxType.metaRow,
                 color = Color.White.copy(alpha = SUBTITLE_ALPHA),
                 modifier = Modifier.padding(top = 8.dp).fxEnter(SUBTITLE_ENTER),
@@ -171,7 +166,7 @@ private fun FolderTitleBlock(folder: UserFolder, modifier: Modifier) {
  * с цветом папки. «Переименовать» и «Удалить» — круглые, удаление — красным.
  */
 @Composable
-private fun FolderButtons(first: Item?, actions: FolderActions, focus: FolderHeaderFocus, modifier: Modifier) {
+private fun FolderButtons(first: TitleCard?, actions: FolderActions, focus: FolderHeaderFocus, modifier: Modifier) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         if (first != null) {
             TvButton(
@@ -239,21 +234,21 @@ internal fun FolderGrid(state: FolderState, actions: FolderActions, screenFocus:
 private class FolderCards(val screen: TvScreenFocus, val handoff: CardFocusHandoff, val keys: List<String>)
 
 @Composable
-private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, actions: FolderActions, cards: FolderCards) {
+private fun LazyGridItemScope.FolderPoster(item: TitleCard, index: Int, actions: FolderActions, cards: FolderCards) {
     val key = folderItemKey(item.id)
     var removing by remember { mutableStateOf(false) }
     TvPosterCard(
         title = item.title,
-        meta = posterMeta(type = null, year = item.year).withDuration(item),
-        posterUrl = item.posters.medium.ifBlank { item.posters.small },
+        meta = item.yearAndLength,
+        posterUrl = item.posterUrl,
         onClick = { actions.onOpenItem(item.id) },
         // Долгое «ОК» — убрать из папки; фокус переходит на соседа, а не теряется.
         onLongClick = {
             cards.handoff.handOff(cards.keys, key)
             removing = true
         },
-        rating = ratingLabel(item.rating.primary),
-        ratingHighlighted = isHighRating(item.rating.primary),
+        rating = item.rating,
+        ratingHighlighted = item.ratingHigh,
         modifier = Modifier
             .animateItem(fadeOutSpec = null)
             .fxEnter(FIRST_POSTER_ENTER + index % GRID_COLUMNS)
@@ -261,15 +256,6 @@ private fun LazyGridItemScope.FolderPoster(item: Item, index: Int, actions: Fold
             .then(cards.handoff.card(key))
             .collapseOnRemove(removing) { actions.onEvent(FolderEvent.RemoveItem(item.id)) },
     )
-}
-
-/**
- * «2021 · 1 ч 52 мин» — у фильма длительность, у сериала только год. Концерт и документальный
- * фильм — одно видео, как фильм: длительность им тоже к месту.
- */
-private fun String?.withDuration(item: Item): String? {
-    val minutes = item.duration.averageMinutes?.toInt()?.takeIf { it > 0 && !item.type.episodic }
-    return listOfNotNull(this, minutes?.let(::durationLabel)).joinToString(" · ").ifBlank { null }
 }
 
 /** Пустая папка: что здесь будет и «Перейти в каталог» — единственное осмысленное действие. */
