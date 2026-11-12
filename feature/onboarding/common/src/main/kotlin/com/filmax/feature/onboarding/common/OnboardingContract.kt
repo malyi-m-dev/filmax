@@ -1,7 +1,10 @@
 package com.filmax.feature.onboarding.common
 
+/** Шаг входа в kino.pub: приветствие или активация устройства по коду. */
+enum class OnboardingStep { WELCOME, AUTH }
+
 data class OnboardingState(
-    val step: Int = 0,
+    val step: OnboardingStep = OnboardingStep.WELCOME,
     val deviceCode: String? = null,
     val userCode: String? = null,
     val verificationUri: String? = null,
@@ -12,8 +15,8 @@ data class OnboardingState(
 )
 
 sealed interface OnboardingEvent {
-    data object NextStep : OnboardingEvent
-    data object PrevStep : OnboardingEvent
+    /** «Войти» на приветствии: запросить код устройства и ждать подтверждения на сайте. */
+    data object Login : OnboardingEvent
     data object RetryDeviceCode : OnboardingEvent
 
     /** «Домашний сервер» на приветствии. */

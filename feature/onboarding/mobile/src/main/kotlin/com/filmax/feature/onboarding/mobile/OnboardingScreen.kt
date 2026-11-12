@@ -13,18 +13,22 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxTheme
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
 import com.filmax.core.ui.components.FilmaxWordmark
+import com.filmax.core.ui.preview.PhonePreviews
 import com.filmax.feature.onboarding.common.OnboardingEvent
+import com.filmax.feature.onboarding.common.OnboardingSamples
 import com.filmax.feature.onboarding.common.OnboardingScreenModel
 import com.filmax.feature.onboarding.common.OnboardingSideEffect
 import com.filmax.feature.onboarding.common.OnboardingState
+import com.filmax.feature.onboarding.common.OnboardingStep
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 
@@ -32,9 +36,6 @@ import org.koin.compose.koinInject
  * Вход (экран 01 макета): приветствие с единственным действием «Войти», затем активация
  * устройства по device-flow. Регистрация устройства и поллинг живут в [OnboardingScreenModel] —
  * здесь только вёрстка.
- *
- * Шага «фичи» и индикаторов шагов больше нет: три экрана до входа рассказывали то, что видно
- * на главной за секунду. Промежуточный шаг модели проматываем, чтобы не трогать общий контракт.
  */
 @Composable
 fun OnboardingScreen(
@@ -43,7 +44,6 @@ fun OnboardingScreen(
     navigator: Navigator = koinInject(),
 ) {
     val state by screenModel.collectAsState()
-
     screenModel.collectSideEffect { effect ->
         when (effect) {
             // Главная становится единственным корнем: «Назад» с неё закрывает приложение,
@@ -51,35 +51,42 @@ fun OnboardingScreen(
             OnboardingSideEffect.Authenticated -> navigator.root(Destination.Home)
         }
     }
+    OnboardingScreen(state = state, onEvent = screenModel::dispatch, modifier = modifier)
+}
 
-    LaunchedEffect(state.step) {
-        if (state.step == STEP_FEATURES) screenModel.dispatch(OnboardingEvent.NextStep)
-    }
-
+/**
+ * Вход из состояния — без Koin и навигатора: его рисуют превью. Вход на домашний сервер — свой
+ * экран со своей моделью (HomeServerLogin), здесь только развилка на него.
+ */
+@Composable
+internal fun OnboardingScreen(
+    state: OnboardingState,
+    onEvent: (OnboardingEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(FilmaxTheme.palette.background),
     ) {
         if (state.homeServer) {
-            HomeServerLogin(onBack = { screenModel.dispatch(OnboardingEvent.CloseHomeServer) })
+            HomeServerLogin(onBack = { onEvent(OnboardingEvent.CloseHomeServer) })
             return@Box
         }
         AnimatedContent(
-            targetState = state.step >= STEP_AUTH,
+            targetState = state.step,
             transitionSpec = { fadeIn(tween(400)) togetherWith fadeOut(tween(200)) },
             label = "onboarding_step",
             modifier = Modifier.fillMaxSize(),
-        ) { onAuthStep ->
-            if (onAuthStep) {
-                AuthStep(
+        ) { step ->
+            when (step) {
+                OnboardingStep.AUTH -> AuthStep(
                     state = state,
-                    onRetry = { screenModel.dispatch(OnboardingEvent.RetryDeviceCode) },
+                    onRetry = { onEvent(OnboardingEvent.RetryDeviceCode) },
                 )
-            } else {
-                WelcomeStep(
-                    onLogin = { screenModel.dispatch(OnboardingEvent.NextStep) },
-                    onHomeServer = { screenModel.dispatch(OnboardingEvent.OpenHomeServer) },
+                OnboardingStep.WELCOME -> WelcomeStep(
+                    onLogin = { onEvent(OnboardingEvent.Login) },
+                    onHomeServer = { onEvent(OnboardingEvent.OpenHomeServer) },
                 )
             }
         }
@@ -94,6 +101,12 @@ internal fun Wordmark() {
 /** Поля экрана входа шире общих 20dp: на нём один блок текста и ему нужен воздух (макет). */
 internal val SidePadding = 30.dp
 
-/** Шаги [OnboardingState]: 1 — «фичи» (проматываем), 2 — активация устройства. */
-private const val STEP_FEATURES = 1
-private const val STEP_AUTH = 2
+private class OnboardingStatePreviews : PreviewParameterProvider<OnboardingState> {
+    override val values = OnboardingSamples.all.asSequence()
+}
+
+@PhonePreviews
+@Composable
+private fun OnboardingScreenPreview(@PreviewParameter(OnboardingStatePreviews::class) state: OnboardingState) {
+    FilmaxTheme { OnboardingScreen(state = state, onEvent = {}) }
+}

@@ -22,10 +22,7 @@ class OnboardingScreenModel(
 
     override fun onEvent(event: OnboardingEvent) {
         when (event) {
-            OnboardingEvent.NextStep -> nextStep()
-            OnboardingEvent.PrevStep -> screenModelScope {
-                updateState { it.copy(step = maxOf(0, it.step - 1), error = null) }
-            }
+            OnboardingEvent.Login -> login()
             OnboardingEvent.RetryDeviceCode -> retryDeviceCode()
             OnboardingEvent.OpenHomeServer -> screenModelScope { updateState { it.copy(homeServer = true) } }
             OnboardingEvent.CloseHomeServer -> screenModelScope {
@@ -38,11 +35,15 @@ class OnboardingScreenModel(
     /** Данные не грузятся при старте — код запрашивается при переходе на шаг авторизации. */
     override fun onFetchData() = Unit
 
-    private fun nextStep() {
+    /**
+     * Шаг «фичи» между приветствием и кодом убран из макета: раньше модель его хранила, а экраны
+     * проматывали сами. Теперь «Войти» ведёт сразу на код, и повторное нажатие кода не перезапросит.
+     */
+    private fun login() {
+        if (state.step == OnboardingStep.AUTH) return
         screenModelScope {
-            val next = state.step + 1
-            updateState { it.copy(step = next) }
-            if (next == 2) requestDeviceCode()
+            updateState { it.copy(step = OnboardingStep.AUTH, error = null) }
+            requestDeviceCode()
         }
     }
 
