@@ -10,7 +10,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.navigation.toRoute
 import com.filmax.core.domain.catalog.model.MediaTrack
 import com.filmax.core.domain.catalog.model.SubtitleTrack
-import com.filmax.core.domain.catalog.model.VideoRef
 import com.filmax.core.domain.catalog.model.ref
 import com.filmax.core.domain.common.ErrorReporting
 import com.filmax.core.domain.common.RequestResult
@@ -78,8 +77,8 @@ class PlayerScreenModel(
     /** Играло ли видео, когда открыли нижнюю панель: закрытие продолжит, только если играло. */
     private var resumeAfterPanel = false
 
-    /** Потолок декодера устройства (см. [PlaybackSettingsRepository.decoderLimit]). */
-    private var decoderLimit: Int? = null
+    /** Потолок декодера устройства: качество выше него устройство уже не вытянуло. */
+    private val decoderLimit = DecoderLimit { limit -> screenModelScope { playbackSettings.setDecoderLimit(limit) } }
 
     /** Экран на виду (см. [PlayerEvent.ScreenShown]): только тогда загрузка запускает видео. */
     private var screenShown = true
@@ -117,7 +116,8 @@ class PlayerScreenModel(
 
             // Кадр выше потолка всё-таки показан — зритель выбрал его сам, и он идёт (скажем,
             // 4K в HEVC там, где 4K H.264 падал): потолок был ложным, снимаем.
-            override fun onRenderedFirstFrame() = liftDecoderLimitIfExceeded()
+            override fun onRenderedFirstFrame() =
+                decoderLimit.liftIfReached(state.currentQuality?.let(QualityLadder::heightOf))
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
@@ -220,9 +220,7 @@ class PlayerScreenModel(
             val settings = playbackSettings.settings.first()
             audioPreference = settings.audioLanguage
             audio.savedVoiceKey = playbackSettings.voiceKeyFor(route.itemId)
-            // Потолок Full HD и ниже мог остаться от 2.2.0, где его записывал занятый декодер, —
-            // такой не действует.
-            decoderLimit = playbackSettings.decoderLimit()?.let(QualityLadder::limitOf)
+            decoderLimit.restore(playbackSettings.decoderLimit())
             when (val result = catalog.getItemDetails(route.itemId)) {
                 is RequestResult.Success -> {
                     val item = result.data
@@ -240,7 +238,7 @@ class PlayerScreenModel(
                     val qualities = streamQualities(track)
                     // Предпочитаемое качество из настроек; «Авто»/нет совпадения — лучшее доступное,
                     // но не выше того, на чём декодер устройства уже падал.
-                    val initial = QualityLadder.start(qualities, settings.quality, decoderLimit)
+                    val initial = QualityLadder.start(qualities, settings.quality, decoderLimit.height)
 
                     val subtitleOptions = subtitleOptions(trackSubtitles)
                     val selectedSubtitle = subtitleOptions.preferred(settings.subtitleLanguage)
@@ -264,7 +262,7 @@ class PlayerScreenModel(
                         reportPlaybackStart(initial)
                         fallback.start(initial)
                         applyTrackPreferences(selectedSubtitle.lang)
-                        startSeconds(track)?.let { player.seekTo(it * MILLIS_IN_SECOND) }
+                        startSeconds(route, track)?.let { player.seekTo(it * MILLIS_IN_SECOND) }
                         player.playWhenReady = screenShown
                     }
                 }
@@ -291,28 +289,6 @@ class PlayerScreenModel(
             }
         }
 
-    /**
-     * С какой секунды начать. Позицию, переданную с телефона, берём как есть: он только что
-     * показывал этот кадр. Иначе — сохранённый прогресс, но досмотренный до конца трек начинаем
-     * сначала, иначе пересмотр стартовал бы с титров. null — с начала.
-     */
-    private fun startSeconds(track: MediaTrack?): Int? =
-        route.startSeconds.takeIf { it >= 0 }
-            ?: track?.watchedSeconds?.takeIf { it > 0 && track.watchStatus != WATCH_STATUS_FINISHED }
-
-    /**
-     * Доступные качества — из файлов трека; все варианты доставки в порядке предпочтения,
-     * чтобы плееру было куда фолбэчить при недоступном CDN. После hls4 — mp4, а не hls: оба на
-     * cdntogo.net, но в hls kino.pub вшивает одну озвучку, а в mp4 лежат все, и при заблокированном
-     * api.srvkp.com зритель сохраняет выбор озвучки.
-     */
-    private fun streamQualities(track: MediaTrack?): List<StreamQuality> =
-        track?.files.orEmpty().mapNotNull { file ->
-            listOfNotNull(file.hls4, file.http, file.hls)
-                .takeIf { it.isNotEmpty() }
-                ?.let { StreamQuality(file.quality, it) }
-        }
-
     private fun selectQuality(label: String) {
         val quality = state.qualities.firstOrNull { it.label == label } ?: return
         if (label == state.currentQuality) return
@@ -334,25 +310,12 @@ class PlayerScreenModel(
     /**
      * Декодер не справился с кадром высотой [failedHeight]: потолок запоминается для устройства, и
      * поток уходит на лучшее качество ниже. false — ниже ничего нет, ошибку разбирает вызывающий.
-     * Это не баг приложения, а предел железа, поэтому в телеметрию — крошкой и ключом, не событием.
      */
     private fun stepDownBelow(failedHeight: Int): Boolean {
         val lower = QualityLadder.below(state.qualities, failedHeight) ?: return false
-        ErrorReporting.reporter.log("player: decoder can't play ${failedHeight}p, step down to ${lower.label}")
-        ErrorReporting.reporter.setKey(DECODER_LIMIT_KEY, failedHeight.toString())
-        decoderLimit = minOf(failedHeight, decoderLimit ?: failedHeight)
-        screenModelScope { playbackSettings.setDecoderLimit(decoderLimit) }
+        decoderLimit.lowerTo(failedHeight, lower.label)
         switchQuality(lower)
         return true
-    }
-
-    private fun liftDecoderLimitIfExceeded() {
-        val limit = decoderLimit
-        val height = state.currentQuality?.let(QualityLadder::heightOf)
-        if (limit == null || height == null || height < limit) return
-        ErrorReporting.reporter.log("player: ${height}p plays, decoder limit ${limit}p lifted")
-        decoderLimit = null
-        screenModelScope { playbackSettings.setDecoderLimit(null) }
     }
 
     /** Хлебная крошка старта: при ошибке в отчёте видно тайтл, качество и CDN-хост. */
@@ -442,21 +405,5 @@ class PlayerScreenModel(
             Player.EVENT_PLAYBACK_STATE_CHANGED,
             Player.EVENT_POSITION_DISCONTINUITY,
         )
-
-        /** Трек маршрута: серия — по сезону и номеру, видео фильма — по номеру. */
-        fun MediaTrack.matchesRoute(route: PlayerRoute): Boolean = when (val video = route.video) {
-            is VideoRef.Episode -> seasonNumber == video.season && number == video.number
-            is VideoRef.Movie -> number == video.number
-            null -> false
-        }
-
-        /** Ключ отчёта Crashlytics: высота кадра, на которой декодер устройства не справился. */
-        const val DECODER_LIMIT_KEY = "decoder_limit"
-
-        fun langCode(display: String): String? = when (display.lowercase()) {
-            "русский" -> "rus"
-            "english" -> "eng"
-            else -> null // «Оригинал» / неизвестно — пусть плеер выбирает сам
-        }
     }
 }
