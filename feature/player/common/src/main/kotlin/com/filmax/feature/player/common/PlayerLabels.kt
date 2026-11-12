@@ -1,5 +1,5 @@
 // Подписи плеера — чистые функции без UI, общие для телефона и ТВ: строка под названием, вкладки
-// панели и их текущие значения, карточка «Далее».
+// панели и их текущие значения, карточка «Далее». Строки серий — в EpisodeLabels.
 package com.filmax.feature.player.common
 
 import com.filmax.core.domain.catalog.model.MediaTrack

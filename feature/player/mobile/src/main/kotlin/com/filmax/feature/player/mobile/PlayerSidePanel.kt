@@ -54,6 +54,10 @@ import com.filmax.core.ui.components.FilmaxTabButton
 import com.filmax.feature.player.common.PlayerEvent
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
+import com.filmax.feature.player.common.WATCH_STATUS_FINISHED
+import com.filmax.feature.player.common.episodeLength
+import com.filmax.feature.player.common.episodeProgress
+import com.filmax.feature.player.common.episodeTitle
 import com.filmax.feature.player.common.label
 import com.filmax.feature.player.common.optionEvent
 import com.filmax.feature.player.common.optionItems
@@ -63,7 +67,6 @@ import com.filmax.feature.player.common.shownSeason
 import com.filmax.feature.player.common.tabNote
 
 /** `watching.status` kino.pub: 1 — досмотрено. */
-private const val WATCH_STATUS_FINISHED = 1
 
 /** Панель и её события: [onPlayEpisode] — другая серия, это навигация, а не подмена потока. */
 internal data class PanelActions(
@@ -190,15 +193,15 @@ private fun EpisodesTab(state: PlayerState, actions: PanelActions) {
         items(shown.episodes, key = { it.id }) { episode ->
             val playing = episode.id == playingId
             FilmaxEpisodeRow(
-                title = "${episode.number}. ${episode.title.ifBlank { "Серия ${episode.number}" }}",
-                meta = episodeLength(episode.durationSeconds),
+                title = episodeTitle(episode),
+                meta = episodeLength(episode),
                 thumbUrl = episode.thumbnail,
                 mark = when {
                     playing -> EpisodeMark.Current
                     episode.watchStatus == WATCH_STATUS_FINISHED -> EpisodeMark.Watched
                     else -> EpisodeMark.Normal
                 },
-                progress = episodeFraction(episode.watchStatus, episode.watchedSeconds, episode.durationSeconds),
+                progress = episodeProgress(episode) ?: 0f,
                 onClick = {
                     if (playing) {
                         actions.onEvent(PlayerEvent.ClosePanel)
@@ -248,17 +251,6 @@ private fun panelTitle(state: PlayerState): String {
     return listOfNotNull(title, code.takeIf { state.item?.tracklist.orEmpty().size > 1 }).joinToString(" · ")
 }
 
-/** Длительность серии: «53 мин»; неизвестна — ничего. */
-private fun episodeLength(seconds: Int): String? = (seconds / SECONDS_IN_MINUTE).takeIf { it > 0 }?.let { "$it мин" }
-
-/** Досмотренная — полная полоса, начатая — доля. */
-private fun episodeFraction(status: Int, watched: Int, duration: Int): Float = when {
-    status == WATCH_STATUS_FINISHED -> 1f
-    duration > 0 -> (watched.toFloat() / duration).coerceIn(0f, 1f)
-    else -> 0f
-}
-
-private const val SECONDS_IN_MINUTE = 60
 private val PanelWidth = 404.dp
 private val CloseSize = 32.dp
 private val TabsShape = RoundedCornerShape(20.dp)

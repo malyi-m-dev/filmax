@@ -51,6 +51,9 @@ import com.filmax.feature.player.common.PlayerSeason
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
 import com.filmax.feature.player.common.PresetSpeeds
+import com.filmax.feature.player.common.episodeMeta
+import com.filmax.feature.player.common.episodeProgress
+import com.filmax.feature.player.common.episodeTitle
 import com.filmax.feature.player.common.optionEvent
 import com.filmax.feature.player.common.optionItems
 import com.filmax.feature.player.common.playerSeasons

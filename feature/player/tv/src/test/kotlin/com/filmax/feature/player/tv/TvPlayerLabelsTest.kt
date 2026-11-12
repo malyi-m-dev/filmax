@@ -16,6 +16,10 @@ import com.filmax.feature.player.common.PresetSpeeds
 import com.filmax.feature.player.common.StreamQuality
 import com.filmax.feature.player.common.SubtitleOption
 import com.filmax.feature.player.common.audioOptionText
+import com.filmax.feature.player.common.episodeCode
+import com.filmax.feature.player.common.episodeMeta
+import com.filmax.feature.player.common.episodeProgress
+import com.filmax.feature.player.common.episodeTitle
 import com.filmax.feature.player.common.optionEvent
 import com.filmax.feature.player.common.optionItems
 import com.filmax.feature.player.common.playerSubtitle
@@ -113,6 +117,8 @@ class TvPlayerLabelsTest {
         assertEquals(1f, episodeProgress(watched))
         assertNull(episodeProgress(fresh))
         assertEquals("7. Серия 7", episodeTitle(episode.copy(title = "")))
+        assertEquals("S4E8", episodeCode(episode.copy(seasonNumber = 4, number = 8)))
+        assertEquals("Серия 8", episodeCode(episode.copy(seasonNumber = 0, number = 8)))
     }
 
     @Test

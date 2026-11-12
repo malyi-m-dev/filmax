@@ -50,6 +50,7 @@ import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxSeekBar
 import com.filmax.feature.player.common.PlayerState
 import com.filmax.feature.player.common.PlayerTab
+import com.filmax.feature.player.common.episodeCode
 import com.filmax.feature.player.common.label
 import com.filmax.feature.player.common.panelTabs
 import com.filmax.feature.player.common.playerSubtitle
@@ -206,7 +207,7 @@ private fun BoxScope.BottomControls(state: PlayerState, playback: PlaybackUi, ac
 @Composable
 private fun NextChip(next: MediaTrack, remainingMs: Long, playing: Boolean, onClick: () -> Unit) {
     val counting = playing && remainingMs in 1..NEXT_COUNTDOWN_MS
-    val code = if (next.seasonNumber > 0) "S${next.seasonNumber}E${next.number}" else "Серия ${next.number}"
+    val code = episodeCode(next)
     val seconds = (remainingMs + SECOND_MS - 1) / SECOND_MS
     FilmaxCountdownChip(
         label = if (counting) "Далее · $code через $seconds" else "Далее · $code",

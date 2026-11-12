@@ -450,9 +450,6 @@ class PlayerScreenModel(
             null -> false
         }
 
-        /** `watchStatus` из API: 1 — трек досмотрен до конца. */
-        const val WATCH_STATUS_FINISHED = 1
-
         /** Ключ отчёта Crashlytics: высота кадра, на которой декодер устройства не справился. */
         const val DECODER_LIMIT_KEY = "decoder_limit"
 
