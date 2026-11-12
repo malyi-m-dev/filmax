@@ -5,7 +5,7 @@ package com.filmax.feature.home.common
 import com.filmax.core.domain.catalog.model.Collection
 import com.filmax.core.domain.watching.model.WatchHistory
 import com.filmax.core.domain.watching.model.WatchProgress
-import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.sampleTitleCard
 import com.filmax.core.presentation.cards.watchCard
 
 private const val SERIES_DURATION_SECONDS = 3_120
@@ -56,9 +56,9 @@ object HomeSamples {
     private val continueRow = HomeRow.Continue(listOf(watchCard(series), watchCard(movie)))
 
     private val titles = listOf(
-        card(3, "Дом на краю карты", rating = "8.1", typeAndYear = "Фильм · 2022", yearAndLength = "2022 · 1 ч 52 мин"),
-        card(4, "Код доступа", rating = "7.1", typeAndYear = "Сериал · 2021", yearAndLength = "2021"),
-        card(5, "Полярный круг", rating = null, typeAndYear = "Концерт · 2019", yearAndLength = "2019 · 1 ч 35 мин"),
+        sampleTitleCard(3, "Дом на краю карты", rating = "8.1", ratingHigh = true, length = "1 ч 52 мин"),
+        sampleTitleCard(4, "Код доступа", rating = "7.1", typeAndYear = "Сериал · 2021"),
+        sampleTitleCard(5, "Полярный круг", typeAndYear = "Концерт · 2019", length = "1 ч 35 мин"),
     )
 
     private val collections = HomeRow.Collections(
@@ -69,18 +69,6 @@ object HomeSamples {
             ),
         ),
         previews = mapOf(10 to CollectionPreview(posters = emptyList(), count = 12)),
-    )
-
-    private fun card(id: Int, title: String, rating: String?, typeAndYear: String, yearAndLength: String) = TitleCard(
-        id = id,
-        title = title,
-        posterUrl = "",
-        widePosterUrl = "",
-        rating = rating,
-        ratingHigh = rating == "8.1",
-        typeAndYear = typeAndYear,
-        yearAndLength = yearAndLength,
-        freshBadge = if (typeAndYear.startsWith("Фильм")) "Премьера" else "Новинка",
     )
 
     /** Лента целиком: hero, «Продолжить», топ, подборки и новинки. */

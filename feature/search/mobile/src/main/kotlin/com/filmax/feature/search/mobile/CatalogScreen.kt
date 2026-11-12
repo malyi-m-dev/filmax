@@ -47,6 +47,7 @@ import com.filmax.core.domain.catalog.model.Item
 import com.filmax.core.domain.catalog.model.ItemType
 import com.filmax.core.navigation.Destination
 import com.filmax.core.navigation.Navigator
+import com.filmax.core.presentation.format.label
 import com.filmax.core.presentation.format.posterMeta
 import com.filmax.core.presentation.format.ratingLabel
 import com.filmax.core.presentation.format.typeLabel
@@ -54,7 +55,6 @@ import com.filmax.core.ui.components.FilmaxEmptyState
 import com.filmax.core.ui.components.FilmaxPosterCard
 import com.filmax.core.ui.components.FilmaxPosterSkeleton
 import com.filmax.core.ui.components.LocalNavBarPadding
-import com.filmax.core.ui.components.label
 import com.filmax.feature.search.common.SearchEvent
 import com.filmax.feature.search.common.SearchScreenModel
 import com.filmax.feature.search.common.SearchState

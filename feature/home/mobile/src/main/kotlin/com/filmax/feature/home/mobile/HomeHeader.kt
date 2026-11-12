@@ -30,12 +30,12 @@ import androidx.compose.ui.unit.dp
 import com.filmax.core.designsystem.FilmaxMetrics
 import com.filmax.core.designsystem.GlassState
 import com.filmax.core.domain.catalog.CatalogSection
+import com.filmax.core.presentation.format.label
 import com.filmax.core.ui.components.FilmaxChip
 import com.filmax.core.ui.components.FilmaxGlassHeader
 import com.filmax.core.ui.components.FilmaxIconButton
 import com.filmax.core.ui.components.FilmaxListRow
 import com.filmax.core.ui.components.FilmaxWordmark
-import com.filmax.core.ui.components.label
 
 /** Разделы чипами под шапкой — самые частые; остальные — в шторке «Разделы». */
 private val HeaderSections = listOf(CatalogSection.MOVIES, CatalogSection.SERIES, CatalogSection.ANIME)

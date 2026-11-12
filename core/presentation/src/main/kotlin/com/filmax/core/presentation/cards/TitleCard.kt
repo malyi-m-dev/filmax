@@ -19,6 +19,8 @@ data class TitleCard(
     val posterUrl: String,
     /** Широкий кадр 16:9, иначе большой постер — для широких карточек «Новинок». */
     val widePosterUrl: String,
+    /** Маленький постер, иначе средний — миниатюра строки списка (результаты поиска телефона). */
+    val thumbUrl: String,
     /** Главная оценка источника одним знаком; null — оценки нет. */
     val rating: String?,
     /** Высокая оценка — пилюля выделяется вторым акцентом. */
@@ -27,6 +29,8 @@ data class TitleCard(
     val typeAndYear: String?,
     /** «2021 · 1 ч 52 мин» — у фильма с длительностью; у сериала только год. */
     val yearAndLength: String?,
+    /** Первый жанр — мета лучшего совпадения поиска на ТВ; null — жанров нет. */
+    val genre: String?,
     /** Плашка новинки: у фильма — «Премьера», у сериала и шоу — «Новинка» (новая серия). */
     val freshBadge: String,
 )
@@ -39,9 +43,11 @@ fun Item.toTitleCard(): TitleCard {
         title = title,
         posterUrl = posters.medium.ifBlank { posters.big }.ifBlank { posters.small },
         widePosterUrl = posters.wide?.takeIf { it.isNotBlank() } ?: posters.big,
+        thumbUrl = posters.small.ifBlank { posters.medium },
         rating = ratingLabel(rating.primary),
         ratingHigh = isHighRating(rating.primary),
         typeAndYear = posterMeta(typeLabel(type), this.year),
+        genre = genres.firstOrNull()?.title,
         yearAndLength = listOfNotNull(year, minutes?.let(::durationLabel)).joinToString(" · ").ifBlank { null },
         freshBadge = if (type == ItemType.MOVIE) "Премьера" else "Новинка",
     )

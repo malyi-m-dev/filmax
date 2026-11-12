@@ -1,29 +1,17 @@
 // Неизменные образцы открытой подборки — для превью телефона и ТВ.
 package com.filmax.feature.collections.common
 
-import com.filmax.core.presentation.cards.TitleCard
+import com.filmax.core.presentation.cards.sampleTitleCard
 
 object CollectionSamples {
 
     private val items = listOf(
-        card(1, "Дом на краю карты", rating = "8.1", typeAndYear = "Фильм · 2022", high = true),
-        card(2, "Северный ветер", rating = "7.4", typeAndYear = "Сериал · 2023"),
-        card(3, "Полярный круг", rating = null, typeAndYear = "Фильм · 2019"),
-        card(4, "Код доступа", rating = "6.9", typeAndYear = "Фильм · 2021"),
-        card(5, "Тихие вечера", rating = "8.4", typeAndYear = "Сериал · 2020", high = true),
-        card(6, "Последний рейс", rating = "7.7", typeAndYear = "Фильм · 2024"),
-    )
-
-    private fun card(id: Int, title: String, rating: String?, typeAndYear: String, high: Boolean = false) = TitleCard(
-        id = id,
-        title = title,
-        posterUrl = "",
-        widePosterUrl = "",
-        rating = rating,
-        ratingHigh = high,
-        typeAndYear = typeAndYear,
-        yearAndLength = typeAndYear.substringAfter(" · "),
-        freshBadge = "Новинка",
+        sampleTitleCard(1, "Дом на краю карты", rating = "8.1", ratingHigh = true),
+        sampleTitleCard(2, "Северный ветер", rating = "7.4", typeAndYear = "Сериал · 2023"),
+        sampleTitleCard(3, "Полярный круг", typeAndYear = "Фильм · 2019"),
+        sampleTitleCard(4, "Код доступа", rating = "6.9", typeAndYear = "Фильм · 2021"),
+        sampleTitleCard(5, "Тихие вечера", rating = "8.4", ratingHigh = true, typeAndYear = "Сериал · 2020"),
+        sampleTitleCard(6, "Последний рейс", rating = "7.7", typeAndYear = "Фильм · 2024"),
     )
 
     /** Подборка в одну страницу: число тайтлов точное. */

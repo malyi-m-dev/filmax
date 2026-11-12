@@ -5,6 +5,8 @@ plugins {
 android { namespace = "com.filmax.feature.designsystem" }
 dependencies {
     implementation(project(":core:ui"))
+    // Подписи разделов и карточек — чистые функции core:presentation, их показывает и витрина.
+    implementation(project(":core:presentation"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:domain"))
     implementation(project(":core:navigation"))
