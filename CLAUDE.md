@@ -14,6 +14,12 @@
 - MVI на `BaseScreenModel<State, SideEffect, Event>`: события — через `dispatch(Event)`, State —
   неизменяемый снимок, SideEffect — одноразовые эффекты. Репозиторий отдаёт `RequestResult<T>`
   через `safeRequest` — никаких try/catch в ScreenModel.
+- Экран — пара: `XxxScreen(modifier, screenModel = koinViewModel(), navigator = koinInject())` собирает
+  state и `XxxActions` (с `None` для превью) и зовёт `internal fun XxxScreen(state, actions, modifier)`,
+  который рисуют превью (`@PhonePreviews` / `@TvPreviews` на образцах `XxxSamples`) и UI-тесты.
+  Модель владеет данными, тем, что открыто (диалоги, шторки, подтверждения, черновики) и выбрано, и
+  готовыми подписями — UI-модели `TitleCard`, `WatchCard`… в `core:presentation/cards`. В вёрстке —
+  только механика: прокрутка, фокус, замеры, анимации, жест в процессе. Подробно — §6 свода читаемости.
 - Навигация: экран не получает колбэков навигации и не знает `NavController`. Он называет адрес
   (`Destination`) и отдаёт его `Navigator` (`open` / `replace` / `root` / `back`). Адрес
   превращается в маршрут только в `:app` — таблицами `PhoneRoutes` и `TvRoutes`.
